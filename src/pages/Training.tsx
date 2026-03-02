@@ -159,16 +159,19 @@ export default function Training() {
   };
 
   useEffect(() => {
-    if (viewingItem) {
-      if (viewingItem.url.startsWith('http')) {
-        setViewingUrl(viewingItem.url);
-      } else {
-        getDownloadUrl(viewingItem.url).then(url => setViewingUrl(url));
-      }
-    } else {
+    if (!viewingItem) {
       setViewingUrl(null);
+      return;
     }
-  }, [viewingItem, getDownloadUrl]);
+    if (viewingItem.url.startsWith('http')) {
+      setViewingUrl(viewingItem.url);
+    } else if (viewingItem.url) {
+      getDownloadUrl(viewingItem.url).then(url => setViewingUrl(url));
+    }
+    // getDownloadUrl is not memoised in AppContext — omitting it from deps
+    // is intentional to prevent infinite re-fetch loops.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [viewingItem]);
 
   const handleSave = async () => {
     if (!formData.title || (!formData.url && !selectedFile)) return;
