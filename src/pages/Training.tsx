@@ -5,6 +5,7 @@ import { FAB } from '@/components/Layout';
 import { Modal } from '@/components/ui/Modal';
 import { useAuthorization } from '@/hooks/useAuthorization';
 import { useApp, TrainingItem } from '@/context/AppContext';
+import { supabase } from '@/lib/supabase';
 import { Document, Page, pdfjs } from 'react-pdf';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
@@ -179,9 +180,15 @@ export default function Training() {
     try {
       let finalUrl = formData.url;
       if (selectedFile) {
-        const path = `trainings/${Date.now()}_${selectedFile.name}`;
-        const uploadedPath = await uploadFile(selectedFile, path, 'documents');
-        if (uploadedPath) finalUrl = uploadedPath;
+        const sanitizedName = selectedFile.name
+          .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+          .replace(/[^a-zA-Z0-9.\-_]/g, '_');
+        const path = `${Date.now()}_${sanitizedName}`;
+        const uploadedPath = await uploadFile(selectedFile, path, 'trainings');
+        if (uploadedPath) {
+          const { data } = supabase.storage.from('trainings').getPublicUrl(uploadedPath);
+          finalUrl = data.publicUrl;
+        }
       }
 
       const payload = {
