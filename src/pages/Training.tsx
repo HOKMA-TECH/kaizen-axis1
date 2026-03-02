@@ -125,13 +125,14 @@ function PDFViewer({ url }: { url: string }) {
 
 export default function Training() {
   const { isBroker, canCreateStrategicResources } = useAuthorization();
-  const { trainings, addTraining, updateTraining, deleteTraining, uploadFile, getDownloadUrl } = useApp();
+  const { trainings, addTraining, updateTraining, deleteTraining, getDownloadUrl } = useApp();
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [viewingItem, setViewingItem] = useState<TrainingItem | null>(null);
   const [viewingUrl, setViewingUrl] = useState<string | null>(null);
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
 
   const [formData, setFormData] = useState<Partial<TrainingItem>>({
     title: '',
@@ -177,18 +178,35 @@ export default function Training() {
   const handleSave = async () => {
     if (!formData.title || (!formData.url && !selectedFile)) return;
     setIsSaving(true);
+    setUploadError(null);
     try {
-      let finalUrl = formData.url;
+      let finalUrl = formData.url || '';
+
       if (selectedFile) {
         const sanitizedName = selectedFile.name
           .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
           .replace(/[^a-zA-Z0-9.\-_]/g, '_');
         const path = `${Date.now()}_${sanitizedName}`;
-        const uploadedPath = await uploadFile(selectedFile, path, 'trainings');
-        if (uploadedPath) {
-          const { data } = supabase.storage.from('trainings').getPublicUrl(uploadedPath);
-          finalUrl = data.publicUrl;
+
+        const { data, error } = await supabase.storage
+          .from('trainings')
+          .upload(path, selectedFile, {
+            upsert: true,
+            contentType: selectedFile.type || 'application/octet-stream',
+          });
+
+        if (error) {
+          setUploadError(`Erro no upload: ${error.message}`);
+          return;
         }
+
+        const { data: urlData } = supabase.storage.from('trainings').getPublicUrl(data.path);
+        finalUrl = urlData.publicUrl;
+      }
+
+      if (!finalUrl) {
+        setUploadError('Adicione um arquivo ou link antes de salvar.');
+        return;
       }
 
       const payload = {
@@ -204,7 +222,7 @@ export default function Training() {
       } else {
         await addTraining({
           ...payload,
-          thumbnail: `https://picsum.photos/seed/${Date.now()}/400/300` // Placeholder thumbnail
+          thumbnail: `https://picsum.photos/seed/${Date.now()}/400/300`
         });
       }
 
@@ -380,8 +398,13 @@ export default function Training() {
             />
           </div>
 
+          {uploadError && (
+            <div className="text-red-600 text-sm p-3 bg-red-50 rounded-xl border border-red-200">
+              {uploadError}
+            </div>
+          )}
           <RoundedButton fullWidth onClick={handleSave} className="mt-4" disabled={isSaving}>
-            {isSaving ? 'Salvando...' : editingItemId ? 'Atualizar' : 'Adicionar'}
+            {isSaving ? 'Enviando arquivo...' : editingItemId ? 'Atualizar' : 'Adicionar'}
           </RoundedButton>
         </div>
       </Modal>
