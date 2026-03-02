@@ -21,7 +21,7 @@ function PDFViewer({ url }: { url: string }) {
   const scrollRef = React.useRef<HTMLDivElement>(null);
   const fullscreenRef = React.useRef<HTMLDivElement>(null);
 
-  // Measure the actual container width so the PDF page fits exactly
+  // Measure the actual container content width so the PDF page fits exactly
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
@@ -31,7 +31,6 @@ function PDFViewer({ url }: { url: string }) {
       }
     });
     ro.observe(el);
-    setContainerWidth(el.clientWidth);
     return () => ro.disconnect();
   }, []);
 
@@ -59,26 +58,28 @@ function PDFViewer({ url }: { url: string }) {
     setPageNumber(1);
   }
 
-  // Use container width minus a small padding, so the page never overflows
-  const pageWidth = containerWidth > 0 ? containerWidth - 8 : undefined;
+  // contentRect.width already excludes padding — use it directly as the page width
+  const pageWidth = containerWidth > 0 ? containerWidth : undefined;
 
   return (
     <div ref={fullscreenRef} className="flex flex-col w-full" style={{ height: isFullscreen ? '100vh' : '78vh', background: '#f3f4f6' }}>
       {/* Scrollable page area */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto flex flex-col items-center p-2 min-h-0">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto overflow-x-hidden flex flex-col items-center p-2 min-h-0 w-full">
         <Document
           file={url}
           onLoadSuccess={onDocumentLoadSuccess}
           loading={<div className="text-gray-500 animate-pulse p-10 text-sm">A carregar PDF...</div>}
           error={<div className="text-red-500 p-10 text-sm text-center">Não foi possível carregar o PDF.<br />Tente reenviar o arquivo.</div>}
         >
-          <Page
-            pageNumber={pageNumber}
-            renderTextLayer={false}
-            renderAnnotationLayer={false}
-            width={pageWidth}
-            className="shadow-lg"
-          />
+          {containerWidth > 0 && (
+            <Page
+              pageNumber={pageNumber}
+              renderTextLayer={false}
+              renderAnnotationLayer={false}
+              width={pageWidth}
+              className="shadow-lg"
+            />
+          )}
         </Document>
       </div>
 
