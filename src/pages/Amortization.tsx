@@ -138,8 +138,7 @@ function calcExtra(
   sys: System,
   extraMonth: number,
   extraValue: number,
-  i: number,
-  maxInstForPrice: number
+  i: number
 ): ExtraResult | null {
   if (extraMonth < 1 || extraMonth >= n || extraValue <= 0) return null;
   const row = base.rows[extraMonth - 1];
@@ -148,9 +147,8 @@ function calcExtra(
   const balAfterParcela = row.balEnd;
   const balanceAfterExtra = Math.max(0, balAfterParcela - extraValue);
   const remainingBefore = n - extraMonth;
-  // For PRICE: use the client's max installment capacity as reference (fixed installment = what client can pay)
-  // For SAC: use the actual installment at that month (it's decreasing)
-  const installmentBeforeExtra = sys === 'PRICE' ? maxInstForPrice : row.installment;
+  // SAC: installment at month M (decreasing). PRICE: all installments = base.pmt (fixed).
+  const installmentBeforeExtra = row.installment;
 
   let optA: ExtraResult['optA'];
   let optB: ExtraResult['optB'];
@@ -206,15 +204,13 @@ function calcExtra(
       newMonthlyAmort: newSacA,
     };
   } else {
-    // PRICE
-    // pmtRef = the installment the client can/will afford (max 30% of income).
-    // This is the "ceiling" installment used in PRICE: client pays this fixed amount every month.
-    const pmtRef = maxInstForPrice > 0 ? maxInstForPrice : base.pmt;
-    const pmt = base.pmt; // computed PMT (used to project the original remaining interest baseline)
+    // PRICE — installment is fixed throughout = base.pmt (the computed PMT).
+    // This is the reference for both options.
+    const pmt = base.pmt;
 
-    // Option A — keep paying pmtRef, fewer months
+    // Option A — keep paying same PMT, finish earlier
     const newMonthsA = Math.ceil(
-      Math.log(pmtRef / (pmtRef - balanceAfterExtra * i)) / Math.log(1 + i)
+      Math.log(pmt / (pmt - balanceAfterExtra * i)) / Math.log(1 + i)
     );
     const savedMonths = remainingBefore - newMonthsA;
 
@@ -223,7 +219,7 @@ function calcExtra(
     for (let k = 0; k < newMonthsA && bA > 0.01; k++) {
       const jk = bA * i;
       intA += jk;
-      bA -= Math.min(pmtRef - jk, bA);
+      bA -= Math.min(pmt - jk, bA);
     }
     let intOrigRem = 0;
     let bOrig = balAfterParcela;
@@ -237,17 +233,16 @@ function calcExtra(
       newMonths: newMonthsA,
       savedMonths,
       savedYears: parseFloat((savedMonths / 12).toFixed(1)),
-      nextInstallment: pmtRef, // client continues paying the same max installment
+      nextInstallment: pmt,
       totalInterestSaved: intOrigRem - intA,
     };
 
-    // Option B — same term, new lower PMT
+    // Option B — same term, lower PMT
     const newPmt =
       balanceAfterExtra *
       (i * Math.pow(1 + i, remainingBefore)) /
       (Math.pow(1 + i, remainingBefore) - 1);
-    // Reduction is from the client's reference installment (pmtRef) to the new PMT
-    const reduction = pmtRef - newPmt;
+    const reduction = pmt - newPmt;
 
     let intB = 0;
     let bB = balanceAfterExtra;
@@ -392,8 +387,8 @@ export default function Amortization() {
   // ── Extra simulation
   const extra = useMemo(() => {
     if (!base || extraMonth < 1 || extraValue <= 0) return null;
-    return calcExtra(base, n, system, extraMonth, extraValue, base.monthlyRate, maxInstallment);
-  }, [base, n, system, extraMonth, extraValue, maxInstallment]);
+    return calcExtra(base, n, system, extraMonth, extraValue, base.monthlyRate);
+  }, [base, n, system, extraMonth, extraValue]);
 
   const incomeOk = base ? base.firstInstallment <= maxInstallment : null;
 
