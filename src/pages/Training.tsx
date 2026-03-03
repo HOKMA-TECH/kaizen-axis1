@@ -107,18 +107,41 @@ export default function Training() {
           .replace(/[^a-zA-Z0-9.\-_]/g, '_');
         const path = `${Date.now()}_${sanitizedName}`;
 
-        const { data, error } = await supabase.storage
-          .from('trainings')
-          .upload(path, selectedFile, {
-            contentType: selectedFile.type || 'application/octet-stream',
-          });
-
-        if (error) {
-          setUploadError(`Erro no upload: ${error.message}`);
+        // Upload direto via fetch (evita o protocolo TUS/multipart do SDK
+        // que causa erro falso de "tamanho" para arquivos > 6 MB)
+        const { data: sessionData } = await supabase.auth.getSession();
+        const token = sessionData?.session?.access_token;
+        if (!token) {
+          setUploadError('Sessão expirada. Faça login novamente.');
           return;
         }
 
-        const { data: urlData } = supabase.storage.from('trainings').getPublicUrl(data.path);
+        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
+        const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
+        const uploadUrl = `${supabaseUrl}/storage/v1/object/trainings/${path}`;
+
+        const uploadResponse = await fetch(uploadUrl, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'apikey': anonKey,
+            'Content-Type': selectedFile.type || 'application/octet-stream',
+            'x-upsert': 'false',
+          },
+          body: selectedFile,
+        });
+
+        if (!uploadResponse.ok) {
+          let errMsg = `HTTP ${uploadResponse.status}`;
+          try {
+            const errJson = await uploadResponse.json();
+            errMsg = errJson.message || errJson.error || errMsg;
+          } catch { /* ignore json parse error */ }
+          setUploadError(`Erro no upload: ${errMsg}`);
+          return;
+        }
+
+        const { data: urlData } = supabase.storage.from('trainings').getPublicUrl(path);
         finalUrl = urlData.publicUrl;
       }
 
