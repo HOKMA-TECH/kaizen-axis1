@@ -105,7 +105,65 @@ function PDFViewer({ url }: { url: string }) {
   );
 }
 // ----------------------------------------------------
+// Detecta duração de vídeo YouTube via IFrame Player API (sem API key)
+function getYouTubeDuration(videoId: string): Promise<string | null> {
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => resolve(null), 10000);
 
+    const createPlayer = () => {
+      const container = document.createElement('div');
+      container.style.cssText = 'position:absolute;width:1px;height:1px;opacity:0;pointer-events:none';
+      document.body.appendChild(container);
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const player = new (window as any).YT.Player(container, {
+          videoId,
+          playerVars: { autoplay: 0, mute: 1 },
+          events: {
+            onReady: (e: any) => {
+              clearTimeout(timer);
+              const secs: number = e.target.getDuration();
+              if (secs > 0) {
+                const m = Math.floor(secs / 60);
+                const s = Math.round(secs % 60);
+                resolve(`${m}:${s.toString().padStart(2, '0')} min`);
+              } else {
+                resolve(null);
+              }
+              try { player.destroy(); } catch { }
+              container.remove();
+            },
+            onError: () => {
+              clearTimeout(timer);
+              resolve(null);
+              try { player.destroy(); } catch { }
+              container.remove();
+            },
+          },
+        });
+      } catch {
+        clearTimeout(timer);
+        resolve(null);
+        container.remove();
+      }
+    };
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    if ((window as any).YT?.Player) {
+      createPlayer();
+    } else {
+      if (!document.querySelector('script[src*="youtube.com/iframe_api"]')) {
+        const s = document.createElement('script');
+        s.src = 'https://www.youtube.com/iframe_api';
+        document.head.appendChild(s);
+      }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const prev = (window as any).onYouTubeIframeAPIReady;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (window as any).onYouTubeIframeAPIReady = () => { if (prev) prev(); createPlayer(); };
+    }
+  });
+}
 
 export default function Training() {
   const { isBroker, canCreateStrategicResources } = useAuthorization();
@@ -204,16 +262,21 @@ export default function Training() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedFile]);
 
-  // --- Auto-thumbnail para YouTube quando URL mudar ---
+  // --- Auto-thumbnail e duração para YouTube quando URL mudar ---
   useEffect(() => {
     const url = formData.url || '';
     if (formData.type !== 'Vídeo') return;
     if (!url) { resetAutoMeta(); return; }
     const match = url.match(/(?:v=|youtu\.be\/|shorts\/)([\w-]{11})/);
     if (match) {
-      const thumb = `https://img.youtube.com/vi/${match[1]}/mqdefault.jpg`;
+      const videoId = match[1];
+      const thumb = `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`;
       setAutoThumbnailUrl(thumb);
       setPreviewThumb(thumb);
+      // Buscar duração em background via YouTube IFrame Player API
+      getYouTubeDuration(videoId).then(dur => {
+        if (dur) setFormData(prev => ({ ...prev, duration: dur }));
+      });
     } else {
       resetAutoMeta();
     }
