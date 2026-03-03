@@ -432,25 +432,45 @@ export default function Training() {
                 <div className="p-8 text-center text-white"><p>Carregando mídia...</p></div>
               ) : (
                 <>
-                  {viewingItem.type === 'Vídeo' && (
-                    (viewingUrl.includes('youtube.com') || viewingUrl.includes('youtu.be')) ? (
-                      <iframe
-                        src={viewingUrl}
-                        className="w-full aspect-video"
-                        title={viewingItem.title}
-                        frameBorder="0"
-                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                        allowFullScreen
-                      />
-                    ) : (
+                  {viewingItem.type === 'Vídeo' && (() => {
+                    const isYT = viewingUrl.includes('youtube.com') || viewingUrl.includes('youtu.be');
+                    if (isYT) {
+                      // Converte qualquer URL do YouTube para o formato embed
+                      const toEmbedUrl = (url: string) => {
+                        try {
+                          const u = new URL(url);
+                          let videoId = '';
+                          if (u.hostname.includes('youtu.be')) {
+                            videoId = u.pathname.slice(1);
+                          } else {
+                            videoId = u.searchParams.get('v') ||
+                              u.pathname.replace('/shorts/', '').replace('/embed/', '').slice(1);
+                          }
+                          return `https://www.youtube.com/embed/${videoId}`;
+                        } catch {
+                          return url;
+                        }
+                      };
+                      return (
+                        <iframe
+                          src={toEmbedUrl(viewingUrl)}
+                          className="w-full aspect-video"
+                          title={viewingItem.title}
+                          frameBorder="0"
+                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                          allowFullScreen
+                        />
+                      );
+                    }
+                    return (
                       <video
                         src={viewingUrl}
                         controls
                         className="w-full aspect-video outline-none"
                         title={viewingItem.title}
                       />
-                    )
-                  )}
+                    );
+                  })()}
 
                   {viewingItem.type === 'Imagem' && (
                     <img
