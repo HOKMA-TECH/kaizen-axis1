@@ -335,29 +335,53 @@ export default function Training() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-text-secondary mb-1">Mídia (Upload ou Link)</label>
+            <label className="block text-sm font-medium text-text-secondary mb-1">Mídia</label>
             <div className="flex flex-col gap-2">
-              <input
-                type="file"
-                accept={formData.type === 'Vídeo' ? 'video/*' : formData.type === 'PDF' ? 'application/pdf' : 'image/*'}
-                onChange={(e) => {
-                  if (e.target.files && e.target.files[0]) {
-                    setSelectedFile(e.target.files[0]);
-                    setFormData(prev => ({ ...prev, url: '' }));
-                  }
-                }}
-                className="w-full p-2 bg-surface-50 rounded-xl border border-surface-200 text-sm focus:ring-2 focus:ring-gold-200 dark:focus:ring-gold-800"
-              />
-              <span className="text-xs text-center text-text-secondary">OU INSIRA UM LINK EXTERNO (Ex: YouTube)</span>
-              <input
-                value={formData.url || ''}
-                onChange={(e) => {
-                  setFormData(prev => ({ ...prev, url: e.target.value }));
-                  setSelectedFile(null);
-                }}
-                className="w-full p-3 bg-surface-50 rounded-xl border-none focus:ring-2 focus:ring-gold-200 dark:focus:ring-gold-800 text-text-primary"
-                placeholder="https://..."
-              />
+              {formData.type === 'Vídeo' ? (
+                /* Vídeos: apenas link externo (YouTube/Vimeo) */
+                <div className="p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl">
+                  <p className="text-xs text-amber-700 dark:text-amber-400 font-medium mb-2">
+                    🎬 Para vídeos, use um link do YouTube ou Vimeo.
+                  </p>
+                  <p className="text-xs text-amber-600 dark:text-amber-500 mb-3">
+                    Suba o vídeo no YouTube (pode ser não listado) e cole o link abaixo.
+                  </p>
+                  <input
+                    value={formData.url || ''}
+                    onChange={(e) => {
+                      setFormData(prev => ({ ...prev, url: e.target.value }));
+                      setSelectedFile(null);
+                    }}
+                    className="w-full p-3 bg-white dark:bg-surface-800 rounded-xl border border-amber-200 dark:border-amber-800 focus:ring-2 focus:ring-amber-300 text-text-primary text-sm"
+                    placeholder="https://youtube.com/watch?v=..."
+                  />
+                </div>
+              ) : (
+                /* PDF e Imagem: upload de arquivo ou link externo */
+                <>
+                  <input
+                    type="file"
+                    accept={formData.type === 'PDF' ? 'application/pdf' : 'image/*'}
+                    onChange={(e) => {
+                      if (e.target.files && e.target.files[0]) {
+                        setSelectedFile(e.target.files[0]);
+                        setFormData(prev => ({ ...prev, url: '' }));
+                      }
+                    }}
+                    className="w-full p-2 bg-surface-50 rounded-xl border border-surface-200 text-sm focus:ring-2 focus:ring-gold-200 dark:focus:ring-gold-800"
+                  />
+                  <span className="text-xs text-center text-text-secondary">OU INSIRA UM LINK EXTERNO</span>
+                  <input
+                    value={formData.url || ''}
+                    onChange={(e) => {
+                      setFormData(prev => ({ ...prev, url: e.target.value }));
+                      setSelectedFile(null);
+                    }}
+                    className="w-full p-3 bg-surface-50 rounded-xl border-none focus:ring-2 focus:ring-gold-200 dark:focus:ring-gold-800 text-text-primary"
+                    placeholder="https://..."
+                  />
+                </>
+              )}
             </div>
           </div>
 
