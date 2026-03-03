@@ -6,6 +6,7 @@ import { FAB } from '@/components/Layout';
 import { Modal } from '@/components/ui/Modal';
 import { useApp, Development } from '@/context/AppContext';
 import { useAuthorization } from '@/hooks/useAuthorization';
+import { supabase } from '@/lib/supabase';
 
 export default function Developments() {
   const navigate = useNavigate();
@@ -24,6 +25,17 @@ export default function Developments() {
 
   const [newDev, setNewDev] = useState<Partial<Development>>(initialDevState);
   const [differentialsInput, setDifferentialsInput] = useState('');
+  const [uploadingImages, setUploadingImages] = useState(false);
+  const [uploadingBook, setUploadingBook] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+
+  const uploadToStorage = async (file: File, path: string): Promise<string | null> => {
+    const sanitized = path.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9.\-_/]/g, '_');
+    const { error } = await supabase.storage.from('developments').upload(sanitized, file, { upsert: true, contentType: file.type });
+    if (error) { console.error('Upload error:', error.message); return null; }
+    const { data } = supabase.storage.from('developments').getPublicUrl(sanitized);
+    return data.publicUrl;
+  };
 
   const filteredDevelopments = developments.filter(dev =>
     dev.name.toLowerCase().includes(filter.toLowerCase()) ||
@@ -40,25 +52,37 @@ export default function Developments() {
     setNewDev(prev => ({ ...prev, contact: { ...prev.contact!, [name]: value } }));
   };
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const fileUrl = URL.createObjectURL(e.target.files[0]);
-      setNewDev(prev => ({ ...prev, images: [...(prev.images || []), fileUrl] }));
-    }
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingImages(true);
+    const path = `images/${Date.now()}_${file.name}`;
+    const url = await uploadToStorage(file, path);
+    if (url) setNewDev(prev => ({ ...prev, images: [...(prev.images || []), url] }));
+    setUploadingImages(false);
+    e.target.value = '';
   };
 
-  const handleBookUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const fileUrl = URL.createObjectURL(e.target.files[0]);
-      setNewDev(prev => ({ ...prev, book_pdf_url: fileUrl }));
-    }
+  const handleBookUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingBook(true);
+    const path = `pdf/${Date.now()}_${file.name}`;
+    const url = await uploadToStorage(file, path);
+    if (url) setNewDev(prev => ({ ...prev, book_pdf_url: url }));
+    setUploadingBook(false);
+    e.target.value = '';
   };
 
-  const handleAvatarUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const fileUrl = URL.createObjectURL(e.target.files[0]);
-      setNewDev(prev => ({ ...prev, contact: { ...prev.contact!, avatar: fileUrl } }));
-    }
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingAvatar(true);
+    const path = `avatars/${Date.now()}_${file.name}`;
+    const url = await uploadToStorage(file, path);
+    if (url) setNewDev(prev => ({ ...prev, contact: { ...prev.contact!, avatar: url } }));
+    setUploadingAvatar(false);
+    e.target.value = '';
   };
 
   const handleOpenModal = (dev?: Development) => {
@@ -246,10 +270,10 @@ export default function Developments() {
             <div>
               <label className="block text-xs font-medium text-text-secondary mb-2">Fotos</label>
               <div className="flex items-center gap-4 overflow-x-auto pb-2">
-                <label className="w-20 h-20 flex flex-col items-center justify-center bg-surface-50 border-2 border-dashed border-surface-200 rounded-xl cursor-pointer hover:bg-surface-100 flex-shrink-0">
-                  <Upload size={20} className="text-text-secondary" />
-                  <span className="text-[10px] text-text-secondary mt-1">Adicionar</span>
-                  <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
+                <label className={`w-20 h-20 flex flex-col items-center justify-center bg-surface-50 border-2 border-dashed border-surface-200 rounded-xl cursor-pointer hover:bg-surface-100 flex-shrink-0 ${uploadingImages ? 'pointer-events-none opacity-60' : ''}`}>
+                  {uploadingImages ? <Loader2 size={20} className="animate-spin text-gold-400" /> : <Upload size={20} className="text-text-secondary" />}
+                  <span className="text-[10px] text-text-secondary mt-1">{uploadingImages ? 'Enviando...' : 'Adicionar'}</span>
+                  <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} disabled={uploadingImages} />
                 </label>
                 {newDev.images?.map((img, idx) => (
                   <div key={idx} className="relative w-20 h-20 rounded-xl overflow-hidden flex-shrink-0 group">
@@ -263,10 +287,10 @@ export default function Developments() {
             <div>
               <label className="block text-xs font-medium text-text-secondary mb-2">Book Digital (PDF)</label>
               <div className="flex items-center gap-3">
-                <label className="flex items-center gap-2 px-4 py-2 bg-surface-50 rounded-lg cursor-pointer hover:bg-surface-100 border border-surface-200">
-                  <Upload size={16} className="text-text-secondary" />
-                  <span className="text-sm text-text-primary">Upload PDF</span>
-                  <input type="file" accept="application/pdf" className="hidden" onChange={handleBookUpload} />
+                <label className={`flex items-center gap-2 px-4 py-2 bg-surface-50 rounded-lg cursor-pointer hover:bg-surface-100 border border-surface-200 ${uploadingBook ? 'pointer-events-none opacity-60' : ''}`}>
+                  {uploadingBook ? <Loader2 size={16} className="animate-spin text-gold-400" /> : <Upload size={16} className="text-text-secondary" />}
+                  <span className="text-sm text-text-primary">{uploadingBook ? 'Enviando...' : 'Upload PDF'}</span>
+                  <input type="file" accept="application/pdf" className="hidden" onChange={handleBookUpload} disabled={uploadingBook} />
                 </label>
                 {newDev.book_pdf_url && (
                   <div className="flex items-center gap-2 text-sm text-green-600 bg-green-50 px-3 py-1 rounded-lg">
@@ -288,8 +312,8 @@ export default function Developments() {
                   <div className="w-full h-full flex items-center justify-center text-text-secondary"><ImageIcon size={24} /></div>
                 )}
                 <label className="absolute inset-0 bg-black/30 flex items-center justify-center opacity-0 hover:opacity-100 cursor-pointer transition-opacity">
-                  <Upload size={16} className="text-white" />
-                  <input type="file" accept="image/*" className="hidden" onChange={handleAvatarUpload} />
+                  {uploadingAvatar ? <Loader2 size={16} className="animate-spin text-white" /> : <Upload size={16} className="text-white" />}
+                  <input type="file" accept="image/*" className="hidden" onChange={handleAvatarUpload} disabled={uploadingAvatar} />
                 </label>
               </div>
               <div className="flex-1 space-y-2">
