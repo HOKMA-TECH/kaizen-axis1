@@ -27,14 +27,51 @@ export default function Developments() {
   const [differentialsInput, setDifferentialsInput] = useState('');
   const [uploadingImages, setUploadingImages] = useState(false);
   const [uploadingBook, setUploadingBook] = useState(false);
+  const [bookUploadProgress, setBookUploadProgress] = useState<number | null>(null);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
 
+  const sanitizePath = (path: string) =>
+    path.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9.\-_/]/g, '_');
+
+  // Upload simples (imagens pequenas)
   const uploadToStorage = async (file: File, path: string): Promise<string | null> => {
-    const sanitized = path.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9.\-_/]/g, '_');
+    const sanitized = sanitizePath(path);
     const { error } = await supabase.storage.from('developments').upload(sanitized, file, { upsert: true, contentType: file.type });
     if (error) { console.error('Upload error:', error.message); return null; }
     const { data } = supabase.storage.from('developments').getPublicUrl(sanitized);
     return data.publicUrl;
+  };
+
+  // Upload com progresso via XHR (PDFs grandes)
+  const uploadWithProgress = (file: File, path: string, onProgress: (pct: number) => void): Promise<string | null> => {
+    return new Promise(async (resolve) => {
+      const sanitized = sanitizePath(path);
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token || (import.meta.env.VITE_SUPABASE_ANON_KEY as string);
+
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', `${supabaseUrl}/storage/v1/object/developments/${sanitized}`);
+      xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+      xhr.setRequestHeader('apikey', import.meta.env.VITE_SUPABASE_ANON_KEY as string);
+      xhr.setRequestHeader('Content-Type', file.type || 'application/octet-stream');
+      xhr.setRequestHeader('x-upsert', 'true');
+
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable) onProgress(Math.round((e.loaded / e.total) * 100));
+      };
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          const { data } = supabase.storage.from('developments').getPublicUrl(sanitized);
+          resolve(data.publicUrl);
+        } else {
+          console.error('Book upload failed:', xhr.status, xhr.responseText);
+          resolve(null);
+        }
+      };
+      xhr.onerror = () => { console.error('Book upload network error'); resolve(null); };
+      xhr.send(file);
+    });
   };
 
   const filteredDevelopments = developments.filter(dev =>
@@ -67,10 +104,12 @@ export default function Developments() {
     const file = e.target.files?.[0];
     if (!file) return;
     setUploadingBook(true);
+    setBookUploadProgress(0);
     const path = `pdf/${Date.now()}_${file.name}`;
-    const url = await uploadToStorage(file, path);
+    const url = await uploadWithProgress(file, path, setBookUploadProgress);
     if (url) setNewDev(prev => ({ ...prev, book_pdf_url: url }));
     setUploadingBook(false);
+    setBookUploadProgress(null);
     e.target.value = '';
   };
 
@@ -286,18 +325,29 @@ export default function Developments() {
             </div>
             <div>
               <label className="block text-xs font-medium text-text-secondary mb-2">Book Digital (PDF)</label>
-              <div className="flex items-center gap-3">
-                <label className={`flex items-center gap-2 px-4 py-2 bg-surface-50 rounded-lg cursor-pointer hover:bg-surface-100 border border-surface-200 ${uploadingBook ? 'pointer-events-none opacity-60' : ''}`}>
-                  {uploadingBook ? <Loader2 size={16} className="animate-spin text-gold-400" /> : <Upload size={16} className="text-text-secondary" />}
-                  <span className="text-sm text-text-primary">{uploadingBook ? 'Enviando...' : 'Upload PDF'}</span>
-                  <input type="file" accept="application/pdf" className="hidden" onChange={handleBookUpload} disabled={uploadingBook} />
-                </label>
-                {newDev.book_pdf_url && (
-                  <div className="flex items-center gap-2 text-sm text-green-600 bg-green-50 px-3 py-1 rounded-lg">
-                    <FileText size={14} /><span>Book anexado</span>
-                    <button onClick={() => setNewDev(p => ({ ...p, book_pdf_url: undefined }))} className="text-red-500 ml-2"><X size={14} /></button>
+              <div className="space-y-2">
+                <div className="flex items-center gap-3">
+                  <label className={`flex items-center gap-2 px-4 py-2 bg-surface-50 rounded-lg cursor-pointer hover:bg-surface-100 border border-surface-200 ${uploadingBook ? 'pointer-events-none opacity-60' : ''}`}>
+                    {uploadingBook ? <Loader2 size={16} className="animate-spin text-gold-400" /> : <Upload size={16} className="text-text-secondary" />}
+                    <span className="text-sm text-text-primary">{uploadingBook ? `Enviando... ${bookUploadProgress ?? 0}%` : 'Upload PDF'}</span>
+                    <input type="file" accept="application/pdf,.pdf" className="hidden" onChange={handleBookUpload} disabled={uploadingBook} />
+                  </label>
+                  {newDev.book_pdf_url && !uploadingBook && (
+                    <div className="flex items-center gap-2 text-sm text-green-600 bg-green-50 px-3 py-1 rounded-lg">
+                      <FileText size={14} /><span>Book anexado</span>
+                      <button onClick={() => setNewDev(p => ({ ...p, book_pdf_url: undefined }))} className="text-red-500 ml-2"><X size={14} /></button>
+                    </div>
+                  )}
+                </div>
+                {uploadingBook && bookUploadProgress !== null && (
+                  <div className="w-full bg-surface-100 rounded-full h-2 overflow-hidden">
+                    <div
+                      className="h-full bg-gold-400 rounded-full transition-all duration-300"
+                      style={{ width: `${bookUploadProgress}%` }}
+                    />
                   </div>
                 )}
+                <p className="text-[11px] text-text-secondary">Máximo recomendado: 500 MB. Para arquivos maiores, use o plano Pro do Supabase.</p>
               </div>
             </div>
           </section>
