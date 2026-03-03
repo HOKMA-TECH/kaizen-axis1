@@ -138,7 +138,8 @@ function calcExtra(
   sys: System,
   extraMonth: number,
   extraValue: number,
-  i: number
+  i: number,
+  maxInstForPrice: number
 ): ExtraResult | null {
   if (extraMonth < 1 || extraMonth >= n || extraValue <= 0) return null;
   const row = base.rows[extraMonth - 1];
@@ -147,7 +148,9 @@ function calcExtra(
   const balAfterParcela = row.balEnd;
   const balanceAfterExtra = Math.max(0, balAfterParcela - extraValue);
   const remainingBefore = n - extraMonth;
-  const installmentBeforeExtra = row.installment;
+  // For PRICE: use the client's max installment capacity as reference (fixed installment = what client can pay)
+  // For SAC: use the actual installment at that month (it's decreasing)
+  const installmentBeforeExtra = sys === 'PRICE' ? maxInstForPrice : row.installment;
 
   let optA: ExtraResult['optA'];
   let optB: ExtraResult['optB'];
@@ -204,11 +207,14 @@ function calcExtra(
     };
   } else {
     // PRICE
-    const pmt = base.pmt;
+    // pmtRef = the installment the client can/will afford (max 30% of income).
+    // This is the "ceiling" installment used in PRICE: client pays this fixed amount every month.
+    const pmtRef = maxInstForPrice > 0 ? maxInstForPrice : base.pmt;
+    const pmt = base.pmt; // computed PMT (used to project the original remaining interest baseline)
 
-    // Option A — same PMT, fewer months
+    // Option A — keep paying pmtRef, fewer months
     const newMonthsA = Math.ceil(
-      Math.log(pmt / (pmt - balanceAfterExtra * i)) / Math.log(1 + i)
+      Math.log(pmtRef / (pmtRef - balanceAfterExtra * i)) / Math.log(1 + i)
     );
     const savedMonths = remainingBefore - newMonthsA;
 
@@ -217,7 +223,7 @@ function calcExtra(
     for (let k = 0; k < newMonthsA && bA > 0.01; k++) {
       const jk = bA * i;
       intA += jk;
-      bA -= Math.min(pmt - jk, bA);
+      bA -= Math.min(pmtRef - jk, bA);
     }
     let intOrigRem = 0;
     let bOrig = balAfterParcela;
@@ -231,16 +237,17 @@ function calcExtra(
       newMonths: newMonthsA,
       savedMonths,
       savedYears: parseFloat((savedMonths / 12).toFixed(1)),
-      nextInstallment: pmt,
+      nextInstallment: pmtRef, // client continues paying the same max installment
       totalInterestSaved: intOrigRem - intA,
     };
 
-    // Option B — same term, lower PMT
+    // Option B — same term, new lower PMT
     const newPmt =
       balanceAfterExtra *
       (i * Math.pow(1 + i, remainingBefore)) /
       (Math.pow(1 + i, remainingBefore) - 1);
-    const reduction = pmt - newPmt;
+    // Reduction is from the client's reference installment (pmtRef) to the new PMT
+    const reduction = pmtRef - newPmt;
 
     let intB = 0;
     let bB = balanceAfterExtra;
@@ -279,15 +286,15 @@ function MetricCard({
 }) {
   return (
     <div className={`rounded-xl p-3 border ${highlight ? 'bg-gold-50 dark:bg-gold-900/20 border-gold-200 dark:border-gold-800/30'
-        : warn ? 'bg-red-50 dark:bg-red-900/10 border-red-200 dark:border-red-900/20'
-          : green ? 'bg-green-50 dark:bg-green-900/10 border-green-200 dark:border-green-900/20'
-            : 'bg-surface-100 border-surface-200'
+      : warn ? 'bg-red-50 dark:bg-red-900/10 border-red-200 dark:border-red-900/20'
+        : green ? 'bg-green-50 dark:bg-green-900/10 border-green-200 dark:border-green-900/20'
+          : 'bg-surface-100 border-surface-200'
       }`}>
       <p className="text-xs text-text-secondary mb-1">{label}</p>
       <p className={`text-sm font-bold ${highlight ? 'text-gold-700 dark:text-gold-400'
-          : warn ? 'text-red-600 dark:text-red-400'
-            : green ? 'text-green-700 dark:text-green-400'
-              : 'text-text-primary'
+        : warn ? 'text-red-600 dark:text-red-400'
+          : green ? 'text-green-700 dark:text-green-400'
+            : 'text-text-primary'
         }`}>{value}</p>
       {sub && <p className="text-xs text-text-secondary mt-0.5">{sub}</p>}
     </div>
@@ -308,10 +315,10 @@ function InputField({
   highlight?: boolean;
 }) {
   const inputClass = `w-full p-3 rounded-xl border ${readOnly
-      ? 'bg-surface-100 dark:bg-surface-200 border-surface-200 font-semibold text-text-primary cursor-default'
-      : highlight
-        ? 'bg-gold-50 dark:bg-gold-900/10 border-gold-300 dark:border-gold-700 focus:ring-2 focus:ring-gold-400 outline-none'
-        : 'bg-surface-50 dark:bg-surface-100 border-surface-200 focus:ring-2 focus:ring-gold-400 focus:border-transparent outline-none'
+    ? 'bg-surface-100 dark:bg-surface-200 border-surface-200 font-semibold text-text-primary cursor-default'
+    : highlight
+      ? 'bg-gold-50 dark:bg-gold-900/10 border-gold-300 dark:border-gold-700 focus:ring-2 focus:ring-gold-400 outline-none'
+      : 'bg-surface-50 dark:bg-surface-100 border-surface-200 focus:ring-2 focus:ring-gold-400 focus:border-transparent outline-none'
     } text-text-primary transition-all text-sm`;
 
   return (
@@ -385,8 +392,8 @@ export default function Amortization() {
   // ── Extra simulation
   const extra = useMemo(() => {
     if (!base || extraMonth < 1 || extraValue <= 0) return null;
-    return calcExtra(base, n, system, extraMonth, extraValue, base.monthlyRate);
-  }, [base, n, system, extraMonth, extraValue]);
+    return calcExtra(base, n, system, extraMonth, extraValue, base.monthlyRate, maxInstallment);
+  }, [base, n, system, extraMonth, extraValue, maxInstallment]);
 
   const incomeOk = base ? base.firstInstallment <= maxInstallment : null;
 
@@ -454,10 +461,10 @@ export default function Amortization() {
               </div>
 
               <div className={`rounded-xl border p-3 sm:col-span-2 flex items-center justify-between ${base && incomeOk === false
-                  ? 'bg-red-50 dark:bg-red-900/10 border-red-200 dark:border-red-800/30'
-                  : base && incomeOk
-                    ? 'bg-green-50 dark:bg-green-900/10 border-green-200 dark:border-green-800/30'
-                    : 'bg-surface-100 border-surface-200'
+                ? 'bg-red-50 dark:bg-red-900/10 border-red-200 dark:border-red-800/30'
+                : base && incomeOk
+                  ? 'bg-green-50 dark:bg-green-900/10 border-green-200 dark:border-green-800/30'
+                  : 'bg-surface-100 border-surface-200'
                 }`}>
                 <div>
                   <p className="text-xs text-text-secondary font-medium mb-0.5">Parcela Máxima (30% da renda)</p>
@@ -508,8 +515,8 @@ export default function Amortization() {
                       key={s}
                       onClick={() => setSystem(s)}
                       className={`flex-1 p-2.5 rounded-xl text-sm font-semibold border transition-all ${system === s
-                          ? 'bg-gold-400 text-white border-gold-400 shadow-md shadow-gold-400/20'
-                          : 'bg-surface-50 dark:bg-surface-100 border-surface-200 text-text-secondary hover:border-gold-300'
+                        ? 'bg-gold-400 text-white border-gold-400 shadow-md shadow-gold-400/20'
+                        : 'bg-surface-50 dark:bg-surface-100 border-surface-200 text-text-secondary hover:border-gold-300'
                         }`}
                     >
                       {s}
@@ -750,12 +757,12 @@ export default function Amortization() {
                                 <tr
                                   key={row.k}
                                   className={`border-b border-surface-100 dark:border-surface-200 last:border-0 ${row.isExtra
-                                      ? 'bg-amber-50 dark:bg-amber-900/20'
-                                      : isFirstLast
-                                        ? 'bg-gold-50 dark:bg-gold-900/10'
-                                        : isYearMark
-                                          ? 'bg-blue-50 dark:bg-blue-900/10'
-                                          : 'hover:bg-surface-100 dark:hover:bg-surface-200'
+                                    ? 'bg-amber-50 dark:bg-amber-900/20'
+                                    : isFirstLast
+                                      ? 'bg-gold-50 dark:bg-gold-900/10'
+                                      : isYearMark
+                                        ? 'bg-blue-50 dark:bg-blue-900/10'
+                                        : 'hover:bg-surface-100 dark:hover:bg-surface-200'
                                     }`}
                                 >
                                   <td className="px-3 py-2 font-medium">
