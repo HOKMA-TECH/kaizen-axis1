@@ -437,13 +437,13 @@ export default function Training() {
               <div className="mt-2">
                 <div className="flex justify-between text-xs mb-1">
                   <span className={item.progress === 100 ? 'text-green-600 dark:text-green-400 font-medium' : 'text-text-secondary'}>
-                    {item.progress === 100 ? 'Concluído' : `${item.progress}%`}
+                    {(item.progress ?? 0) === 100 ? 'Concluído' : `${item.progress ?? 0}%`}
                   </span>
                 </div>
                 <div className="h-1.5 w-full bg-surface-200 rounded-full overflow-hidden">
                   <div
-                    className={`h-full rounded-full ${item.progress === 100 ? 'bg-green-500' : 'bg-gold-400'}`}
-                    style={{ width: `${item.progress}%` }}
+                    className={`h-full rounded-full ${(item.progress ?? 0) === 100 ? 'bg-green-500' : 'bg-gold-400'}`}
+                    style={{ width: `${item.progress ?? 0}%` }}
                   ></div>
                 </div>
               </div>
