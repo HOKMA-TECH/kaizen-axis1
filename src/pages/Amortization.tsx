@@ -138,7 +138,8 @@ function calcExtra(
   sys: System,
   extraMonth: number,
   extraValue: number,
-  i: number
+  i: number,
+  maxInstForPrice = 0
 ): ExtraResult | null {
   if (extraMonth < 1 || extraMonth >= n || extraValue <= 0) return null;
   const row = base.rows[extraMonth - 1];
@@ -147,8 +148,10 @@ function calcExtra(
   const balAfterParcela = row.balEnd;
   const balanceAfterExtra = Math.max(0, balAfterParcela - extraValue);
   const remainingBefore = n - extraMonth;
-  // SAC: installment at month M (decreasing). PRICE: all installments = base.pmt (fixed).
-  const installmentBeforeExtra = row.installment;
+  // SAC: actual installment at month M (decreasing over time)
+  // PRICE: use client's max capacity (renda×30%) as the "before" reference for Card B display
+  const installmentBeforeExtra =
+    sys === 'PRICE' && maxInstForPrice > 0 ? maxInstForPrice : row.installment;
 
   let optA: ExtraResult['optA'];
   let optB: ExtraResult['optB'];
@@ -242,7 +245,9 @@ function calcExtra(
       balanceAfterExtra *
       (i * Math.pow(1 + i, remainingBefore)) /
       (Math.pow(1 + i, remainingBefore) - 1);
-    const reduction = pmt - newPmt;
+    // Reduction: client was budgeting up to maxInstForPrice; new PMT is the savings
+    const priceRef = maxInstForPrice > 0 ? maxInstForPrice : pmt;
+    const reduction = priceRef - newPmt;
 
     let intB = 0;
     let bB = balanceAfterExtra;
@@ -387,8 +392,8 @@ export default function Amortization() {
   // ── Extra simulation
   const extra = useMemo(() => {
     if (!base || extraMonth < 1 || extraValue <= 0) return null;
-    return calcExtra(base, n, system, extraMonth, extraValue, base.monthlyRate);
-  }, [base, n, system, extraMonth, extraValue]);
+    return calcExtra(base, n, system, extraMonth, extraValue, base.monthlyRate, maxInstallment);
+  }, [base, n, system, extraMonth, extraValue, maxInstallment]);
 
   const incomeOk = base ? base.firstInstallment <= maxInstallment : null;
 
