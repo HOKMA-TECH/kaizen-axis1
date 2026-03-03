@@ -15,7 +15,7 @@ pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/b
 // --- Componente auxiliar de visualização do PDF ---
 function PDFViewer({ url }: { url: string }) {
   const [numPages, setNumPages] = useState(0);
-  const [pdfData, setPdfData] = useState<ArrayBuffer | null>(null);
+  const [blobUrl, setBlobUrl] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = useState(0);
@@ -31,18 +31,23 @@ function PDFViewer({ url }: { url: string }) {
     return () => ro.disconnect();
   }, []);
 
-  // Busca o PDF como ArrayBuffer no thread principal
-  // (evita o CORS que ocorreria no Web Worker ao buscar externamente)
+  // Busca o PDF e cria um Blob URL local (evita "Buffer is already detached"
+  // que ocorre ao passar ArrayBuffer diretamente ao Web Worker)
   useEffect(() => {
-    setPdfData(null);
+    let objectUrl: string | null = null;
+    setBlobUrl(null);
     setLoadError(null);
     fetch(url)
       .then(r => {
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
-        return r.arrayBuffer();
+        return r.blob();
       })
-      .then(buf => setPdfData(buf))
+      .then(blob => {
+        objectUrl = URL.createObjectURL(blob);
+        setBlobUrl(objectUrl);
+      })
       .catch(() => setLoadError('Não foi possível carregar o PDF.'));
+    return () => { if (objectUrl) URL.revokeObjectURL(objectUrl); };
   }, [url]);
 
   if (loadError) {
@@ -63,13 +68,13 @@ function PDFViewer({ url }: { url: string }) {
       className="w-full overflow-y-auto overflow-x-hidden"
       style={{ height: '78vh', background: '#e5e7eb' }}
     >
-      {!pdfData ? (
+      {!blobUrl ? (
         <div className="flex items-center justify-center h-full">
           <p className="text-gray-500 animate-pulse text-sm">Carregando PDF...</p>
         </div>
       ) : (
         <Document
-          file={{ data: pdfData }}
+          file={blobUrl}
           onLoadSuccess={({ numPages }) => setNumPages(numPages)}
           loading={null}
           error={
