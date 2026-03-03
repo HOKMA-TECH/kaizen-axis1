@@ -30,7 +30,10 @@ export default function Developments() {
   const [bookUploadProgress, setBookUploadProgress] = useState<number | null>(null);
   const [bookUploadProcessing, setBookUploadProcessing] = useState(false);
   const [bookUploadError, setBookUploadError] = useState<string | null>(null);
+  const [bookInputMode, setBookInputMode] = useState<'upload' | 'link'>('upload');
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
+
+  const MAX_PDF_BYTES = 45 * 1024 * 1024; // 45 MB (margem de segurança do limite Free 50 MB)
 
   const sanitizePath = (path: string) =>
     path.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9.\-_/]/g, '_');
@@ -129,9 +132,20 @@ export default function Developments() {
   const handleBookUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    setBookUploadError(null);
+
+    if (file.size > MAX_PDF_BYTES) {
+      setBookUploadError(
+        `Arquivo muito grande (${(file.size / 1024 / 1024).toFixed(1)} MB). ` +
+        'O limite no plano atual é 45 MB. Use "Link externo" para PDFs maiores.'
+      );
+      setBookInputMode('link');
+      e.target.value = '';
+      return;
+    }
+
     setUploadingBook(true);
     setBookUploadProgress(0);
-    setBookUploadError(null);
     const path = `pdf/${Date.now()}_${file.name}`;
     const { url, error } = await uploadWithProgress(file, path, setBookUploadProgress, setBookUploadProcessing);
     if (url) {
@@ -355,45 +369,74 @@ export default function Developments() {
               </div>
             </div>
             <div>
-              <label className="block text-xs font-medium text-text-secondary mb-2">Book Digital (PDF)</label>
-              <div className="space-y-2">
-                <div className="flex items-center gap-3">
-                  <label className={`flex items-center gap-2 px-4 py-2 bg-surface-50 rounded-lg cursor-pointer hover:bg-surface-100 border border-surface-200 ${uploadingBook ? 'pointer-events-none opacity-60' : ''}`}>
-                    {uploadingBook ? <Loader2 size={16} className="animate-spin text-gold-400" /> : <Upload size={16} className="text-text-secondary" />}
-                    <span className="text-sm text-text-primary">
-                      {!uploadingBook ? 'Upload PDF' : bookUploadProcessing ? 'Processando...' : `Enviando ${bookUploadProgress ?? 0}%`}
-                    </span>
-                    <input type="file" accept="application/pdf,.pdf" className="hidden" onChange={handleBookUpload} disabled={uploadingBook} />
-                  </label>
-                  {newDev.book_pdf_url && !uploadingBook && (
-                    <div className="flex items-center gap-2 text-sm text-green-600 bg-green-50 px-3 py-1 rounded-lg">
-                      <FileText size={14} /><span>Book anexado</span>
-                      <button onClick={() => setNewDev(p => ({ ...p, book_pdf_url: undefined }))} className="text-red-500 ml-2"><X size={14} /></button>
-                    </div>
-                  )}
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-xs font-medium text-text-secondary">Book Digital (PDF)</label>
+                <div className="flex gap-1 bg-surface-100 rounded-lg p-0.5">
+                  <button type="button"
+                    onClick={() => { setBookInputMode('upload'); setBookUploadError(null); }}
+                    className={`text-[11px] px-2 py-1 rounded-md transition-colors ${bookInputMode === 'upload' ? 'bg-white dark:bg-card-bg shadow-sm text-text-primary font-medium' : 'text-text-secondary'}`}>
+                    Upload
+                  </button>
+                  <button type="button"
+                    onClick={() => { setBookInputMode('link'); setBookUploadError(null); }}
+                    className={`text-[11px] px-2 py-1 rounded-md transition-colors ${bookInputMode === 'link' ? 'bg-white dark:bg-card-bg shadow-sm text-text-primary font-medium' : 'text-text-secondary'}`}>
+                    Link externo
+                  </button>
                 </div>
-                {uploadingBook && bookUploadProgress !== null && (
-                  <div className="space-y-1">
-                    <div className="w-full bg-surface-100 rounded-full h-2 overflow-hidden">
-                      <div
-                        className={`h-full rounded-full transition-all duration-300 ${bookUploadProcessing ? 'bg-gold-300 animate-pulse w-full' : 'bg-gold-400'}`}
-                        style={{ width: bookUploadProcessing ? '100%' : `${bookUploadProgress}%` }}
-                      />
+              </div>
+
+              <div className="space-y-2">
+                {bookInputMode === 'upload' ? (
+                  <>
+                    <div className="flex items-center gap-3">
+                      <label className={`flex items-center gap-2 px-4 py-2 bg-surface-50 rounded-lg cursor-pointer hover:bg-surface-100 border border-surface-200 ${uploadingBook ? 'pointer-events-none opacity-60' : ''}`}>
+                        {uploadingBook ? <Loader2 size={16} className="animate-spin text-gold-400" /> : <Upload size={16} className="text-text-secondary" />}
+                        <span className="text-sm text-text-primary">
+                          {!uploadingBook ? 'Upload PDF' : bookUploadProcessing ? 'Processando...' : `Enviando ${bookUploadProgress ?? 0}%`}
+                        </span>
+                        <input type="file" accept="application/pdf,.pdf" className="hidden" onChange={handleBookUpload} disabled={uploadingBook} />
+                      </label>
+                      {newDev.book_pdf_url && !uploadingBook && (
+                        <div className="flex items-center gap-2 text-sm text-green-600 bg-green-50 px-3 py-1 rounded-lg">
+                          <FileText size={14} /><span>Book anexado</span>
+                          <button onClick={() => setNewDev(p => ({ ...p, book_pdf_url: undefined }))} className="text-red-500 ml-2"><X size={14} /></button>
+                        </div>
+                      )}
                     </div>
-                    <p className="text-[11px] text-text-secondary">
-                      {bookUploadProcessing
-                        ? 'Processando no servidor...'
-                        : `Enviando: ${bookUploadProgress}%`}
-                    </p>
-                  </div>
+                    {uploadingBook && bookUploadProgress !== null && (
+                      <div className="space-y-1">
+                        <div className="w-full bg-surface-100 rounded-full h-2 overflow-hidden">
+                          <div
+                            className={`h-full rounded-full transition-all duration-300 ${bookUploadProcessing ? 'bg-gold-300 animate-pulse' : 'bg-gold-400'}`}
+                            style={{ width: bookUploadProcessing ? '100%' : `${bookUploadProgress}%` }}
+                          />
+                        </div>
+                        <p className="text-[11px] text-text-secondary">
+                          {bookUploadProcessing ? 'Processando no servidor...' : `Enviando: ${bookUploadProgress}%`}
+                        </p>
+                      </div>
+                    )}
+                    <p className="text-[11px] text-text-secondary">Máx. 45 MB. Para PDFs maiores use "Link externo".</p>
+                  </>
+                ) : (
+                  <>
+                    <input
+                      type="url"
+                      placeholder="https://drive.google.com/... ou link direto do PDF"
+                      value={newDev.book_pdf_url || ''}
+                      onChange={(e) => setNewDev(p => ({ ...p, book_pdf_url: e.target.value || undefined }))}
+                      className="w-full p-3 bg-surface-50 rounded-xl border-none focus:ring-2 focus:ring-gold-200 text-text-primary text-sm"
+                    />
+                    <p className="text-[11px] text-text-secondary">Cole o link do Google Drive, Dropbox ou qualquer URL pública do PDF.</p>
+                  </>
                 )}
+
                 {bookUploadError && (
-                  <div className="flex items-center gap-2 text-xs text-red-600 bg-red-50 px-3 py-2 rounded-lg">
-                    <X size={12} className="flex-shrink-0" />
+                  <div className="flex items-start gap-2 text-xs text-red-600 bg-red-50 px-3 py-2 rounded-lg">
+                    <X size={12} className="flex-shrink-0 mt-0.5" />
                     <span>{bookUploadError}</span>
                   </div>
                 )}
-                <p className="text-[11px] text-text-secondary">Máximo: 500 MB (plano Pro do Supabase). Plano Free: 50 MB.</p>
               </div>
             </div>
           </section>
