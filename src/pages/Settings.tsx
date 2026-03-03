@@ -254,6 +254,16 @@ export default function Settings() {
     }
     setSaving(true);
     try {
+      // 1. Limpar qualquer fator "unverified" que tenha ficado travado antes
+      const { data: factors } = await supabase.auth.mfa.listFactors();
+      const unverifiedFactors = factors?.all?.filter(f => f.factor_type === 'totp' && f.status === 'unverified');
+      if (unverifiedFactors && unverifiedFactors.length > 0) {
+        for (const f of unverifiedFactors) {
+          await supabase.auth.mfa.unenroll({ factorId: f.id });
+        }
+      }
+
+      // 2. Iniciar novo enrollment limpo
       const { data, error } = await supabase.auth.mfa.enroll({ factorType: 'totp', friendlyName: 'Kaizen Axis' });
       if (error) throw new Error(error.message);
       setMfaEnrollId(data.id);
@@ -419,8 +429,8 @@ export default function Settings() {
             <button
               onClick={handle2FAOpen}
               className={`px-3 py-1 rounded-lg text-xs font-semibold transition-colors ${is2FAEnabled
-                  ? 'bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400 hover:bg-red-100'
-                  : 'bg-gold-50 text-gold-700 dark:bg-gold-900/20 dark:text-gold-400 hover:bg-gold-100'
+                ? 'bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400 hover:bg-red-100'
+                : 'bg-gold-50 text-gold-700 dark:bg-gold-900/20 dark:text-gold-400 hover:bg-gold-100'
                 }`}
             >
               {saving ? <Loader2 size={14} className="animate-spin" /> : (is2FAEnabled ? 'Desativar' : 'Ativar')}
