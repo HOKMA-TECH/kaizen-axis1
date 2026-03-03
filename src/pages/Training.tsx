@@ -117,6 +117,11 @@ export default function Training() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [isProcessingFile, setIsProcessingFile] = useState(false);
+  // thumbnail gerado automaticamente: blob (PDF/Imagem) ou URL string (YouTube)
+  const [autoThumbnailBlob, setAutoThumbnailBlob] = useState<Blob | null>(null);
+  const [autoThumbnailUrl, setAutoThumbnailUrl] = useState<string>('');
+  const [previewThumb, setPreviewThumb] = useState<string>('');
 
   const [formData, setFormData] = useState<Partial<TrainingItem>>({
     title: '',
@@ -125,6 +130,12 @@ export default function Training() {
     duration: '',
     description: ''
   });
+
+  const resetAutoMeta = () => {
+    setAutoThumbnailBlob(null);
+    setAutoThumbnailUrl('');
+    setPreviewThumb('');
+  };
 
   const handleOpenModal = (item?: TrainingItem) => {
     if (item) {
@@ -136,13 +147,78 @@ export default function Training() {
         duration: item.duration,
         description: item.description,
       });
+      setPreviewThumb(item.thumbnail || '');
     } else {
       setEditingItemId(null);
       setFormData({ title: '', type: 'Vídeo', url: '', duration: '', description: '' });
+      resetAutoMeta();
     }
     setSelectedFile(null);
     setIsAddModalOpen(true);
   };
+
+  // --- Auto-detect metadata ao selecionar arquivo ---
+  useEffect(() => {
+    if (!selectedFile) return;
+    setIsProcessingFile(true);
+    resetAutoMeta();
+
+    if (formData.type === 'PDF') {
+      // Usar pdfjs para contar páginas e gerar thumbnail da 1ª página
+      (async () => {
+        try {
+          const buf = await selectedFile.arrayBuffer();
+          const pdf = await pdfjs.getDocument({ data: buf }).promise;
+          const numPages = pdf.numPages;
+          setFormData(prev => ({ ...prev, duration: `${numPages} pág.` }));
+
+          const page = await pdf.getPage(1);
+          const vp = page.getViewport({ scale: 1 });
+          const scale = 400 / vp.width;
+          const scaled = page.getViewport({ scale });
+          const canvas = document.createElement('canvas');
+          canvas.width = 400;
+          canvas.height = Math.round(scaled.height);
+          await page.render({ canvas, viewport: scaled }).promise;
+          canvas.toBlob(blob => {
+            if (blob) {
+              setAutoThumbnailBlob(blob);
+              setPreviewThumb(URL.createObjectURL(blob));
+            }
+          }, 'image/jpeg', 0.85);
+        } catch (e) {
+          console.error('Erro ao processar PDF:', e);
+        } finally {
+          setIsProcessingFile(false);
+        }
+      })();
+    } else if (formData.type === 'Imagem') {
+      // Usar a própria imagem como thumbnail
+      setAutoThumbnailBlob(selectedFile);
+      const url = URL.createObjectURL(selectedFile);
+      setPreviewThumb(url);
+      setIsProcessingFile(false);
+    } else {
+      setIsProcessingFile(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedFile]);
+
+  // --- Auto-thumbnail para YouTube quando URL mudar ---
+  useEffect(() => {
+    const url = formData.url || '';
+    if (formData.type !== 'Vídeo') return;
+    if (!url) { resetAutoMeta(); return; }
+    const match = url.match(/(?:v=|youtu\.be\/|shorts\/)([\w-]{11})/);
+    if (match) {
+      const thumb = `https://img.youtube.com/vi/${match[1]}/mqdefault.jpg`;
+      setAutoThumbnailUrl(thumb);
+      setPreviewThumb(thumb);
+    } else {
+      resetAutoMeta();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [formData.url, formData.type]);
 
   useEffect(() => {
     if (!viewingItem) {
@@ -165,6 +241,7 @@ export default function Training() {
     setUploadError(null);
     try {
       let finalUrl = formData.url || '';
+      let finalThumbnail = `https://picsum.photos/seed/${Date.now()}/400/300`;
 
       if (selectedFile) {
         const sanitizedName = selectedFile.name
@@ -185,7 +262,22 @@ export default function Training() {
 
         const { data: urlData } = supabase.storage.from('trainings').getPublicUrl(data.path);
         finalUrl = urlData.publicUrl;
+
+        // Upload da thumbnail gerada automaticamente
+        if (autoThumbnailBlob) {
+          const thumbPath = `thumbnails/${Date.now()}_thumb.jpg`;
+          const { data: td, error: te } = await supabase.storage
+            .from('trainings')
+            .upload(thumbPath, autoThumbnailBlob, { contentType: 'image/jpeg' });
+          if (!te && td) {
+            const { data: tu } = supabase.storage.from('trainings').getPublicUrl(td.path);
+            finalThumbnail = tu.publicUrl;
+          }
+        }
       }
+
+      // Thumbnail do YouTube (URL direta, sem upload)
+      if (autoThumbnailUrl) finalThumbnail = autoThumbnailUrl;
 
       if (!finalUrl) {
         setUploadError('Adicione um arquivo ou link antes de salvar.');
@@ -203,15 +295,13 @@ export default function Training() {
       if (editingItemId) {
         await updateTraining(editingItemId, payload);
       } else {
-        await addTraining({
-          ...payload,
-          thumbnail: `https://picsum.photos/seed/${Date.now()}/400/300`
-        });
+        await addTraining({ ...payload, thumbnail: finalThumbnail });
       }
 
       setIsAddModalOpen(false);
       setFormData({ title: '', type: 'Vídeo', url: '', duration: '', description: '' });
       setSelectedFile(null);
+      resetAutoMeta();
     } finally {
       setIsSaving(false);
     }
@@ -405,11 +495,24 @@ export default function Training() {
             />
           </div>
 
+          {/* Preview da thumbnail gerada automaticamente */}
+          {previewThumb && (
+            <div className="flex flex-col items-center gap-1">
+              <p className="text-xs text-text-secondary self-start">Capa do treinamento</p>
+              <img
+                src={previewThumb}
+                alt="Thumbnail"
+                className="w-full max-h-40 object-cover rounded-xl border border-surface-200"
+              />
+            </div>
+          )}
+
           {uploadError && (
             <div className="text-red-600 text-sm p-3 bg-red-50 rounded-xl border border-red-200">
               {uploadError}
             </div>
           )}
+
           <RoundedButton fullWidth onClick={handleSave} className="mt-4" disabled={isSaving}>
             {isSaving ? 'Enviando arquivo...' : editingItemId ? 'Atualizar' : 'Adicionar'}
           </RoundedButton>
