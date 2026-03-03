@@ -1,0 +1,310 @@
+{
+  "name": "[Kaizen] 03 - Distribuição Automática de Leads",
+  "nodes": [
+    {
+      "id": "ccc00003-0000-0000-0000-000000000001",
+      "name": "Webhook Lead Criado",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 400],
+      "webhookId": "kaizen-lead-created",
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "lead-created",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        }
+      }
+    },
+    {
+      "id": "ccc00003-0000-0000-0000-000000000002",
+      "name": "Validar lead_id",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [480, 400],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "cond-leadid",
+              "leftValue": "={{ $json.body.lead_id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      }
+    },
+    {
+      "id": "ccc00003-0000-0000-0000-000000000003",
+      "name": "Resposta Bad Request",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [720, 560],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"success\": false, \"error\": \"lead_id é obrigatório no body\" }",
+        "options": {
+          "responseCode": 400
+        }
+      }
+    },
+    {
+      "id": "ccc00003-0000-0000-0000-000000000004",
+      "name": "RPC distribute_lead",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [720, 300],
+      "parameters": {
+        "method": "POST",
+        "url": "=https://YOUR_SUPABASE_PROJECT.supabase.co/rest/v1/rpc/distribute_lead",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "YOUR_SUPABASE_SERVICE_ROLE_KEY"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer YOUR_SUPABASE_SERVICE_ROLE_KEY"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "body": "={{ JSON.stringify({ p_lead_id: $('Webhook Lead Criado').item.json.body.lead_id }) }}",
+        "options": {
+          "timeout": 15000
+        }
+      }
+    },
+    {
+      "id": "ccc00003-0000-0000-0000-000000000005",
+      "name": "Distribuição Bem-sucedida?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [960, 300],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "cond-dist",
+              "leftValue": "={{ $json.distributed }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      }
+    },
+    {
+      "id": "ccc00003-0000-0000-0000-000000000006",
+      "name": "WhatsApp para Corretor",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1200, 160],
+      "parameters": {
+        "method": "POST",
+        "url": "=https://YOUR_EVOLUTION_API_URL/message/sendText/YOUR_EVOLUTION_INSTANCE",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "YOUR_EVOLUTION_API_KEY"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "body": "={{ JSON.stringify({ number: $('RPC distribute_lead').item.json.corretor_phone, text: '🏠 *Novo Lead Atribuído!*\\n\\n👤 *Nome:* ' + $('RPC distribute_lead').item.json.lead_name + '\\n📱 *Telefone:* ' + $('RPC distribute_lead').item.json.lead_phone + '\\n\\nAcesse o sistema para mais detalhes.\\n\\n_Kaizen Axis_' }) }}",
+        "options": {
+          "timeout": 10000
+        }
+      }
+    },
+    {
+      "id": "ccc00003-0000-0000-0000-000000000007",
+      "name": "Notificar Gerentes (Sem Corretor)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1200, 440],
+      "parameters": {
+        "method": "POST",
+        "url": "=https://YOUR_SUPABASE_PROJECT.supabase.co/rest/v1/notifications",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "YOUR_SUPABASE_SERVICE_ROLE_KEY"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer YOUR_SUPABASE_SERVICE_ROLE_KEY"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=minimal"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "body": "={{ JSON.stringify({ title: '⚠️ Lead Sem Corretor Disponível', message: 'O lead ' + $('Webhook Lead Criado').item.json.body.lead_id + ' está aguardando distribuição. Motivo: ' + ($('RPC distribute_lead').item.json.reason || 'Sem corretores presentes'), type: 'lead', target_role: 'GERENTE', reference_route: '/clients' }) }}",
+        "options": {
+          "timeout": 8000
+        }
+      }
+    },
+    {
+      "id": "ccc00003-0000-0000-0000-000000000008",
+      "name": "Resposta Distribuído OK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1440, 160],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: true, distributed: true, corretor_id: $('RPC distribute_lead').item.json.corretor_id, corretor_name: $('RPC distribute_lead').item.json.corretor_name, lead_id: $('RPC distribute_lead').item.json.lead_id }) }}",
+        "options": {
+          "responseCode": 200
+        }
+      }
+    },
+    {
+      "id": "ccc00003-0000-0000-0000-000000000009",
+      "name": "Resposta Aguardando Fila",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1440, 440],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: true, distributed: false, reason: $('RPC distribute_lead').item.json.reason, lead_id: $('RPC distribute_lead').item.json.lead_id }) }}",
+        "options": {
+          "responseCode": 200
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook Lead Criado": {
+      "main": [
+        [
+          {
+            "node": "Validar lead_id",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validar lead_id": {
+      "main": [
+        [
+          {
+            "node": "RPC distribute_lead",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Resposta Bad Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "RPC distribute_lead": {
+      "main": [
+        [
+          {
+            "node": "Distribuição Bem-sucedida?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Distribuição Bem-sucedida?": {
+      "main": [
+        [
+          {
+            "node": "WhatsApp para Corretor",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Notificar Gerentes (Sem Corretor)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "WhatsApp para Corretor": {
+      "main": [
+        [
+          {
+            "node": "Resposta Distribuído OK",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notificar Gerentes (Sem Corretor)": {
+      "main": [
+        [
+          {
+            "node": "Resposta Aguardando Fila",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "tags": ["kaizen", "leads", "distribuicao", "round-robin"]
+}

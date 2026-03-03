@@ -1,10 +1,10 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 
-const WEBHOOK_SECRET = Deno.env.get('LEAD_WEBHOOK_SECRET') || 'kaizen-webhook-secret';
+const WEBHOOK_SECRET  = Deno.env.get('LEAD_WEBHOOK_SECRET') || 'kaizen-webhook-secret';
+const N8N_WEBHOOK_URL = Deno.env.get('N8N_LEAD_CREATED_WEBHOOK_URL'); // URL do WF-03 n8n
 
 Deno.serve(async (req: Request) => {
-    // CORS pre-flight
     if (req.method === 'OPTIONS') {
         return new Response(null, {
             headers: {
@@ -19,7 +19,6 @@ Deno.serve(async (req: Request) => {
         return new Response(JSON.stringify({ error: 'Method not allowed' }), { status: 405 });
     }
 
-    // Validate secret header
     const secret = req.headers.get('x-webhook-secret');
     if (secret !== WEBHOOK_SECRET) {
         return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
@@ -38,7 +37,6 @@ Deno.serve(async (req: Request) => {
         return new Response(JSON.stringify({ error: 'name and phone are required' }), { status: 422 });
     }
 
-    // Service-role client to bypass RLS
     const supabase = createClient(
         Deno.env.get('SUPABASE_URL')!,
         Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
@@ -46,28 +44,7 @@ Deno.serve(async (req: Request) => {
     );
 
     try {
-        // ── Fila Indiana: próximo corretor ──────────────────────────────────────────
-        const { data: corretores } = await supabase
-            .from('profiles')
-            .select('id, last_lead_assigned_at')
-            .eq('role', 'Corretor')
-            .order('last_lead_assigned_at', { ascending: true, nullsFirst: true });
-
-        let assigned_to: string | null = null;
-        let distribution_status = 'aguardando_fila';
-
-        if (corretores && corretores.length > 0) {
-            const nextCorretor = corretores[0];
-            assigned_to = nextCorretor.id;
-            distribution_status = 'distribuido';
-
-            await supabase
-                .from('profiles')
-                .update({ last_lead_assigned_at: new Date().toISOString() })
-                .eq('id', nextCorretor.id);
-        }
-
-        // ── Inserir Lead ────────────────────────────────────────────────────────────
+        // ── Inserir Lead sem distribuição (n8n assume o controle) ──────────────────
         const { data: newLead, error } = await supabase
             .from('leads')
             .insert([{
@@ -78,8 +55,8 @@ Deno.serve(async (req: Request) => {
                 ai_metadata: ai_metadata || null,
                 directorate_id: directorate_id || null,
                 stage: 'novo_lead',
-                assigned_to,
-                distribution_status,
+                assigned_to: null,
+                distribution_status: 'aguardando_distribuicao',
                 interest_level: ai_metadata?.priority === 'alta' ? 'Alto'
                     : ai_metadata?.priority === 'media' ? 'Médio' : 'Baixo',
             }])
@@ -88,8 +65,29 @@ Deno.serve(async (req: Request) => {
 
         if (error) throw error;
 
+        // ── Disparar workflow de distribuição no n8n (fire-and-forget) ─────────────
+        if (N8N_WEBHOOK_URL) {
+            fetch(N8N_WEBHOOK_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    lead_id:        newLead.id,
+                    lead_name:      newLead.name,
+                    lead_phone:     newLead.phone,
+                    directorate_id: newLead.directorate_id,
+                }),
+            }).catch((err) => console.error('[n8n trigger error]', err.message));
+        } else {
+            console.warn('N8N_LEAD_CREATED_WEBHOOK_URL não configurada — distribuição não disparada.');
+        }
+
         return new Response(
-            JSON.stringify({ success: true, lead_id: newLead.id, assigned_to, distribution_status }),
+            JSON.stringify({
+                success: true,
+                lead_id: newLead.id,
+                distribution_status: 'aguardando_distribuicao',
+                note: 'Distribuição em andamento via n8n.',
+            }),
             { headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' } }
         );
     } catch (e: any) {

@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(xargs grep -l \"Document\\\\|Page\\\\|PDFViewer\\\\|pdfjs\")",
+      "Bash(xargs grep -l \"pdf\\\\|PDF\")",
+      "Bash(curl -s -H \"Authorization: Bearer sbp_62c04f6c995e50a8fe5ac2388a63e63bac03a85b\" \"https://api.supabase.com/v1/projects/pwvpxxrvlywlneuijmmd/database/query\" -X POST -H \"Content-Type: application/json\" -d '{\"\"query\"\": \"\"SELECT name, public FROM storage.buckets;\"\"}')",
+      "Bash(python3 -m json.tool)",
+      "Bash(curl -s -H \"Authorization: Bearer sbp_62c04f6c995e50a8fe5ac2388a63e63bac03a85b\" -H \"Content-Type: application/json\" -X POST \"https://api.supabase.com/v1/projects/pwvpxxrvlywlneuijmmd/database/query\" --data-raw '{\"\"query\"\":\"\"SELECT name, public FROM storage.buckets;\"\"}')"
+    ]
+  }
+}
