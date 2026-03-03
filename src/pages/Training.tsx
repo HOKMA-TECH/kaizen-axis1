@@ -110,7 +110,6 @@ export default function Training() {
         const { data, error } = await supabase.storage
           .from('trainings')
           .upload(path, selectedFile, {
-            upsert: true,
             contentType: selectedFile.type || 'application/octet-stream',
           });
 
