@@ -1,46 +1,106 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { PremiumCard, SectionHeader, RoundedButton } from '@/components/ui/PremiumComponents';
 import { PlayCircle, FileText, Image as ImageIcon, Plus, Edit2, Trash2 } from 'lucide-react';
 import { Modal } from '@/components/ui/Modal';
 import { useAuthorization } from '@/hooks/useAuthorization';
 import { useApp, TrainingItem } from '@/context/AppContext';
 import { supabase } from '@/lib/supabase';
+import { Document, Page, pdfjs } from 'react-pdf';
+import 'react-pdf/dist/Page/AnnotationLayer.css';
+import 'react-pdf/dist/Page/TextLayer.css';
 
+// Usar worker via CDN — evita problemas de bundle
+pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
 // --- Componente auxiliar de visualização do PDF ---
 function PDFViewer({ url }: { url: string }) {
-  const [loadError, setLoadError] = useState(false);
+  const [numPages, setNumPages] = useState(0);
+  const [pdfData, setPdfData] = useState<ArrayBuffer | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [containerWidth, setContainerWidth] = useState(0);
+
+  // Mede a largura disponível do container para escalar as páginas
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(entries => {
+      for (const entry of entries) setContainerWidth(entry.contentRect.width);
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  // Busca o PDF como ArrayBuffer no thread principal
+  // (evita o CORS que ocorreria no Web Worker ao buscar externamente)
+  useEffect(() => {
+    setPdfData(null);
+    setLoadError(null);
+    fetch(url)
+      .then(r => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r.arrayBuffer();
+      })
+      .then(buf => setPdfData(buf))
+      .catch(() => setLoadError('Não foi possível carregar o PDF.'));
+  }, [url]);
+
+  if (loadError) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full gap-4 p-6">
+        <p className="text-red-500 text-sm text-center">{loadError}</p>
+        <a href={url} target="_blank" rel="noopener noreferrer"
+          className="px-4 py-2 bg-amber-500 text-white text-sm font-semibold rounded-lg hover:bg-amber-600 transition-colors">
+          Abrir PDF
+        </a>
+      </div>
+    );
+  }
 
   return (
-    <div className="flex flex-col w-full" style={{ height: '78vh', background: '#f3f4f6' }}>
-      {loadError ? (
-        <div className="flex flex-col items-center justify-center h-full gap-4 p-6">
-          <p className="text-red-500 text-sm text-center">
-            Não foi possível exibir o PDF no navegador.<br />
-            Clique abaixo para abrir em nova aba.
-          </p>
-          <a
-            href={url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="px-4 py-2 bg-amber-500 text-white text-sm font-semibold rounded-lg hover:bg-amber-600 transition-colors"
-          >
-            Abrir PDF
-          </a>
+    <div
+      ref={containerRef}
+      className="w-full overflow-y-auto overflow-x-hidden"
+      style={{ height: '78vh', background: '#e5e7eb' }}
+    >
+      {!pdfData ? (
+        <div className="flex items-center justify-center h-full">
+          <p className="text-gray-500 animate-pulse text-sm">Carregando PDF...</p>
         </div>
       ) : (
-        <iframe
-          src={url}
-          title="Visualizador de PDF"
-          className="w-full flex-1"
-          style={{ height: '100%', border: 'none' }}
-          onError={() => setLoadError(true)}
-        />
+        <Document
+          file={{ data: pdfData }}
+          onLoadSuccess={({ numPages }) => setNumPages(numPages)}
+          loading={null}
+          error={
+            <div className="flex flex-col items-center gap-4 p-6">
+              <p className="text-red-500 text-sm text-center">Erro ao renderizar o PDF.</p>
+              <a href={url} target="_blank" rel="noopener noreferrer"
+                className="px-4 py-2 bg-amber-500 text-white text-sm font-semibold rounded-lg">
+                Abrir PDF
+              </a>
+            </div>
+          }
+        >
+          {/* Renderiza TODAS as páginas empilhadas — scroll vertical nativo no mobile */}
+          {Array.from({ length: numPages }, (_, i) => (
+            <div key={i} className="flex justify-center mb-2">
+              <Page
+                pageNumber={i + 1}
+                width={containerWidth > 0 ? containerWidth : undefined}
+                renderTextLayer={false}
+                renderAnnotationLayer={false}
+                className="shadow-md"
+              />
+            </div>
+          ))}
+        </Document>
       )}
     </div>
   );
 }
 // ----------------------------------------------------
+
 
 export default function Training() {
   const { isBroker, canCreateStrategicResources } = useAuthorization();
