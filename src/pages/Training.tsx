@@ -1,123 +1,42 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { PremiumCard, SectionHeader, RoundedButton } from '@/components/ui/PremiumComponents';
-import { PlayCircle, FileText, Image as ImageIcon, Plus, X, ExternalLink, Edit2, Trash2 } from 'lucide-react';
-import { FAB } from '@/components/Layout';
+import { PlayCircle, FileText, Image as ImageIcon, Plus, Edit2, Trash2 } from 'lucide-react';
 import { Modal } from '@/components/ui/Modal';
 import { useAuthorization } from '@/hooks/useAuthorization';
 import { useApp, TrainingItem } from '@/context/AppContext';
 import { supabase } from '@/lib/supabase';
-import { Document, Page, pdfjs } from 'react-pdf';
-import 'react-pdf/dist/Page/AnnotationLayer.css';
-import 'react-pdf/dist/Page/TextLayer.css';
 
-pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
 // --- Componente auxiliar de visualização do PDF ---
 function PDFViewer({ url }: { url: string }) {
-  const [numPages, setNumPages] = useState<number>();
-  const [pageNumber, setPageNumber] = useState<number>(1);
-  const [containerWidth, setContainerWidth] = useState(0);
-  const [isFullscreen, setIsFullscreen] = useState(false);
-
-  const scrollRef = React.useRef<HTMLDivElement>(null);
-  const fullscreenRef = React.useRef<HTMLDivElement>(null);
-
-  // Measure the actual container content width so the PDF page fits exactly
-  useEffect(() => {
-    const el = scrollRef.current;
-    if (!el) return;
-    const ro = new ResizeObserver(entries => {
-      for (const entry of entries) {
-        setContainerWidth(entry.contentRect.width);
-      }
-    });
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, []);
-
-  // Sync state when Esc key exits fullscreen
-  useEffect(() => {
-    const onFSChange = () => {
-      if (!document.fullscreenElement) setIsFullscreen(false);
-    };
-    document.addEventListener('fullscreenchange', onFSChange);
-    return () => document.removeEventListener('fullscreenchange', onFSChange);
-  }, []);
-
-  const toggleFullscreen = async () => {
-    if (!document.fullscreenElement && fullscreenRef.current) {
-      await fullscreenRef.current.requestFullscreen();
-      setIsFullscreen(true);
-    } else if (document.fullscreenElement) {
-      await document.exitFullscreen();
-      setIsFullscreen(false);
-    }
-  };
-
-  function onDocumentLoadSuccess({ numPages }: { numPages: number }) {
-    setNumPages(numPages);
-    setPageNumber(1);
-  }
-
-  // contentRect.width already excludes padding — use it directly as the page width
-  const pageWidth = containerWidth > 0 ? containerWidth : undefined;
+  const [loadError, setLoadError] = useState(false);
 
   return (
-    <div ref={fullscreenRef} className="flex flex-col w-full" style={{ height: isFullscreen ? '100vh' : '78vh', background: '#f3f4f6' }}>
-      {/* Scrollable page area */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto overflow-x-hidden flex flex-col items-center p-2 min-h-0 w-full">
-        <Document
-          file={url}
-          onLoadSuccess={onDocumentLoadSuccess}
-          loading={<div className="text-gray-500 animate-pulse p-10 text-sm">A carregar PDF...</div>}
-          error={<div className="text-red-500 p-10 text-sm text-center">Não foi possível carregar o PDF.<br />Tente reenviar o arquivo.</div>}
-        >
-          {containerWidth > 0 && (
-            <Page
-              pageNumber={pageNumber}
-              renderTextLayer={false}
-              renderAnnotationLayer={false}
-              width={pageWidth}
-              className="shadow-lg"
-            />
-          )}
-        </Document>
-      </div>
-
-      {/* Controls bar */}
-      <div className="bg-white border-t border-gray-200 px-3 py-2 w-full flex items-center justify-between gap-2 flex-shrink-0">
-        <div className="flex items-center gap-2">
-          <button
-            disabled={pageNumber <= 1}
-            onClick={() => setPageNumber(p => p - 1)}
-            className="px-3 py-1 bg-amber-500 text-white text-sm font-bold rounded-lg disabled:opacity-40 transition-opacity"
+    <div className="flex flex-col w-full" style={{ height: '78vh', background: '#f3f4f6' }}>
+      {loadError ? (
+        <div className="flex flex-col items-center justify-center h-full gap-4 p-6">
+          <p className="text-red-500 text-sm text-center">
+            Não foi possível exibir o PDF no navegador.<br />
+            Clique abaixo para abrir em nova aba.
+          </p>
+          <a
+            href={url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="px-4 py-2 bg-amber-500 text-white text-sm font-semibold rounded-lg hover:bg-amber-600 transition-colors"
           >
-            ‹
-          </button>
-          <span className="text-xs text-gray-700 font-medium whitespace-nowrap">
-            {pageNumber} / {numPages ?? '…'}
-          </span>
-          <button
-            disabled={pageNumber >= (numPages ?? 1)}
-            onClick={() => setPageNumber(p => p + 1)}
-            className="px-3 py-1 bg-amber-500 text-white text-sm font-bold rounded-lg disabled:opacity-40 transition-opacity"
-          >
-            ›
-          </button>
+            Abrir PDF
+          </a>
         </div>
-
-        <button
-          onClick={toggleFullscreen}
-          className="flex items-center gap-1 px-3 py-1 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-medium rounded-lg transition-colors border border-gray-300"
-        >
-          {isFullscreen ? (
-            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M8 3v3a2 2 0 0 1-2 2H3" /><path d="M21 8h-3a2 2 0 0 1-2-2V3" /><path d="M3 16h3a2 2 0 0 1 2 2v3" /><path d="M16 21v-3a2 2 0 0 1 2-2h3" /></svg>
-          ) : (
-            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 7V5a2 2 0 0 1 2-2h2" /><path d="M17 3h2a2 2 0 0 1 2 2v2" /><path d="M21 17v2a2 2 0 0 1-2 2h-2" /><path d="M7 21H5a2 2 0 0 1-2-2v-2" /></svg>
-          )}
-          {isFullscreen ? 'Reduzir' : 'Tela Cheia'}
-        </button>
-      </div>
+      ) : (
+        <iframe
+          src={url}
+          title="Visualizador de PDF"
+          className="w-full flex-1"
+          style={{ height: '100%', border: 'none' }}
+          onError={() => setLoadError(true)}
+        />
+      )}
     </div>
   );
 }
