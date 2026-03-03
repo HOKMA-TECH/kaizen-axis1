@@ -1,501 +1,523 @@
-import { useState, useCallback } from 'react';
-import { SectionHeader, PremiumCard, RoundedButton } from '@/components/ui/PremiumComponents';
+import { useState, useEffect, useMemo, useCallback } from 'react';
+import { SectionHeader, PremiumCard } from '@/components/ui/PremiumComponents';
 import {
-  Calculator, Calendar, DollarSign, Percent, Clock, ArrowRight,
-  TrendingDown, CheckCircle2, FileText, ChevronDown, ChevronUp,
-  AlertTriangle, Download, BarChart2, Home, Shield, RefreshCw
+  Calculator, DollarSign, Percent, Clock, TrendingDown,
+  AlertTriangle, CheckCircle2, ChevronDown, ChevronUp, Printer,
+  ArrowRight, Home, Wallet
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
-/* ─────────────────────────── TYPES ─────────────────────────── */
+/* ─────────────────────────────────────────────────────────────────
+   TYPES
+───────────────────────────────────────────────────────────────── */
+type System = 'SAC' | 'PRICE';
+
 interface TableRow {
-  month: number;
-  date: Date;
-  balanceStart: number;
-  amortization: number;
+  k: number;
+  balStart: number;
+  amort: number;
   interest: number;
-  mip: number;
-  dfi: number;
-  adminFee: number;
-  totalInstallment: number;
-  balanceEnd: number;
+  installment: number;
+  balEnd: number;
+  isExtra?: boolean;
 }
 
-interface SimResult {
-  loanAmount: number;
+interface BaseResult {
   monthlyRate: number;
-  nominalAnnualRate: number;
-  effectiveAnnualRate: number;
-  cetAnual: number;
   firstInstallment: number;
   lastInstallment: number;
-  totalPaid: number;
   totalInterest: number;
-  totalInsurance: number;
-  incomeCommitment: number;
+  totalPaid: number;
   rows: TableRow[];
-  comparePrice: { totalPaid: number; totalInterest: number; firstInstallment: number } | null;
-  compareSac: { totalPaid: number; totalInterest: number; firstInstallment: number } | null;
+  pmt: number; // for PRICE: fixed PMT; for SAC: fixed amortization value (A)
 }
 
-/* ─────────────────────────── HELPERS ─────────────────────────── */
-const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-const fmtPct = (v: number) => v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 4 }) + '%';
+interface ExtraResult {
+  extraMonth: number;
+  balanceAfterExtra: number;
+  installmentBeforeExtra: number;
+  remainingBefore: number;
+  // Option A — reduce term
+  optA: {
+    newMonths: number;
+    savedMonths: number;
+    savedYears: number;
+    nextInstallment: number;
+    totalInterestSaved: number;
+  };
+  // Option B — reduce installment
+  optB: {
+    newInstallment: number;
+    reduction: number;
+    totalInterestSaved: number;
+    newMonthlyAmort?: number; // SAC only
+    newPmt?: number;          // PRICE only
+  };
+}
 
-function parseNum(s: string): number {
-  const n = parseFloat(s.replace(/\./g, '').replace(',', '.'));
+/* ─────────────────────────────────────────────────────────────────
+   HELPERS
+───────────────────────────────────────────────────────────────── */
+const fmtBRL = (v: number) =>
+  v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+
+const parseNum = (s: string): number => {
+  const cleaned = s.replace(/[^\d,]/g, '').replace(',', '.');
+  const n = parseFloat(cleaned);
   return isNaN(n) ? 0 : n;
-}
+};
 
-function monthlyFromAnnual(annualRate: number) {
-  return Math.pow(1 + annualRate / 100, 1 / 12) - 1;
-}
+const formatInput = (raw: string): string => {
+  const digits = raw.replace(/\D/g, '');
+  if (!digits) return '';
+  const cents = parseInt(digits, 10);
+  return (cents / 100).toLocaleString('pt-BR', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+};
 
-/** Compute CET monthly via Newton-Raphson on NPV=0 */
-function computeCET(pv: number, cashflows: number[]): number {
-  let r = 0.01;
-  for (let iter = 0; iter < 200; iter++) {
-    let npv = -pv;
-    let dnpv = 0;
-    for (let k = 1; k <= cashflows.length; k++) {
-      const denom = Math.pow(1 + r, k);
-      npv += cashflows[k - 1] / denom;
-      dnpv -= k * cashflows[k - 1] / Math.pow(1 + r, k + 1);
-    }
-    const newR = r - npv / dnpv;
-    if (Math.abs(newR - r) < 1e-10) { r = newR; break; }
-    r = newR;
-  }
-  return Math.max(0, r);
-}
+const monthlyRate = (annualPct: number) =>
+  Math.pow(1 + annualPct / 100, 1 / 12) - 1;
 
-function buildSchedule(
-  loanAmount: number,
-  monthlyRate: number,
-  months: number,
-  system: 'SAC' | 'PRICE',
-  startDate: Date,
-  mipRate: number,
-  dfiRate: number,
-  propertyValue: number,
-  adminFee: number,
-  trMonthly: number,
-): TableRow[] {
+/* ─────────────────────────────────────────────────────────────────
+   CORE CALCULATION
+───────────────────────────────────────────────────────────────── */
+function calcBase(pv: number, rate: number, n: number, sys: System): BaseResult {
+  const i = monthlyRate(rate);
+  const sacA = pv / n;
+  const pricePmt =
+    sys === 'PRICE'
+      ? pv * (i * Math.pow(1 + i, n)) / (Math.pow(1 + i, n) - 1)
+      : 0;
+
   const rows: TableRow[] = [];
-  let balance = loanAmount;
+  let balance = pv;
+  let totalInterest = 0;
+  let totalPaid = 0;
+  let firstInst = 0;
+  let lastInst = 0;
 
-  const sacAmort = loanAmount / months;
-  const pricePmt = loanAmount * (monthlyRate * Math.pow(1 + monthlyRate, months)) / (Math.pow(1 + monthlyRate, months) - 1);
+  for (let k = 1; k <= n; k++) {
+    const balStart = balance;
+    const interest = balStart * i;
+    let amort: number, installment: number;
 
-  for (let k = 1; k <= months; k++) {
-    const balanceStart = balance;
-
-    // Apply TR correction to balance
-    const correctedBalance = balanceStart * (1 + trMonthly);
-
-    const interest = correctedBalance * monthlyRate;
-    let amortization: number;
-    let installment: number;
-
-    if (system === 'SAC') {
-      amortization = sacAmort;
-      installment = amortization + interest;
+    if (sys === 'SAC') {
+      amort = Math.min(sacA, balStart);
+      installment = amort + interest;
     } else {
-      // PRICE: fixed installment (recalculated if TR > 0 it applies to balance)
       installment = pricePmt;
-      amortization = installment - interest;
-      if (amortization > correctedBalance) {
-        amortization = correctedBalance;
-        installment = amortization + interest;
-      }
+      amort = installment - interest;
+      if (amort > balStart) { amort = balStart; installment = amort + interest; }
     }
 
-    const mip = correctedBalance * mipRate;
-    const dfi = propertyValue * dfiRate;
-    const total = installment + mip + dfi + adminFee;
-
-    const balanceEnd = Math.max(0, correctedBalance - amortization);
-    balance = balanceEnd;
-
-    const monthDate = new Date(startDate.getFullYear(), startDate.getMonth() + k, 1);
-    rows.push({
-      month: k,
-      date: monthDate,
-      balanceStart,
-      amortization,
-      interest,
-      mip,
-      dfi,
-      adminFee,
-      totalInstallment: total,
-      balanceEnd,
-    });
-
-    if (balance <= 0.01) break;
-  }
-  return rows;
-}
-
-function runSimulation(params: {
-  propertyValue: number;
-  downPayment: number;
-  months: number;
-  annualRate: number;
-  system: 'SAC' | 'PRICE';
-  startDate: Date;
-  trMonthly: number;
-  mipRate: number;
-  dfiRate: number;
-  adminFee: number;
-  familyIncome: number;
-  compareMode: boolean;
-}): SimResult | null {
-  const {
-    propertyValue, downPayment, months, annualRate,
-    system, startDate, trMonthly, mipRate, dfiRate, adminFee, familyIncome, compareMode
-  } = params;
-
-  const loanAmount = propertyValue - downPayment;
-  const monthlyRate = monthlyFromAnnual(annualRate);
-  const nominalAnnualRate = annualRate;
-  const effectiveAnnualRate = (Math.pow(1 + monthlyRate, 12) - 1) * 100;
-
-  const rows = buildSchedule(
-    loanAmount, monthlyRate, months, system, startDate,
-    mipRate / 100, dfiRate / 100, propertyValue, adminFee, trMonthly / 100
-  );
-
-  if (rows.length === 0) return null;
-
-  const firstInstallment = rows[0].totalInstallment;
-  const lastInstallment = rows[rows.length - 1].totalInstallment;
-  const totalPaid = rows.reduce((s, r) => s + r.totalInstallment, 0);
-  const totalInterest = rows.reduce((s, r) => s + r.interest, 0);
-  const totalInsurance = rows.reduce((s, r) => s + r.mip + r.dfi, 0);
-  const incomeCommitment = familyIncome > 0 ? (firstInstallment / familyIncome) * 100 : 0;
-
-  // CET
-  const cashflows = rows.map(r => r.totalInstallment);
-  const cetMonthly = computeCET(loanAmount, cashflows);
-  const cetAnual = (Math.pow(1 + cetMonthly, 12) - 1) * 100;
-
-  // Compare with other system for compare mode
-  let comparePrice: SimResult['comparePrice'] = null;
-  let compareSac: SimResult['compareSac'] = null;
-
-  if (compareMode) {
-    const otherSystem = system === 'SAC' ? 'PRICE' : 'SAC';
-    const otherRows = buildSchedule(
-      loanAmount, monthlyRate, months, otherSystem, startDate,
-      mipRate / 100, dfiRate / 100, propertyValue, adminFee, trMonthly / 100
-    );
-    const otherTotal = otherRows.reduce((s, r) => s + r.totalInstallment, 0);
-    const otherInterest = otherRows.reduce((s, r) => s + r.interest, 0);
-    const otherFirst = otherRows[0]?.totalInstallment ?? 0;
-
-    if (system === 'SAC') {
-      comparePrice = { totalPaid: otherTotal, totalInterest: otherInterest, firstInstallment: otherFirst };
-    } else {
-      compareSac = { totalPaid: otherTotal, totalInterest: otherInterest, firstInstallment: otherFirst };
-    }
+    const balEnd = Math.max(0, balStart - amort);
+    rows.push({ k, balStart, amort, interest, installment, balEnd });
+    totalInterest += interest;
+    totalPaid += installment;
+    if (k === 1) firstInst = installment;
+    if (k === n || balEnd < 0.01) { lastInst = installment; break; }
+    balance = balEnd;
   }
 
   return {
-    loanAmount,
-    monthlyRate,
-    nominalAnnualRate,
-    effectiveAnnualRate,
-    cetAnual,
-    firstInstallment,
-    lastInstallment,
-    totalPaid,
+    monthlyRate: i,
+    firstInstallment: firstInst,
+    lastInstallment: lastInst,
     totalInterest,
-    totalInsurance,
-    incomeCommitment,
+    totalPaid,
     rows,
-    comparePrice,
-    compareSac,
+    pmt: sys === 'PRICE' ? pricePmt : sacA,
   };
 }
 
-/* ─────────────────────────── CHART COMPONENT ─────────────────────────── */
-function MiniChart({ rows }: { rows: TableRow[] }) {
-  if (rows.length === 0) return null;
+function calcExtra(
+  base: BaseResult,
+  n: number,
+  sys: System,
+  extraMonth: number,
+  extraValue: number,
+  i: number
+): ExtraResult | null {
+  if (extraMonth < 1 || extraMonth >= n || extraValue <= 0) return null;
+  const row = base.rows[extraMonth - 1];
+  if (!row) return null;
 
-  const W = 600, H = 180;
-  const pad = { top: 10, right: 10, bottom: 30, left: 60 };
-  const cw = W - pad.left - pad.right;
-  const ch = H - pad.top - pad.bottom;
+  const balAfterParcela = row.balEnd;
+  const balanceAfterExtra = Math.max(0, balAfterParcela - extraValue);
+  const remainingBefore = n - extraMonth;
+  const installmentBeforeExtra = row.installment;
 
-  const maxBalance = rows[0].balanceStart;
+  let optA: ExtraResult['optA'];
+  let optB: ExtraResult['optB'];
 
-  // Sample max 60 points for performance
-  const stride = Math.max(1, Math.floor(rows.length / 60));
-  const sampled = rows.filter((_, i) => i % stride === 0 || i === rows.length - 1);
+  if (sys === 'SAC') {
+    const sacA = base.pmt; // constant amortization
 
-  const px = (i: number) => pad.left + (i / (sampled.length - 1)) * cw;
-  const py = (v: number) => pad.top + ch - (v / maxBalance) * ch;
+    // Option A — keep installment ~same (same A), reduce term
+    const newMonthsA = Math.ceil(balanceAfterExtra / sacA);
+    const savedMonths = remainingBefore - newMonthsA;
+    const nextInstA = sacA + balanceAfterExtra * i;
 
-  const balancePath = sampled.map((r, i) => `${i === 0 ? 'M' : 'L'}${px(i).toFixed(1)},${py(r.balanceEnd).toFixed(1)}`).join(' ');
-  const areaPath = `${balancePath} L${px(sampled.length - 1).toFixed(1)},${(pad.top + ch).toFixed(1)} L${pad.left.toFixed(1)},${(pad.top + ch).toFixed(1)} Z`;
+    // Total interest A
+    let intA = 0;
+    let b = balanceAfterExtra;
+    for (let k = 0; k < newMonthsA && b > 0.01; k++) {
+      intA += b * i;
+      b -= Math.min(sacA, b);
+    }
+    // Total interest B (remaining with original term)
+    let intOrigRem = 0;
+    let bOrig = balAfterParcela;
+    for (let k = 0; k < remainingBefore && bOrig > 0.01; k++) {
+      intOrigRem += bOrig * i;
+      bOrig -= Math.min(sacA, bOrig);
+    }
+    const savedIntA = intOrigRem - intA;
 
-  // Interest area
-  const maxInstallment = rows[0].totalInstallment;
-  const interestH = H * 0.6;
-  const interestPy = (v: number) => H - 5 - (v / maxInstallment) * interestH;
+    optA = {
+      newMonths: newMonthsA,
+      savedMonths,
+      savedYears: parseFloat((savedMonths / 12).toFixed(1)),
+      nextInstallment: nextInstA,
+      totalInterestSaved: savedIntA,
+    };
 
+    // Option B — keep term, reduce installment
+    const newSacA = balanceAfterExtra / remainingBefore;
+    const nextInstB = newSacA + balanceAfterExtra * i;
+    const reduction = installmentBeforeExtra - nextInstB;
+
+    let intB = 0;
+    let bB = balanceAfterExtra;
+    for (let k = 0; k < remainingBefore && bB > 0.01; k++) {
+      intB += bB * i;
+      bB -= Math.min(newSacA, bB);
+    }
+
+    optB = {
+      newInstallment: nextInstB,
+      reduction,
+      totalInterestSaved: intOrigRem - intB,
+      newMonthlyAmort: newSacA,
+    };
+  } else {
+    // PRICE
+    const pmt = base.pmt;
+
+    // Option A — same PMT, fewer months
+    const newMonthsA = Math.ceil(
+      Math.log(pmt / (pmt - balanceAfterExtra * i)) / Math.log(1 + i)
+    );
+    const savedMonths = remainingBefore - newMonthsA;
+
+    let intA = 0;
+    let bA = balanceAfterExtra;
+    for (let k = 0; k < newMonthsA && bA > 0.01; k++) {
+      const jk = bA * i;
+      intA += jk;
+      bA -= Math.min(pmt - jk, bA);
+    }
+    let intOrigRem = 0;
+    let bOrig = balAfterParcela;
+    for (let k = 0; k < remainingBefore && bOrig > 0.01; k++) {
+      const jk = bOrig * i;
+      intOrigRem += jk;
+      bOrig -= Math.min(pmt - jk, bOrig);
+    }
+
+    optA = {
+      newMonths: newMonthsA,
+      savedMonths,
+      savedYears: parseFloat((savedMonths / 12).toFixed(1)),
+      nextInstallment: pmt,
+      totalInterestSaved: intOrigRem - intA,
+    };
+
+    // Option B — same term, lower PMT
+    const newPmt =
+      balanceAfterExtra *
+      (i * Math.pow(1 + i, remainingBefore)) /
+      (Math.pow(1 + i, remainingBefore) - 1);
+    const reduction = pmt - newPmt;
+
+    let intB = 0;
+    let bB = balanceAfterExtra;
+    for (let k = 0; k < remainingBefore && bB > 0.01; k++) {
+      const jk = bB * i;
+      intB += jk;
+      bB -= Math.min(newPmt - jk, bB);
+    }
+
+    optB = {
+      newInstallment: newPmt,
+      reduction,
+      totalInterestSaved: intOrigRem - intB,
+      newPmt,
+    };
+  }
+
+  return {
+    extraMonth,
+    balanceAfterExtra,
+    installmentBeforeExtra,
+    remainingBefore,
+    optA,
+    optB,
+  };
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   SUB-COMPONENTS
+───────────────────────────────────────────────────────────────── */
+function MetricCard({
+  label, value, sub, highlight, warn, green,
+}: {
+  label: string; value: string; sub?: string;
+  highlight?: boolean; warn?: boolean; green?: boolean;
+}) {
   return (
-    <div className="overflow-x-auto">
-      <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ minWidth: 280 }} aria-label="Evolução do saldo devedor">
-        <defs>
-          <linearGradient id="balanceGrad" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#D4AF37" stopOpacity="0.4" />
-            <stop offset="100%" stopColor="#D4AF37" stopOpacity="0.05" />
-          </linearGradient>
-        </defs>
-        {/* Y grid */}
-        {[0, 0.25, 0.5, 0.75, 1].map(f => {
-          const y = pad.top + ch * (1 - f);
-          return (
-            <g key={f}>
-              <line x1={pad.left} y1={y} x2={W - pad.right} y2={y} stroke="#E5E7EB" strokeWidth="1" strokeDasharray="4 4" />
-              <text x={pad.left - 6} y={y + 4} textAnchor="end" fontSize="9" fill="#9CA3AF">{fmt(maxBalance * f).replace('R$\u00a0', '')}</text>
-            </g>
-          );
-        })}
-        {/* Balance area */}
-        <path d={areaPath} fill="url(#balanceGrad)" />
-        <path d={balancePath} fill="none" stroke="#D4AF37" strokeWidth="2" strokeLinecap="round" />
-        {/* X labels */}
-        {[0, 0.25, 0.5, 0.75, 1].map(f => {
-          const idx = Math.round(f * (sampled.length - 1));
-          const r = sampled[idx];
-          if (!r) return null;
-          const x = px(idx);
-          return <text key={f} x={x} y={H - 5} textAnchor="middle" fontSize="9" fill="#9CA3AF">Mês {r.month}</text>;
-        })}
-        <text x={pad.left - 55} y={pad.top + ch / 2} textAnchor="middle" fontSize="9" fill="#9CA3AF" transform={`rotate(-90, ${pad.left - 55}, ${pad.top + ch / 2})`}>Saldo (R$)</text>
-      </svg>
+    <div className={`rounded-xl p-3 border ${highlight ? 'bg-gold-50 dark:bg-gold-900/20 border-gold-200 dark:border-gold-800/30'
+        : warn ? 'bg-red-50 dark:bg-red-900/10 border-red-200 dark:border-red-900/20'
+          : green ? 'bg-green-50 dark:bg-green-900/10 border-green-200 dark:border-green-900/20'
+            : 'bg-surface-100 border-surface-200'
+      }`}>
+      <p className="text-xs text-text-secondary mb-1">{label}</p>
+      <p className={`text-sm font-bold ${highlight ? 'text-gold-700 dark:text-gold-400'
+          : warn ? 'text-red-600 dark:text-red-400'
+            : green ? 'text-green-700 dark:text-green-400'
+              : 'text-text-primary'
+        }`}>{value}</p>
+      {sub && <p className="text-xs text-text-secondary mt-0.5">{sub}</p>}
     </div>
   );
 }
 
-/* ─────────────────────────── STACK CHART ─────────────────────────── */
-function StackChart({ rows }: { rows: TableRow[] }) {
-  if (rows.length === 0) return null;
-
-  const W = 600, H = 160;
-  const pad = { top: 10, right: 10, bottom: 30, left: 60 };
-  const cw = W - pad.left - pad.right;
-  const ch = H - pad.top - pad.bottom;
-
-  const stride = Math.max(1, Math.floor(rows.length / 60));
-  const sampled = rows.filter((_, i) => i % stride === 0 || i === rows.length - 1);
-
-  const maxTotal = Math.max(...sampled.map(r => r.totalInstallment));
-  const px = (i: number) => pad.left + (i / (sampled.length - 1)) * cw;
-
-  const pyVal = (v: number) => pad.top + ch - (v / maxTotal) * ch;
-
-  const amortPath = sampled.map((r, i) => `${i === 0 ? 'M' : 'L'}${px(i).toFixed(1)},${pyVal(r.amortization).toFixed(1)}`).join(' ');
-  const interestPath = sampled.map((r, i) => `${i === 0 ? 'M' : 'L'}${px(i).toFixed(1)},${pyVal(r.interest).toFixed(1)}`).join(' ');
-
-  const baseY = pad.top + ch;
-  const amortArea = `${amortPath} L${px(sampled.length - 1).toFixed(1)},${baseY} L${pad.left},${baseY} Z`;
-  const interestArea = `${interestPath} L${px(sampled.length - 1).toFixed(1)},${baseY} L${pad.left},${baseY} Z`;
+function InputField({
+  label, icon: Icon, value, onChange, placeholder, hint, suffix, readOnly, highlight,
+}: {
+  label: string;
+  icon: React.ElementType;
+  value: string;
+  onChange?: (v: string) => void;
+  placeholder?: string;
+  hint?: string;
+  suffix?: string;
+  readOnly?: boolean;
+  highlight?: boolean;
+}) {
+  const inputClass = `w-full p-3 rounded-xl border ${readOnly
+      ? 'bg-surface-100 dark:bg-surface-200 border-surface-200 font-semibold text-text-primary cursor-default'
+      : highlight
+        ? 'bg-gold-50 dark:bg-gold-900/10 border-gold-300 dark:border-gold-700 focus:ring-2 focus:ring-gold-400 outline-none'
+        : 'bg-surface-50 dark:bg-surface-100 border-surface-200 focus:ring-2 focus:ring-gold-400 focus:border-transparent outline-none'
+    } text-text-primary transition-all text-sm`;
 
   return (
-    <div className="overflow-x-auto">
-      <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ minWidth: 280 }} aria-label="Composição da parcela">
-        <defs>
-          <linearGradient id="amortGrad" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#22C55E" stopOpacity="0.5" />
-            <stop offset="100%" stopColor="#22C55E" stopOpacity="0.05" />
-          </linearGradient>
-          <linearGradient id="interestGrad" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#EF4444" stopOpacity="0.5" />
-            <stop offset="100%" stopColor="#EF4444" stopOpacity="0.05" />
-          </linearGradient>
-        </defs>
-        {[0, 0.5, 1].map(f => {
-          const y = pad.top + ch * (1 - f);
-          return <line key={f} x1={pad.left} y1={y} x2={W - pad.right} y2={y} stroke="#E5E7EB" strokeWidth="1" strokeDasharray="4 4" />;
-        })}
-        <path d={interestArea} fill="url(#interestGrad)" />
-        <path d={interestPath} fill="none" stroke="#EF4444" strokeWidth="1.5" />
-        <path d={amortArea} fill="url(#amortGrad)" />
-        <path d={amortPath} fill="none" stroke="#22C55E" strokeWidth="1.5" />
-        {/* Legend */}
-        <rect x={pad.left} y={pad.top} width={10} height={10} fill="#22C55E" rx="2" />
-        <text x={pad.left + 14} y={pad.top + 9} fontSize="9" fill="#9CA3AF">Amortização</text>
-        <rect x={pad.left + 80} y={pad.top} width={10} height={10} fill="#EF4444" rx="2" />
-        <text x={pad.left + 94} y={pad.top + 9} fontSize="9" fill="#9CA3AF">Juros</text>
-        {[0, 0.25, 0.5, 0.75, 1].map(f => {
-          const idx = Math.round(f * (sampled.length - 1));
-          const r = sampled[idx];
-          if (!r) return null;
-          return <text key={f} x={px(idx)} y={H - 5} textAnchor="middle" fontSize="9" fill="#9CA3AF">Mês {r.month}</text>;
-        })}
-      </svg>
+    <div className="flex flex-col gap-1">
+      <label className="text-xs font-medium text-text-secondary flex items-center gap-1.5">
+        <Icon size={13} className="text-gold-500" /> {label}
+      </label>
+      <div className="relative">
+        <input
+          className={inputClass}
+          value={value}
+          readOnly={readOnly}
+          placeholder={placeholder}
+          onChange={e => onChange?.(e.target.value)}
+        />
+        {suffix && (
+          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-text-secondary">{suffix}</span>
+        )}
+      </div>
+      {hint && <p className="text-xs text-text-secondary">{hint}</p>}
     </div>
   );
 }
 
-/* ─────────────────────────── MAIN COMPONENT ─────────────────────────── */
+/* ─────────────────────────────────────────────────────────────────
+   MAIN PAGE
+───────────────────────────────────────────────────────────────── */
 export default function Amortization() {
-  // ── Inputs
-  const [propertyValueStr, setPropertyValueStr] = useState('500000');
-  const [downPaymentStr, setDownPaymentStr] = useState('100000');
-  const [months, setMonths] = useState('360');
-  const [annualRateStr, setAnnualRateStr] = useState('10.99');
-  const [system, setSystem] = useState<'SAC' | 'PRICE'>('SAC');
-  const [startDate, setStartDate] = useState(() => {
-    const now = new Date();
-    return `${now.getFullYear()}-${String(now.getMonth() + 2).padStart(2, '0')}-01`;
-  });
-  const [trStr, setTrStr] = useState('0');
-  const [mipRateStr, setMipRateStr] = useState('0.036');
-  const [dfiRateStr, setDfiRateStr] = useState('0.025');
-  const [adminFeeStr, setAdminFeeStr] = useState('25');
-  const [familyIncomeStr, setFamilyIncomeStr] = useState('15000');
-  const [compareMode, setCompareMode] = useState(false);
+  // ── Raw inputs (currency mask)
+  const [pvRaw, setPvRaw] = useState('30000000'); // R$ 300.000,00 = 30000000 cents
+  const [rdRaw, setRdRaw] = useState('800000');   // R$ 8.000,00
+  const [annualRateStr, setAnnualRateStr] = useState('11.71');
+  const [monthsStr, setMonthsStr] = useState('360');
+  const [system, setSystem] = useState<System>('SAC');
+  const [extraMonthStr, setExtraMonthStr] = useState('24');
+  const [extraValRaw, setExtraValRaw] = useState('1000000'); // R$ 10.000,00
 
-  // ── UI State
-  const [result, setResult] = useState<SimResult | null>(null);
+  // ── UI
   const [showTable, setShowTable] = useState(false);
-  const [showCharts, setShowCharts] = useState(false);
   const [tablePage, setTablePage] = useState(0);
-  const [errors, setErrors] = useState<string[]>([]);
+  const PAGE = 24;
 
-  const PAGE_SIZE = 24;
+  // Formatted display values (two-decimal masked)
+  const pvDisplay = useMemo(() => formatInput(pvRaw), [pvRaw]);
+  const rdDisplay = useMemo(() => formatInput(rdRaw), [rdRaw]);
+  const extraDisplay = useMemo(() => formatInput(extraValRaw), [extraValRaw]);
 
-  const validate = useCallback((): string[] => {
-    const errs: string[] = [];
-    const pv = parseNum(propertyValueStr);
-    const dp = parseNum(downPaymentStr);
-    const loan = pv - dp;
-    const n = parseInt(months);
-    const rate = parseNum(annualRateStr);
+  const handleCurrencyChange = useCallback(
+    (setter: React.Dispatch<React.SetStateAction<string>>) =>
+      (v: string) => setter(v.replace(/\D/g, '')),
+    []
+  );
 
-    if (dp <= 0) errs.push('Entrada deve ser maior que zero.');
-    if (pv <= 0) errs.push('Valor do imóvel deve ser maior que zero.');
-    if (dp >= pv) errs.push('Entrada deve ser menor que o valor do imóvel.');
-    if (dp < pv * 0.20) errs.push(`Entrada mínima é de 20% do valor do imóvel (${fmt(pv * 0.20)}).`);
-    if (loan < 80000) errs.push(`Valor financiado mínimo é R$ 80.000. Atual: ${fmt(loan)}.`);
-    if (loan > 1500000) errs.push(`Valor financiado máximo é R$ 1.500.000. Atual: ${fmt(loan)}.`);
-    if (n < 60) errs.push('Prazo mínimo: 60 meses.');
-    if (n > 420) errs.push('Prazo máximo: 420 meses.');
-    if (rate < 5) errs.push('Taxa de juros mínima: 5% a.a.');
-    if (rate > 30) errs.push('Taxa de juros parece muito alta. Verifique.');
+  // ── Derived auto-calculated values
+  const pv = useMemo(() => parseNum(pvDisplay) * 0.8, [pvDisplay]);
+  const downPayment = useMemo(() => parseNum(pvDisplay) * 0.2, [pvDisplay]);
+  const propertyValue = useMemo(() => parseNum(pvDisplay), [pvDisplay]);
+  const renda = useMemo(() => parseNum(rdDisplay), [rdDisplay]);
+  const maxInstallment = useMemo(() => renda * 0.3, [renda]);
+  const annualRate = useMemo(() => parseFloat(annualRateStr) || 0, [annualRateStr]);
+  const n = useMemo(() => Math.max(60, Math.min(420, parseInt(monthsStr) || 360)), [monthsStr]);
+  const extraMonth = useMemo(() => parseInt(extraMonthStr) || 0, [extraMonthStr]);
+  const extraValue = useMemo(() => parseNum(extraDisplay), [extraDisplay]);
 
-    return errs;
-  }, [propertyValueStr, downPaymentStr, months, annualRateStr]);
+  // ── Base simulation
+  const base = useMemo(() => {
+    if (pv < 1000 || annualRate < 1 || n < 1) return null;
+    return calcBase(pv, annualRate, n, system);
+  }, [pv, annualRate, n, system]);
 
-  const handleSimulate = () => {
-    const errs = validate();
-    setErrors(errs);
-    if (errs.length > 0) return;
+  // ── Extra simulation
+  const extra = useMemo(() => {
+    if (!base || extraMonth < 1 || extraValue <= 0) return null;
+    return calcExtra(base, n, system, extraMonth, extraValue, base.monthlyRate);
+  }, [base, n, system, extraMonth, extraValue]);
 
-    const pv = parseNum(propertyValueStr);
-    const dp = parseNum(downPaymentStr);
-    const res = runSimulation({
-      propertyValue: pv,
-      downPayment: dp,
-      months: parseInt(months),
-      annualRate: parseNum(annualRateStr),
-      system,
-      startDate: new Date(startDate + 'T00:00:00'),
-      trMonthly: parseNum(trStr),
-      mipRate: parseNum(mipRateStr),
-      dfiRate: parseNum(dfiRateStr),
-      adminFee: parseNum(adminFeeStr),
-      familyIncome: parseNum(familyIncomeStr),
-      compareMode,
-    });
-    setResult(res);
-    setShowTable(false);
-    setShowCharts(false);
-    setTablePage(0);
-  };
+  const incomeOk = base ? base.firstInstallment <= maxInstallment : null;
 
-  const handleClear = () => {
-    setResult(null);
-    setErrors([]);
-    setShowTable(false);
-    setShowCharts(false);
-  };
+  // Reset table page on new simulation
+  useEffect(() => setTablePage(0), [base]);
 
-  // ── Export to CSV (Excel-compatible)
-  const exportCSV = () => {
-    if (!result) return;
-    const header = 'Nº Parcela;Data;Saldo Devedor Inicial;Amortização;Juros;MIP;DFI;Taxa Admin;Parcela Total;Saldo Devedor Final\n';
-    const body = result.rows.map(r =>
-      [
-        r.month,
-        r.date.toLocaleDateString('pt-BR'),
-        r.balanceStart.toFixed(2),
-        r.amortization.toFixed(2),
-        r.interest.toFixed(2),
-        r.mip.toFixed(2),
-        r.dfi.toFixed(2),
-        r.adminFee.toFixed(2),
-        r.totalInstallment.toFixed(2),
-        r.balanceEnd.toFixed(2),
-      ].join(';')
-    ).join('\n');
-    const blob = new Blob(['\uFEFF' + header + body], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `amortizacao_${system}_${months}meses.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
+  // Table with extra row highlighted
+  const tableRows = useMemo(() => {
+    if (!base) return [];
+    return base.rows.map(r => ({ ...r, isExtra: r.k === extraMonth && extraValue > 0 }));
+  }, [base, extraMonth, extraValue]);
 
-  // ── Export PDF via print
-  const exportPDF = () => {
-    window.print();
-  };
+  const pagedRows = tableRows.slice(tablePage * PAGE, (tablePage + 1) * PAGE);
+  const totalPages = Math.ceil(tableRows.length / PAGE);
 
-  const incomeWarning = result && result.incomeCommitment > 30;
-  const incomeDanger = result && result.incomeCommitment > 35;
-
-  const loanAmount = Math.max(0, parseNum(propertyValueStr) - parseNum(downPaymentStr));
-
-  const pagedRows = result ? result.rows.slice(tablePage * PAGE_SIZE, (tablePage + 1) * PAGE_SIZE) : [];
-  const totalPages = result ? Math.ceil(result.rows.length / PAGE_SIZE) : 0;
-
-  const inputClass = "w-full p-3 bg-surface-50 dark:bg-surface-100 rounded-xl border border-surface-200 dark:border-surface-200 focus:ring-2 focus:ring-gold-400 dark:focus:ring-gold-600 focus:border-transparent outline-none text-text-primary transition-all";
-  const labelClass = "text-sm font-medium text-text-secondary flex items-center gap-2";
+  const inputClass = "w-full p-3 bg-surface-50 dark:bg-surface-100 rounded-xl border border-surface-200 focus:ring-2 focus:ring-gold-400 focus:border-transparent outline-none text-text-primary text-sm transition-all";
+  const labelClass = "text-xs font-medium text-text-secondary flex items-center gap-1.5 mb-1";
 
   return (
-    <div className="p-4 md:p-6 pb-24 min-h-screen bg-surface-50">
+    <div className="p-4 md:p-6 pb-28 min-h-screen bg-surface-50 print:p-2 print:pb-2">
       <SectionHeader
-        title="Simulador de Financiamento"
-        subtitle="Caixa Econômica Federal — SAC & PRICE"
+        title="Simulador Caixa"
+        subtitle="Financiamento Imobiliário — SAC & PRICE"
       />
 
       <div className="space-y-5">
-        {/* ── Form Card ── */}
-        <PremiumCard className="p-5 space-y-6">
-          {/* Section: Dados do Imóvel */}
+        {/* ── FORM ── */}
+        <PremiumCard className="p-5 space-y-5">
+          {/* Dados do Imóvel */}
           <div>
-            <h3 className="font-bold text-text-primary flex items-center gap-2 mb-4">
-              <Home size={18} className="text-gold-500" /> Dados do Imóvel
+            <h3 className="font-bold text-text-primary flex items-center gap-2 mb-3 text-sm">
+              <Home size={16} className="text-gold-500" /> Dados do Imóvel e Renda
             </h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="flex flex-col gap-1.5">
-                <label className={labelClass}><DollarSign size={15} className="text-gold-500" /> Valor do Imóvel (R$)</label>
-                <input type="number" value={propertyValueStr} onChange={e => setPropertyValueStr(e.target.value)} className={inputClass} placeholder="500000" />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {/* Valor do Imóvel */}
+              <div>
+                <label className={labelClass}><DollarSign size={13} className="text-gold-500" /> Valor do Imóvel (R$)</label>
+                <input
+                  className={inputClass}
+                  value={pvDisplay}
+                  onChange={e => handleCurrencyChange(setPvRaw)(e.target.value)}
+                  placeholder="300.000,00"
+                />
               </div>
-              <div className="flex flex-col gap-1.5">
-                <label className={labelClass}><DollarSign size={15} className="text-gold-500" /> Entrada / Recursos Próprios (R$)</label>
-                <input type="number" value={downPaymentStr} onChange={e => setDownPaymentStr(e.target.value)} className={inputClass} placeholder="100000" />
+
+              {/* Renda */}
+              <div>
+                <label className={labelClass}><Wallet size={13} className="text-gold-500" /> Renda Bruta Mensal (R$)</label>
+                <input
+                  className={inputClass}
+                  value={rdDisplay}
+                  onChange={e => handleCurrencyChange(setRdRaw)(e.target.value)}
+                  placeholder="8.000,00"
+                />
               </div>
-              <div className="flex flex-col gap-1.5">
-                <label className={labelClass}><DollarSign size={15} className="text-gold-500" /> Valor Financiado (R$)</label>
-                <div className="w-full p-3 bg-surface-100 dark:bg-surface-200 rounded-xl border border-surface-200 text-text-primary font-semibold">
-                  {loanAmount > 0 ? fmt(loanAmount) : '—'}
+
+              {/* Auto-calculated row */}
+              <div className="rounded-xl border border-gold-200 dark:border-gold-800/30 bg-gold-50 dark:bg-gold-900/10 p-3">
+                <p className="text-xs text-gold-600 dark:text-gold-400 font-medium mb-1">Valor Financiado (80%)</p>
+                <p className="font-bold text-text-primary">{pv > 0 ? fmtBRL(pv) : '—'}</p>
+              </div>
+              <div className="rounded-xl border border-surface-200 bg-surface-100 p-3">
+                <p className="text-xs text-text-secondary font-medium mb-1">Entrada Necessária (20%)</p>
+                <p className="font-bold text-text-primary">{downPayment > 0 ? fmtBRL(downPayment) : '—'}</p>
+              </div>
+
+              <div className={`rounded-xl border p-3 sm:col-span-2 flex items-center justify-between ${base && incomeOk === false
+                  ? 'bg-red-50 dark:bg-red-900/10 border-red-200 dark:border-red-800/30'
+                  : base && incomeOk
+                    ? 'bg-green-50 dark:bg-green-900/10 border-green-200 dark:border-green-800/30'
+                    : 'bg-surface-100 border-surface-200'
+                }`}>
+                <div>
+                  <p className="text-xs text-text-secondary font-medium mb-0.5">Parcela Máxima (30% da renda)</p>
+                  <p className="font-bold text-text-primary">{maxInstallment > 0 ? fmtBRL(maxInstallment) : '—'}</p>
+                </div>
+                {base && (
+                  <div className="flex items-center gap-2">
+                    {incomeOk ? (
+                      <><CheckCircle2 size={18} className="text-green-500" /><span className="text-xs text-green-700 dark:text-green-400 font-semibold">Renda adequada ✅</span></>
+                    ) : (
+                      <><AlertTriangle size={18} className="text-red-500" /><span className="text-xs text-red-700 dark:text-red-400 font-semibold">Renda insuficiente ⚠️</span></>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="border-t border-surface-200" />
+
+          {/* Condições */}
+          <div>
+            <h3 className="font-bold text-text-primary flex items-center gap-2 mb-3 text-sm">
+              <Calculator size={16} className="text-gold-500" /> Condições do Financiamento
+            </h3>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div>
+                <label className={labelClass}><Percent size={13} className="text-gold-500" /> Taxa (% a.a.)</label>
+                <input
+                  type="number" step="0.01" className={inputClass}
+                  value={annualRateStr}
+                  onChange={e => setAnnualRateStr(e.target.value)}
+                />
+              </div>
+              <div>
+                <label className={labelClass}><Clock size={13} className="text-gold-500" /> Prazo (meses)</label>
+                <input
+                  type="number" min={60} max={420} className={inputClass}
+                  value={monthsStr}
+                  onChange={e => setMonthsStr(e.target.value)}
+                />
+              </div>
+              <div className="col-span-2">
+                <label className={labelClass}><Calculator size={13} className="text-gold-500" /> Sistema de Amortização</label>
+                <div className="flex gap-2">
+                  {(['SAC', 'PRICE'] as System[]).map(s => (
+                    <button
+                      key={s}
+                      onClick={() => setSystem(s)}
+                      className={`flex-1 p-2.5 rounded-xl text-sm font-semibold border transition-all ${system === s
+                          ? 'bg-gold-400 text-white border-gold-400 shadow-md shadow-gold-400/20'
+                          : 'bg-surface-50 dark:bg-surface-100 border-surface-200 text-text-secondary hover:border-gold-300'
+                        }`}
+                    >
+                      {s}
+                      <span className="block text-xs font-normal opacity-75">
+                        {s === 'SAC' ? 'Parcelas decr.' : 'Parcelas fixas'}
+                      </span>
+                    </button>
+                  ))}
                 </div>
               </div>
             </div>
@@ -503,250 +525,206 @@ export default function Amortization() {
 
           <div className="border-t border-surface-200" />
 
-          {/* Section: Condições do Financiamento */}
+          {/* Amortização Extra */}
           <div>
-            <h3 className="font-bold text-text-primary flex items-center gap-2 mb-4">
-              <Calculator size={18} className="text-gold-500" /> Condições do Financiamento
+            <h3 className="font-bold text-text-primary flex items-center gap-2 mb-3 text-sm">
+              <TrendingDown size={16} className="text-gold-500" /> Amortização Extra (opcional)
             </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              <div className="flex flex-col gap-1.5">
-                <label className={labelClass}><Clock size={15} className="text-gold-500" /> Prazo (meses, máx 420)</label>
-                <input type="number" value={months} onChange={e => setMonths(e.target.value)} min={60} max={420} className={inputClass} />
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className={labelClass}><Clock size={13} className="text-gold-500" /> Após qual parcela?</label>
+                <input
+                  type="number" min={1} max={n - 1} className={inputClass}
+                  value={extraMonthStr}
+                  onChange={e => setExtraMonthStr(e.target.value)}
+                  placeholder="24"
+                />
+                <p className="text-xs text-text-secondary mt-0.5">Mês em que o pagamento extra ocorre</p>
               </div>
-              <div className="flex flex-col gap-1.5">
-                <label className={labelClass}><Percent size={15} className="text-gold-500" /> Taxa de Juros Nominal (% a.a.)</label>
-                <input type="number" value={annualRateStr} onChange={e => setAnnualRateStr(e.target.value)} step="0.01" className={inputClass} />
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <label className={labelClass}><Calendar size={15} className="text-gold-500" /> Data da 1ª Parcela</label>
-                <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className={inputClass} />
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <label className={labelClass}><Calculator size={15} className="text-gold-500" /> Sistema de Amortização</label>
-                <select value={system} onChange={e => setSystem(e.target.value as 'SAC' | 'PRICE')} className={inputClass + ' appearance-none'}>
-                  <option value="SAC">SAC — Parcelas Decrescentes</option>
-                  <option value="PRICE">PRICE — Parcelas Fixas</option>
-                </select>
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <label className={labelClass}><TrendingDown size={15} className="text-gold-500" /> TR Estimada (% a.m.)</label>
-                <input type="number" value={trStr} onChange={e => setTrStr(e.target.value)} step="0.01" className={inputClass} placeholder="0.00" />
-                <p className="text-xs text-text-secondary">0% = cenário conservador</p>
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <label className={labelClass}><DollarSign size={15} className="text-gold-500" /> Renda Familiar Bruta (R$)</label>
-                <input type="number" value={familyIncomeStr} onChange={e => setFamilyIncomeStr(e.target.value)} className={inputClass} placeholder="15000" />
+              <div>
+                <label className={labelClass}><DollarSign size={13} className="text-gold-500" /> Valor Extra (R$)</label>
+                <input
+                  className={inputClass}
+                  value={extraDisplay}
+                  onChange={e => handleCurrencyChange(setExtraValRaw)(e.target.value)}
+                  placeholder="10.000,00"
+                />
               </div>
             </div>
-          </div>
-
-          <div className="border-t border-surface-200" />
-
-          {/* Section: Seguros e Taxas */}
-          <div>
-            <h3 className="font-bold text-text-primary flex items-center gap-2 mb-4">
-              <Shield size={18} className="text-gold-500" /> Seguros e Taxas Obrigatórias
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="flex flex-col gap-1.5">
-                <label className={labelClass}><Shield size={15} className="text-gold-500" /> MIP (% a.m. sobre saldo devedor)</label>
-                <input type="number" value={mipRateStr} onChange={e => setMipRateStr(e.target.value)} step="0.001" className={inputClass} />
-                <p className="text-xs text-text-secondary">Ex: 0.036 = 0,036% a.m.</p>
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <label className={labelClass}><Shield size={15} className="text-gold-500" /> DFI (% a.m. sobre valor do imóvel)</label>
-                <input type="number" value={dfiRateStr} onChange={e => setDfiRateStr(e.target.value)} step="0.001" className={inputClass} />
-                <p className="text-xs text-text-secondary">Ex: 0.025 = 0,025% a.m.</p>
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <label className={labelClass}><DollarSign size={15} className="text-gold-500" /> Taxa de Administração (R$/mês)</label>
-                <input type="number" value={adminFeeStr} onChange={e => setAdminFeeStr(e.target.value)} className={inputClass} />
-              </div>
-            </div>
-          </div>
-
-          {/* Compare mode toggle */}
-          <div className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={() => setCompareMode(v => !v)}
-              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${compareMode ? 'bg-gold-400' : 'bg-surface-200'}`}
-            >
-              <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform shadow ${compareMode ? 'translate-x-6' : 'translate-x-1'}`} />
-            </button>
-            <span className="text-sm text-text-secondary">Comparar com o outro sistema ({system === 'SAC' ? 'PRICE' : 'SAC'})</span>
-          </div>
-
-          {/* Validation errors */}
-          {errors.length > 0 && (
-            <div className="rounded-xl bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/30 p-4 space-y-1">
-              {errors.map((e, i) => (
-                <p key={i} className="text-sm text-red-700 dark:text-red-400 flex items-start gap-2">
-                  <AlertTriangle size={15} className="mt-0.5 flex-shrink-0" /> {e}
-                </p>
-              ))}
-            </div>
-          )}
-
-          {/* Buttons */}
-          <div className="flex flex-col sm:flex-row gap-3 pt-2">
-            <RoundedButton onClick={handleSimulate} className="flex-1 flex items-center justify-center gap-2">
-              Simular <ArrowRight size={18} />
-            </RoundedButton>
-            <RoundedButton variant="secondary" onClick={handleClear} className="sm:w-auto flex items-center gap-2">
-              <RefreshCw size={16} /> Limpar
-            </RoundedButton>
           </div>
         </PremiumCard>
 
-        {/* ── Results ── */}
+        {/* ── RESULTS ── */}
         <AnimatePresence>
-          {result && (
+          {base && (
             <motion.div
-              initial={{ opacity: 0, y: 20 }}
+              key="results"
+              initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0 }}
               className="space-y-5"
             >
-              {/* Income warning */}
-              {result.incomeCommitment > 0 && (
-                <div className={`rounded-xl border p-4 flex items-start gap-3 ${incomeDanger
-                  ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800/30'
-                  : incomeWarning
-                    ? 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800/30'
-                    : 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800/30'
-                  }`}>
-                  <AlertTriangle size={18} className={incomeDanger ? 'text-red-500 mt-0.5' : incomeWarning ? 'text-amber-500 mt-0.5' : 'text-green-500 mt-0.5'} />
-                  <div>
-                    <p className={`text-sm font-semibold ${incomeDanger ? 'text-red-700 dark:text-red-400' : incomeWarning ? 'text-amber-700 dark:text-amber-400' : 'text-green-700 dark:text-green-400'}`}>
-                      Comprometimento de renda: {result.incomeCommitment.toFixed(1)}%
-                    </p>
-                    <p className="text-xs mt-0.5 text-text-secondary">
-                      {incomeDanger
-                        ? 'Acima do limite máximo de 35%. Financiamento pode ser recusado pela Caixa.'
-                        : incomeWarning
-                          ? 'Acima de 30%. Caixa pode exigir renda familiar acima de R$ 12.000.'
-                          : 'Dentro dos limites da Caixa (máx 30% ou 35%).'}
-                    </p>
-                  </div>
-                </div>
-              )}
-
               {/* Summary Cards */}
               <PremiumCard className="p-5">
-                <h3 className="font-bold text-text-primary flex items-center gap-2 mb-4">
-                  <CheckCircle2 size={18} className="text-gold-500" /> Resumo do Financiamento
+                <h3 className="font-bold text-text-primary flex items-center gap-2 mb-4 text-sm">
+                  <CheckCircle2 size={16} className="text-gold-500" /> Resumo do Financiamento
                 </h3>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                  {[
-                    { label: 'Valor Financiado', value: fmt(result.loanAmount) },
-                    { label: 'Taxa Mensal (efetiva)', value: fmtPct(result.monthlyRate * 100) },
-                    { label: 'Taxa Anual Efetiva', value: fmtPct(result.effectiveAnnualRate) },
-                    { label: 'CET Estimado (a.a.)', value: fmtPct(result.cetAnual) },
-                    { label: '1ª Parcela Total', value: fmt(result.firstInstallment), highlight: true },
-                    { label: 'Última Parcela', value: fmt(result.lastInstallment) },
-                    { label: 'Total Pago', value: fmt(result.totalPaid) },
-                    { label: 'Total de Juros', value: fmt(result.totalInterest), warn: true },
-                    { label: 'Total de Seguros', value: fmt(result.totalInsurance) },
-                    { label: 'Comprometimento de Renda', value: result.incomeCommitment > 0 ? `${result.incomeCommitment.toFixed(1)}%` : '—' },
-                    { label: 'Número de Parcelas', value: `${result.rows.length} meses` },
-                    { label: 'Sistema', value: system },
-                  ].map(({ label, value, highlight, warn }) => (
-                    <div key={label} className={`rounded-xl p-3 border ${highlight ? 'bg-gold-50 dark:bg-gold-900/20 border-gold-200 dark:border-gold-800/30' : warn ? 'bg-red-50 dark:bg-red-900/10 border-red-100 dark:border-red-900/20' : 'bg-surface-100 dark:bg-surface-100 border-surface-200'}`}>
-                      <p className="text-xs text-text-secondary mb-1">{label}</p>
-                      <p className={`text-sm font-bold ${highlight ? 'text-gold-700 dark:text-gold-400' : warn ? 'text-red-600 dark:text-red-400' : 'text-text-primary'}`}>{value}</p>
-                    </div>
-                  ))}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
+                  <MetricCard label="Valor do Imóvel" value={fmtBRL(propertyValue)} />
+                  <MetricCard label="Entrada (20%)" value={fmtBRL(downPayment)} />
+                  <MetricCard label="Valor Financiado (80%)" value={fmtBRL(pv)} highlight />
+                  <MetricCard
+                    label="Parcela Máxima (30% renda)"
+                    value={maxInstallment > 0 ? fmtBRL(maxInstallment) : '—'}
+                  />
+                  <MetricCard
+                    label="1ª Parcela"
+                    value={fmtBRL(base.firstInstallment)}
+                    sub={`Taxa mensal: ${(base.monthlyRate * 100).toFixed(4)}%`}
+                    highlight={incomeOk === true}
+                    warn={incomeOk === false}
+                  />
+                  <MetricCard label="Última Parcela" value={fmtBRL(base.lastInstallment)} />
+                  <MetricCard label="Total de Juros" value={fmtBRL(base.totalInterest)} warn />
+                  <MetricCard
+                    label="Total Pago"
+                    value={fmtBRL(base.totalPaid)}
+                    sub={`em ${base.rows.length} parcelas`}
+                  />
                 </div>
+
+                {/* Income alert */}
+                {incomeOk === false && (
+                  <div className="mt-3 rounded-xl bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/30 p-3 flex items-start gap-2">
+                    <AlertTriangle size={16} className="text-red-500 flex-shrink-0 mt-0.5" />
+                    <p className="text-xs text-red-700 dark:text-red-400">
+                      A 1ª parcela de <strong>{fmtBRL(base.firstInstallment)}</strong> ultrapassa o limite máximo de 30% da renda
+                      ({fmtBRL(maxInstallment)}). A Caixa pode reprovar o financiamento. Considere aumentar a renda, reduzir o valor ou estender o prazo.
+                    </p>
+                  </div>
+                )}
               </PremiumCard>
 
-              {/* Compare */}
-              {compareMode && (result.comparePrice || result.compareSac) && (
-                <PremiumCard className="p-5">
-                  <h3 className="font-bold text-text-primary flex items-center gap-2 mb-4">
-                    <BarChart2 size={18} className="text-gold-500" /> Comparativo SAC × PRICE
-                  </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
-                    {/* Headers */}
-                    <div />
-                    <div className="font-semibold text-center text-text-secondary bg-surface-100 rounded-lg p-2">
-                      {system} (selecionado)
-                    </div>
-                    <div className="font-semibold text-center text-text-secondary bg-surface-100 rounded-lg p-2">
-                      {system === 'SAC' ? 'PRICE' : 'SAC'}
-                    </div>
-
-                    {[
-                      ['1ª Parcela', fmt(result.firstInstallment), fmt((result.comparePrice || result.compareSac)!.firstInstallment)],
-                      ['Total Pago', fmt(result.totalPaid), fmt((result.comparePrice || result.compareSac)!.totalPaid)],
-                      ['Total Juros', fmt(result.totalInterest), fmt((result.comparePrice || result.compareSac)!.totalInterest)],
-                    ].map(([lbl, v1, v2]) => (
-                      <>
-                        <div key={lbl + 'l'} className="font-medium text-text-secondary flex items-center">{lbl}</div>
-                        <div key={lbl + 'v1'} className="text-center font-bold text-text-primary bg-gold-50 dark:bg-gold-900/10 rounded-lg p-2">{v1}</div>
-                        <div key={lbl + 'v2'} className="text-center font-bold text-text-primary bg-surface-100 rounded-lg p-2">{v2}</div>
-                      </>
-                    ))}
+              {/* ── Extra Amortization Options ── */}
+              {extra && (
+                <div className="space-y-3">
+                  <div className="px-1">
+                    <h3 className="font-bold text-text-primary flex items-center gap-2 text-sm">
+                      <TrendingDown size={16} className="text-gold-500" />
+                      Análise da Amortização Extra — {fmtBRL(extraValue)} após a parcela {extra.extraMonth}
+                    </h3>
+                    <p className="text-xs text-text-secondary mt-0.5">
+                      Saldo devedor após amortização: <strong className="text-text-primary">{fmtBRL(extra.balanceAfterExtra)}</strong>
+                      {' '}· Parcelas restantes originais: <strong className="text-text-primary">{extra.remainingBefore}</strong>
+                    </p>
                   </div>
-                </PremiumCard>
-              )}
 
-              {/* Charts */}
-              <PremiumCard className="overflow-hidden">
-                <button
-                  onClick={() => setShowCharts(v => !v)}
-                  className="w-full p-4 flex items-center justify-between hover:bg-surface-100 dark:hover:bg-surface-200 transition-colors"
-                >
-                  <div className="flex items-center gap-2 font-semibold text-text-primary">
-                    <BarChart2 size={18} className="text-gold-500" /> Gráficos
-                  </div>
-                  {showCharts ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
-                </button>
-                <AnimatePresence>
-                  {showCharts && (
-                    <motion.div
-                      initial={{ height: 0 }} animate={{ height: 'auto' }} exit={{ height: 0 }}
-                      className="overflow-hidden"
-                    >
-                      <div className="p-5 space-y-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {/* Opção A */}
+                    <PremiumCard className="p-4 border-blue-200 dark:border-blue-800/30 bg-blue-50 dark:bg-blue-900/10">
+                      <div className="flex items-center gap-2 mb-3">
+                        <div className="w-7 h-7 rounded-full bg-blue-500 text-white flex items-center justify-center text-xs font-bold flex-shrink-0">A</div>
                         <div>
-                          <p className="text-sm font-semibold text-text-secondary mb-2">Evolução do Saldo Devedor</p>
-                          <MiniChart rows={result.rows} />
-                        </div>
-                        <div>
-                          <p className="text-sm font-semibold text-text-secondary mb-2">Composição da Parcela (Juros vs Amortização)</p>
-                          <StackChart rows={result.rows} />
+                          <p className="font-bold text-blue-800 dark:text-blue-300 text-sm">Reduzir o Prazo</p>
+                          <p className="text-xs text-blue-600 dark:text-blue-400">Mantém o valor da parcela atual</p>
                         </div>
                       </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </PremiumCard>
 
-              {/* Table */}
+                      <div className="text-center my-4">
+                        <p className="text-xs text-blue-600 dark:text-blue-400 mb-1">Parcelas economizadas</p>
+                        <p className="text-4xl font-black text-blue-700 dark:text-blue-300">
+                          {extra.optA.savedMonths}
+                        </p>
+                        <p className="text-sm text-blue-600 dark:text-blue-400 font-semibold">
+                          parcelas ({extra.optA.savedYears} anos a menos)
+                        </p>
+                      </div>
+
+                      <div className="space-y-2 text-sm">
+                        <div className="flex justify-between">
+                          <span className="text-blue-600 dark:text-blue-400 text-xs">Parcelas restantes originais</span>
+                          <span className="font-medium text-text-primary">{extra.remainingBefore}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-blue-600 dark:text-blue-400 text-xs">Novas parcelas restantes</span>
+                          <span className="font-bold text-blue-700 dark:text-blue-300">{extra.optA.newMonths}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-blue-600 dark:text-blue-400 text-xs">Próxima parcela</span>
+                          <span className="font-medium text-text-primary">{fmtBRL(extra.optA.nextInstallment)}</span>
+                        </div>
+                        <div className="flex justify-between border-t border-blue-200 dark:border-blue-800/30 pt-2 mt-2">
+                          <span className="text-blue-600 dark:text-blue-400 text-xs font-semibold">Economia em juros</span>
+                          <span className="font-bold text-green-600 dark:text-green-400">{fmtBRL(extra.optA.totalInterestSaved)}</span>
+                        </div>
+                      </div>
+                    </PremiumCard>
+
+                    {/* Opção B */}
+                    <PremiumCard className="p-4 border-purple-200 dark:border-purple-800/30 bg-purple-50 dark:bg-purple-900/10">
+                      <div className="flex items-center gap-2 mb-3">
+                        <div className="w-7 h-7 rounded-full bg-purple-500 text-white flex items-center justify-center text-xs font-bold flex-shrink-0">B</div>
+                        <div>
+                          <p className="font-bold text-purple-800 dark:text-purple-300 text-sm">Reduzir a Parcela</p>
+                          <p className="text-xs text-purple-600 dark:text-purple-400">Mantém o prazo original ({extra.remainingBefore} meses)</p>
+                        </div>
+                      </div>
+
+                      <div className="text-center my-4">
+                        <p className="text-xs text-purple-600 dark:text-purple-400 mb-1">Nova parcela mensal</p>
+                        <p className="text-3xl font-black text-purple-700 dark:text-purple-300">
+                          {fmtBRL(extra.optB.newInstallment)}
+                        </p>
+                        <div className="inline-flex items-center gap-1 mt-1 bg-purple-100 dark:bg-purple-900/30 rounded-full px-3 py-0.5">
+                          <ArrowRight size={12} className="text-purple-500 rotate-180" />
+                          <span className="text-xs font-bold text-purple-700 dark:text-purple-400">
+                            -{fmtBRL(extra.optB.reduction)}/mês
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="space-y-2 text-sm">
+                        <div className="flex justify-between">
+                          <span className="text-purple-600 dark:text-purple-400 text-xs">Parcela antes da amortização</span>
+                          <span className="font-medium text-text-primary">{fmtBRL(extra.installmentBeforeExtra)}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-purple-600 dark:text-purple-400 text-xs">Nova parcela</span>
+                          <span className="font-bold text-purple-700 dark:text-purple-300">{fmtBRL(extra.optB.newInstallment)}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-purple-600 dark:text-purple-400 text-xs">Redução mensal</span>
+                          <span className="font-bold text-green-600 dark:text-green-400">{fmtBRL(extra.optB.reduction)}</span>
+                        </div>
+                        <div className="flex justify-between border-t border-purple-200 dark:border-purple-800/30 pt-2 mt-2">
+                          <span className="text-purple-600 dark:text-purple-400 text-xs font-semibold">Economia em juros</span>
+                          <span className="font-bold text-green-600 dark:text-green-400">{fmtBRL(extra.optB.totalInterestSaved)}</span>
+                        </div>
+                      </div>
+                    </PremiumCard>
+                  </div>
+                </div>
+              )}
+
+              {/* ── Amortization Table ── */}
               <PremiumCard className="overflow-hidden">
                 <div className="p-4 flex items-center justify-between flex-wrap gap-2">
                   <button
                     onClick={() => setShowTable(v => !v)}
-                    className="flex items-center gap-2 font-semibold text-text-primary"
+                    className="flex items-center gap-2 font-semibold text-text-primary text-sm"
                   >
-                    <FileText size={18} className="text-gold-500" /> Tabela de Amortização ({result.rows.length} parcelas)
-                    {showTable ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+                    <span className="w-7 h-7 rounded-lg bg-surface-100 flex items-center justify-center text-gold-500">
+                      {showTable ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
+                    </span>
+                    Plano de Amortização Completo
+                    <span className="text-xs text-text-secondary font-normal">({base.rows.length} parcelas)</span>
                   </button>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={exportCSV}
-                      className="flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-800/30 hover:bg-green-100 transition-colors"
-                    >
-                      <Download size={14} /> Excel (CSV)
-                    </button>
-                    <button
-                      onClick={exportPDF}
-                      className="flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-800/30 hover:bg-red-100 transition-colors"
-                    >
-                      <Download size={14} /> PDF
-                    </button>
-                  </div>
+                  <button
+                    onClick={() => window.print()}
+                    className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-surface-200 hover:bg-surface-100 transition-colors text-text-secondary"
+                  >
+                    <Printer size={13} /> Imprimir / PDF
+                  </button>
                 </div>
 
                 <AnimatePresence>
@@ -756,42 +734,38 @@ export default function Amortization() {
                       className="overflow-hidden"
                     >
                       <div className="overflow-x-auto">
-                        <table className="w-full text-xs text-left min-w-[860px]">
-                          <thead className="text-xs text-text-secondary uppercase bg-surface-100 dark:bg-surface-200 sticky top-0">
+                        <table className="w-full text-xs text-left min-w-[640px]">
+                          <thead className="text-xs text-text-secondary uppercase bg-surface-100 dark:bg-surface-200">
                             <tr>
-                              <th className="px-3 py-2">Nº</th>
-                              <th className="px-3 py-2">Data</th>
-                              <th className="px-3 py-2">Saldo Inicial</th>
-                              <th className="px-3 py-2 text-green-600 dark:text-green-400">Amortização</th>
-                              <th className="px-3 py-2 text-red-500">Juros</th>
-                              <th className="px-3 py-2">MIP</th>
-                              <th className="px-3 py-2">DFI</th>
-                              <th className="px-3 py-2">Tx. Admin</th>
-                              <th className="px-3 py-2 font-bold">Parcela Total</th>
-                              <th className="px-3 py-2">Saldo Final</th>
+                              {['Nº', 'Saldo Inicial', 'Amortização', 'Juros', 'Prestação', 'Saldo Final'].map(h => (
+                                <th key={h} className="px-3 py-2 font-semibold">{h}</th>
+                              ))}
                             </tr>
                           </thead>
                           <tbody>
-                            {pagedRows.map((row, idx) => {
-                              const absIdx = tablePage * PAGE_SIZE + idx;
-                              const isFirst = absIdx === 0;
-                              const isLast = absIdx === result.rows.length - 1;
-                              const isYearMark = row.month % 12 === 0;
+                            {pagedRows.map(row => {
+                              const isFirstLast = row.k === 1 || row.k === base.rows.length;
+                              const isYearMark = row.k % 12 === 0;
                               return (
                                 <tr
-                                  key={row.month}
-                                  className={`border-b border-surface-100 dark:border-surface-200 last:border-0 ${isFirst || isLast ? 'bg-gold-50 dark:bg-gold-900/10' : isYearMark ? 'bg-blue-50 dark:bg-blue-900/10' : 'hover:bg-surface-100 dark:hover:bg-surface-200'}`}
+                                  key={row.k}
+                                  className={`border-b border-surface-100 dark:border-surface-200 last:border-0 ${row.isExtra
+                                      ? 'bg-amber-50 dark:bg-amber-900/20'
+                                      : isFirstLast
+                                        ? 'bg-gold-50 dark:bg-gold-900/10'
+                                        : isYearMark
+                                          ? 'bg-blue-50 dark:bg-blue-900/10'
+                                          : 'hover:bg-surface-100 dark:hover:bg-surface-200'
+                                    }`}
                                 >
-                                  <td className="px-3 py-2 font-medium">{row.month}</td>
-                                  <td className="px-3 py-2">{row.date.toLocaleDateString('pt-BR', { month: '2-digit', year: 'numeric' })}</td>
-                                  <td className="px-3 py-2">{fmt(row.balanceStart)}</td>
-                                  <td className="px-3 py-2 text-green-600 dark:text-green-400">{fmt(row.amortization)}</td>
-                                  <td className="px-3 py-2 text-red-500">{fmt(row.interest)}</td>
-                                  <td className="px-3 py-2 text-orange-500">{fmt(row.mip)}</td>
-                                  <td className="px-3 py-2 text-orange-400">{fmt(row.dfi)}</td>
-                                  <td className="px-3 py-2">{fmt(row.adminFee)}</td>
-                                  <td className="px-3 py-2 font-bold">{fmt(row.totalInstallment)}</td>
-                                  <td className="px-3 py-2">{fmt(row.balanceEnd)}</td>
+                                  <td className="px-3 py-2 font-medium">
+                                    {row.isExtra ? '★ ' : ''}{row.k}
+                                  </td>
+                                  <td className="px-3 py-2">{fmtBRL(row.balStart)}</td>
+                                  <td className="px-3 py-2 text-green-600 dark:text-green-400">{fmtBRL(row.amort)}</td>
+                                  <td className="px-3 py-2 text-red-500">{fmtBRL(row.interest)}</td>
+                                  <td className="px-3 py-2 font-semibold">{fmtBRL(row.installment)}</td>
+                                  <td className="px-3 py-2">{fmtBRL(row.balEnd)}</td>
                                 </tr>
                               );
                             })}
@@ -799,32 +773,32 @@ export default function Amortization() {
                         </table>
                       </div>
 
-                      {/* Pagination */}
                       {totalPages > 1 && (
-                        <div className="flex items-center justify-between px-4 py-3 border-t border-surface-200">
-                          <p className="text-xs text-text-secondary">
-                            Mostrando parcelas {tablePage * PAGE_SIZE + 1}–{Math.min((tablePage + 1) * PAGE_SIZE, result.rows.length)} de {result.rows.length}
-                          </p>
+                        <div className="flex items-center justify-between px-4 py-3 border-t border-surface-200 text-xs">
+                          <span className="text-text-secondary">
+                            Parcelas {tablePage * PAGE + 1}–{Math.min((tablePage + 1) * PAGE, base.rows.length)} de {base.rows.length}
+                          </span>
                           <div className="flex gap-2">
                             <button
-                              onClick={() => setTablePage(p => Math.max(0, p - 1))}
                               disabled={tablePage === 0}
-                              className="px-3 py-1 text-xs rounded-lg border border-surface-200 disabled:opacity-40 hover:bg-surface-100 transition-colors"
-                            >
-                              ← Anterior
-                            </button>
-                            <span className="px-3 py-1 text-xs text-text-secondary">
-                              {tablePage + 1} / {totalPages}
-                            </span>
+                              onClick={() => setTablePage(p => p - 1)}
+                              className="px-3 py-1 rounded-lg border border-surface-200 disabled:opacity-40 hover:bg-surface-100 transition-colors"
+                            >← Anterior</button>
+                            <span className="px-2 py-1 text-text-secondary">{tablePage + 1}/{totalPages}</span>
                             <button
-                              onClick={() => setTablePage(p => Math.min(totalPages - 1, p + 1))}
                               disabled={tablePage === totalPages - 1}
-                              className="px-3 py-1 text-xs rounded-lg border border-surface-200 disabled:opacity-40 hover:bg-surface-100 transition-colors"
-                            >
-                              Próxima →
-                            </button>
+                              onClick={() => setTablePage(p => p + 1)}
+                              className="px-3 py-1 rounded-lg border border-surface-200 disabled:opacity-40 hover:bg-surface-100 transition-colors"
+                            >Próxima →</button>
                           </div>
                         </div>
+                      )}
+
+                      {extraValue > 0 && (
+                        <p className="text-xs text-center text-text-secondary py-2 italic border-t border-surface-200">
+                          ★ Parcela {extraMonth} — mês da amortização extra de {fmtBRL(extraValue)}
+                          {' '}· 🟡 Marcos anuais · 🟡 1ª e última parcela
+                        </p>
                       )}
                     </motion.div>
                   )}
@@ -835,6 +809,15 @@ export default function Amortization() {
           )}
         </AnimatePresence>
       </div>
+
+      {/* Print styles */}
+      <style>{`
+        @media print {
+          body * { visibility: hidden; }
+          .print\\:p-2, .print\\:p-2 * { visibility: visible; }
+          @page { margin: 1cm; }
+        }
+      `}</style>
     </div>
   );
 }
