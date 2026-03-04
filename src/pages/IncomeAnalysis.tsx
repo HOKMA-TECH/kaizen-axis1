@@ -100,7 +100,7 @@ export default function IncomeAnalysis() {
       setResultado(json as ResultadoApuracao);
       setStep(2);
     } catch {
-      setErro('Não foi possível conectar ao servidor de apuração. Verifique se ele está rodando na porta 3001.');
+      setErro('Não foi possível conectar ao servidor de apuração. Tente novamente em instantes.');
     } finally {
       setIsAnalyzing(false);
     }
