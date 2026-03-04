@@ -7,6 +7,7 @@ import { Download, FileSpreadsheet, FileText, Loader2, Building2, Users, Trendin
 import { Modal } from '@/components/ui/Modal';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useApp } from '@/context/AppContext';
+import { useAuthorization } from '@/hooks/useAuthorization';
 import { supabase } from '@/lib/supabase';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -242,6 +243,7 @@ export default function Reports() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { clients, leads, loading } = useApp();
+  const { isAdmin } = useAuthorization();
   const [period, setPeriod] = useState('30 dias');
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [isDateModalOpen, setIsDateModalOpen] = useState(false);
@@ -294,8 +296,8 @@ export default function Reports() {
     });
   }, [clients]);
 
-  // ── Delegate to diretoria sub-view (after all hooks — safe to do early return here)
-  if (scope === 'diretoria' && dirId) {
+  // ── Delegate to diretoria sub-view (ADMIN only)
+  if (scope === 'diretoria' && dirId && isAdmin) {
     return <DiretoriaReportView dirId={dirId} dirName={dirName} />;
   }
 
