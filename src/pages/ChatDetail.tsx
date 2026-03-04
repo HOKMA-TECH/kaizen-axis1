@@ -57,20 +57,30 @@ function getSupportedVideoMimeType(): string {
 const ViewOnceCard = (
   { msg, onOpen }: { msg: ChatMessage; onOpen: () => void }
 ) => {
-  const emoji = msg.type === 'video' ? '🎥' : msg.type === 'document' ? '📄' : '🖼️';
+  const isVideo = msg.type === 'video';
+  const isDoc   = msg.type === 'document';
+
   return (
     <button
       onClick={onOpen}
-      className="flex items-center gap-3 p-4 w-full text-left rounded-xl bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/15 transition-colors"
+      className="relative flex flex-col items-center justify-center w-full rounded-2xl overflow-hidden bg-black/80 dark:bg-black/90 aspect-[4/3] max-h-48 hover:bg-black/70 active:scale-[0.98] transition-all"
     >
-      <div className="w-12 h-12 rounded-full bg-gold-500/20 flex items-center justify-center flex-shrink-0">
-        <Eye size={22} className="text-gold-600 dark:text-gold-400" />
+      {/* Center icon */}
+      <div className="flex flex-col items-center gap-2">
+        <div className="w-14 h-14 rounded-full bg-white/15 flex items-center justify-center">
+          {isVideo
+            ? <Play size={28} className="text-white fill-white ml-1" />
+            : isDoc
+            ? <FileText size={28} className="text-white" />
+            : <ImageIcon size={28} className="text-white" />}
+        </div>
+        <span className="text-white text-xs font-medium tracking-wide">Visualização única</span>
+        <span className="text-white/50 text-[10px]">Toque para ver</span>
       </div>
-      <div className="flex flex-col">
-        <span className="font-semibold text-sm text-text-primary">{emoji} Visualização Única</span>
-        <span className="text-xs text-text-secondary mt-0.5">Toque para visualizar – disponível apenas uma vez</span>
+      {/* Lock badge */}
+      <div className="absolute top-2 right-2 bg-black/40 rounded-full p-1">
+        <Lock size={11} className="text-white/70" />
       </div>
-      <Lock size={14} className="ml-auto text-text-secondary flex-shrink-0" />
     </button>
   );
 };
@@ -325,50 +335,44 @@ const AudioMessage = ({ url, isMe }: { url: string; isMe: boolean }) => {
   };
 
   return (
-    <div className={`flex items-center gap-3 min-w-[220px] w-full max-w-[280px] py-1`}>
+    <div className="flex items-center gap-2.5 w-full min-w-[210px] max-w-[260px] py-0.5">
+      {/* Play / Pause */}
       <button
         onClick={togglePlay}
-        className={`w-10 h-10 flex-shrink-0 flex items-center justify-center rounded-full transition-colors ${isMe ? 'bg-white/20 text-white hover:bg-white/30' : 'bg-gold-500 text-white hover:bg-gold-600'}`}
+        className={`w-9 h-9 flex-shrink-0 flex items-center justify-center rounded-full transition-colors shadow-sm
+          ${isMe ? 'bg-white/25 text-white hover:bg-white/35' : 'bg-gold-500 text-white hover:bg-gold-600'}`}
       >
-        {isPlaying ? <Pause size={18} fill="currentColor" /> : <Play size={18} fill="currentColor" className="ml-1" />}
+        {isPlaying
+          ? <Pause size={15} fill="currentColor" />
+          : <Play  size={15} fill="currentColor" className="ml-0.5" />}
       </button>
 
-      <div className="flex-1 flex flex-col justify-center relative min-h-[40px]">
-        {/* Visualizer Canvas */}
-        <canvas
-          ref={canvasRef}
-          width={150}
-          height={24}
-          className="w-full h-[24px] pointer-events-none mt-2"
-        />
-
-        {/* Seek Input Overlay */}
-        <input
-          type="range"
-          min={0}
-          max={duration || 100}
-          value={currentTime}
-          onChange={handleSeek}
-          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-        />
-
-        {/* Custom Progress Line (when paused or over visualizer) */}
-        {!isPlaying && duration > 0 && (
-          <div className="absolute top-1/2 left-0 w-full h-1 -mt-0.5 bg-black/10 rounded-full overflow-hidden pointer-events-none">
-            <div
-              className={`h-full ${isMe ? 'bg-white' : 'bg-gold-500'}`}
-              style={{ width: `${(currentTime / duration) * 100}%` }}
-            />
-          </div>
-        )}
-
-        <div className="flex justify-between items-center mt-1">
-          <span className={`text-[10px] ${isMe ? 'text-white/80' : 'text-gray-500'}`}>
-            {isPlaying ? formatTime(currentTime) : formatTime(duration)}
+      {/* Waveform + meta */}
+      <div className="flex-1 min-w-0">
+        <div className="relative h-7">
+          <canvas
+            ref={canvasRef}
+            width={140}
+            height={28}
+            className="w-full h-full pointer-events-none"
+          />
+          <input
+            type="range"
+            min={0}
+            max={duration || 100}
+            value={currentTime}
+            onChange={handleSeek}
+            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+          />
+        </div>
+        <div className="flex items-center justify-between mt-0.5">
+          <span className={`text-[10px] tabular-nums ${isMe ? 'text-white/70' : 'text-gray-400'}`}>
+            {formatTime(isPlaying ? currentTime : duration)}
           </span>
           <button
             onClick={toggleSpeed}
-            className={`text-[10px] font-bold px-2 py-0.5 rounded-full z-20 relative ${isMe ? 'bg-white/20 text-white hover:bg-white/30' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
+            className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full z-20 relative transition-colors
+              ${isMe ? 'bg-white/20 text-white hover:bg-white/30' : 'bg-black/8 text-gray-500 hover:bg-black/15'}`}
           >
             {playbackRate}x
           </button>
@@ -379,21 +383,11 @@ const AudioMessage = ({ url, isMe }: { url: string; isMe: boolean }) => {
         ref={audioRef}
         src={url}
         crossOrigin="anonymous"
-        onPlay={() => {
-          setIsPlaying(true);
-          drawVisualizer();
-        }}
-        onPause={() => {
-          setIsPlaying(false);
-          if (animationRef.current) cancelAnimationFrame(animationRef.current);
-        }}
-        onEnded={() => {
-          setIsPlaying(false);
-          setCurrentTime(0);
-          if (animationRef.current) cancelAnimationFrame(animationRef.current);
-        }}
-        onTimeUpdate={(e) => setCurrentTime(e.currentTarget.currentTime)}
-        onLoadedMetadata={(e) => setDuration(e.currentTarget.duration)}
+        onPlay={() => { setIsPlaying(true); drawVisualizer(); }}
+        onPause={() => { setIsPlaying(false); if (animationRef.current) cancelAnimationFrame(animationRef.current); }}
+        onEnded={() => { setIsPlaying(false); setCurrentTime(0); if (animationRef.current) cancelAnimationFrame(animationRef.current); }}
+        onTimeUpdate={e => setCurrentTime(e.currentTarget.currentTime)}
+        onLoadedMetadata={e => setDuration(e.currentTarget.duration)}
       />
     </div>
   );
@@ -427,7 +421,8 @@ export default function ChatDetail() {
   const audioContextRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
   const animFrameRef = useRef<number>(0);
-  const [audioVolumes, setAudioVolumes] = useState<number[]>(Array(15).fill(10));
+  const [audioVolumes, setAudioVolumes] = useState<number[]>(Array(20).fill(10));
+  const [recordingSeconds, setRecordingSeconds] = useState(0);
 
   // Camera
   const [isCameraOpen, setIsCameraOpen] = useState(false);
@@ -583,6 +578,13 @@ export default function ChatDetail() {
       if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
     };
   }, []);
+
+  // Recording timer
+  useEffect(() => {
+    if (!isRecording) { setRecordingSeconds(0); return; }
+    const t = setInterval(() => setRecordingSeconds(s => s + 1), 1000);
+    return () => clearInterval(t);
+  }, [isRecording]);
 
   // ─── Assign camera stream to video element whenever stream changes ───────────────────
   // (fires on first open AND on camera switch because cameraStream is state, not a ref)
@@ -1007,13 +1009,34 @@ export default function ChatDetail() {
 
                 {/* ── Regular media (non view-once) ── */}
                 {!isViewOnceMsg && msg.type === 'image' && msg.mediaUrl && (
-                  <div className={`${!isMediaOnly ? 'mb-2' : ''} cursor-pointer`} onClick={() => setFullscreenMedia({ url: msg.mediaUrl!, type: 'image', name: msg.fileName })}>
-                    <img src={msg.mediaUrl} alt="" className={`${isMediaOnly ? 'rounded-xl' : 'rounded-lg'} max-h-72 w-full object-cover`} />
+                  <div
+                    className={`overflow-hidden cursor-pointer ${isMediaOnly ? 'rounded-2xl' : 'rounded-xl mb-1.5'}`}
+                    onClick={() => setFullscreenMedia({ url: msg.mediaUrl!, type: 'image', name: msg.fileName })}
+                  >
+                    <img
+                      src={msg.mediaUrl}
+                      alt=""
+                      className="w-full max-h-64 object-cover"
+                    />
                   </div>
                 )}
                 {!isViewOnceMsg && msg.type === 'video' && msg.mediaUrl && (
-                  <div className={`${!isMediaOnly ? 'mb-2' : ''}`}>
-                    <video src={msg.mediaUrl} controls className={`${isMediaOnly ? 'rounded-xl' : 'rounded-lg'} max-h-72 w-full`} playsInline />
+                  <div
+                    className={`relative overflow-hidden cursor-pointer group ${isMediaOnly ? 'rounded-2xl' : 'rounded-xl mb-1.5'}`}
+                    onClick={() => setFullscreenMedia({ url: msg.mediaUrl!, type: 'video', name: msg.fileName })}
+                  >
+                    <video
+                      src={msg.mediaUrl}
+                      className="w-full max-h-64 object-cover"
+                      playsInline
+                      muted
+                    />
+                    {/* Play overlay — Instagram style */}
+                    <div className="absolute inset-0 bg-black/25 flex items-center justify-center group-hover:bg-black/35 transition-colors">
+                      <div className="w-11 h-11 rounded-full bg-black/50 backdrop-blur-sm flex items-center justify-center">
+                        <Play size={20} className="text-white fill-white ml-0.5" />
+                      </div>
+                    </div>
                   </div>
                 )}
                 {msg.type === 'audio' && msg.mediaUrl && (
@@ -1105,16 +1128,28 @@ export default function ChatDetail() {
         </button>
 
         {isRecording ? (
-          <div className="flex-1 bg-red-50 dark:bg-red-900/20 rounded-2xl px-4 py-2 flex items-center justify-between">
-            <div className="flex items-center gap-2 text-red-500 animate-pulse">
-              <Mic size={18} /><span className="text-sm font-medium">Gravando...</span>
+          <div className="flex-1 bg-surface-50 dark:bg-surface-200 rounded-2xl px-3 py-2 flex items-center gap-2">
+            {/* Red dot + timer */}
+            <div className="flex items-center gap-1.5 flex-shrink-0">
+              <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+              <span className="text-xs font-medium tabular-nums text-text-secondary w-8">
+                {`${Math.floor(recordingSeconds / 60)}:${String(recordingSeconds % 60).padStart(2, '0')}`}
+              </span>
             </div>
-            <div className="flex items-center gap-[2px] h-6 flex-1 justify-center px-4">
+            {/* Wave bars */}
+            <div className="flex items-center gap-[2px] h-7 flex-1 justify-center">
               {audioVolumes.map((vol, i) => (
-                <div key={i} className="w-1 bg-red-400 rounded-full transition-all duration-75" style={{ height: `${vol}%` }} />
+                <div
+                  key={i}
+                  className="w-[3px] bg-gold-400 rounded-full transition-all duration-75"
+                  style={{ height: `${Math.max(15, vol)}%` }}
+                />
               ))}
             </div>
-            <button onClick={cancelRecording} className="text-red-500 p-1 rounded-full"><X size={18} /></button>
+            {/* Cancel */}
+            <button onClick={cancelRecording} className="text-text-secondary hover:text-red-500 p-1 transition-colors flex-shrink-0">
+              <X size={16} />
+            </button>
           </div>
         ) : (
           <div className="flex-1 bg-surface-50 dark:bg-surface-200 rounded-2xl px-4 py-2 flex items-center">
