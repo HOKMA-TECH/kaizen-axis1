@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Bot, SquarePen, X, MessageCircle } from 'lucide-react';
+import { Search, Bot, MessageCircle } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '@/lib/utils';
@@ -103,8 +103,6 @@ export default function Chat() {
   const [focused, setFocused] = useState(false);
   const [conversations, setConversations] = useState<ConversationPreview[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showNewChat, setShowNewChat] = useState(false);
-
   const myId = user?.id;
 
   const members = useMemo(
@@ -202,29 +200,13 @@ export default function Chat() {
     };
   }, [search, conversations, members]);
 
-  // Members not yet in any conversation (for new chat modal)
-  const newChatCandidates = useMemo(() => {
-    const existing = new Set(conversations.filter(c => !c.isKAI).map(c => c.otherId));
-    const hasKAI = conversations.some(c => c.isKAI);
-    return {
-      showKAI: !hasKAI,
-      members: members.filter(m => !existing.has(m.id)),
-    };
-  }, [conversations, members]);
-
   return (
     <div className="flex flex-col h-screen bg-surface-50 pb-20">
 
       {/* ── Header ──────────────────────────────────────────────────────── */}
       <div className="bg-card-bg z-10 border-b border-surface-100">
-        <div className="px-5 pt-10 pb-4 flex items-center justify-between">
+        <div className="px-5 pt-10 pb-4">
           <h1 className="text-2xl font-bold text-text-primary tracking-tight">Mensagens</h1>
-          <button
-            onClick={() => setShowNewChat(true)}
-            className="w-9 h-9 rounded-full bg-surface-50 flex items-center justify-center text-text-secondary hover:text-gold-500 hover:bg-gold-400/10 transition-colors"
-          >
-            <SquarePen size={18} />
-          </button>
         </div>
 
         {/* Search */}
@@ -318,13 +300,7 @@ export default function Chat() {
               <MessageCircle size={28} className="opacity-30" />
             </div>
             <p className="font-medium text-sm text-text-primary mb-1">Nenhuma conversa ainda</p>
-            <p className="text-xs opacity-60 mb-5">Inicie uma conversa com sua equipe ou com o KAI</p>
-            <button
-              onClick={() => setShowNewChat(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-gold-400 text-white text-sm font-medium rounded-full"
-            >
-              <SquarePen size={14} /> Nova conversa
-            </button>
+            <p className="text-xs opacity-60">Pesquise um colega ou KAI acima para iniciar</p>
           </motion.div>
         )}
 
@@ -457,74 +433,6 @@ export default function Chat() {
 
         <div className="h-4" />
       </div>
-
-      {/* ── Nova conversa (bottom sheet) ────────────────────────────── */}
-      <AnimatePresence>
-        {showNewChat && (
-          <>
-            {/* Backdrop */}
-            <motion.div
-              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black/40 z-40"
-              onClick={() => setShowNewChat(false)}
-            />
-            {/* Sheet */}
-            <motion.div
-              initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
-              transition={{ type: 'spring', stiffness: 380, damping: 36 }}
-              className="fixed bottom-0 left-0 right-0 z-50 bg-card-bg rounded-t-2xl max-h-[70vh] flex flex-col"
-            >
-              <div className="flex items-center justify-between px-5 py-4 border-b border-surface-100">
-                <h3 className="font-semibold text-text-primary">Nova conversa</h3>
-                <button onClick={() => setShowNewChat(false)} className="text-text-secondary">
-                  <X size={20} />
-                </button>
-              </div>
-
-              <div className="overflow-y-auto flex-1 pb-8">
-                {/* KAI */}
-                {newChatCandidates.showKAI && (
-                  <button
-                    onClick={() => { setShowNewChat(false); navigate('/chat/kai-agent'); }}
-                    className="flex items-center gap-3.5 w-full px-5 py-3.5 hover:bg-surface-50 transition-colors border-b border-surface-50"
-                  >
-                    <div className="w-11 h-11 rounded-full bg-gradient-to-br from-gold-400 to-gold-500 flex items-center justify-center flex-shrink-0">
-                      <Bot size={18} className="text-white" />
-                    </div>
-                    <div className="text-left">
-                      <p className="font-semibold text-text-primary text-sm flex items-center gap-1.5">
-                        KAI <span className="text-[10px] font-semibold text-gold-500 bg-gold-400/10 px-1.5 py-0.5 rounded">IA</span>
-                      </p>
-                      <p className="text-xs text-text-secondary">Assistente IA</p>
-                    </div>
-                  </button>
-                )}
-
-                {/* Members without conversations */}
-                {newChatCandidates.members.length === 0 && !newChatCandidates.showKAI ? (
-                  <p className="text-center text-sm text-text-secondary py-10">
-                    Você já tem conversas com todos da equipe.
-                  </p>
-                ) : (
-                  newChatCandidates.members.map(m => (
-                    <button
-                      key={m.id}
-                      onClick={() => { setShowNewChat(false); navigate(`/chat/${m.id}`); }}
-                      className="flex items-center gap-3.5 w-full px-5 py-3.5 hover:bg-surface-50 transition-colors border-b border-surface-50"
-                    >
-                      <Avatar name={m.name} avatarUrl={m.avatar_url} id={m.id} size="sm" />
-                      <div className="text-left">
-                        <p className="font-semibold text-text-primary text-sm">{m.name}</p>
-                        <p className="text-xs text-text-secondary capitalize">{m.role || 'Membro da equipe'}</p>
-                      </div>
-                    </button>
-                  ))
-                )}
-              </div>
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
     </div>
   );
 }
