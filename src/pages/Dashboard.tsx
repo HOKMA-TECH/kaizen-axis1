@@ -99,12 +99,19 @@ export default function Dashboard() {
                   const dClients = clients.filter(c => (c as any).directorate_id === d.id);
                   const dSales = dClients.filter(c => c.stage === 'Concluído').length;
                   return (
-                    <PremiumCard key={d.id} className="flex items-center justify-between">
+                    <PremiumCard
+                      key={d.id}
+                      className="flex items-center justify-between cursor-pointer hover:border-gold-400 hover:shadow-md transition-all"
+                      onClick={() => navigate(`/reports?scope=diretoria&id=${d.id}&name=${encodeURIComponent(d.name)}`)}
+                    >
                       <div className="flex items-center gap-3">
                         <div className="w-8 h-8 rounded-lg bg-gold-100 dark:bg-gold-900/30 flex items-center justify-center">
                           <Building2 size={16} className="text-gold-600 dark:text-gold-400" />
                         </div>
-                        <span className="font-medium text-text-primary text-sm">{d.name}</span>
+                        <div>
+                          <span className="font-medium text-text-primary text-sm">{d.name}</span>
+                          <p className="text-[10px] text-text-secondary">Ver relatório →</p>
+                        </div>
                       </div>
                       <div className="text-right">
                         <p className="text-xs text-text-secondary">{dClients.length} clientes</p>

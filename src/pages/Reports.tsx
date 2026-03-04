@@ -1,24 +1,262 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { SectionHeader, PremiumCard, RoundedButton } from '@/components/ui/PremiumComponents';
 import { MetricCard } from '@/components/reports/MetricCard';
-import { InsightCard } from '@/components/reports/InsightCard';
 import { CircularScore } from '@/components/reports/CircularScore';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { Download, FileSpreadsheet, FileText, Loader2 } from 'lucide-react';
+import { Download, FileSpreadsheet, FileText, Loader2, Building2, Users, TrendingUp, Target, ArrowLeft, AlertCircle } from 'lucide-react';
 import { Modal } from '@/components/ui/Modal';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useApp } from '@/context/AppContext';
+import { supabase } from '@/lib/supabase';
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+interface DiretoriaResumo {
+  total_clientes: number;
+  total_vendas: number;
+  taxa_conversao: number;
+  receita_total: number;
+}
+
+interface DiretoriaEquipe {
+  equipe_id: string;
+  equipe_nome: string;
+  total_clientes: number;
+  total_vendas: number;
+}
+
+interface DiretoriaCorretor {
+  corretor_id: string;
+  corretor_nome: string;
+  equipe: string;
+  total_clientes: number;
+  total_vendas: number;
+}
+
+interface DiretoriaReport {
+  diretoria_nome: string;
+  resumo: DiretoriaResumo;
+  equipes: DiretoriaEquipe[];
+  corretores: DiretoriaCorretor[];
+}
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+const brl = (n: number) =>
+  new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(n);
+
+// ─── Sub-view: Diretoria Report ────────────────────────────────────────────────
+
+function DiretoriaReportView({ dirId, dirName }: { dirId: string; dirName: string }) {
+  const navigate = useNavigate();
+  const [data, setData] = useState<DiretoriaReport | null>(null);
+  const [loadingDir, setLoadingDir] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setLoadingDir(true);
+    setError(null);
+    supabase
+      .rpc('get_relatorio_diretoria', { diretoria_uuid: dirId })
+      .then(({ data: result, error: rpcError }) => {
+        if (rpcError) { setError(rpcError.message); return; }
+        if ((result as any)?.error) { setError((result as any).error); return; }
+        setData(result as DiretoriaReport);
+      })
+      .finally(() => setLoadingDir(false));
+  }, [dirId]);
+
+  if (loadingDir) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-3">
+        <Loader2 className="w-8 h-8 text-gold-500 animate-spin" />
+        <p className="text-text-secondary text-sm">Carregando relatório da diretoria…</p>
+      </div>
+    );
+  }
+
+  if (error || !data) {
+    return (
+      <div className="p-6 pb-24">
+        <PremiumCard className="flex flex-col items-center gap-4 py-12 text-center">
+          <AlertCircle size={40} className="text-red-400" />
+          <div>
+            <h3 className="font-bold text-text-primary mb-1">Diretoria não encontrada</h3>
+            <p className="text-sm text-text-secondary">{error ?? 'Não foi possível carregar os dados.'}</p>
+          </div>
+          <RoundedButton onClick={() => navigate('/reports')}>
+            ← Ver Relatório Global
+          </RoundedButton>
+        </PremiumCard>
+      </div>
+    );
+  }
+
+  const { resumo, equipes, corretores } = data;
+  const displayName = data.diretoria_nome || dirName;
+
+  const convColor = resumo.taxa_conversao >= 60
+    ? 'text-green-600' : resumo.taxa_conversao >= 30
+      ? 'text-gold-600' : 'text-red-500';
+
+  return (
+    <div className="p-6 pb-24 min-h-screen bg-surface-50">
+      {/* ── Header ── */}
+      <div className="flex items-start justify-between mb-6 gap-3">
+        <div>
+          <button
+            onClick={() => navigate('/reports')}
+            className="flex items-center gap-1.5 text-xs text-text-secondary hover:text-gold-600 font-medium mb-2 transition-colors"
+          >
+            <ArrowLeft size={13} /> Ver Relatório Global
+          </button>
+          <div className="flex items-center gap-2">
+            <div className="w-9 h-9 rounded-xl bg-gold-100 dark:bg-gold-900/30 flex items-center justify-center">
+              <Building2 size={18} className="text-gold-600 dark:text-gold-400" />
+            </div>
+            <div>
+              <h1 className="text-xl font-bold text-text-primary">{displayName}</h1>
+              <p className="text-xs text-text-secondary">Relatório por Diretoria</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Resumo Cards ── */}
+      <section className="grid grid-cols-2 gap-3 mb-6">
+        <PremiumCard className="flex flex-col gap-1">
+          <p className="text-[10px] text-text-secondary uppercase tracking-wide">Total Clientes</p>
+          <div className="flex items-end gap-2 mt-1">
+            <Users size={18} className="text-gold-500 mb-0.5" />
+            <h3 className="text-2xl font-bold text-text-primary">{resumo.total_clientes}</h3>
+          </div>
+        </PremiumCard>
+
+        <PremiumCard className="flex flex-col gap-1">
+          <p className="text-[10px] text-text-secondary uppercase tracking-wide">Vendas Concluídas</p>
+          <div className="flex items-end gap-2 mt-1">
+            <TrendingUp size={18} className="text-green-500 mb-0.5" />
+            <h3 className="text-2xl font-bold text-text-primary">{resumo.total_vendas}</h3>
+          </div>
+        </PremiumCard>
+
+        <PremiumCard className="flex flex-col gap-1">
+          <p className="text-[10px] text-text-secondary uppercase tracking-wide">Taxa de Conversão</p>
+          <div className="flex items-end gap-2 mt-1">
+            <Target size={18} className="text-blue-500 mb-0.5" />
+            <h3 className={`text-2xl font-bold ${convColor}`}>{resumo.taxa_conversao ?? 0}%</h3>
+          </div>
+        </PremiumCard>
+
+        <PremiumCard highlight className="flex flex-col gap-1">
+          <p className="text-[10px] text-gold-700 dark:text-gold-400 uppercase tracking-wide">Receita Total</p>
+          <h3 className="text-xl font-bold text-text-primary mt-1 leading-tight">
+            {brl(resumo.receita_total ?? 0)}
+          </h3>
+        </PremiumCard>
+      </section>
+
+      {/* ── Equipes ── */}
+      <section className="mb-6">
+        <SectionHeader title="Por Equipe" subtitle="Desempenho das equipes da diretoria" />
+        {equipes.length === 0 ? (
+          <PremiumCard className="text-center py-8">
+            <p className="text-text-secondary text-sm">Nenhuma equipe cadastrada nesta diretoria.</p>
+          </PremiumCard>
+        ) : (
+          <PremiumCard className="overflow-hidden p-0">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-surface-200 bg-surface-50 dark:bg-surface-100">
+                  <th className="text-left p-3 text-xs font-medium text-text-secondary uppercase tracking-wide">Equipe</th>
+                  <th className="text-center p-3 text-xs font-medium text-text-secondary uppercase tracking-wide">Clientes</th>
+                  <th className="text-center p-3 text-xs font-medium text-text-secondary uppercase tracking-wide">Vendas</th>
+                  <th className="text-center p-3 text-xs font-medium text-text-secondary uppercase tracking-wide">Conversão</th>
+                </tr>
+              </thead>
+              <tbody>
+                {equipes.map((eq, i) => {
+                  const conv = eq.total_clientes > 0
+                    ? Math.round((eq.total_vendas / eq.total_clientes) * 100) : 0;
+                  return (
+                    <tr key={eq.equipe_id ?? i} className="border-b border-surface-100 last:border-0 hover:bg-surface-50 dark:hover:bg-surface-800 transition-colors">
+                      <td className="p-3 font-medium text-text-primary">{eq.equipe_nome}</td>
+                      <td className="p-3 text-center text-text-secondary">{eq.total_clientes}</td>
+                      <td className="p-3 text-center font-bold text-green-600">{eq.total_vendas}</td>
+                      <td className="p-3 text-center">
+                        <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${conv >= 60 ? 'bg-green-100 text-green-700'
+                            : conv >= 30 ? 'bg-gold-100 text-gold-700'
+                              : 'bg-surface-100 text-text-secondary'
+                          }`}>{conv}%</span>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </PremiumCard>
+        )}
+      </section>
+
+      {/* ── Corretores ── */}
+      <section>
+        <SectionHeader title="Ranking de Corretores" subtitle="Desempenho individual dos corretores" />
+        {corretores.length === 0 ? (
+          <PremiumCard className="text-center py-8">
+            <p className="text-text-secondary text-sm">Nenhum corretor vinculado a esta diretoria.</p>
+          </PremiumCard>
+        ) : (
+          <div className="space-y-2">
+            {corretores.map((cor, i) => {
+              const score = cor.total_clientes > 0
+                ? Math.min(100, Math.round((cor.total_vendas / cor.total_clientes) * 100)) : 0;
+              return (
+                <PremiumCard key={cor.corretor_id ?? i} className="flex items-center justify-between p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-7 h-7 rounded-full bg-gold-100 dark:bg-gold-900/40 flex items-center justify-center text-xs font-bold text-gold-700">
+                      {i + 1}
+                    </div>
+                    <CircularScore score={score} />
+                    <div>
+                      <h4 className="font-bold text-text-primary text-sm">{cor.corretor_nome}</h4>
+                      <p className="text-xs text-text-secondary">{cor.equipe}</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-xs text-text-secondary">{cor.total_clientes} clientes</p>
+                    <p className="text-sm font-bold text-green-600">{cor.total_vendas} vendas</p>
+                  </div>
+                </PremiumCard>
+              );
+            })}
+          </div>
+        )}
+      </section>
+    </div>
+  );
+}
+
+// ─── Main: Global Reports View ─────────────────────────────────────────────────
 
 export default function Reports() {
   const navigate = useNavigate();
-  const { clients, leads, loading, appointments } = useApp();
+  const [searchParams] = useSearchParams();
+  const { clients, leads, loading } = useApp();
   const [period, setPeriod] = useState('30 dias');
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
-
-  // Custom Date Range State
   const [isDateModalOpen, setIsDateModalOpen] = useState(false);
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+
+  // ── Route-level scope reading
+  const scope = searchParams.get('scope') ?? 'global';
+  const dirId = searchParams.get('id');
+  const dirName = decodeURIComponent(searchParams.get('name') ?? 'Diretoria');
+
+  // ── Delegate to diretoria sub-view
+  if (scope === 'diretoria' && dirId) {
+    return <DiretoriaReportView dirId={dirId} dirName={dirName} />;
+  }
 
   // ─── Real Data Calculations ────────────────────────────────────────────────
   const metrics = useMemo(() => {
@@ -34,49 +272,31 @@ export default function Reports() {
     ];
   }, [clients, leads]);
 
-  // Forecast: Sum of "Aprovado" clients potential values (simplified)
   const forecastTotal = useMemo(() => {
     const approved = clients.filter(c => c.stage === 'Aprovado');
-    const total = approved.reduce((acc, c) => {
+    return approved.reduce((acc, c) => {
       const val = parseFloat(c.intendedValue.replace(/[^\d]/g, '')) || 0;
       return acc + val;
     }, 0);
-    return total;
   }, [clients]);
 
-  // Forecast Chart Data (aggregated by month from createdAt)
   const chartData = useMemo(() => {
     const months = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
     const currentMonth = new Date().getMonth();
-
     return months.map((m, i) => {
-      // Very simplified: distribution of current data across months for visualization
       const monthClients = clients.filter(c => new Date(c.createdAt).getMonth() === i);
       const predicted = monthClients.reduce((acc, c) => acc + (parseFloat(c.intendedValue.replace(/[^\d]/g, '')) || 0), 0) || (i <= currentMonth ? 100000 + (i * 20000) : 0);
-      return {
-        month: m,
-        predicted: predicted / 1000,
-        confirmed: (i <= currentMonth ? predicted * 0.7 : 0) / 1000
-      };
+      return { month: m, predicted: predicted / 1000, confirmed: (i <= currentMonth ? predicted * 0.7 : 0) / 1000 };
     });
   }, [clients]);
 
   const clientHealth = useMemo(() => {
     return clients.slice(0, 5).map(c => {
-      // Mock health score logic based on stage
       let score = 50;
       if (c.stage === 'Aprovado') score = 85;
       if (c.stage === 'Em Tratativa') score = 70;
       if (c.stage === 'Reprovado') score = 20;
-
-      return {
-        id: c.id,
-        name: c.name,
-        stage: c.stage,
-        score,
-        potentialValue: c.intendedValue,
-        conversionProbability: score
-      };
+      return { id: c.id, name: c.name, stage: c.stage, score, potentialValue: c.intendedValue, conversionProbability: score };
     });
   }, [clients]);
 
@@ -119,7 +339,7 @@ export default function Reports() {
       <div className="flex justify-between items-center mb-6">
         <div>
           <h1 className="text-2xl font-bold text-text-primary">Relatórios</h1>
-          <p className="text-text-secondary text-sm">Inteligência Estratégica</p>
+          <p className="text-text-secondary text-sm">Inteligência Estratégica — Visão Global</p>
         </div>
         <button onClick={() => setIsExportModalOpen(true)} className="p-2 bg-white dark:bg-surface-100 border border-surface-200 rounded-lg text-text-secondary hover:text-gold-600 shadow-sm">
           <Download size={20} />
