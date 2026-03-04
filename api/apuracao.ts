@@ -131,11 +131,37 @@ const KEYWORDS_IGNORAR = [
 ];
 
 function normalizarData(dataRaw: string): { data: string; mes: string } {
-    const [dia, mes, ano = String(new Date().getFullYear())] = dataRaw.split('/');
-    return {
-        data: `${ano}-${mes.padStart(2, '0')}-${dia.padStart(2, '0')}`,
-        mes: `${ano}-${mes.padStart(2, '0')}`,
+    const limpo = dataRaw.trim().toUpperCase();
+
+    // Formato DD/MM ou DD/MM/YYYY
+    if (limpo.includes('/')) {
+        const [dia, mes, ano = String(new Date().getFullYear())] = limpo.split('/');
+        return {
+            data: `${ano}-${mes.padStart(2, '0')}-${dia.padStart(2, '0')}`,
+            mes: `${ano}-${mes.padStart(2, '0')}`,
+        };
+    }
+
+    // Formato Nubank: 04 FEV 2025 ou 04 FEV
+    const MESES: Record<string, string> = {
+        JAN: '01', FEV: '02', MAR: '03', ABR: '04', MAI: '05', JUN: '06',
+        JUL: '07', AGO: '08', SET: '09', OUT: '10', NOV: '11', DEZ: '12',
     };
+    const parts = limpo.split(/\s+/);
+    if (parts.length >= 2) {
+        const dia = parts[0].padStart(2, '0');
+        const mesStr = parts[1].substring(0, 3);
+        const mes = MESES[mesStr] || '01';
+        const ano = parts[2] || String(new Date().getFullYear());
+        return {
+            data: `${ano}-${mes}-${dia}`,
+            mes: `${ano}-${mes}`,
+        };
+    }
+
+    // Fallback
+    const fallback = new Date().toISOString().split('T')[0];
+    return { data: fallback, mes: fallback.substring(0, 7) };
 }
 
 function classificar(
@@ -192,97 +218,94 @@ function classificar(
 // PARSER — Extração de transações via regex (multi-estratégia)
 // ═══════════════════════════════════════════════════════════════════════════════
 
-// Padrão monetário: aceita 250,00 | 1.250,00 | 10.000,00 | 1.250.000,00
-const VALOR_RE = /(-?\d{1,3}(?:\.\d{3})*,\d{2})/;
-// Data no formato DD/MM ou DD/MM/YYYY ou DD/MM/YY
-const DATA_RE = /(\d{2}\/\d{2}(?:\/\d{2,4})?)/;
-
-/**
- * Estratégia 1 (mais comum): linha com data + texto + valor no final
- * Ex: "15/03 PIX RECEBIDO PESSOA FISICA       1.250,00"
- */
-const REGEX_DATA_DESC_VALOR = new RegExp(
-    DATA_RE.source + '\\s+' + '(.+?)' + '\\s+' + VALOR_RE.source + '\\s*$',
-    'gm'
-);
-
-/**
- * Estratégia 2: linha com data + valor + texto (Bradesco, Itaú alguns layouts)
- * Ex: "15/03       1.250,00  PIX RECEBIDO PESSOA"
- */
-const REGEX_DATA_VALOR_DESC = new RegExp(
-    DATA_RE.source + '\\s+' + VALOR_RE.source + '\\s+' + '(.+)',
-    'gm'
-);
-
-/**
- * Estratégia 3: valor isolado após label em linha anterior
- * Captura pares de linhas onde uma tem data+desc e a seguinte tem valor
- * Ex:
- *   "15/03 PIX RECEBIDO JOAO SILVA"
- *   "                      1.250,00 C"
- */
-function parsearMultiLinha(texto: string): Array<{ dataRaw: string; descricaoRaw: string; valorRaw: string }> {
-    const linhas = texto.split('\n').map(l => l.trim()).filter(l => l.length > 0);
-    const resultado: Array<{ dataRaw: string; descricaoRaw: string; valorRaw: string }> = [];
-
-    for (let i = 0; i < linhas.length - 1; i++) {
-        const linhaAtual = linhas[i];
-        const linhaProx = linhas[i + 1];
-
-        const dataMatch = linhaAtual.match(/^(\d{2}\/\d{2}(?:\/\d{2,4})?)\s+(.+)/);
-        if (!dataMatch) continue;
-
-        // Verifica se a linha atual tem valor no final
-        const valorNaLinha = linhaAtual.match(VALOR_RE);
-        if (valorNaLinha) continue; // Estratégia 1 já vai pegar
-
-        // Verifica se a próxima linha tem apenas um valor (credito/débito)
-        const valorProximo = linhaProx.match(/^(-?\d{1,3}(?:\.\d{3})*,\d{2})/)
-            ?? linhaProx.match(new RegExp(VALOR_RE.source + '\\s+[CD]$'));
-        if (!valorProximo) continue;
-
-        resultado.push({
-            dataRaw: dataMatch[1],
-            descricaoRaw: dataMatch[2].trim(),
-            valorRaw: valorProximo[1].trim(),
-        });
-    }
-    return resultado;
-}
+// Padrão monetário flexível: 250,00 | + 13,00 | - 45,00
+const VALOR_RE = /([+-]?\s*\d{1,3}(?:\.\d{3})*,\d{2})/;
+// Formatos de data suportados: 15/03/2024, 15/03, 15 FEV 2024, 15 FEV
+const DATA_RE = /^(\d{2}\/\d{2}(?:\/\d{2,4})?|\d{2}\s+(?:JAN|FEV|MAR|ABR|MAI|JUN|JUL|AGO|SET|OUT|NOV|DEZ)(?:\s+\d{2,4})?)/i;
 
 function extrair(texto: string): Array<{ dataRaw: string; descricaoRaw: string; valorRaw: string }> {
     const limpo = texto.replace(/\r\n/g, '\n').replace(/\r/g, '\n').trim();
+    const linhas = limpo.split('\n').map(l => l.trim()).filter(l => l.length > 0);
     const vistas = new Set<string>();
     const todos: Array<{ dataRaw: string; descricaoRaw: string; valorRaw: string }> = [];
 
     function add(dataRaw: string, descricaoRaw: string, valorRaw: string) {
-        const chave = `${dataRaw}|${descricaoRaw.trim()}|${valorRaw}`;
+        // Limpar valor (+ 13,00 -> 13,00, - 45,00 -> -45,00)
+        let v = valorRaw.replace(/\s+/g, '');
+        if (v.startsWith('+')) v = v.substring(1);
+
+        // Limpar descrição de barras pipe (|) comuns no Nubank
+        const desc = descricaoRaw.replace(/\|/g, ' ').replace(/\s+/g, ' ').trim();
+        if (desc.length < 3) return;
+
+        const chave = `${dataRaw}|${desc}|${v}`;
         if (!vistas.has(chave)) {
             vistas.add(chave);
-            todos.push({ dataRaw: dataRaw.trim(), descricaoRaw: descricaoRaw.trim(), valorRaw: valorRaw.trim() });
+            todos.push({ dataRaw, descricaoRaw: desc, valorRaw: v });
         }
     }
 
-    // Estratégia 1: data + desc + valor no final
-    REGEX_DATA_DESC_VALOR.lastIndex = 0;
-    let m: RegExpExecArray | null;
-    while ((m = REGEX_DATA_DESC_VALOR.exec(limpo)) !== null) {
-        const desc = m[2].trim();
-        // Rejeitar descrições muito curtas ou que sejam apenas um número
-        if (desc.length >= 3 && !/^-?[\d.,]+$/.test(desc)) add(m[1], desc, m[3]);
-    }
+    let dataContextual = ''; // Guarda a última data lida (ex: Nubank cabeçalho "04 FEV 2025")
 
-    // Estratégia 2: data + valor + desc (Bradesco, outros)
-    REGEX_DATA_VALOR_DESC.lastIndex = 0;
-    while ((m = REGEX_DATA_VALOR_DESC.exec(limpo)) !== null) {
-        const desc = m[3].trim();
-        if (desc.length >= 3 && !/^-?[\d.,]+$/.test(desc)) add(m[1], desc, m[2]);
-    }
+    for (let i = 0; i < linhas.length; i++) {
+        const linha = linhas[i];
 
-    // Estratégia 3: data + desc em uma linha, valor na próxima
-    const multiLinha = parsearMultiLinha(limpo);
-    for (const t of multiLinha) add(t.dataRaw, t.descricaoRaw, t.valorRaw);
+        // 1. Verificar se a linha começa com uma data conhecida
+        const mData = linha.match(DATA_RE);
+        if (mData) {
+            dataContextual = mData[1];
+
+            // Tentar extrair valor da mesma linha (Estratégia 1 e 2 juntas)
+            const descSemData = linha.substring(mData[0].length).trim();
+            const linhaTemValor = descSemData.match(VALOR_RE);
+
+            if (linhaTemValor) {
+                // Remove o valor da descrição
+                const descPura = descSemData.replace(linhaTemValor[0], '').trim();
+                if (descPura.length > 0 && !/^\d+$/.test(descPura)) {
+                    add(dataContextual, descPura, linhaTemValor[0]);
+                }
+                continue; // Linha já lida por completo
+            }
+
+            // Se não tem valor, mas a linha a seguir só tem valor (Estratégia 3)
+            const proxLinha = i + 1 < linhas.length ? linhas[i + 1] : '';
+            const mValorProximo = proxLinha.match(/^([+-]?\s*\d{1,3}(?:\.\d{3})*,\d{2})\s*(?:[CD])?$/i);
+
+            if (mValorProximo && descSemData.length > 0) {
+                add(dataContextual, descSemData, mValorProximo[1]);
+                i++; // Pula a próxima linha que já foi lida
+                continue;
+            }
+
+            // Se só tem a data (ex: Nubank cabeçalho de dia), apenas atualiza o dataContextual
+            if (descSemData.length === 0 || descSemData.toLowerCase().includes('total de')) continue;
+        }
+        // 2. Linha sem data no início, mas temos um dataContextual ativo (Nubank transactions)
+        else if (dataContextual) {
+            // Ignorar lixos do Nubank
+            if (linha.startsWith('Saldo final do período') || linha.startsWith('Saldo inicial') || linha.includes('Rendimento líquido')) continue;
+
+            // Regex global para pegar o ÚLTIMO valor da linha, ignorando valores no meio (ex: 0,00 | +13,00 | -45,00)
+            // No Nubank, as vezes a linha da transação tem o valor no meio "Transferência Recebida - Nome | 12,50 | Tran"
+            // Vamos procurar qualquer valor monetário na linha
+            const valoresMatches = Array.from(linha.matchAll(/(?:^|\s|\|)([+-]?\s*\d{1,3}(?:\.\d{3})*,\d{2})(?:\s|\||$)/g));
+
+            if (valoresMatches.length > 0) {
+                // Assumir o primeiro valor encontrado como sendo o da transação se não for 0,00
+                const valorTarget = valoresMatches.find(m => m[1] !== '0,00') || valoresMatches[0];
+                const valorReal = valorTarget[1];
+
+                // Extrai a descrição (tudo antes do valor ou se o valor estiver no meio, limpa depois dele)
+                const descParts = linha.split(valorReal);
+                const descPura = descParts[0].trim();
+
+                if (descPura.length > 0 && !/^\d+$/.test(descPura)) {
+                    add(dataContextual, descPura, valorReal);
+                }
+            }
+        }
+    }
 
     return todos;
 }
