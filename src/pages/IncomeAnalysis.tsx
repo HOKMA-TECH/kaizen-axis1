@@ -7,8 +7,8 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import * as pdfjsLib from 'pdfjs-dist';
 
-// Worker do pdfjs — usa CDN para evitar bundling issues
-pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
+// Worker do pdfjs — usa unpkg (reflete o registro npm exatamente) para evitar 404
+pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
 
 // ─── Tipos do resultado ────────────────────────────────────────────────────────
 interface TransacaoSinalizada {
