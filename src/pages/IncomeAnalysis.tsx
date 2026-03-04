@@ -39,7 +39,7 @@ interface ResultadoApuracao {
 const brl = (centavos: number) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(centavos / 100);
 
-const SERVER_URL = import.meta.env.VITE_APURACAO_SERVER_URL ?? 'http://localhost:3001';
+const API_URL = '/api/apuracao';
 
 // ─── Componente ──────────────────────────────────────────────────────────────
 export default function IncomeAnalysis() {
@@ -88,7 +88,7 @@ export default function IncomeAnalysis() {
     if (nomeMae) formData.append('nomeMae', nomeMae);
 
     try {
-      const resp = await fetch(`${SERVER_URL}/apuracao`, {
+      const resp = await fetch(API_URL, {
         method: 'POST',
         body: formData,
       });
