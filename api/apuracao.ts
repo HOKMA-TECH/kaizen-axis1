@@ -5,10 +5,6 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { IncomingForm, Fields, Files } from 'formidable';
-import { createHash } from 'crypto';
-import { readFileSync } from 'fs';
-import pdfParse from 'pdf-parse';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TIPOS
@@ -295,8 +291,6 @@ function extrair(texto: string): Array<{ dataRaw: string; descricaoRaw: string; 
 // HANDLER PRINCIPAL
 // ═══════════════════════════════════════════════════════════════════════════════
 
-export const config = { api: { bodyParser: false } };
-
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     // CORS
     res.setHeader('Access-Control-Allow-Origin', '*');
@@ -308,41 +302,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const timestamp = new Date().toISOString();
 
     try {
-        // ── Parse multipart/form-data ──────────────────────────────────────────
-        const { fields, pdfBuffer } = await parseForm(req);
+        // ── Parse JSON body ────────────────────────────────────────────────────
+        const body = req.body || {};
+        const { textoExtrato, hashPdf, nomeCliente, cpf, nomePai, nomeMae } = body;
 
-        const nomeCliente = String(Array.isArray(fields.nomeCliente) ? fields.nomeCliente[0] : fields.nomeCliente ?? '').trim();
-        if (!nomeCliente) { res.status(400).json({ erro: 'Campo "nomeCliente" é obrigatório.' }); return; }
+        if (!nomeCliente?.trim()) { res.status(400).json({ erro: 'Campo "nomeCliente" é obrigatório.' }); return; }
+        if (!textoExtrato?.trim()) { res.status(400).json({ erro: 'Texto do extrato ("textoExtrato") é obrigatório.' }); return; }
 
         const ctx: ContextoNomes = {
-            nomeCliente,
-            cpf: getString(fields, 'cpf'),
-            nomePai: getString(fields, 'nomePai'),
-            nomeMae: getString(fields, 'nomeMae'),
+            nomeCliente: nomeCliente.trim(),
+            cpf: cpf?.trim(),
+            nomePai: nomePai?.trim(),
+            nomeMae: nomeMae?.trim(),
         };
 
-        // ── Validar PDF ────────────────────────────────────────────────────────
-        if (!pdfBuffer || pdfBuffer.length < 100) { res.status(400).json({ erro: 'PDF inválido ou não enviado.' }); return; }
-        if (!pdfBuffer.slice(0, 4).toString('ascii').startsWith('%PDF')) {
-            res.status(400).json({ erro: 'O arquivo não é um PDF válido.' }); return;
-        }
-
-        const hashPdf = createHash('sha256').update(pdfBuffer).digest('hex');
-
-        // ── Extrair texto do PDF ────────────────────────────────────────────────
-        let textoPdf: string;
-        try {
-            const parsed = await pdfParse(pdfBuffer);
-            textoPdf = parsed.text;
-        } catch {
-            res.status(422).json({ erro: 'Falha ao ler o PDF. Pode estar corrompido ou protegido por senha.' }); return;
-        }
-
         // ── Parsear e classificar transações ───────────────────────────────────
-        const brutas = extrair(textoPdf);
+        const brutas = extrair(textoExtrato);
         if (brutas.length === 0) {
             // Return a sample of the extracted text to help diagnose unsupported formats
-            const amostra = textoPdf.slice(0, 500).replace(/\n+/g, ' | ');
+            const amostra = textoExtrato.slice(0, 500).replace(/\n+/g, ' | ');
             res.status(422).json({
                 erro: 'Nenhuma transação reconhecida. O formato do banco pode não ser suportado.',
                 debug_texto_extraido: amostra,
@@ -419,35 +397,4 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const msg = err instanceof Error ? err.message : 'Erro interno.';
         res.status(500).json({ erro: msg });
     }
-}
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// HELPERS
-// ═══════════════════════════════════════════════════════════════════════════════
-
-function getString(fields: Fields, key: string): string | undefined {
-    const v = fields[key];
-    const s = (Array.isArray(v) ? v[0] : v ?? '').trim();
-    return s || undefined;
-}
-
-async function parseForm(req: VercelRequest): Promise<{ fields: Fields; pdfBuffer: Buffer | null }> {
-    return new Promise((resolve, reject) => {
-        const form = new IncomingForm({ maxFileSize: 20 * 1024 * 1024 });
-        form.parse(req as any, (err, fields, files: Files) => {
-            if (err) return reject(err);
-
-            const fileField = files['pdf'];
-            const file = Array.isArray(fileField) ? fileField[0] : fileField;
-
-            if (!file) return resolve({ fields, pdfBuffer: null });
-
-            try {
-                const buffer = readFileSync(file.filepath);
-                resolve({ fields, pdfBuffer: buffer });
-            } catch {
-                reject(new Error('Falha ao ler o arquivo enviado.'));
-            }
-        });
-    });
 }

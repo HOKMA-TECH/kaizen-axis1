@@ -2,9 +2,13 @@ import { useState, useRef } from 'react';
 import { PremiumCard, RoundedButton, SectionHeader } from '@/components/ui/PremiumComponents';
 import {
   UploadCloud, CheckCircle2, AlertTriangle, FileText,
-  RefreshCw, Download, ChevronRight, Loader2, XCircle
+  RefreshCw, Download, ChevronRight, Loader2, XCircle, ScanText
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import * as pdfjsLib from 'pdfjs-dist';
+
+// Worker do pdfjs — usa CDN para evitar bundling issues
+pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
 
 // ─── Tipos do resultado ────────────────────────────────────────────────────────
 interface TransacaoSinalizada {
@@ -41,6 +45,47 @@ const brl = (centavos: number) =>
 
 const API_URL = '/api/apuracao';
 
+/**
+ * Extrai texto de um PDF no browser usando pdfjs-dist.
+ */
+async function extrairTextoPdf(file: File): Promise<{ texto: string; hashPdf: string }> {
+  const arrayBuffer = await file.arrayBuffer();
+
+  // Calcular hash SHA-256 do arquivo original (auditoria)
+  const hashBuffer = await crypto.subtle.digest('SHA-256', arrayBuffer);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  const hashPdf = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+
+  const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+  const paginas: string[] = [];
+
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const pagina = await pdf.getPage(i);
+    const content = await pagina.getTextContent();
+
+    let ultimoY: number | null = null;
+    let linhaAtual = '';
+    const linhas: string[] = [];
+
+    for (const item of content.items) {
+      const textItem = item as { str: string; transform: number[] };
+      const y = Math.round(textItem.transform[5]);
+
+      if (ultimoY !== null && Math.abs(y - ultimoY) > 2) {
+        if (linhaAtual.trim()) linhas.push(linhaAtual.trim());
+        linhaAtual = textItem.str;
+      } else {
+        linhaAtual += (linhaAtual && textItem.str ? ' ' : '') + textItem.str;
+      }
+      ultimoY = y;
+    }
+    if (linhaAtual.trim()) linhas.push(linhaAtual.trim());
+    paginas.push(linhas.join('\n'));
+  }
+
+  return { texto: paginas.join('\n'), hashPdf };
+}
+
 // ─── Componente ──────────────────────────────────────────────────────────────
 export default function IncomeAnalysis() {
   // Form state
@@ -53,6 +98,7 @@ export default function IncomeAnalysis() {
   // UX state
   const [step, setStep] = useState<1 | 2>(1);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [statusMsg, setStatusMsg] = useState('');
   const [erro, setErro] = useState<string | null>(null);
   const [resultado, setResultado] = useState<ResultadoApuracao | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -69,7 +115,7 @@ export default function IncomeAnalysis() {
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
-    if (f && f.type === 'application/pdf') setArquivo(f);
+    if (f && f.type === 'application/pdf') { setArquivo(f); setErro(null); }
     else { setArquivo(null); setErro('Apenas arquivos PDF são aceitos.'); }
   };
 
@@ -79,30 +125,42 @@ export default function IncomeAnalysis() {
 
     setErro(null);
     setIsAnalyzing(true);
-
-    const formData = new FormData();
-    formData.append('pdf', arquivo);
-    formData.append('nomeCliente', nomeCliente);
-    if (cpf) formData.append('cpf', cpf);
-    if (nomePai) formData.append('nomePai', nomePai);
-    if (nomeMae) formData.append('nomeMae', nomeMae);
+    setStatusMsg('');
 
     try {
+      setStatusMsg('Lendo PDF...');
+      const { texto, hashPdf } = await extrairTextoPdf(arquivo);
+
+      setStatusMsg('Analisando transações...');
       const resp = await fetch(API_URL, {
         method: 'POST',
-        body: formData,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          textoExtrato: texto,
+          hashPdf,
+          nomeCliente,
+          cpf: cpf || undefined,
+          nomePai: nomePai || undefined,
+          nomeMae: nomeMae || undefined,
+        }),
       });
+
       const json = await resp.json();
       if (!resp.ok) {
         setErro(json.erro ?? `Erro ${resp.status}`);
+        if (json.debug_texto_extraido) {
+          console.warn('[Apuração] Amostra do texto extraído:', json.debug_texto_extraido);
+        }
         return;
       }
       setResultado(json as ResultadoApuracao);
       setStep(2);
-    } catch {
-      setErro('Não foi possível conectar ao servidor de apuração. Tente novamente em instantes.');
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Erro desconhecido';
+      setErro(`Falha ao processar: ${msg}`);
     } finally {
       setIsAnalyzing(false);
+      setStatusMsg('');
     }
   };
 
@@ -316,8 +374,13 @@ export default function IncomeAnalysis() {
                   .map(([mes, valor]) => (
                     <PremiumCard key={mes} className="flex justify-between items-center py-3 px-4">
                       <div className="flex items-center gap-3">
-                        <div className="w-2 h-2 rounded-full bg-green-500" />
-                        <p className="font-medium text-text-primary text-sm">{mes}</p>
+                        {isAnalyzing ? (
+                          <>
+                            <Loader2 className="w-5 h-5 animate-spin mx-auto text-white" />
+                            <span className="ml-2 font-medium">{statusMsg || 'Processando...'}</span>
+                          </>
+                        ) : (<p className="font-medium text-text-primary text-sm">{mes}</p>
+                        )}
                       </div>
                       <span className="font-mono font-medium text-text-primary text-sm">{brl(valor)}</span>
                     </PremiumCard>
