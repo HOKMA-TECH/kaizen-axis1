@@ -130,6 +130,9 @@ export default function IncomeAnalysis() {
     try {
       setStatusMsg('Lendo PDF...');
       const { texto, hashPdf } = await extrairTextoPdf(arquivo);
+      if (!texto.trim()) {
+        throw new Error('Não foi possível extrair texto do PDF. O arquivo pode ser uma imagem (scaneado) ou estar protegido.');
+      }
 
       setStatusMsg('Analisando transações...');
       const resp = await fetch(API_URL, {

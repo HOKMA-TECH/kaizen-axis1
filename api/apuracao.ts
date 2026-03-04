@@ -303,11 +303,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     try {
         // ── Parse JSON body ────────────────────────────────────────────────────
-        let body = req.body || {};
-        if (Buffer.isBuffer(body)) body = body.toString('utf8');
-        if (typeof body === 'string') {
-            try { body = JSON.parse(body); } catch (e) { }
+        let body = req.body;
+        // Se o body veio vazio, pode ser que o Vercel não tenha feito o parse (ou foi lido como stream)
+        if (!body || Object.keys(body).length === 0 || Buffer.isBuffer(body)) {
+            const rawBody = Buffer.isBuffer(body) ? body.toString('utf8') : await new Promise<string>((resolve, reject) => {
+                let str = '';
+                req.on('data', chunk => str += chunk.toString('utf8'));
+                req.on('end', () => resolve(str));
+                req.on('error', reject);
+            }).catch(() => '');
+
+            if (rawBody.trim()) {
+                try { body = JSON.parse(rawBody); } catch (e) { }
+            }
         }
+        body = body || {};
 
         const { textoExtrato, hashPdf, nomeCliente, cpf, nomePai, nomeMae } = body;
 
