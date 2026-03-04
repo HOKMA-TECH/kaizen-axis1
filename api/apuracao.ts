@@ -303,7 +303,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     try {
         // ── Parse JSON body ────────────────────────────────────────────────────
-        const body = req.body || {};
+        let body = req.body || {};
+        if (Buffer.isBuffer(body)) body = body.toString('utf8');
+        if (typeof body === 'string') {
+            try { body = JSON.parse(body); } catch (e) { }
+        }
+
         const { textoExtrato, hashPdf, nomeCliente, cpf, nomePai, nomeMae } = body;
 
         if (!nomeCliente?.trim()) { res.status(400).json({ erro: 'Campo "nomeCliente" é obrigatório.' }); return; }
