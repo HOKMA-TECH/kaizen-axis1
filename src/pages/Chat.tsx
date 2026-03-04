@@ -1,9 +1,22 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Bot } from 'lucide-react';
+import { Search, Bot, SquarePen, X, MessageCircle } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '@/lib/utils';
+import { supabase } from '@/lib/supabase';
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+interface ConversationPreview {
+  conversationId: string;
+  otherId: string;
+  isKAI: boolean;
+  lastContent: string;
+  lastType: string;
+  lastAt: string;
+  senderIsMe: boolean;
+}
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -24,58 +37,73 @@ const getColor = (id: string) =>
 const getInitials = (name: string) =>
   (name || '?').split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase();
 
-// ─── Avatar circle ────────────────────────────────────────────────────────────
+function formatTime(iso: string) {
+  const d = new Date(iso);
+  const now = new Date();
+  const isToday = d.toDateString() === now.toDateString();
+  const yesterday = new Date(now);
+  yesterday.setDate(now.getDate() - 1);
+  const isYesterday = d.toDateString() === yesterday.toDateString();
 
-function AvatarCircle({
-  name,
-  avatarUrl,
-  id,
-  isKai = false,
-  size = 10,
+  if (isToday) return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  if (isYesterday) return 'Ontem';
+  return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+}
+
+function formatPreview(type: string, content: string, isMe: boolean) {
+  const prefix = isMe ? 'Você: ' : '';
+  if (type === 'image') return `${prefix}📷 Imagem`;
+  if (type === 'video') return `${prefix}🎥 Vídeo`;
+  if (type === 'audio') return `${prefix}🎤 Áudio`;
+  if (type === 'document') return `${prefix}📄 Documento`;
+  return `${prefix}${content || ''}`;
+}
+
+// ─── Avatar ───────────────────────────────────────────────────────────────────
+
+function Avatar({
+  name, avatarUrl, id, isKai = false, size = 'md',
 }: {
-  name: string;
-  avatarUrl?: string | null;
-  id: string;
-  isKai?: boolean;
-  size?: number;
+  name: string; avatarUrl?: string | null; id: string;
+  isKai?: boolean; size?: 'sm' | 'md';
 }) {
-  const dim = `w-${size} h-${size}`;
+  const dim = size === 'sm' ? 'w-10 h-10' : 'w-12 h-12';
+  const iconSize = size === 'sm' ? 16 : 20;
+  const txtSize = size === 'sm' ? 'text-[11px]' : 'text-sm';
 
-  if (isKai) {
-    return (
-      <div className={`${dim} rounded-full bg-gradient-to-br from-gold-400 to-gold-500 flex items-center justify-center`}>
-        <Bot className="text-white" size={size === 10 ? 18 : 14} />
-      </div>
-    );
-  }
-  if (avatarUrl) {
-    return (
-      <img src={avatarUrl} alt={name} referrerPolicy="no-referrer"
-        className={`${dim} rounded-full object-cover`} />
-    );
-  }
+  if (isKai) return (
+    <div className={`${dim} rounded-full bg-gradient-to-br from-gold-400 to-gold-500 flex items-center justify-center flex-shrink-0`}>
+      <Bot size={iconSize} className="text-white" />
+    </div>
+  );
+  if (avatarUrl) return (
+    <img src={avatarUrl} alt={name} referrerPolicy="no-referrer"
+      className={`${dim} rounded-full object-cover flex-shrink-0`} />
+  );
   return (
-    <div className={`${dim} rounded-full bg-gradient-to-br ${getColor(id)} flex items-center justify-center text-white font-semibold ${size <= 9 ? 'text-[10px]' : 'text-sm'}`}>
+    <div className={`${dim} rounded-full bg-gradient-to-br ${getColor(id)} flex items-center justify-center text-white font-semibold ${txtSize} flex-shrink-0`}>
       {getInitials(name)}
     </div>
   );
 }
 
-// ─── Green dot ───────────────────────────────────────────────────────────────
-
-function GreenDot() {
-  return (
-    <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 border-2 border-card-bg rounded-full" />
-  );
+function GreenDot({ position = 'list' }: { position?: 'strip' | 'list' }) {
+  const cls = position === 'strip'
+    ? 'absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 border-2 border-card-bg rounded-full'
+    : 'absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 border-2 border-surface-50 rounded-full';
+  return <span className={cls} />;
 }
 
-// ─── Chat ────────────────────────────────────────────────────────────────────
+// ─── Chat ─────────────────────────────────────────────────────────────────────
 
 export default function Chat() {
   const navigate = useNavigate();
   const { allProfiles, user } = useApp();
   const [search, setSearch] = useState('');
   const [focused, setFocused] = useState(false);
+  const [conversations, setConversations] = useState<ConversationPreview[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showNewChat, setShowNewChat] = useState(false);
 
   const myId = user?.id;
 
@@ -84,20 +112,103 @@ export default function Chat() {
     [allProfiles, myId],
   );
 
-  const filtered = useMemo(
-    () => search.trim()
-      ? members.filter(u => u.name?.toLowerCase().includes(search.toLowerCase()))
-      : members,
-    [members, search],
-  );
+  // ── Fetch existing conversations ──────────────────────────────────────────
+  const fetchConversations = useCallback(async () => {
+    if (!myId) return;
+    const { data } = await supabase
+      .from('chat_messages')
+      .select('conversation_id, content, type, created_at, sender_id, receiver_id')
+      .or(`sender_id.eq.${myId},receiver_id.eq.${myId}`)
+      .order('created_at', { ascending: false });
+
+    const seen = new Set<string>();
+    const convos: ConversationPreview[] = [];
+
+    for (const msg of (data ?? [])) {
+      if (seen.has(msg.conversation_id)) continue;
+      seen.add(msg.conversation_id);
+      const isKAI = msg.conversation_id.startsWith('kai-');
+      const otherId = isKAI ? 'kai-agent'
+        : (msg.sender_id === myId ? msg.receiver_id : msg.sender_id);
+
+      convos.push({
+        conversationId: msg.conversation_id,
+        otherId,
+        isKAI,
+        lastContent: msg.content || '',
+        lastType: msg.type || 'text',
+        lastAt: msg.created_at,
+        senderIsMe: msg.sender_id === myId,
+      });
+    }
+
+    setConversations(convos);
+    setLoading(false);
+  }, [myId]);
+
+  useEffect(() => {
+    fetchConversations();
+    if (!myId) return;
+    const ch = supabase
+      .channel('chat-list')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_messages' },
+        (p) => {
+          const m = p.new as any;
+          if (m.sender_id === myId || m.receiver_id === myId) fetchConversations();
+        })
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [myId, fetchConversations]);
+
+  // ── Derived ───────────────────────────────────────────────────────────────
+
+  // Strip: KAI + max 4 members (partners from existing convos first, then others)
+  const stripMembers = useMemo(() => {
+    const inConvo = new Set(
+      conversations.filter(c => !c.isKAI).map(c => c.otherId),
+    );
+    const sorted = [
+      ...members.filter(m => inConvo.has(m.id)),
+      ...members.filter(m => !inConvo.has(m.id)),
+    ];
+    return sorted.slice(0, 4);
+  }, [members, conversations]);
+
+  // Conversations enriched with profile info
+  const enriched = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return conversations
+      .map(c => {
+        if (c.isKAI) return { ...c, name: 'KAI', role: 'Assistente IA', avatarUrl: null };
+        const p = allProfiles?.find(pr => pr.id === c.otherId);
+        return { ...c, name: p?.name || 'Usuário', role: p?.role || '', avatarUrl: p?.avatar_url };
+      })
+      .filter(c => !q || c.name.toLowerCase().includes(q));
+  }, [conversations, allProfiles, search]);
+
+  // Members not yet in any conversation (for new chat modal)
+  const newChatCandidates = useMemo(() => {
+    const existing = new Set(conversations.filter(c => !c.isKAI).map(c => c.otherId));
+    const hasKAI = conversations.some(c => c.isKAI);
+    return {
+      showKAI: !hasKAI,
+      members: members.filter(m => !existing.has(m.id)),
+    };
+  }, [conversations, members]);
 
   return (
     <div className="flex flex-col h-screen bg-surface-50 pb-20">
 
-      {/* ── Header ────────────────────────────────────────────────────── */}
+      {/* ── Header ──────────────────────────────────────────────────────── */}
       <div className="bg-card-bg z-10 border-b border-surface-100">
-        <div className="px-5 pt-10 pb-4">
+        <div className="px-5 pt-10 pb-4 flex items-center justify-between">
           <h1 className="text-2xl font-bold text-text-primary tracking-tight">Mensagens</h1>
+          <button
+            onClick={() => setShowNewChat(true)}
+            className="w-9 h-9 rounded-full bg-surface-50 flex items-center justify-center text-text-secondary hover:text-gold-500 hover:bg-gold-400/10 transition-colors"
+          >
+            <SquarePen size={18} />
+          </button>
         </div>
 
         {/* Search */}
@@ -120,135 +231,217 @@ export default function Chat() {
           </motion.div>
         </div>
 
-        {/* ── Online strip ──────────────────────────────────────────────── */}
-        <div className="px-5 pb-4">
-          <p className="text-[10px] font-semibold text-text-secondary uppercase tracking-widest mb-3">
-            Online agora
-          </p>
-          {/* flex-wrap — sem scroll */}
-          <div className="flex flex-wrap gap-x-4 gap-y-3">
-
-            {/* KAI */}
-            <button
-              onClick={() => navigate('/chat/kai-agent')}
-              className="flex flex-col items-center gap-1 active:opacity-70 transition-opacity"
-            >
-              <div className="relative">
-                <AvatarCircle name="KAI" id="kai" isKai size={9} />
-                <GreenDot />
-              </div>
-              <span className="text-[10px] text-text-secondary w-9 text-center truncate">KAI</span>
-            </button>
-
-            {/* Members */}
-            {members.map(m => (
+        {/* ── Strip: KAI + alguns membros ──────────────────────────────── */}
+        {!search && (
+          <div className="px-5 pb-4">
+            <p className="text-[10px] font-semibold text-text-secondary uppercase tracking-widest mb-3">
+              Acesso rápido
+            </p>
+            <div className="flex gap-4">
+              {/* KAI */}
               <button
-                key={m.id}
-                onClick={() => navigate(`/chat/${m.id}`)}
-                className="flex flex-col items-center gap-1 active:opacity-70 transition-opacity"
+                onClick={() => navigate('/chat/kai-agent')}
+                className="flex flex-col items-center gap-1.5 active:opacity-60 transition-opacity"
               >
                 <div className="relative">
-                  <AvatarCircle name={m.name} avatarUrl={m.avatar_url} id={m.id} size={9} />
-                  <GreenDot />
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-gold-400 to-gold-500 flex items-center justify-center">
+                    <Bot size={16} className="text-white" />
+                  </div>
+                  <GreenDot position="strip" />
                 </div>
-                <span className="text-[10px] text-text-secondary w-9 text-center truncate">
-                  {m.name?.split(' ')[0] || '—'}
-                </span>
+                <span className="text-[10px] text-text-secondary w-10 text-center truncate">KAI</span>
               </button>
-            ))}
+
+              {/* Max 4 members */}
+              {stripMembers.map(m => (
+                <button
+                  key={m.id}
+                  onClick={() => navigate(`/chat/${m.id}`)}
+                  className="flex flex-col items-center gap-1.5 active:opacity-60 transition-opacity"
+                >
+                  <div className="relative">
+                    <Avatar name={m.name} avatarUrl={m.avatar_url} id={m.id} size="sm" />
+                    <GreenDot position="strip" />
+                  </div>
+                  <span className="text-[10px] text-text-secondary w-10 text-center truncate">
+                    {m.name?.split(' ')[0] || '—'}
+                  </span>
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
-      {/* ── List ──────────────────────────────────────────────────────── */}
+      {/* ── Conversation list ────────────────────────────────────────── */}
       <div className="flex-1 overflow-y-auto">
 
-        {/* KAI row */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.2 }}
-          onClick={() => navigate('/chat/kai-agent')}
-          className="flex items-center gap-3.5 px-5 py-3.5 cursor-pointer hover:bg-card-bg active:bg-card-bg transition-colors border-b border-surface-50"
-        >
-          <div className="relative flex-shrink-0">
-            <AvatarCircle name="KAI" id="kai" isKai size={12} />
-            <GreenDot />
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-1.5">
-              <span className="font-semibold text-text-primary text-sm">KAI</span>
-              <span className="text-[10px] font-semibold text-gold-500 bg-gold-400/10 px-1.5 py-0.5 rounded">IA</span>
-            </div>
-            <p className="text-xs text-text-secondary truncate mt-0.5">
-              Especialista em financiamento imobiliário
-            </p>
-          </div>
-        </motion.div>
-
-        {/* Section label */}
-        {filtered.length > 0 && (
-          <div className="px-5 pt-4 pb-1">
-            <p className="text-[10px] font-semibold text-text-secondary uppercase tracking-widest">
-              Equipe · {filtered.length}
-            </p>
+        {/* Loading */}
+        {loading && (
+          <div className="flex flex-col gap-3 px-5 pt-4">
+            {[1, 2, 3].map(i => (
+              <div key={i} className="flex items-center gap-3 animate-pulse">
+                <div className="w-12 h-12 rounded-full bg-surface-100 flex-shrink-0" />
+                <div className="flex-1 space-y-2">
+                  <div className="h-3 bg-surface-100 rounded-full w-32" />
+                  <div className="h-2.5 bg-surface-100 rounded-full w-48" />
+                </div>
+                <div className="h-2 bg-surface-100 rounded-full w-8" />
+              </div>
+            ))}
           </div>
         )}
 
-        {/* Empty */}
-        <AnimatePresence>
-          {filtered.length === 0 && search !== '' && (
-            <motion.div
-              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              className="flex flex-col items-center py-16 text-text-secondary"
+        {/* Empty state */}
+        {!loading && enriched.length === 0 && search === '' && (
+          <motion.div
+            initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
+            className="flex flex-col items-center py-20 text-text-secondary px-8 text-center"
+          >
+            <div className="w-16 h-16 rounded-full bg-surface-100 flex items-center justify-center mb-4">
+              <MessageCircle size={28} className="opacity-30" />
+            </div>
+            <p className="font-medium text-sm text-text-primary mb-1">Nenhuma conversa ainda</p>
+            <p className="text-xs opacity-60 mb-5">Inicie uma conversa com sua equipe ou com o KAI</p>
+            <button
+              onClick={() => setShowNewChat(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-gold-400 text-white text-sm font-medium rounded-full"
             >
-              <Search size={30} className="mb-2 opacity-20" />
-              <p className="text-sm">Nenhum resultado para "{search}"</p>
-            </motion.div>
-          )}
-          {filtered.length === 0 && search === '' && members.length === 0 && (
-            <motion.div
-              initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-              className="flex flex-col items-center py-16 text-text-secondary text-sm"
-            >
-              <p>Nenhum colega encontrado.</p>
-            </motion.div>
-          )}
-        </AnimatePresence>
+              <SquarePen size={14} /> Nova conversa
+            </button>
+          </motion.div>
+        )}
 
-        {/* Member rows */}
-        <AnimatePresence mode="popLayout">
-          {filtered.map((m, i) => (
-            <motion.div
-              key={m.id}
-              layout
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ delay: i * 0.02, duration: 0.15 }}
-              onClick={() => navigate(`/chat/${m.id}`)}
-              className={cn(
-                'flex items-center gap-3.5 px-5 py-3.5 cursor-pointer',
-                'hover:bg-card-bg active:bg-card-bg transition-colors',
-                i < filtered.length - 1 && 'border-b border-surface-50',
-              )}
-            >
-              <div className="relative flex-shrink-0">
-                <AvatarCircle name={m.name} avatarUrl={m.avatar_url} id={m.id} size={12} />
-                <GreenDot />
-              </div>
-              <div className="flex-1 min-w-0">
-                <h3 className="font-semibold text-text-primary text-sm truncate">{m.name}</h3>
-                <p className="text-xs text-text-secondary truncate capitalize mt-0.5">
-                  {m.role || 'Membro da equipe'}
-                </p>
-              </div>
-            </motion.div>
-          ))}
-        </AnimatePresence>
+        {/* No results from search */}
+        {!loading && enriched.length === 0 && search !== '' && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+            className="flex flex-col items-center py-16 text-text-secondary"
+          >
+            <Search size={30} className="mb-2 opacity-20" />
+            <p className="text-sm">Nenhuma conversa com "{search}"</p>
+          </motion.div>
+        )}
+
+        {/* Conversations */}
+        {!loading && enriched.length > 0 && (
+          <AnimatePresence mode="popLayout">
+            {enriched.map((c, i) => (
+              <motion.div
+                key={c.conversationId}
+                layout
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ delay: i * 0.025, duration: 0.15 }}
+                onClick={() => navigate(c.isKAI ? '/chat/kai-agent' : `/chat/${c.otherId}`)}
+                className={cn(
+                  'flex items-center gap-3.5 px-5 py-3.5 cursor-pointer',
+                  'hover:bg-card-bg active:bg-card-bg transition-colors',
+                  i < enriched.length - 1 && 'border-b border-surface-50',
+                )}
+              >
+                <div className="relative flex-shrink-0">
+                  <Avatar
+                    name={c.name} avatarUrl={c.avatarUrl}
+                    id={c.otherId} isKai={c.isKAI} size="md"
+                  />
+                  <GreenDot />
+                </div>
+
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between mb-0.5">
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <h3 className="font-semibold text-text-primary text-sm truncate">
+                        {c.name}
+                      </h3>
+                      {c.isKAI && (
+                        <span className="text-[10px] font-semibold text-gold-500 bg-gold-400/10 px-1.5 py-0.5 rounded flex-shrink-0">IA</span>
+                      )}
+                    </div>
+                    <span className="text-[11px] text-text-secondary flex-shrink-0 ml-2">
+                      {formatTime(c.lastAt)}
+                    </span>
+                  </div>
+                  <p className="text-xs text-text-secondary truncate">
+                    {formatPreview(c.lastType, c.lastContent, c.senderIsMe)}
+                  </p>
+                </div>
+              </motion.div>
+            ))}
+          </AnimatePresence>
+        )}
 
         <div className="h-4" />
       </div>
+
+      {/* ── Nova conversa (bottom sheet) ────────────────────────────── */}
+      <AnimatePresence>
+        {showNewChat && (
+          <>
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/40 z-40"
+              onClick={() => setShowNewChat(false)}
+            />
+            {/* Sheet */}
+            <motion.div
+              initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
+              transition={{ type: 'spring', stiffness: 380, damping: 36 }}
+              className="fixed bottom-0 left-0 right-0 z-50 bg-card-bg rounded-t-2xl max-h-[70vh] flex flex-col"
+            >
+              <div className="flex items-center justify-between px-5 py-4 border-b border-surface-100">
+                <h3 className="font-semibold text-text-primary">Nova conversa</h3>
+                <button onClick={() => setShowNewChat(false)} className="text-text-secondary">
+                  <X size={20} />
+                </button>
+              </div>
+
+              <div className="overflow-y-auto flex-1 pb-8">
+                {/* KAI */}
+                {newChatCandidates.showKAI && (
+                  <button
+                    onClick={() => { setShowNewChat(false); navigate('/chat/kai-agent'); }}
+                    className="flex items-center gap-3.5 w-full px-5 py-3.5 hover:bg-surface-50 transition-colors border-b border-surface-50"
+                  >
+                    <div className="w-11 h-11 rounded-full bg-gradient-to-br from-gold-400 to-gold-500 flex items-center justify-center flex-shrink-0">
+                      <Bot size={18} className="text-white" />
+                    </div>
+                    <div className="text-left">
+                      <p className="font-semibold text-text-primary text-sm flex items-center gap-1.5">
+                        KAI <span className="text-[10px] font-semibold text-gold-500 bg-gold-400/10 px-1.5 py-0.5 rounded">IA</span>
+                      </p>
+                      <p className="text-xs text-text-secondary">Assistente IA</p>
+                    </div>
+                  </button>
+                )}
+
+                {/* Members without conversations */}
+                {newChatCandidates.members.length === 0 && !newChatCandidates.showKAI ? (
+                  <p className="text-center text-sm text-text-secondary py-10">
+                    Você já tem conversas com todos da equipe.
+                  </p>
+                ) : (
+                  newChatCandidates.members.map(m => (
+                    <button
+                      key={m.id}
+                      onClick={() => { setShowNewChat(false); navigate(`/chat/${m.id}`); }}
+                      className="flex items-center gap-3.5 w-full px-5 py-3.5 hover:bg-surface-50 transition-colors border-b border-surface-50"
+                    >
+                      <Avatar name={m.name} avatarUrl={m.avatar_url} id={m.id} size="sm" />
+                      <div className="text-left">
+                        <p className="font-semibold text-text-primary text-sm">{m.name}</p>
+                        <p className="text-xs text-text-secondary capitalize">{m.role || 'Membro da equipe'}</p>
+                      </div>
+                    </button>
+                  ))
+                )}
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
