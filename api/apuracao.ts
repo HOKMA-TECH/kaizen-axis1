@@ -193,32 +193,102 @@ function classificar(
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// PARSER — Extração de transações via regex
+// PARSER — Extração de transações via regex (multi-estratégia)
 // ═══════════════════════════════════════════════════════════════════════════════
 
-// Regex padrão: DD/MM[/YYYY]  DESCRIÇÃO  1.250,35
-const REGEX_TX = /(\d{2}\/\d{2}(?:\/\d{4})?)\s{1,10}(.{3,80}?)\s{1,5}(-?[\d]{1,3}(?:\.\d{3})*,\d{2})/g;
-// Regex alternativo: DD/MM  1.250,35  DESCRIÇÃO
-const REGEX_TX_ALT = /(\d{2}\/\d{2}(?:\/\d{4})?)\s+(-?[\d]{1,3}(?:\.\d{3})*,\d{2})\s+(.{3,80})/g;
+// Padrão monetário: aceita 250,00 | 1.250,00 | 10.000,00 | 1.250.000,00
+const VALOR_RE = /(-?\d{1,3}(?:\.\d{3})*,\d{2})/;
+// Data no formato DD/MM ou DD/MM/YYYY ou DD/MM/YY
+const DATA_RE = /(\d{2}\/\d{2}(?:\/\d{2,4})?)/;
+
+/**
+ * Estratégia 1 (mais comum): linha com data + texto + valor no final
+ * Ex: "15/03 PIX RECEBIDO PESSOA FISICA       1.250,00"
+ */
+const REGEX_DATA_DESC_VALOR = new RegExp(
+    DATA_RE.source + '\\s+' + '(.+?)' + '\\s+' + VALOR_RE.source + '\\s*$',
+    'gm'
+);
+
+/**
+ * Estratégia 2: linha com data + valor + texto (Bradesco, Itaú alguns layouts)
+ * Ex: "15/03       1.250,00  PIX RECEBIDO PESSOA"
+ */
+const REGEX_DATA_VALOR_DESC = new RegExp(
+    DATA_RE.source + '\\s+' + VALOR_RE.source + '\\s+' + '(.+)',
+    'gm'
+);
+
+/**
+ * Estratégia 3: valor isolado após label em linha anterior
+ * Captura pares de linhas onde uma tem data+desc e a seguinte tem valor
+ * Ex:
+ *   "15/03 PIX RECEBIDO JOAO SILVA"
+ *   "                      1.250,00 C"
+ */
+function parsearMultiLinha(texto: string): Array<{ dataRaw: string; descricaoRaw: string; valorRaw: string }> {
+    const linhas = texto.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+    const resultado: Array<{ dataRaw: string; descricaoRaw: string; valorRaw: string }> = [];
+
+    for (let i = 0; i < linhas.length - 1; i++) {
+        const linhaAtual = linhas[i];
+        const linhaProx = linhas[i + 1];
+
+        const dataMatch = linhaAtual.match(/^(\d{2}\/\d{2}(?:\/\d{2,4})?)\s+(.+)/);
+        if (!dataMatch) continue;
+
+        // Verifica se a linha atual tem valor no final
+        const valorNaLinha = linhaAtual.match(VALOR_RE);
+        if (valorNaLinha) continue; // Estratégia 1 já vai pegar
+
+        // Verifica se a próxima linha tem apenas um valor (credito/débito)
+        const valorProximo = linhaProx.match(/^(-?\d{1,3}(?:\.\d{3})*,\d{2})/)
+            ?? linhaProx.match(new RegExp(VALOR_RE.source + '\\s+[CD]$'));
+        if (!valorProximo) continue;
+
+        resultado.push({
+            dataRaw: dataMatch[1],
+            descricaoRaw: dataMatch[2].trim(),
+            valorRaw: valorProximo[1].trim(),
+        });
+    }
+    return resultado;
+}
 
 function extrair(texto: string): Array<{ dataRaw: string; descricaoRaw: string; valorRaw: string }> {
-    const limpo = texto.replace(/\r\n/g, '\n').replace(/\r/g, '\n').replace(/\t/g, '  ').trim();
+    const limpo = texto.replace(/\r\n/g, '\n').replace(/\r/g, '\n').trim();
     const vistas = new Set<string>();
+    const todos: Array<{ dataRaw: string; descricaoRaw: string; valorRaw: string }> = [];
 
-    function parsear(regex: RegExp, dIdx: number, descIdx: number, vIdx: number) {
-        regex.lastIndex = 0;
-        const res: Array<{ dataRaw: string; descricaoRaw: string; valorRaw: string }> = [];
-        let m: RegExpExecArray | null;
-        while ((m = regex.exec(limpo)) !== null) {
-            const chave = `${m[dIdx]}|${m[descIdx].trim()}|${m[vIdx]}`;
-            if (!vistas.has(chave)) { vistas.add(chave); res.push({ dataRaw: m[dIdx].trim(), descricaoRaw: m[descIdx].trim(), valorRaw: m[vIdx].trim() }); }
+    function add(dataRaw: string, descricaoRaw: string, valorRaw: string) {
+        const chave = `${dataRaw}|${descricaoRaw.trim()}|${valorRaw}`;
+        if (!vistas.has(chave)) {
+            vistas.add(chave);
+            todos.push({ dataRaw: dataRaw.trim(), descricaoRaw: descricaoRaw.trim(), valorRaw: valorRaw.trim() });
         }
-        return res;
     }
 
-    const padrao = parsear(REGEX_TX, 1, 2, 3);
-    const alt = parsear(REGEX_TX_ALT, 1, 3, 2);
-    return padrao.length >= alt.length ? padrao : alt;
+    // Estratégia 1: data + desc + valor no final
+    REGEX_DATA_DESC_VALOR.lastIndex = 0;
+    let m: RegExpExecArray | null;
+    while ((m = REGEX_DATA_DESC_VALOR.exec(limpo)) !== null) {
+        const desc = m[2].trim();
+        // Rejeitar descrições muito curtas ou que sejam apenas um número
+        if (desc.length >= 3 && !/^-?[\d.,]+$/.test(desc)) add(m[1], desc, m[3]);
+    }
+
+    // Estratégia 2: data + valor + desc (Bradesco, outros)
+    REGEX_DATA_VALOR_DESC.lastIndex = 0;
+    while ((m = REGEX_DATA_VALOR_DESC.exec(limpo)) !== null) {
+        const desc = m[3].trim();
+        if (desc.length >= 3 && !/^-?[\d.,]+$/.test(desc)) add(m[1], desc, m[2]);
+    }
+
+    // Estratégia 3: data + desc em uma linha, valor na próxima
+    const multiLinha = parsearMultiLinha(limpo);
+    for (const t of multiLinha) add(t.dataRaw, t.descricaoRaw, t.valorRaw);
+
+    return todos;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -271,7 +341,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         // ── Parsear e classificar transações ───────────────────────────────────
         const brutas = extrair(textoPdf);
         if (brutas.length === 0) {
-            res.status(422).json({ erro: 'Nenhuma transação reconhecida. O formato do banco pode não ser suportado.' }); return;
+            // Return a sample of the extracted text to help diagnose unsupported formats
+            const amostra = textoPdf.slice(0, 500).replace(/\n+/g, ' | ');
+            res.status(422).json({
+                erro: 'Nenhuma transação reconhecida. O formato do banco pode não ser suportado.',
+                debug_texto_extraido: amostra,
+            }); return;
         }
 
         const transacoes: Transacao[] = brutas.map(b => classificar(b.dataRaw, b.descricaoRaw, b.valorRaw, ctx));
