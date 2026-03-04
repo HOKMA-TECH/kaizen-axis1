@@ -3,11 +3,14 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 
 // ── Config ────────────────────────────────────────────────────────────────────
-const OFFICE_LAT = parseFloat(Deno.env.get('OFFICE_LATITUDE')  || '-23.5505');
-const OFFICE_LNG = parseFloat(Deno.env.get('OFFICE_LONGITUDE') || '-46.6333');
-const MAX_RADIUS = 100; // metros
+const OFFICE_LAT  = parseFloat(Deno.env.get('OFFICE_LATITUDE')  || '-23.5505');
+const OFFICE_LNG  = parseFloat(Deno.env.get('OFFICE_LONGITUDE') || '-46.6333');
+const MAX_RADIUS  = 100;  // metros — raio máximo da imobiliária
+const MAX_ACCURACY = 30;  // metros — precisão mínima aceitável do GPS
 
 // ── Haversine ─────────────────────────────────────────────────────────────────
+// Fórmula exata para distância entre dois pontos GPS na superfície da Terra.
+// Retorna distância em metros.
 function haversineMeters(
   lat1: number, lng1: number,
   lat2: number, lng2: number,
@@ -21,6 +24,18 @@ function haversineMeters(
   const a     = Math.sin(Δφ / 2) ** 2
               + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) ** 2;
   return 2 * R * Math.asin(Math.sqrt(a));
+}
+
+// ── Hora BRT via Intl (correto para horário de verão e ajustes futuros) ──────
+function getBRTHour(): number {
+  return parseInt(
+    new Intl.DateTimeFormat('pt-BR', {
+      timeZone: 'America/Sao_Paulo',
+      hour:     'numeric',
+      hour12:   false,
+    }).format(new Date()),
+    10,
+  );
 }
 
 // ── CORS ──────────────────────────────────────────────────────────────────────
@@ -42,7 +57,7 @@ Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
   if (req.method !== 'POST') return json({ error: 'method_not_allowed' }, 405);
 
-  // ── Auth ──────────────────────────────────────────────────────────────────
+  // ── 1. Autenticação via JWT ───────────────────────────────────────────────
   const authHeader = req.headers.get('Authorization');
   if (!authHeader) return json({ error: 'unauthorized' }, 401);
 
@@ -57,18 +72,36 @@ Deno.serve(async (req: Request) => {
   );
   if (authErr || !user) return json({ error: 'unauthorized' }, 401);
 
-  // ── Body ──────────────────────────────────────────────────────────────────
-  let body: { latitude: number; longitude: number; qrToken?: string };
+  // ── 2. Body ───────────────────────────────────────────────────────────────
+  let body: { latitude: number; longitude: number; accuracy?: number; qrToken?: string };
   try { body = await req.json(); }
   catch { return json({ error: 'invalid_json' }, 400); }
 
-  const { latitude, longitude, qrToken } = body;
+  const { latitude, longitude, accuracy, qrToken } = body;
+
+  // ── 3. Validar coordenadas ────────────────────────────────────────────────
   if (typeof latitude !== 'number' || typeof longitude !== 'number') {
-    return json({ error: 'latitude e longitude são obrigatórios.' }, 422);
+    return json({ error: 'coordenadas_ausentes', message: 'latitude e longitude são obrigatórios.' }, 422);
   }
 
-  // ── 1. Validar token do QR (se fornecido) ────────────────────────────────
-  // Se o corretor chegou via QR scan, o token é obrigatório e deve ser do dia.
+  // Rejeitar coordenadas nulas ou impossíveis
+  if (latitude === 0 && longitude === 0) {
+    return json({ error: 'coordenadas_invalidas', message: 'GPS retornou coordenadas inválidas (0,0). Tente novamente.' }, 422);
+  }
+  if (Math.abs(latitude) > 90 || Math.abs(longitude) > 180) {
+    return json({ error: 'coordenadas_invalidas', message: 'Coordenadas GPS fora da faixa válida.' }, 422);
+  }
+
+  // ── 4. Validar precisão do GPS ────────────────────────────────────────────
+  if (typeof accuracy === 'number' && accuracy > MAX_ACCURACY) {
+    return json({
+      error:    'gps_impreciso',
+      message:  `GPS impreciso (±${Math.round(accuracy)}m). Vá para um local aberto e tente novamente.`,
+      accuracy: Math.round(accuracy),
+    }, 403);
+  }
+
+  // ── 5. Validar token do QR (se fornecido) ────────────────────────────────
   if (qrToken !== undefined) {
     const { data: valid } = await supabase.rpc('validate_daily_qr', { p_token: qrToken });
     if (!valid) {
@@ -79,16 +112,17 @@ Deno.serve(async (req: Request) => {
     }
   }
 
-  // ── 2. Janela de horário: 08:00–14:00 BRT (UTC-3) ─────────────────────────
-  const brtHour = ((new Date().getUTCHours() - 3) + 24) % 24;
+  // ── 6. Janela de horário: 08:00–14:00 BRT (via Intl — timezone correto) ──
+  const brtHour = getBRTHour();
   if (brtHour < 8 || brtHour >= 14) {
     return json({
-      error:   'fora_do_horario',
-      message: 'Check-in permitido apenas entre 08:00 e 14:00.',
+      error:    'fora_do_horario',
+      message:  'Check-in permitido apenas entre 08:00 e 14:00.',
+      brt_hour: brtHour,
     }, 403);
   }
 
-  // ── 3. Geolocalização (Haversine) ─────────────────────────────────────────
+  // ── 7. Geolocalização (Haversine) ─────────────────────────────────────────
   const distance = haversineMeters(latitude, longitude, OFFICE_LAT, OFFICE_LNG);
   if (distance > MAX_RADIUS) {
     return json({
@@ -98,7 +132,7 @@ Deno.serve(async (req: Request) => {
     }, 403);
   }
 
-  // ── 4. Inserção atômica via RPC ───────────────────────────────────────────
+  // ── 8. Inserção atômica via RPC ───────────────────────────────────────────
   const { data, error: rpcErr } = await supabase.rpc('fazer_checkin', {
     p_user_id:   user.id,
     p_latitude:  latitude,

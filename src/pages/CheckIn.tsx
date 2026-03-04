@@ -114,6 +114,7 @@ export default function CheckIn() {
         body: JSON.stringify({
           latitude:  pos.coords.latitude,
           longitude: pos.coords.longitude,
+          accuracy:  pos.coords.accuracy,
           ...(token ? { qrToken: token } : {}),
         }),
       });
