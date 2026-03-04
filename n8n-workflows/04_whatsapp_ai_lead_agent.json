@@ -1,0 +1,1200 @@
+{
+  "name": "Kaizen Axis — Agente IA WhatsApp Leads",
+  "nodes": [
+    {
+      "id": "wa00001-0000-0000-0000-000000000001",
+      "name": "Webhook WhatsApp",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 400],
+      "webhookId": "kaizen-whatsapp-lead",
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "whatsapp-lead",
+        "responseMode": "lastNode",
+        "options": {
+          "allowedOrigins": "*"
+        }
+      }
+    },
+    {
+      "id": "wa00001-0000-0000-0000-000000000002",
+      "name": "Filtrar Mensagens Reais",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [500, 400],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "cond-fromme",
+              "leftValue": "={{ $json.body.data.key.fromMe }}",
+              "rightValue": false,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "cond-event",
+              "leftValue": "={{ $json.body.event }}",
+              "rightValue": "messages.upsert",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      }
+    },
+    {
+      "id": "wa00001-0000-0000-0000-000000000003",
+      "name": "Stop - Ignorar",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [760, 580],
+      "parameters": {}
+    },
+    {
+      "id": "wa00001-0000-0000-0000-000000000004",
+      "name": "Extrair Mensagem",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [760, 300],
+      "parameters": {
+        "jsCode": "const body = $input.item.json.body;\nconst data = body.data;\nconst key = data.key;\nconst msg = data.message || {};\n\n// Extract phone (remove @s.whatsapp.net)\nconst remoteJid = key.remoteJid || '';\nconst phone = remoteJid.split('@')[0];\n\n// Extract push name\nconst pushName = data.pushName || data.notifyName || phone;\n\n// Determine message type\nlet messageType = 'text';\nlet rawContent = '';\n\nif (msg.conversation) {\n  messageType = 'text';\n  rawContent = msg.conversation;\n} else if (msg.extendedTextMessage) {\n  messageType = 'text';\n  rawContent = msg.extendedTextMessage.text || '';\n} else if (msg.audioMessage) {\n  messageType = 'audio';\n} else if (msg.imageMessage) {\n  messageType = 'image';\n  rawContent = msg.imageMessage.caption || '';\n} else if (msg.videoMessage) {\n  messageType = 'video';\n} else if (msg.documentMessage) {\n  messageType = 'text';\n  rawContent = '[Documento recebido]';\n} else {\n  // Try to detect from messageType field\n  const evtType = data.messageType || '';\n  if (evtType === 'audioMessage') messageType = 'audio';\n  else if (evtType === 'imageMessage') messageType = 'image';\n  else if (evtType === 'videoMessage') messageType = 'video';\n  else {\n    messageType = 'text';\n    rawContent = '[Mensagem não suportada]';\n  }\n}\n\n// Instance name from instanceName field\nconst instance = body.instance || body.instanceName || '';\n\nreturn {\n  phone,\n  pushName,\n  messageType,\n  rawContent,\n  instance,\n  originalKey: key,\n  originalMessage: msg,\n  rawBody: body\n};"
+      }
+    },
+    {
+      "id": "wa00001-0000-0000-0000-000000000005",
+      "name": "Switch Tipo de Mensagem",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [1020, 300],
+      "parameters": {
+        "mode": "rules",
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": false,
+                  "leftValue": "",
+                  "typeValidation": "loose"
+                },
+                "conditions": [
+                  {
+                    "id": "sw-text",
+                    "leftValue": "={{ $json.messageType }}",
+                    "rightValue": "text",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Texto"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": false,
+                  "leftValue": "",
+                  "typeValidation": "loose"
+                },
+                "conditions": [
+                  {
+                    "id": "sw-audio",
+                    "leftValue": "={{ $json.messageType }}",
+                    "rightValue": "audio",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Audio"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": false,
+                  "leftValue": "",
+                  "typeValidation": "loose"
+                },
+                "conditions": [
+                  {
+                    "id": "sw-image",
+                    "leftValue": "={{ $json.messageType }}",
+                    "rightValue": "image",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Imagem"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": false,
+                  "leftValue": "",
+                  "typeValidation": "loose"
+                },
+                "conditions": [
+                  {
+                    "id": "sw-video",
+                    "leftValue": "={{ $json.messageType }}",
+                    "rightValue": "video",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Video"
+            }
+          ]
+        },
+        "fallbackOutput": "extra"
+      }
+    },
+    {
+      "id": "wa00001-0000-0000-0000-000000000006",
+      "name": "Set - Conteudo Texto",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [1280, 120],
+      "parameters": {
+        "mode": "manual",
+        "duplicateItem": false,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "assign-phone",
+              "name": "phone",
+              "value": "={{ $json.phone }}",
+              "type": "string"
+            },
+            {
+              "id": "assign-pushname",
+              "name": "pushName",
+              "value": "={{ $json.pushName }}",
+              "type": "string"
+            },
+            {
+              "id": "assign-instance",
+              "name": "instance",
+              "value": "={{ $json.instance }}",
+              "type": "string"
+            },
+            {
+              "id": "assign-msgtype",
+              "name": "messageType",
+              "value": "text",
+              "type": "string"
+            },
+            {
+              "id": "assign-content",
+              "name": "finalContent",
+              "value": "={{ $json.rawContent }}",
+              "type": "string"
+            },
+            {
+              "id": "assign-isimage",
+              "name": "isImage",
+              "value": false,
+              "type": "boolean"
+            },
+            {
+              "id": "assign-base64",
+              "name": "imageBase64",
+              "value": "",
+              "type": "string"
+            },
+            {
+              "id": "assign-mime",
+              "name": "imageMime",
+              "value": "",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "wa00001-0000-0000-0000-000000000007",
+      "name": "HTTP - Download Audio",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1280, 300],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Extrair Mensagem').item.json.rawBody.serverUrl || 'https://YOUR_EVOLUTION_API_URL' }}/chat/getBase64FromMediaMessage/{{ $('Extrair Mensagem').item.json.instance }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "nodeCredentialType": "httpHeaderAuth",
+        "credentials": {
+          "httpHeaderAuth": {
+            "id": "evolution-api",
+            "name": "Evolution API"
+          }
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "body": "={{ JSON.stringify({ message: { key: $('Extrair Mensagem').item.json.originalKey, message: $('Extrair Mensagem').item.json.originalMessage } }) }}",
+        "options": {
+          "timeout": 30000
+        }
+      }
+    },
+    {
+      "id": "wa00001-0000-0000-0000-000000000008",
+      "name": "OpenAI - Transcrever Audio",
+      "type": "n8n-nodes-base.openAi",
+      "typeVersion": 1.8,
+      "position": [1540, 300],
+      "parameters": {
+        "resource": "audio",
+        "operation": "transcribe",
+        "model": "whisper-1",
+        "options": {
+          "language": "pt"
+        },
+        "binaryPropertyName": "data",
+        "inputDataFieldName": "data"
+      },
+      "credentials": {
+        "openAiApi": {
+          "id": "openai",
+          "name": "OpenAI"
+        }
+      }
+    },
+    {
+      "id": "wa00001-0000-0000-0000-000000000009",
+      "name": "Set - Transcricao Audio",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [1800, 300],
+      "parameters": {
+        "mode": "manual",
+        "duplicateItem": false,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "assign-phone-a",
+              "name": "phone",
+              "value": "={{ $('Extrair Mensagem').item.json.phone }}",
+              "type": "string"
+            },
+            {
+              "id": "assign-pushname-a",
+              "name": "pushName",
+              "value": "={{ $('Extrair Mensagem').item.json.pushName }}",
+              "type": "string"
+            },
+            {
+              "id": "assign-instance-a",
+              "name": "instance",
+              "value": "={{ $('Extrair Mensagem').item.json.instance }}",
+              "type": "string"
+            },
+            {
+              "id": "assign-msgtype-a",
+              "name": "messageType",
+              "value": "audio",
+              "type": "string"
+            },
+            {
+              "id": "assign-content-a",
+              "name": "finalContent",
+              "value": "={{ '[Áudio transcrito]: ' + $json.text }}",
+              "type": "string"
+            },
+            {
+              "id": "assign-isimage-a",
+              "name": "isImage",
+              "value": false,
+              "type": "boolean"
+            },
+            {
+              "id": "assign-base64-a",
+              "name": "imageBase64",
+              "value": "",
+              "type": "string"
+            },
+            {
+              "id": "assign-mime-a",
+              "name": "imageMime",
+              "value": "",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "wa00001-0000-0000-0000-000000000010",
+      "name": "HTTP - Download Imagem",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1280, 480],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Extrair Mensagem').item.json.rawBody.serverUrl || 'https://YOUR_EVOLUTION_API_URL' }}/chat/getBase64FromMediaMessage/{{ $('Extrair Mensagem').item.json.instance }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "nodeCredentialType": "httpHeaderAuth",
+        "credentials": {
+          "httpHeaderAuth": {
+            "id": "evolution-api",
+            "name": "Evolution API"
+          }
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "body": "={{ JSON.stringify({ message: { key: $('Extrair Mensagem').item.json.originalKey, message: $('Extrair Mensagem').item.json.originalMessage } }) }}",
+        "options": {
+          "timeout": 30000
+        }
+      }
+    },
+    {
+      "id": "wa00001-0000-0000-0000-000000000011",
+      "name": "Set - Imagem Base64",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [1540, 480],
+      "parameters": {
+        "mode": "manual",
+        "duplicateItem": false,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "assign-phone-i",
+              "name": "phone",
+              "value": "={{ $('Extrair Mensagem').item.json.phone }}",
+              "type": "string"
+            },
+            {
+              "id": "assign-pushname-i",
+              "name": "pushName",
+              "value": "={{ $('Extrair Mensagem').item.json.pushName }}",
+              "type": "string"
+            },
+            {
+              "id": "assign-instance-i",
+              "name": "instance",
+              "value": "={{ $('Extrair Mensagem').item.json.instance }}",
+              "type": "string"
+            },
+            {
+              "id": "assign-msgtype-i",
+              "name": "messageType",
+              "value": "image",
+              "type": "string"
+            },
+            {
+              "id": "assign-content-i",
+              "name": "finalContent",
+              "value": "={{ $('Extrair Mensagem').item.json.rawContent || '[Imagem enviada]' }}",
+              "type": "string"
+            },
+            {
+              "id": "assign-isimage-i",
+              "name": "isImage",
+              "value": true,
+              "type": "boolean"
+            },
+            {
+              "id": "assign-base64-i",
+              "name": "imageBase64",
+              "value": "={{ $json.base64 }}",
+              "type": "string"
+            },
+            {
+              "id": "assign-mime-i",
+              "name": "imageMime",
+              "value": "={{ $json.mimetype || 'image/jpeg' }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "wa00001-0000-0000-0000-000000000012",
+      "name": "HTTP - Download Video",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1280, 660],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Extrair Mensagem').item.json.rawBody.serverUrl || 'https://YOUR_EVOLUTION_API_URL' }}/chat/getBase64FromMediaMessage/{{ $('Extrair Mensagem').item.json.instance }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "nodeCredentialType": "httpHeaderAuth",
+        "credentials": {
+          "httpHeaderAuth": {
+            "id": "evolution-api",
+            "name": "Evolution API"
+          }
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "body": "={{ JSON.stringify({ message: { key: $('Extrair Mensagem').item.json.originalKey, message: $('Extrair Mensagem').item.json.originalMessage } }) }}",
+        "options": {
+          "timeout": 60000
+        }
+      }
+    },
+    {
+      "id": "wa00001-0000-0000-0000-000000000013",
+      "name": "OpenAI - Transcrever Video",
+      "type": "n8n-nodes-base.openAi",
+      "typeVersion": 1.8,
+      "position": [1540, 660],
+      "parameters": {
+        "resource": "audio",
+        "operation": "transcribe",
+        "model": "whisper-1",
+        "options": {
+          "language": "pt"
+        },
+        "binaryPropertyName": "data",
+        "inputDataFieldName": "data"
+      },
+      "credentials": {
+        "openAiApi": {
+          "id": "openai",
+          "name": "OpenAI"
+        }
+      }
+    },
+    {
+      "id": "wa00001-0000-0000-0000-000000000014",
+      "name": "Set - Transcricao Video",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [1800, 660],
+      "parameters": {
+        "mode": "manual",
+        "duplicateItem": false,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "assign-phone-v",
+              "name": "phone",
+              "value": "={{ $('Extrair Mensagem').item.json.phone }}",
+              "type": "string"
+            },
+            {
+              "id": "assign-pushname-v",
+              "name": "pushName",
+              "value": "={{ $('Extrair Mensagem').item.json.pushName }}",
+              "type": "string"
+            },
+            {
+              "id": "assign-instance-v",
+              "name": "instance",
+              "value": "={{ $('Extrair Mensagem').item.json.instance }}",
+              "type": "string"
+            },
+            {
+              "id": "assign-msgtype-v",
+              "name": "messageType",
+              "value": "video",
+              "type": "string"
+            },
+            {
+              "id": "assign-content-v",
+              "name": "finalContent",
+              "value": "={{ '[Vídeo transcrito]: ' + $json.text }}",
+              "type": "string"
+            },
+            {
+              "id": "assign-isimage-v",
+              "name": "isImage",
+              "value": false,
+              "type": "boolean"
+            },
+            {
+              "id": "assign-base64-v",
+              "name": "imageBase64",
+              "value": "",
+              "type": "string"
+            },
+            {
+              "id": "assign-mime-v",
+              "name": "imageMime",
+              "value": "",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "wa00001-0000-0000-0000-000000000015",
+      "name": "Merge - Unir Branches",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [2060, 400],
+      "parameters": {
+        "mode": "passThrough",
+        "output": "input1"
+      }
+    },
+    {
+      "id": "wa00001-0000-0000-0000-000000000016",
+      "name": "HTTP - Buscar Conversa",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2320, 400],
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/wa_conversations?phone=eq.{{ $json.phone }}&limit=1",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 10000,
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "wa00001-0000-0000-0000-000000000017",
+      "name": "Construir Mensagens OpenAI",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2580, 400],
+      "parameters": {
+        "jsCode": "// Get data from merge node (current message info)\nconst mergeData = $('Merge - Unir Branches').item.json;\nconst phone = mergeData.phone;\nconst pushName = mergeData.pushName;\nconst instance = mergeData.instance;\nconst finalContent = mergeData.finalContent || '';\nconst isImage = mergeData.isImage || false;\nconst imageBase64 = mergeData.imageBase64 || '';\nconst imageMime = mergeData.imageMime || 'image/jpeg';\n\n// Get conversation history from Supabase response\nconst convArray = $input.item.json;\nlet existingMessages = [];\nlet conversationStatus = 'active';\n\nif (Array.isArray(convArray) && convArray.length > 0) {\n  existingMessages = convArray[0].messages || [];\n  conversationStatus = convArray[0].status || 'active';\n}\n\n// System prompt\nconst systemPrompt = `Você é Sofia, assistente virtual da imobiliária Kaizen Axis. Seja simpática, use português do Brasil e emojis com moderação.\n\nSeu objetivo é qualificar leads de forma natural e conversacional. Colete estas informações (uma por vez, não faça perguntas duplas):\n1. Nome completo\n2. Bairro ou região de interesse (ex: Campo Grande, Zona Sul, Centro)\n3. Tipo de imóvel (apartamento, casa, comercial)\n4. Número de dormitórios\n5. Renda familiar aproximada (pode ser uma faixa)\n6. Profissão ou ocupação\n7. Urgência (está pronto para visitar? tem prazo para comprar?)\n\nRegras:\n- Responda de forma curta e natural\n- Se o cliente enviar áudio ou foto, processe o conteúdo e continue a conversa\n- Não mencione que está coletando dados\n- Quando tiver TODAS as informações, diga que vai conectar com um especialista\n\nQuando tiver todas as informações, ao FINAL da sua resposta inclua exatamente este bloco (sem texto depois do JSON):\n\n[LEAD_COMPLETE]\n{\"name\":\"nome completo\",\"region\":\"bairro/região\",\"propertyType\":\"Apartamento/Casa X quartos\",\"income\":\"R$ X.XXX\",\"profession\":\"profissão\",\"urgency\":7,\"priority\":\"alta\",\"bedrooms\":\"2\",\"summary\":\"Resumo completo em 2-3 frases descrevendo o cliente, o que busca, renda e nível de interesse.\"}\n\nOnde priority é \"alta\" (urgente, quer visitar logo), \"media\" (interessado mas sem pressa) ou \"baixa\" (apenas pesquisando).`;\n\n// Build messages array\nconst messages = [\n  { role: 'system', content: systemPrompt }\n];\n\n// Add history\nfor (const m of existingMessages) {\n  messages.push(m);\n}\n\n// Add new user message\nlet userMessageContent;\nif (isImage && imageBase64) {\n  userMessageContent = [\n    {\n      type: 'image_url',\n      image_url: { url: `data:${imageMime};base64,${imageBase64}` }\n    }\n  ];\n  if (finalContent) {\n    userMessageContent.unshift({ type: 'text', text: finalContent });\n  }\n} else {\n  userMessageContent = finalContent || '[Mensagem recebida]';\n}\n\nconst newUserMessage = { role: 'user', content: userMessageContent };\nmessages.push(newUserMessage);\n\n// For history storage: store simplified version (text only for images)\nconst historyUserMessage = {\n  role: 'user',\n  content: isImage ? (finalContent ? `[Imagem] ${finalContent}` : '[Imagem enviada]') : finalContent\n};\n\n// Combine existing history with new user message for storage\nconst updatedHistory = [...existingMessages, historyUserMessage];\n\nreturn {\n  phone,\n  pushName,\n  instance,\n  messages,\n  updatedHistory,\n  isImage\n};"
+      }
+    },
+    {
+      "id": "wa00001-0000-0000-0000-000000000018",
+      "name": "OpenAI - GPT-4o Chat",
+      "type": "n8n-nodes-base.openAi",
+      "typeVersion": 1.8,
+      "position": [2840, 400],
+      "parameters": {
+        "resource": "chat",
+        "operation": "complete",
+        "model": "gpt-4o",
+        "messages": {
+          "values": []
+        },
+        "simplify": true,
+        "jsonOutput": false,
+        "options": {
+          "maxTokens": 1000,
+          "temperature": 0.7,
+          "systemMessage": ""
+        },
+        "prompt": {
+          "type": "define",
+          "instructions": "={{ JSON.stringify($json.messages) }}"
+        }
+      },
+      "credentials": {
+        "openAiApi": {
+          "id": "openai",
+          "name": "OpenAI"
+        }
+      }
+    },
+    {
+      "id": "wa00001-0000-0000-0000-000000000019",
+      "name": "Parsear Resposta IA",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [3100, 400],
+      "parameters": {
+        "jsCode": "// Get AI response\nconst aiResponse = $input.item.json;\nconst chatData = $('Construir Mensagens OpenAI').item.json;\n\n// Extract the reply text\nlet fullReply = '';\ntry {\n  // Try different response shapes\n  if (aiResponse.message && aiResponse.message.content) {\n    fullReply = aiResponse.message.content;\n  } else if (aiResponse.text) {\n    fullReply = aiResponse.text;\n  } else if (aiResponse.choices && aiResponse.choices[0]) {\n    fullReply = aiResponse.choices[0].message?.content || aiResponse.choices[0].text || '';\n  } else if (typeof aiResponse === 'string') {\n    fullReply = aiResponse;\n  } else {\n    fullReply = JSON.stringify(aiResponse);\n  }\n} catch(e) {\n  fullReply = 'Desculpe, tive um problema ao processar sua mensagem. Pode repetir?';\n}\n\n// Check for [LEAD_COMPLETE] marker\nconst leadCompleteIndex = fullReply.indexOf('[LEAD_COMPLETE]');\nconst isLeadComplete = leadCompleteIndex !== -1;\n\n// Extract user-facing message (without [LEAD_COMPLETE] block)\nlet userFacingMessage = fullReply;\nlet leadData = null;\n\nif (isLeadComplete) {\n  // Get only the text before [LEAD_COMPLETE]\n  userFacingMessage = fullReply.substring(0, leadCompleteIndex).trim();\n  \n  // Extract JSON from after [LEAD_COMPLETE]\n  const afterMarker = fullReply.substring(leadCompleteIndex + '[LEAD_COMPLETE]'.length).trim();\n  try {\n    // Find JSON object\n    const jsonMatch = afterMarker.match(/\\{[\\s\\S]*\\}/);\n    if (jsonMatch) {\n      leadData = JSON.parse(jsonMatch[0]);\n    }\n  } catch(e) {\n    leadData = null;\n  }\n}\n\n// Build updated history (add assistant reply without the JSON marker)\nconst updatedHistory = [...(chatData.updatedHistory || []), {\n  role: 'assistant',\n  content: userFacingMessage || fullReply\n}];\n\nreturn {\n  phone: chatData.phone,\n  pushName: chatData.pushName,\n  instance: chatData.instance,\n  userFacingMessage,\n  fullReply,\n  isLeadComplete,\n  leadData,\n  updatedHistory\n};"
+      }
+    },
+    {
+      "id": "wa00001-0000-0000-0000-000000000020",
+      "name": "HTTP - Enviar Resposta WhatsApp",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [3360, 400],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Extrair Mensagem').item.json.rawBody.serverUrl || 'https://YOUR_EVOLUTION_API_URL' }}/message/sendText/{{ $json.instance }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "nodeCredentialType": "httpHeaderAuth",
+        "credentials": {
+          "httpHeaderAuth": {
+            "id": "evolution-api",
+            "name": "Evolution API"
+          }
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "body": "={{ JSON.stringify({ number: $json.phone, text: $json.userFacingMessage }) }}",
+        "options": {
+          "timeout": 15000,
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "wa00001-0000-0000-0000-000000000021",
+      "name": "IF - Lead Completo?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [3620, 400],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "cond-leadcomplete",
+              "leftValue": "={{ $('Parsear Resposta IA').item.json.isLeadComplete }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      }
+    },
+    {
+      "id": "wa00001-0000-0000-0000-000000000022",
+      "name": "HTTP - Inserir Lead Supabase",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [3880, 240],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/leads",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "body": "={{ JSON.stringify({\n  name: ($('Parsear Resposta IA').item.json.leadData && $('Parsear Resposta IA').item.json.leadData.name) || $('Parsear Resposta IA').item.json.pushName || $('Parsear Resposta IA').item.json.phone,\n  phone: $('Parsear Resposta IA').item.json.phone,\n  origin: 'WhatsApp',\n  ai_summary: ($('Parsear Resposta IA').item.json.leadData && $('Parsear Resposta IA').item.json.leadData.summary) || '',\n  interest_level: (() => {\n    const p = ($('Parsear Resposta IA').item.json.leadData && $('Parsear Resposta IA').item.json.leadData.priority) || 'media';\n    if (p === 'alta') return 'Alto';\n    if (p === 'baixa') return 'Baixo';\n    return 'Médio';\n  })(),\n  stage: 'novo_lead',\n  distribution_status: 'aguardando_distribuicao',\n  ai_metadata: $('Parsear Resposta IA').item.json.leadData ? {\n    region: $('Parsear Resposta IA').item.json.leadData.region || '',\n    propertyType: $('Parsear Resposta IA').item.json.leadData.propertyType || '',\n    income: $('Parsear Resposta IA').item.json.leadData.income || '',\n    profession: $('Parsear Resposta IA').item.json.leadData.profession || '',\n    urgency: $('Parsear Resposta IA').item.json.leadData.urgency || 5,\n    priority: $('Parsear Resposta IA').item.json.leadData.priority || 'media',\n    bedrooms: $('Parsear Resposta IA').item.json.leadData.bedrooms || ''\n  } : {}\n}) }}",
+        "options": {
+          "timeout": 15000
+        }
+      }
+    },
+    {
+      "id": "wa00001-0000-0000-0000-000000000023",
+      "name": "HTTP - Distribuir Lead RPC",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [4140, 240],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/rpc/distribute_lead",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "body": "={{ JSON.stringify({ p_lead_id: Array.isArray($('HTTP - Inserir Lead Supabase').item.json) ? $('HTTP - Inserir Lead Supabase').item.json[0].id : $('HTTP - Inserir Lead Supabase').item.json.id }) }}",
+        "options": {
+          "timeout": 15000,
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "wa00001-0000-0000-0000-000000000024",
+      "name": "HTTP - Deletar Conversa",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [4400, 240],
+      "parameters": {
+        "method": "DELETE",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/wa_conversations?phone=eq.{{ $('Parsear Resposta IA').item.json.phone }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 10000,
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "wa00001-0000-0000-0000-000000000025",
+      "name": "HTTP - Upsert Conversa",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [3880, 560],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/wa_conversations",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "resolution=merge-duplicates"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "body": "={{ JSON.stringify({\n  phone: $('Parsear Resposta IA').item.json.phone,\n  push_name: $('Parsear Resposta IA').item.json.pushName,\n  messages: $('Parsear Resposta IA').item.json.updatedHistory,\n  status: 'active',\n  updated_at: new Date().toISOString()\n}) }}",
+        "options": {
+          "timeout": 10000,
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook WhatsApp": {
+      "main": [
+        [
+          {
+            "node": "Filtrar Mensagens Reais",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filtrar Mensagens Reais": {
+      "main": [
+        [
+          {
+            "node": "Extrair Mensagem",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Stop - Ignorar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extrair Mensagem": {
+      "main": [
+        [
+          {
+            "node": "Switch Tipo de Mensagem",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch Tipo de Mensagem": {
+      "main": [
+        [
+          {
+            "node": "Set - Conteudo Texto",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "HTTP - Download Audio",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "HTTP - Download Imagem",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "HTTP - Download Video",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set - Conteudo Texto": {
+      "main": [
+        [
+          {
+            "node": "Merge - Unir Branches",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP - Download Audio": {
+      "main": [
+        [
+          {
+            "node": "OpenAI - Transcrever Audio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI - Transcrever Audio": {
+      "main": [
+        [
+          {
+            "node": "Set - Transcricao Audio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set - Transcricao Audio": {
+      "main": [
+        [
+          {
+            "node": "Merge - Unir Branches",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "HTTP - Download Imagem": {
+      "main": [
+        [
+          {
+            "node": "Set - Imagem Base64",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set - Imagem Base64": {
+      "main": [
+        [
+          {
+            "node": "Merge - Unir Branches",
+            "type": "main",
+            "index": 2
+          }
+        ]
+      ]
+    },
+    "HTTP - Download Video": {
+      "main": [
+        [
+          {
+            "node": "OpenAI - Transcrever Video",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI - Transcrever Video": {
+      "main": [
+        [
+          {
+            "node": "Set - Transcricao Video",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set - Transcricao Video": {
+      "main": [
+        [
+          {
+            "node": "Merge - Unir Branches",
+            "type": "main",
+            "index": 3
+          }
+        ]
+      ]
+    },
+    "Merge - Unir Branches": {
+      "main": [
+        [
+          {
+            "node": "HTTP - Buscar Conversa",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP - Buscar Conversa": {
+      "main": [
+        [
+          {
+            "node": "Construir Mensagens OpenAI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Construir Mensagens OpenAI": {
+      "main": [
+        [
+          {
+            "node": "OpenAI - GPT-4o Chat",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI - GPT-4o Chat": {
+      "main": [
+        [
+          {
+            "node": "Parsear Resposta IA",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parsear Resposta IA": {
+      "main": [
+        [
+          {
+            "node": "HTTP - Enviar Resposta WhatsApp",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP - Enviar Resposta WhatsApp": {
+      "main": [
+        [
+          {
+            "node": "IF - Lead Completo?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF - Lead Completo?": {
+      "main": [
+        [
+          {
+            "node": "HTTP - Inserir Lead Supabase",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "HTTP - Upsert Conversa",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP - Inserir Lead Supabase": {
+      "main": [
+        [
+          {
+            "node": "HTTP - Distribuir Lead RPC",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP - Distribuir Lead RPC": {
+      "main": [
+        [
+          {
+            "node": "HTTP - Deletar Conversa",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": ""
+  },
+  "tags": ["kaizen", "whatsapp", "ai", "leads", "qualificacao", "sofia"]
+}
