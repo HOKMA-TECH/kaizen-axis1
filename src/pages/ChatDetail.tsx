@@ -205,12 +205,10 @@ const AudioMessage = ({ url, isMe }: { url: string; isMe: boolean }) => {
   const ctxRef = useRef<AudioContext | null>(null);
   const initialized = useRef(false);
 
-  // Initialize canvas static
+  // Redraw static bars when paused or when seek position changes
   useEffect(() => {
-    if (!isPlaying) {
-      drawStatic();
-    }
-  }, [isPlaying]);
+    if (!isPlaying) drawStatic();
+  }, [isPlaying, currentTime, duration]);
 
   useEffect(() => {
     return () => {
@@ -218,19 +216,30 @@ const AudioMessage = ({ url, isMe }: { url: string; isMe: boolean }) => {
     };
   }, []);
 
+  // Pseudo-random waveform that looks like a real voice recording
+  const WAVE = [4,9,14,7,18,11,5,20,8,15,6,22,13,9,4,12,19,8,14,7,21,10,5,16,11,8,17,6,13,9];
+
   const drawStatic = () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    const barCount = 30;
-    const barWidth = (canvas.width / barCount) - 2;
-    ctx.fillStyle = isMe ? 'rgba(255,255,255,0.4)' : 'rgba(0,0,0,0.2)';
+    const barCount = WAVE.length;
+    const barWidth = Math.floor((canvas.width - (barCount - 1) * 2) / barCount);
+    const progress = duration > 0 ? currentTime / duration : 0;
+
     for (let i = 0; i < barCount; i++) {
-      const barHeight = 4 + (i % 3 === 0 ? 4 : 0);
+      const barHeight = Math.max(3, (WAVE[i] / 22) * canvas.height * 0.85);
       const x = i * (barWidth + 2);
       const y = canvas.height / 2 - barHeight / 2;
+      const played = i / barCount < progress;
+
+      if (isMe) {
+        ctx.fillStyle = played ? 'rgba(255,255,255,0.95)' : 'rgba(255,255,255,0.45)';
+      } else {
+        ctx.fillStyle = played ? 'rgba(180,140,30,0.95)' : 'rgba(0,0,0,0.18)';
+      }
       ctx.beginPath();
       ctx.roundRect(x, y, barWidth, barHeight, 2);
       ctx.fill();
@@ -287,9 +296,9 @@ const AudioMessage = ({ url, isMe }: { url: string; isMe: boolean }) => {
       for (let i = 0; i < barCount; i++) {
         const value = dataArray[i * step] || 0;
         const percent = value / 255;
-        const barHeight = Math.max(4, percent * canvas.height * 0.8);
+        const barHeight = Math.max(3, percent * canvas.height * 0.85);
 
-        ctx.fillStyle = isMe ? '#ffffff' : '#128C7E';
+        ctx.fillStyle = isMe ? 'rgba(255,255,255,0.95)' : 'rgba(180,140,30,0.9)';
         ctx.beginPath();
         const x = i * (barWidth + 2);
         const y = canvas.height / 2 - barHeight / 2;
@@ -328,8 +337,10 @@ const AudioMessage = ({ url, isMe }: { url: string; isMe: boolean }) => {
       {/* Play / Pause */}
       <button
         onClick={togglePlay}
-        className={`w-9 h-9 flex-shrink-0 flex items-center justify-center rounded-full transition-colors shadow-sm
-          ${isMe ? 'bg-white/25 text-white hover:bg-white/35' : 'bg-gold-500 text-white hover:bg-gold-600'}`}
+        className={`w-9 h-9 flex-shrink-0 flex items-center justify-center rounded-full transition-colors shadow-sm flex-shrink-0
+          ${isMe
+            ? 'bg-white/90 text-green-700 hover:bg-white active:bg-white/80'
+            : 'bg-gold-500 text-white hover:bg-gold-600'}`}
       >
         {isPlaying
           ? <Pause size={15} fill="currentColor" />
@@ -355,13 +366,13 @@ const AudioMessage = ({ url, isMe }: { url: string; isMe: boolean }) => {
           />
         </div>
         <div className="flex items-center justify-between mt-0.5">
-          <span className={`text-[10px] tabular-nums ${isMe ? 'text-white/70' : 'text-gray-400'}`}>
+          <span className={`text-[10px] tabular-nums font-medium ${isMe ? 'text-white/90' : 'text-gray-500'}`}>
             {formatTime(isPlaying ? currentTime : duration)}
           </span>
           <button
             onClick={toggleSpeed}
             className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full z-20 relative transition-colors
-              ${isMe ? 'bg-white/20 text-white hover:bg-white/30' : 'bg-black/8 text-gray-500 hover:bg-black/15'}`}
+              ${isMe ? 'bg-white/30 text-white hover:bg-white/45' : 'bg-black/10 text-gray-600 hover:bg-black/18'}`}
           >
             {playbackRate}x
           </button>
