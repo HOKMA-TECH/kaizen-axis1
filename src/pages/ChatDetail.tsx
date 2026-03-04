@@ -56,34 +56,23 @@ function getSupportedVideoMimeType(): string {
 // ─── View Once Card ──────────────────────────────────────────────────────────
 const ViewOnceCard = (
   { msg, onOpen }: { msg: ChatMessage; onOpen: () => void }
-) => {
-  const isVideo = msg.type === 'video';
-  const isDoc   = msg.type === 'document';
-
-  return (
-    <button
-      onClick={onOpen}
-      className="relative flex flex-col items-center justify-center w-full rounded-2xl overflow-hidden bg-black/80 dark:bg-black/90 aspect-[4/3] max-h-48 hover:bg-black/70 active:scale-[0.98] transition-all"
-    >
-      {/* Center icon */}
-      <div className="flex flex-col items-center gap-2">
-        <div className="w-14 h-14 rounded-full bg-white/15 flex items-center justify-center">
-          {isVideo
-            ? <Play size={28} className="text-white fill-white ml-1" />
-            : isDoc
-            ? <FileText size={28} className="text-white" />
-            : <ImageIcon size={28} className="text-white" />}
-        </div>
-        <span className="text-white text-xs font-medium tracking-wide">Visualização única</span>
-        <span className="text-white/50 text-[10px]">Toque para ver</span>
-      </div>
-      {/* Lock badge */}
-      <div className="absolute top-2 right-2 bg-black/40 rounded-full p-1">
-        <Lock size={11} className="text-white/70" />
-      </div>
-    </button>
-  );
-};
+) => (
+  <button
+    onClick={onOpen}
+    className="flex items-center gap-3 py-0.5 w-full active:opacity-60 transition-opacity"
+  >
+    <div className="w-9 h-9 rounded-full bg-black/10 dark:bg-white/10 flex items-center justify-center flex-shrink-0">
+      {msg.type === 'video'
+        ? <Play size={16} className="text-text-primary fill-current ml-0.5" />
+        : <ImageIcon size={16} className="text-text-primary" />}
+    </div>
+    <div className="flex flex-col items-start min-w-0">
+      <span className="text-sm font-medium text-text-primary leading-tight">Visualização única</span>
+      <span className="text-[11px] text-text-secondary">Toque para abrir</span>
+    </div>
+    <Lock size={12} className="text-text-secondary ml-auto flex-shrink-0 opacity-60" />
+  </button>
+);
 
 // ─── View Once Modal ─────────────────────────────────────────────────────────
 const ViewOnceModal = ({
