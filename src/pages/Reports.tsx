@@ -59,11 +59,11 @@ function DiretoriaReportView({ dirId, dirName }: { dirId: string; dirName: strin
     supabase
       .rpc('get_relatorio_diretoria', { diretoria_uuid: dirId })
       .then(({ data: result, error: rpcError }) => {
-        if (rpcError) { setError(rpcError.message); return; }
-        if ((result as any)?.error) { setError((result as any).error); return; }
-        setData(result as DiretoriaReport);
-      })
-      .finally(() => setLoadingDir(false));
+        if (rpcError) { setError(rpcError.message); }
+        else if ((result as any)?.error) { setError((result as any).error); }
+        else { setData(result as DiretoriaReport); }
+        setLoadingDir(false);
+      });
   }, [dirId]);
 
   if (loadingDir) {
@@ -185,8 +185,8 @@ function DiretoriaReportView({ dirId, dirName }: { dirId: string; dirName: strin
                       <td className="p-3 text-center font-bold text-green-600">{eq.total_vendas}</td>
                       <td className="p-3 text-center">
                         <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${conv >= 60 ? 'bg-green-100 text-green-700'
-                            : conv >= 30 ? 'bg-gold-100 text-gold-700'
-                              : 'bg-surface-100 text-text-secondary'
+                          : conv >= 30 ? 'bg-gold-100 text-gold-700'
+                            : 'bg-surface-100 text-text-secondary'
                           }`}>{conv}%</span>
                       </td>
                     </tr>
@@ -253,17 +253,11 @@ export default function Reports() {
   const dirId = searchParams.get('id');
   const dirName = decodeURIComponent(searchParams.get('name') ?? 'Diretoria');
 
-  // ── Delegate to diretoria sub-view
-  if (scope === 'diretoria' && dirId) {
-    return <DiretoriaReportView dirId={dirId} dirName={dirName} />;
-  }
-
-  // ─── Real Data Calculations ────────────────────────────────────────────────
+  // ─── All hooks must run unconditionally (Rules of Hooks) ──────────────────
   const metrics = useMemo(() => {
     const totalClients = clients.length;
     const closedSales = clients.filter(c => c.stage === 'Concluído' || c.stage === 'Vendas Concluidas').length;
     const conversionRate = totalClients > 0 ? (closedSales / totalClients) * 100 : 0;
-
     return [
       { id: '1', label: 'Vendas Totais', value: closedSales.toString(), change: '+12%', trend: 'up' as const, period: 'vs. mês anterior' },
       { id: '2', label: 'Novos Leads', value: leads.length.toString(), change: '+8%', trend: 'up' as const, period: 'vs. mês anterior' },
@@ -299,6 +293,12 @@ export default function Reports() {
       return { id: c.id, name: c.name, stage: c.stage, score, potentialValue: c.intendedValue, conversionProbability: score };
     });
   }, [clients]);
+
+  // ── Delegate to diretoria sub-view (after all hooks — safe to do early return here)
+  if (scope === 'diretoria' && dirId) {
+    return <DiretoriaReportView dirId={dirId} dirName={dirName} />;
+  }
+
 
   const handlePeriodChange = (p: string) => {
     if (p === 'Personalizado') setIsDateModalOpen(true);
