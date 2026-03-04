@@ -124,10 +124,14 @@ function calcularMatch(nome: string, descricao: string, cpf?: string): Resultado
 
 const KEYWORDS_CREDITO = [
     'PIX RECEBIDO', 'TED RECEBIDA', 'DOC RECEBIDO', 'DEPOSITO', 'CREDITO',
+    'TRANSFERENCIA RECEBIDA', 'RECEBIMENTO', 'PAGAMENTO RECEBIDO',
+    'TRANSFERENCIA', 'SALARIO', 'REMUNERACAO', 'VENCIMENTO', 'HONORARIO'
 ];
 
 const KEYWORDS_IGNORAR = [
     'ESTORNO', 'DEVOLUCAO', 'ENTRE CONTAS', 'TRANSFERENCIA ENTRE CONTAS',
+    'RESGATE', 'RENDIMENTO', 'EMPRESTIMO', 'ANTECIPACAO', 'CANCELAMENTO',
+    'SALDO', 'POUPANCA', 'APLICACAO', 'CDB', 'CDI', 'TARIFA'
 ];
 
 function normalizarData(dataRaw: string): { data: string; mes: string } {
