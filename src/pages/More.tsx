@@ -1,9 +1,10 @@
 import { PremiumCard, SectionHeader } from '@/components/ui/PremiumComponents';
-import { Building2, CheckSquare, GraduationCap, Calculator, Settings, ChevronRight, BarChart3, Lock, FileType, Globe } from 'lucide-react';
+import { Building2, CheckSquare, GraduationCap, Calculator, Settings, ChevronRight, BarChart3, Lock, FileType, Globe, QrCode } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuthorization } from '@/hooks/useAuthorization';
 
 const menuItems = [
+  { icon: QrCode,    label: 'Check-in',        path: '/checkin',      desc: 'Marcar presença diária' },
   { icon: Building2, label: 'Empreendimentos', path: '/developments', desc: 'Catálogo completo' },
   { icon: Globe, label: 'Portais', path: '/portals', desc: 'Caixa e Construtoras' },
   { icon: Calculator, label: 'Apuração de Renda', path: '/income', desc: 'Análise de crédito' },
@@ -17,29 +18,46 @@ const menuItems = [
 
 export default function More() {
   const navigate = useNavigate();
-  const { isAdmin } = useAuthorization();
+  const { isAdmin, isManager, isCoordinator, isDirector } = useAuthorization();
 
   return (
     <div className="p-6 pb-24 min-h-screen bg-surface-50">
       <SectionHeader title="Menu" />
 
-      {/* Admin Panel Link — ADMIN only */}
-      {isAdmin && (
+      {/* Administrativo — Admin + Liderança */}
+      {(isAdmin || isDirector || isManager || isCoordinator) && (
         <div className="mb-6">
           <h3 className="text-xs font-bold text-text-secondary uppercase mb-2 px-2">Administrativo</h3>
-          <PremiumCard
-            className="flex items-center gap-4 p-4 bg-gradient-to-r from-gray-900 to-gray-800 text-white border-none cursor-pointer"
-            onClick={() => navigate('/admin')}
-          >
-            <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center backdrop-blur-sm">
-              <Lock size={20} className="text-gold-400" />
-            </div>
-            <div className="flex-1">
-              <h3 className="font-bold text-white">Painel Administrativo</h3>
-              <p className="text-xs text-gray-300">Governança e Controle</p>
-            </div>
-            <ChevronRight size={20} className="text-gray-400" />
-          </PremiumCard>
+          <div className="space-y-3">
+            {isAdmin && (
+              <PremiumCard
+                className="flex items-center gap-4 p-4 bg-gradient-to-r from-gray-900 to-gray-800 text-white border-none cursor-pointer"
+                onClick={() => navigate('/admin')}
+              >
+                <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center backdrop-blur-sm">
+                  <Lock size={20} className="text-gold-400" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-bold text-white">Painel Administrativo</h3>
+                  <p className="text-xs text-gray-300">Governança e Controle</p>
+                </div>
+                <ChevronRight size={20} className="text-gray-400" />
+              </PremiumCard>
+            )}
+            <PremiumCard
+              className="flex items-center gap-4 p-4 bg-gradient-to-r from-gray-900 to-gray-800 text-white border-none cursor-pointer"
+              onClick={() => navigate('/checkin/display')}
+            >
+              <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center backdrop-blur-sm">
+                <QrCode size={20} className="text-gold-400" />
+              </div>
+              <div className="flex-1">
+                <h3 className="font-bold text-white">Tela de Check-in</h3>
+                <p className="text-xs text-gray-300">QR diário para a recepção</p>
+              </div>
+              <ChevronRight size={20} className="text-gray-400" />
+            </PremiumCard>
+          </div>
         </div>
       )}
 

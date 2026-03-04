@@ -29,6 +29,8 @@ import PdfTools from '@/pages/PdfTools';
 import Portals from '@/pages/Portals';
 import Login from '@/pages/Login';
 import PendingApproval from '@/pages/PendingApproval';
+import CheckIn from '@/pages/CheckIn';
+import CheckInDisplay from '@/pages/CheckInDisplay';
 
 // ─── Auth guard (all authenticated users) ───────────────────────────────────
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -122,6 +124,8 @@ export default function App() {
         <Route path="/training" element={<ProtectedRoute><Training /></ProtectedRoute>} />
         <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
         <Route path="/pdf-tools" element={<ProtectedRoute><PdfTools /></ProtectedRoute>} />
+        <Route path="/checkin" element={<ProtectedRoute><CheckIn /></ProtectedRoute>} />
+        <Route path="/checkin/display" element={<ProtectedRoute><CheckInDisplay /></ProtectedRoute>} />
         <Route path="/portals" element={<ProtectedRoute><Portals /></ProtectedRoute>} />
 
         {/* Reports: accessible to all — RLS scopes data by role */}
