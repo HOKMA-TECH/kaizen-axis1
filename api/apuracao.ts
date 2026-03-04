@@ -131,27 +131,30 @@ const KEYWORDS_IGNORAR = [
 ];
 
 function normalizarData(dataRaw: string): { data: string; mes: string } {
-    const limpo = dataRaw.trim().toUpperCase();
+    let limpo = dataRaw.trim().toUpperCase();
 
-    // Formato DD/MM ou DD/MM/YYYY
-    if (limpo.includes('/')) {
-        const [dia, mes, ano = String(new Date().getFullYear())] = limpo.split('/');
-        return {
-            data: `${ano}-${mes.padStart(2, '0')}-${dia.padStart(2, '0')}`,
-            mes: `${ano}-${mes.padStart(2, '0')}`,
-        };
-    }
+    // Converte separador de traço para espaço/barra para padronizar
+    limpo = limpo.replace(/-/g, ' ').replace(/\//g, ' ').replace(/\s+/g, ' ');
 
-    // Formato Nubank: 04 FEV 2025 ou 04 FEV
     const MESES: Record<string, string> = {
         JAN: '01', FEV: '02', MAR: '03', ABR: '04', MAI: '05', JUN: '06',
         JUL: '07', AGO: '08', SET: '09', OUT: '10', NOV: '11', DEZ: '12',
     };
-    const parts = limpo.split(/\s+/);
+
+    const parts = limpo.split(' ');
+
+    // Pelo menos dia e mes presentes
     if (parts.length >= 2) {
         const dia = parts[0].padStart(2, '0');
-        const mesStr = parts[1].substring(0, 3);
-        const mes = MESES[mesStr] || '01';
+        let mesStr = parts[1];
+
+        let mes = '01';
+        if (/^\d+$/.test(mesStr)) {
+            mes = mesStr.padStart(2, '0');
+        } else {
+            mes = MESES[mesStr.substring(0, 3)] || '01';
+        }
+
         const ano = parts[2] || String(new Date().getFullYear());
         return {
             data: `${ano}-${mes}-${dia}`,
@@ -220,8 +223,8 @@ function classificar(
 
 // Padrão monetário flexível: 250,00 | + 13,00 | - 45,00
 const VALOR_RE = /([+-]?\s*\d{1,3}(?:\.\d{3})*,\d{2})/;
-// Formatos de data suportados: 15/03/2024, 15/03, 15 FEV 2024, 15 FEV
-const DATA_RE = /^(\d{2}\/\d{2}(?:\/\d{2,4})?|\d{2}\s+(?:JAN|FEV|MAR|ABR|MAI|JUN|JUL|AGO|SET|OUT|NOV|DEZ)(?:\s+\d{2,4})?)/i;
+// Formatos de data suportados: 15/03/2024, 15-03, 15 FEV 2024, 15/FEV
+const DATA_RE = /^(\d{2}[/-\s]\d{2}(?:[/-\s]\d{2,4})?|\d{2}[/-\s]+(?:JAN|FEV|MAR|ABR|MAI|JUN|JUL|AGO|SET|OUT|NOV|DEZ)[/-\s]?(?:\d{2,4})?)/i;
 
 function extrair(texto: string): Array<{ dataRaw: string; descricaoRaw: string; valorRaw: string }> {
     const limpo = texto.replace(/\r\n/g, '\n').replace(/\r/g, '\n').trim();
@@ -358,7 +361,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const brutas = extrair(textoExtrato);
         if (brutas.length === 0) {
             // Return a sample of the extracted text to help diagnose unsupported formats
-            const amostra = textoExtrato.slice(0, 500).replace(/\n+/g, ' | ');
+            const amostra = textoExtrato.slice(0, 2500).replace(/\n+/g, ' | ');
             res.status(422).json({
                 erro: 'Nenhuma transação reconhecida. O formato do banco pode não ser suportado.',
                 debug_texto_extraido: amostra,

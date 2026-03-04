@@ -56,14 +56,16 @@ async function extrairTextoPdf(file: File): Promise<{ texto: string; hashPdf: st
   const hashArray = Array.from(new Uint8Array(hashBuffer));
   const hashPdf = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 
-  // Necessário para PDFs de bancos (Bradesco, Caixa, etc.) que usam fontes CID
+  // Necessário para PDFs de bancos (Bradesco, Caixa, etc.) que usam fontes CID e fontes base14
   const CMAP_URL = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/cmaps/`;
-  const CMAP_PACKED = true;
+  const STANDARD_FONT_URL = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/standard_fonts/`;
 
   const pdf = await pdfjsLib.getDocument({
     data: arrayBuffer,
     cMapUrl: CMAP_URL,
-    cMapPacked: CMAP_PACKED,
+    cMapPacked: true,
+    standardFontDataUrl: STANDARD_FONT_URL,
+    useSystemFonts: true,
   }).promise;
   const paginas: string[] = [];
 
