@@ -136,36 +136,43 @@ export default function CheckIn() {
 
     setStep('sending');
 
-    // Verifica se o token existe e não está expirado (expires_at em segundos Unix)
-    // Se expirado ou ausente, renova — TOKEN_REFRESHED agora é seguro (AppContext o ignora)
-    const now = Math.floor(Date.now() / 1000);
-    const tokenExpired = !session?.access_token || (session.expires_at != null && session.expires_at < now + 30);
-    let accessToken: string | null = tokenExpired ? null : (session!.access_token);
+    // Obtém token mais recente do cliente Supabase (pode ter sido auto-renovado)
+    const { data: { session: liveSession } } = await supabase.auth.getSession();
+    let accessToken: string | null = liveSession?.access_token ?? session?.access_token ?? null;
+
+    // Se não tem token, tenta refresh antes de desistir
     if (!accessToken) {
-      const { data } = await supabase.auth.refreshSession();
-      accessToken = data.session?.access_token ?? null;
-    }
-    if (!accessToken) {
-      setStep('login');
-      return;
+      const { data: r } = await supabase.auth.refreshSession();
+      accessToken = r.session?.access_token ?? null;
+      if (!accessToken) { setStep('login'); return; }
     }
 
     const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
 
+    const reqBody = JSON.stringify({
+      latitude:  pos.coords.latitude,
+      longitude: pos.coords.longitude,
+      accuracy:  pos.coords.accuracy,
+      ...(token ? { qrToken: token } : {}),
+    });
+
+    const callFn = (tok: string) => fetch(`${supabaseUrl}/functions/v1/checkin-geo`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${tok}` },
+      body: reqBody,
+    });
+
     try {
-      const res = await fetch(`${supabaseUrl}/functions/v1/checkin-geo`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${accessToken}`,
-        },
-        body: JSON.stringify({
-          latitude:  pos.coords.latitude,
-          longitude: pos.coords.longitude,
-          accuracy:  pos.coords.accuracy,
-          ...(token ? { qrToken: token } : {}),
-        }),
-      });
+      let res = await callFn(accessToken);
+
+      // Se 401 (token rejeitado pelo servidor), renova e tenta UMA vez mais
+      if (res.status === 401) {
+        const { data: r } = await supabase.auth.refreshSession();
+        const newToken = r.session?.access_token ?? null;
+        if (!newToken) { setStep('login'); return; }
+        accessToken = newToken;
+        res = await callFn(accessToken);
+      }
 
       const data = await res.json();
 
@@ -180,11 +187,11 @@ export default function CheckIn() {
         setStep('success');
         setResult({ position: data.position, message: data.message, distance: data.distance });
         fetchQueue();
-      } else if (res.status === 401 || data.message === 'Invalid JWT' || data.message === 'missing authorization header') {
+      } else if (res.status === 401) {
         setStep('login');
       } else {
         setStep('error');
-        setResult({ message: data.message || 'Erro ao realizar check-in.', distance: data.distance });
+        setResult({ message: data.message || data.error || 'Erro ao realizar check-in.', distance: data.distance });
       }
     } catch {
       setStep('error');
