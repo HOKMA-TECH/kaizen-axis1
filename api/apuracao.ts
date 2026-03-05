@@ -306,10 +306,10 @@ function extrair(texto: string): Array<{ dataRaw: string; descricaoRaw: string; 
                 return `${d.padStart(2, '0')}/${MESES_EXTENSO_API[key] ?? 'JAN'}/${a}`;
             }
         )
-        // "Setembro 2025" / "setembro/2025" → "01/SET/2025"
+        // "Setembro 2025" / "setembro/2025" / "setembro de 2025" → "01/SET/2025"
         // Cabeçalhos de seção em PDFs mesclados (sem dia) — permite identificar o mês correto
         .replace(
-            /\b(janeiro|fevereiro|mar(?:ç|c)o|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro)[\s\/]+(\d{4})\b/gi,
+            /\b(janeiro|fevereiro|mar(?:ç|c)o|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro)[\s\/]+(?:de\s+)?(\d{4})\b/gi,
             (_, m, a) => {
                 const key = m.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
                 return `01/${MESES_EXTENSO_API[key] ?? 'JAN'}/${a}`;
@@ -347,7 +347,11 @@ function extrair(texto: string): Array<{ dataRaw: string; descricaoRaw: string; 
     }
 
     let dataContextual = ''; // Guarda a última data lida
-    let anoContextual = String(new Date().getFullYear()); // Último ano 4-dígitos visto
+
+    // Pre-scan: usa o primeiro ano (20XX) mencionado no documento para não assumir ano atual
+    // em PDFs mesclados onde meses anteriores têm datas DD/MM sem ano (ex: Jul-Out 2025)
+    const mAnoInicial = limpo.match(/\b(20\d{2})\b/);
+    let anoContextual = mAnoInicial ? mAnoInicial[1] : String(new Date().getFullYear());
 
     for (let i = 0; i < linhas.length; i++) {
         const linha = linhas[i];

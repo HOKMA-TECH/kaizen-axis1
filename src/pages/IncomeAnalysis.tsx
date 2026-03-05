@@ -225,6 +225,20 @@ export default function IncomeAnalysis() {
         return;
       }
       setResultado(json as ResultadoApuracao);
+      // Diagnóstico: agrupa transações por mês e classificação no console
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const audit = (json as any).auditoria;
+      if (audit?.transacoesRaw) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const porMes: Record<string, Record<string, number>> = {};
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        for (const t of audit.transacoesRaw as any[]) {
+          if (!porMes[t.mes]) porMes[t.mes] = {};
+          porMes[t.mes][t.classificacao] = (porMes[t.mes][t.classificacao] ?? 0) + 1;
+        }
+        console.log(`[Apuração] ${audit.totalTransacoesBrutas} transações | ${json.mesesConsiderados} meses com crédito`);
+        console.table(porMes);
+      }
       setStep(2);
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Erro desconhecido';
