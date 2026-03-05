@@ -884,9 +884,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       }
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       setSession(session);
       setUser(session?.user ?? null);
+
+      // TOKEN_REFRESHED: apenas atualiza tokens, não recarrega dados
+      // (evita setLoading(true) que desmontaria componentes em uso)
+      if (event === 'TOKEN_REFRESHED') return;
+
       if (session?.user) {
         fetchProfile(session.user.id);
         loadAllData();

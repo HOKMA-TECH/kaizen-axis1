@@ -136,9 +136,14 @@ export default function CheckIn() {
 
     setStep('sending');
 
-    // Usa a sessão do contexto (mantida pelo AppContext via onAuthStateChange)
-    // Não chama refreshSession() pois dispara onAuthStateChange → setLoading(true) → desmonta o componente
-    if (!session?.access_token) {
+    // Usa a sessão do contexto; se estiver vazia, tenta renovar
+    // (AppContext agora ignora TOKEN_REFRESHED para não disparar setLoading → blink)
+    let accessToken = session?.access_token;
+    if (!accessToken) {
+      const { data } = await supabase.auth.refreshSession();
+      accessToken = data.session?.access_token ?? null;
+    }
+    if (!accessToken) {
       setStep('login');
       return;
     }
@@ -150,7 +155,7 @@ export default function CheckIn() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`,
+          'Authorization': `Bearer ${accessToken}`,
         },
         body: JSON.stringify({
           latitude:  pos.coords.latitude,
