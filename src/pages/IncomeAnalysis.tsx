@@ -588,7 +588,7 @@ export default function IncomeAnalysis() {
                 <RefreshCw size={14} className="mr-1" /> Nova Análise
               </RoundedButton>
               <RoundedButton fullWidth onClick={handleExportCsv}>
-                <Download size={14} className="mr-1" /> Exportar JSON
+                <Download size={14} className="mr-1" /> Exportar CSV
               </RoundedButton>
             </div>
           </motion.div>
