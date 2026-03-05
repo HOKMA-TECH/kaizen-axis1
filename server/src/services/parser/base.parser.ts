@@ -19,10 +19,18 @@ export interface BaseParser {
 
 // ─── LIMPEZA DO TEXTO ─────────────────────────────────────────────────────────
 
+// Mapa de meses por extenso (Inter, alguns PDFs do BB e Caixa)
+const MESES_EXTENSO: Record<string, string> = {
+    janeiro: 'JAN', fevereiro: 'FEV', marco: 'MAR', abril: 'ABR',
+    maio: 'MAI', junho: 'JUN', julho: 'JUL', agosto: 'AGO',
+    setembro: 'SET', outubro: 'OUT', novembro: 'NOV', dezembro: 'DEZ',
+};
+
 /**
  * Limpa o texto extraído do PDF para facilitar o parsing:
  * - Normaliza quebras de linha
  * - Remove caracteres de controle
+ * - Normaliza datas por extenso: "11 de Fevereiro de 2025" → "11/FEV/2025"
  * - Limita linhas em branco excessivas
  */
 export function limparTextoPdf(texto: string): string {
@@ -31,6 +39,15 @@ export function limparTextoPdf(texto: string): string {
         .replace(/\r/g, '\n')
         .replace(/\f/g, '\n')       // form feed → nova linha
         .replace(/\t/g, '  ')       // tab → espaços
+        // Inter: "11 de Fevereiro de 2025" → "11/FEV/2025"
+        .replace(
+            /(\d{1,2})\s+de\s+(janeiro|fevereiro|mar(?:ç|c)o|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro)\s+de\s+(\d{4})/gi,
+            (_, d, m, a) => {
+                const key = m.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+                const mes = MESES_EXTENSO[key] ?? 'JAN';
+                return `${d.padStart(2, '0')}/${mes}/${a}`;
+            }
+        )
         .replace(/\n{3,}/g, '\n\n') // máximo 2 linhas em branco
         .trim();
 }
@@ -143,6 +160,9 @@ export function extrairMultiEstrategia(texto: string): TransacaoBruta[] {
             // Linha começa com uma data válida
             dataContextual = mData[1].trim();
             const descSemData = linha.substring(mData[0].length).trim();
+
+            // Ignora "Saldo do dia: R$ X" do Inter (saldo corrente, não é transação)
+            if (/^saldo\s+do\s+dia/i.test(descSemData)) continue;
 
             // ── Estratégia 3a: data + descrição + valor na mesma linha ──────
             const mValorMesmaLinha = descSemData.match(REGEX_VALOR_FLEX);

@@ -256,13 +256,30 @@ function classificar(
 // PARSER — Extração de transações via regex (multi-estratégia)
 // ═══════════════════════════════════════════════════════════════════════════════
 
-// Padrão monetário flexível: 250,00 | + 13,00 | - 45,00 | R$ 12,54
+// Padrão monetário flexível: 250,00 | + 13,00 | - 45,00 | R$ 12,54 | -R$95,30
 const VALOR_RE = /([+-]?\s*(?:R\$\s*)?\d{1,3}(?:\.\d{3})*,\d{2})/;
 // Formatos de data suportados: 15/03/2024, 15-03, 15 FEV 2024, 15/FEV
 const DATA_RE = /^(\d{2}[/-\s]\d{2}(?:[/-\s]\d{2,4})?|\d{2}[/-\s]+(?:JAN|FEV|MAR|ABR|MAI|JUN|JUL|AGO|SET|OUT|NOV|DEZ)[/-\s]?(?:\d{2,4})?)/i;
 
+// Mapa de meses por extenso (Inter)
+const MESES_EXTENSO_API: Record<string, string> = {
+    janeiro: 'JAN', fevereiro: 'FEV', marco: 'MAR', abril: 'ABR',
+    maio: 'MAI', junho: 'JUN', julho: 'JUL', agosto: 'AGO',
+    setembro: 'SET', outubro: 'OUT', novembro: 'NOV', dezembro: 'DEZ',
+};
+
 function extrair(texto: string): Array<{ dataRaw: string; descricaoRaw: string; valorRaw: string }> {
-    const limpo = texto.replace(/\r\n/g, '\n').replace(/\r/g, '\n').trim();
+    // Normaliza "11 de Fevereiro de 2025" → "11/FEV/2025" (formato Inter)
+    const normalizado = texto
+        .replace(/\r\n/g, '\n').replace(/\r/g, '\n')
+        .replace(
+            /(\d{1,2})\s+de\s+(janeiro|fevereiro|mar(?:ç|c)o|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro)\s+de\s+(\d{4})/gi,
+            (_, d, m, a) => {
+                const key = m.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+                return `${d.padStart(2, '0')}/${MESES_EXTENSO_API[key] ?? 'JAN'}/${a}`;
+            }
+        );
+    const limpo = normalizado.trim();
     const linhas = limpo.split('\n').map(l => l.trim()).filter(l => l.length > 0);
     const vistas = new Set<string>();
     const todos: Array<{ dataRaw: string; descricaoRaw: string; valorRaw: string }> = [];
@@ -295,6 +312,10 @@ function extrair(texto: string): Array<{ dataRaw: string; descricaoRaw: string; 
 
             // Tentar extrair valor da mesma linha (Estratégia 1 e 2 juntas)
             const descSemData = linha.substring(mData[0].length).trim();
+
+            // Ignora "Saldo do dia: R$ X" do Inter (saldo corrente, não é transação)
+            if (/^saldo\s+do\s+dia/i.test(descSemData)) continue;
+
             const linhaTemValor = descSemData.match(VALOR_RE);
 
             if (linhaTemValor) {
@@ -321,8 +342,8 @@ function extrair(texto: string): Array<{ dataRaw: string; descricaoRaw: string; 
         }
         // 2. Linha sem data no início, mas temos um dataContextual ativo (Nubank transactions)
         else if (dataContextual) {
-            // Ignorar lixos do Nubank
-            if (linha.startsWith('Saldo final do período') || linha.startsWith('Saldo inicial') || linha.includes('Rendimento líquido')) continue;
+            // Ignorar lixos (Nubank, Inter)
+            if (linha.startsWith('Saldo final do período') || linha.startsWith('Saldo inicial') || linha.includes('Rendimento líquido') || /^saldo\s+do\s+dia/i.test(linha)) continue;
 
             // Regex global para pegar o ÚLTIMO valor da linha, ignorando valores no meio (ex: 0,00 | +13,00 | -45,00)
             // No Nubank, as vezes a linha da transação tem o valor no meio "Transferência Recebida - Nome | 12,50 | Tran"

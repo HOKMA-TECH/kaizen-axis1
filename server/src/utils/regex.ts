@@ -196,6 +196,7 @@ export const LINHAS_LIXO = [
     'SALDO INICIAL DO PERIODO',
     'SALDO INICIAL',
     'SALDO FINAL',
+    'SALDO DO DIA',        // Inter: saldo corrente por dia
     'TOTAL DE ENTRADAS',
     'TOTAL DE SAIDAS',
     'TOTAL ENTRADAS',
