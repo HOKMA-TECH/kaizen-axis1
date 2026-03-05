@@ -40,7 +40,7 @@ function getBRTHour() {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function CheckIn() {
-  const { user } = useApp();
+  const { user, session } = useApp();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const qrToken = searchParams.get('token'); // token vindo do QR scan
@@ -136,13 +136,8 @@ export default function CheckIn() {
 
     setStep('sending');
 
-    // Sempre renova o token antes de enviar (access_token expira em 1h)
-    const { data: refreshed } = await supabase.auth.refreshSession();
-    let session = refreshed.session;
-    // Fallback: usa sessão existente se o refresh falhar por outro motivo
-    if (!session) {
-      session = (await supabase.auth.getSession()).data.session;
-    }
+    // Usa a sessão do contexto (mantida pelo AppContext via onAuthStateChange)
+    // Não chama refreshSession() pois dispara onAuthStateChange → setLoading(true) → desmonta o componente
     if (!session?.access_token) {
       setStep('login');
       return;
