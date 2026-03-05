@@ -113,7 +113,7 @@ export default function CheckIn() {
       if (code === 1) {
         // PERMISSION_DENIED — cada plataforma tem um caminho diferente
         if (isIOS) {
-          msg = 'Permissão negada no Safari. Tente:\n1. Toque no ícone "AA" (ou cadeado) na barra de endereço > "Ajustes do site" > Localização > Permitir.\n2. Se não aparecer essa opção: Ajustes > Safari > Avançado > Dados de Sites > apague o site kaizen-axis > abra de novo.\n3. Verifique também: Ajustes > Privacidade > Serviços de Localização > Sites do Safari > "Ao Usar o App".';
+          msg = 'Permissão de localização negada no Safari.\n\nPasso a passo:\n1. Abra o app Ajustes do iPhone\n2. Role até Safari > Avançado > Dados de Sites\n3. Procure "kaizen-axis" e deslize para apagar\n4. Feche esta aba e abra o link novamente\n5. Quando o Safari perguntar, toque em "Permitir"\n\nSe ainda não funcionar: Ajustes > Privacidade e Segurança > Serviços de Localização > Sites do Safari > "Ao Usar o App".';
         } else if (isAndroid) {
           msg = 'Permissão de localização negada. Toque no ícone de cadeado 🔒 na barra de endereço > Permissões > Localização > Permitir. Depois recarregue a página.';
         } else {
@@ -335,6 +335,7 @@ export default function CheckIn() {
                 )}
                 <p className={cn(
                   'text-sm font-medium',
+                  step === 'error' ? 'text-left whitespace-pre-line' : 'text-center',
                   alreadyDone || step === 'success'
                     ? 'text-green-700 dark:text-green-400'
                     : 'text-red-700 dark:text-red-400',
