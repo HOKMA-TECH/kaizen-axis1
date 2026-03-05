@@ -126,14 +126,19 @@ function calcularMatch(nome: string, descricao: string, cpf?: string): Resultado
 const KEYWORDS_CREDITO = [
     // PIX
     'PIX RECEBIDO', 'RECEBIMENTO PIX', 'RECEBIMENTO DE PIX', 'TRANSFERENCIA PIX RECEBIDA',
+    'CRED PIX', 'CR PIX',               // Caixa Econômica / Banco do Brasil abreviados
     // TED / DOC
     'TED RECEBIDA', 'TED CREDITO', 'DOC RECEBIDO', 'DOC CREDITO', 'TEV RECEBIDA',
+    'CRED TED', 'CR TED', 'CRED DOC', 'CR DOC',  // Caixa / BB abreviados
     // Depósito
     'DEPOSITO', 'DEPOSITO IDENTIFICADO', 'DEPOSITO BANCARIO', 'DEPOSITO EM CONTA',
+    'DEP IDENT',                        // Depósito Identificado abreviado (Caixa)
     // Crédito genérico
     'CREDITO', 'CREDITO EM CONTA',
+    'CRED SAL', 'CRED FGTS', 'CRED INSS',  // Caixa abreviados
     // Transferência recebida (específico — não inclui "TRANSFERENCIA" genérico)
     'TRANSFERENCIA RECEBIDA', 'TRANSFERENCIA CREDITADA', 'RECEBIMENTO', 'RECEBIMENTO DE TRANSFERENCIA', 'PAGAMENTO RECEBIDO',
+    'TR RECEB', 'PAG RECEB',            // Abreviados
     // Remuneração / Salário
     'SALARIO', 'REMUNERACAO', 'VENCIMENTO', 'HONORARIO', 'COMISSAO', 'PROVENTO',
     'PREMIO', 'BONIFICACAO', 'GRATIFICACAO', 'ADIANTAMENTO SALARIAL', 'FERIAS', 'DECIMO TERCEIRO', '13 SALARIO',
@@ -202,6 +207,16 @@ function normalizarData(dataRaw: string): { data: string; mes: string } {
     return { data: fallback, mes: fallback.substring(0, 7) };
 }
 
+// Keywords que indicam renda laboral genuína (salário, FGTS, etc.)
+// Quando presentes, o nome do cliente na descrição é ESPERADO (empregador inclui nome do funcionário)
+// e NÃO deve ser interpretado como autotransferência.
+const INCOME_KEYWORDS_NOMES = new Set([
+    'SALARIO', 'VENCIMENTO', 'REMUNERACAO', 'HONORARIO', 'COMISSAO',
+    'PROVENTO', 'BONIFICACAO', 'GRATIFICACAO', 'INDENIZACAO', 'RESCISAO',
+    'FGTS', 'BENEFICIO', 'AUXILIO', 'FERIAS', 'DECIMO TERCEIRO',
+    '13 SALARIO', 'ADIANTAMENTO SALARIAL', 'CRED SAL', 'CRED FGTS',
+]);
+
 function classificar(
     dataRaw: string,
     descricaoRaw: string,
@@ -215,7 +230,7 @@ function classificar(
     // 1. Débito
     if (valor <= 0) return { data, mes, descricao: descricaoRaw, valor, classificacao: 'debito' };
 
-    // 2. Estorno
+    // 2. Estorno / palavra proibida
     if (KEYWORDS_IGNORAR.some(k => descNorm.includes(k))) {
         return { data, mes, descricao: descricaoRaw, valor, classificacao: 'ignorar_estorno', motivoExclusao: 'Estorno/devolução' };
     }
@@ -225,27 +240,34 @@ function classificar(
         return { data, mes, descricao: descricaoRaw, valor, classificacao: 'ignorar_sem_keyword', motivoExclusao: 'Sem keyword de crédito' };
     }
 
-    // 4. Autotransferência (match forte cliente)
-    if (calcularMatch(ctx.nomeCliente, descricaoRaw, ctx.cpf) === 'forte') {
-        return { data, mes, descricao: descricaoRaw, valor, classificacao: 'ignorar_autotransferencia', motivoExclusao: 'Autotransferência' };
-    }
+    // Renda laboral comprovada → ignora verificação de autotransferência por nome/CPF.
+    // Empregadores incluem o nome/CPF do empregado na descrição de salário — isso é esperado e
+    // NÃO indica autotransferência. Exemplos: "CREDITO SALARIO JOAO SILVA 770.292.327-04"
+    const ehRendaLaboral = [...INCOME_KEYWORDS_NOMES].some(k => descNorm.includes(k));
 
-    // 5. Match forte pai
-    if (ctx.nomePai && calcularMatch(ctx.nomePai, descricaoRaw) === 'forte') {
-        return { data, mes, descricao: descricaoRaw, valor, classificacao: 'ignorar_transferencia_pai', motivoExclusao: 'Transferência do pai' };
-    }
+    if (!ehRendaLaboral) {
+        // 4. Autotransferência (match forte cliente)
+        if (calcularMatch(ctx.nomeCliente, descricaoRaw, ctx.cpf) === 'forte') {
+            return { data, mes, descricao: descricaoRaw, valor, classificacao: 'ignorar_autotransferencia', motivoExclusao: 'Autotransferência' };
+        }
 
-    // 6. Match forte mãe
-    if (ctx.nomeMae && calcularMatch(ctx.nomeMae, descricaoRaw) === 'forte') {
-        return { data, mes, descricao: descricaoRaw, valor, classificacao: 'ignorar_transferencia_mae', motivoExclusao: 'Transferência da mãe' };
-    }
+        // 5. Match forte pai
+        if (ctx.nomePai && calcularMatch(ctx.nomePai, descricaoRaw) === 'forte') {
+            return { data, mes, descricao: descricaoRaw, valor, classificacao: 'ignorar_transferencia_pai', motivoExclusao: 'Transferência do pai' };
+        }
 
-    // 7. Match fraco → sinalizar, NÃO excluir
-    const fracoPai = ctx.nomePai ? calcularMatch(ctx.nomePai, descricaoRaw) === 'fraco' : false;
-    const fracoMae = ctx.nomeMae ? calcularMatch(ctx.nomeMae, descricaoRaw) === 'fraco' : false;
-    const fracoCliente = calcularMatch(ctx.nomeCliente, descricaoRaw, ctx.cpf) === 'fraco';
-    if (fracoCliente || fracoPai || fracoMae) {
-        return { data, mes, descricao: descricaoRaw, valor, classificacao: 'possivel_vinculo_familiar', motivoExclusao: 'Match fraco — revisão manual' };
+        // 6. Match forte mãe
+        if (ctx.nomeMae && calcularMatch(ctx.nomeMae, descricaoRaw) === 'forte') {
+            return { data, mes, descricao: descricaoRaw, valor, classificacao: 'ignorar_transferencia_mae', motivoExclusao: 'Transferência da mãe' };
+        }
+
+        // 7. Match fraco → sinalizar, NÃO excluir
+        const fracoPai = ctx.nomePai ? calcularMatch(ctx.nomePai, descricaoRaw) === 'fraco' : false;
+        const fracoMae = ctx.nomeMae ? calcularMatch(ctx.nomeMae, descricaoRaw) === 'fraco' : false;
+        const fracoCliente = calcularMatch(ctx.nomeCliente, descricaoRaw, ctx.cpf) === 'fraco';
+        if (fracoCliente || fracoPai || fracoMae) {
+            return { data, mes, descricao: descricaoRaw, valor, classificacao: 'possivel_vinculo_familiar', motivoExclusao: 'Match fraco — revisão manual' };
+        }
     }
 
     // 8. Crédito válido
@@ -256,8 +278,8 @@ function classificar(
 // PARSER — Extração de transações via regex (multi-estratégia)
 // ═══════════════════════════════════════════════════════════════════════════════
 
-// Padrão monetário flexível: 250,00 | + 13,00 | - 45,00 | R$ 12,54 | -R$95,30
-const VALOR_RE = /([+-]?\s*(?:R\$\s*)?\d{1,3}(?:\.\d{3})*,\d{2})/;
+// Padrão monetário flexível com sufixo D/C opcional (Caixa, BB): 250,00 | 1.250,00 C | 250,00D
+const VALOR_RE = /([+-]?\s*(?:R\$\s*)?\d{1,3}(?:\.\d{3})*,\d{2})(\s*[CD])?(?=\s|$|\|)/i;
 // Formatos de data suportados: 15/03/2024, 15-03, 15 FEV 2024, 15/FEV
 const DATA_RE = /^(\d{2}[/-\s]\d{2}(?:[/-\s]\d{2,4})?|\d{2}[/-\s]+(?:JAN|FEV|MAR|ABR|MAI|JUN|JUL|AGO|SET|OUT|NOV|DEZ)[/-\s]?(?:\d{2,4})?)/i;
 
@@ -289,6 +311,16 @@ function extrair(texto: string): Array<{ dataRaw: string; descricaoRaw: string; 
         let v = valorRaw.replace(/\s+/g, '').replace(/^R\$/i, '').replace(/^-R\$/i, '-');
         if (v.startsWith('+')) v = v.substring(1);
 
+        // Sufixo D/C (Caixa Econômica, Banco do Brasil):
+        //   "1.250,00C" → crédito (mantém positivo)
+        //   "250,00D"   → débito (nega o valor)
+        const mDC = v.match(/^(-?[\d.]+,\d{2})([CD])$/i);
+        if (mDC) {
+            v = mDC[2].toUpperCase() === 'D'
+                ? `-${mDC[1].replace(/^-/, '')}` // força negativo para débito
+                : mDC[1];                          // crédito: remove o 'C', mantém valor
+        }
+
         // Limpar descrição de barras pipe (|) comuns no Nubank
         const desc = descricaoRaw.replace(/\|/g, ' ').replace(/\s+/g, ' ').trim();
         if (desc.length < 3) return;
@@ -319,20 +351,26 @@ function extrair(texto: string): Array<{ dataRaw: string; descricaoRaw: string; 
             const linhaTemValor = descSemData.match(VALOR_RE);
 
             if (linhaTemValor) {
-                // Remove o valor da descrição
+                // linhaTemValor[0] = match completo (inclui sufixo D/C se presente)
+                // linhaTemValor[2] = sufixo D/C (ou undefined)
+                const dc = linhaTemValor[2]?.trim() ?? '';
+                const valorComDC = linhaTemValor[1] + dc; // ex: "1.250,00C" ou "1.250,00"
+                // Remove o valor (+ sufixo D/C) da descrição
                 const descPura = descSemData.replace(linhaTemValor[0], '').trim();
                 if (descPura.length > 0 && !/^\d+$/.test(descPura)) {
-                    add(dataContextual, descPura, linhaTemValor[0]);
+                    add(dataContextual, descPura, valorComDC);
                 }
                 continue; // Linha já lida por completo
             }
 
             // Se não tem valor, mas a linha a seguir só tem valor (Estratégia 3)
             const proxLinha = i + 1 < linhas.length ? linhas[i + 1] : '';
-            const mValorProximo = proxLinha.match(/^(?:R\$\s*)?([+-]?\s*\d{1,3}(?:\.\d{3})*,\d{2})\s*(?:[CD])?$/i);
+            // Captura sufixo D/C em grupo 2 para Caixa/BB
+            const mValorProximo = proxLinha.match(/^(?:R\$\s*)?([+-]?\s*\d{1,3}(?:\.\d{3})*,\d{2})\s*([CD])?$/i);
 
             if (mValorProximo && descSemData.length > 0) {
-                add(dataContextual, descSemData, mValorProximo[1]);
+                const dc = mValorProximo[2]?.trim() ?? '';
+                add(dataContextual, descSemData, mValorProximo[1] + dc);
                 i++; // Pula a próxima linha que já foi lida
                 continue;
             }
@@ -442,11 +480,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const mesesConsiderados = Object.keys(totalPorMes).length;
 
         if (mesesConsiderados === 0) {
+            // Debug: amostra das transações classificadas para diagnóstico
+            const amostraDebug = transacoes.slice(0, 20).map(t => ({
+                descricao: t.descricao,
+                valor: t.valor,
+                classificacao: t.classificacao,
+                motivo: t.motivoExclusao,
+            }));
             res.status(422).json({
                 erro: 'Nenhum crédito válido identificado após classificação. Verifique se o nome do cliente está correto e se o extrato contém créditos reconhecíveis.',
                 totalTransacoesBrutas: brutas.length,
                 transacoesIgnoradas: ignoradas.length,
                 transacoesSinalizadas: sinalizadas.length,
+                debug_amostra_transacoes: amostraDebug,
             }); return;
         }
 

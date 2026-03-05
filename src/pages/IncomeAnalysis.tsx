@@ -216,6 +216,12 @@ export default function IncomeAnalysis() {
         if (json.debug_texto_extraido) {
           console.warn('[Apuração] Amostra do texto extraído:', json.debug_texto_extraido);
         }
+        if (json.debug_amostra_transacoes) {
+          console.warn(
+            `[Apuração] ${json.totalTransacoesBrutas} transações brutas | ${json.transacoesIgnoradas} ignoradas | ${json.transacoesSinalizadas} sinalizadas`,
+            '\nAmostra classificada:', json.debug_amostra_transacoes
+          );
+        }
         return;
       }
       setResultado(json as ResultadoApuracao);
