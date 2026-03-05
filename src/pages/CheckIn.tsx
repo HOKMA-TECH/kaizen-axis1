@@ -108,16 +108,14 @@ export default function CheckIn() {
       const code = (geoResult as GeolocationPositionError | null)?.code ?? 0;
       let msg: string;
       if (code === 1) {
-        // PERMISSION_DENIED — bloqueio específico do site no Safari (diferente do sistema)
-        msg = '[Erro 1] Localização bloqueada para este site no Safari. Para liberar: toque em "Aa" (ou ⓘ) na barra de endereços → "Ajustes do Site" → Localização → "Permitir". Depois recarregue e tente novamente.';
+        // PERMISSION_DENIED — mudar a permissão mid-session não tem efeito: precisa recarregar
+        msg = 'Permissão de localização negada. Se já autorizou nas configurações: FECHE esta aba do Safari e abra novamente (a permissão só vale para novas abas). No iPhone: Ajustes > Privacidade > Serviços de Localização > Safari Sites > "Ao Usar o App".';
       } else if (code === 2) {
-        // POSITION_UNAVAILABLE
-        msg = '[Erro 2] Sinal GPS indisponível. Tente ao ar livre ou próximo a uma janela.';
+        msg = 'Sinal GPS indisponível. Tente ao ar livre ou próximo a uma janela.';
       } else if (code === 3) {
-        // TIMEOUT mesmo na tentativa WiFi
-        msg = '[Erro 3] GPS demorou para responder mesmo via WiFi. Verifique se Serviços de Localização está ativo em Ajustes > Privacidade > Serviços de Localização.';
+        msg = 'GPS demorou para responder. Verifique Ajustes > Privacidade > Serviços de Localização e tente novamente.';
       } else {
-        msg = '[Sem GPS] Seu navegador não suporta localização. Use o Safari ou Chrome atualizado.';
+        msg = 'Seu navegador não suporta localização. Use o Safari ou Chrome atualizado.';
       }
       setStep('error');
       setResult({ message: msg });
