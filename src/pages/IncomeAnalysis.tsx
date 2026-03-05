@@ -2,7 +2,7 @@ import { useState, useRef } from 'react';
 import { PremiumCard, RoundedButton, SectionHeader } from '@/components/ui/PremiumComponents';
 import {
   UploadCloud, CheckCircle2, AlertTriangle, FileText,
-  RefreshCw, Download, ChevronRight, Loader2, XCircle, ScanText
+  RefreshCw, Download, ChevronRight, Loader2, XCircle
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import * as pdfjsLib from 'pdfjs-dist';
@@ -46,9 +46,54 @@ const brl = (centavos: number) =>
 const API_URL = '/api/apuracao';
 
 /**
- * Extrai texto de um PDF no browser usando pdfjs-dist.
+ * OCR fallback — usa Tesseract.js para extrair texto de PDFs escaneados.
+ * Cada página é renderizada como canvas (escala 2×) e passada ao Tesseract.
+ * Carregado dinamicamente para não aumentar o bundle inicial.
  */
-async function extrairTextoPdf(file: File): Promise<{ texto: string; hashPdf: string }> {
+async function ocrPdf(
+  pdf: Awaited<ReturnType<typeof pdfjsLib.getDocument>['promise']>,
+  onProgress: (msg: string) => void,
+): Promise<string> {
+  onProgress(`PDF escaneado — carregando OCR (${pdf.numPages} página(s))...`);
+
+  // Import dinâmico: só carrega o WASM do Tesseract quando necessário
+  const { createWorker } = await import('tesseract.js');
+  const worker = await createWorker('por', 1, {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    logger: (_: any) => {}, // suprime logs verbosos
+  });
+
+  const paginas: string[] = [];
+  for (let i = 1; i <= pdf.numPages; i++) {
+    onProgress(`OCR: página ${i} de ${pdf.numPages} (pode demorar)...`);
+
+    const pagina = await pdf.getPage(i);
+    const viewport = pagina.getViewport({ scale: 2.0 }); // 2× para melhor precisão
+
+    const canvas = document.createElement('canvas');
+    canvas.width = viewport.width;
+    canvas.height = viewport.height;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) continue;
+
+    await pagina.render({ canvas, canvasContext: ctx, viewport }).promise;
+
+    const { data: { text } } = await worker.recognize(canvas);
+    paginas.push(text);
+  }
+
+  await worker.terminate();
+  return paginas.join('\n');
+}
+
+/**
+ * Extrai texto de um PDF no browser usando pdfjs-dist.
+ * Fallback automático para OCR (Tesseract.js) se o PDF for escaneado.
+ */
+async function extrairTextoPdf(
+  file: File,
+  onProgress?: (msg: string) => void,
+): Promise<{ texto: string; hashPdf: string }> {
   const arrayBuffer = await file.arrayBuffer();
 
   // Calcular hash SHA-256 do arquivo original (auditoria)
@@ -93,7 +138,14 @@ async function extrairTextoPdf(file: File): Promise<{ texto: string; hashPdf: st
     paginas.push(linhas.join('\n'));
   }
 
-  return { texto: paginas.join('\n'), hashPdf };
+  let texto = paginas.join('\n');
+
+  // ── OCR fallback para PDFs escaneados ──────────────────────────────────────
+  if (!texto.trim() && onProgress) {
+    texto = await ocrPdf(pdf, onProgress);
+  }
+
+  return { texto, hashPdf };
 }
 
 // ─── Componente ──────────────────────────────────────────────────────────────
@@ -139,9 +191,9 @@ export default function IncomeAnalysis() {
 
     try {
       setStatusMsg('Lendo PDF...');
-      const { texto, hashPdf } = await extrairTextoPdf(arquivo);
+      const { texto, hashPdf } = await extrairTextoPdf(arquivo, setStatusMsg);
       if (!texto.trim()) {
-        throw new Error('Não foi possível extrair texto do PDF. O arquivo pode ser uma imagem (scaneado) ou estar protegido.');
+        throw new Error('Não foi possível extrair texto do PDF mesmo com OCR. O arquivo pode estar corrompido ou protegido.');
       }
 
       setStatusMsg('Analisando transações...');
@@ -293,7 +345,7 @@ export default function IncomeAnalysis() {
                 <div>
                   <h3 className="font-medium text-text-primary text-sm">Upload de Extrato (PDF)</h3>
                   <p className="text-xs text-text-secondary mt-1 max-w-[200px]">
-                    Itaú, Bradesco, Nubank, Santander, C6, Inter e similares
+                    Itaú, Bradesco, Nubank, Inter, Mercado Pago, Caixa e similares
                   </p>
                 </div>
               )}
@@ -314,8 +366,12 @@ export default function IncomeAnalysis() {
               }
             </RoundedButton>
 
+            {isAnalyzing && statusMsg && (
+              <p className="text-center text-[11px] text-text-secondary animate-pulse">{statusMsg}</p>
+            )}
+
             <p className="text-center text-[10px] text-text-secondary">
-              Algoritmo determinístico · Zero IA · Auditável
+              Algoritmo determinístico · Zero IA · Auditável · OCR para PDFs escaneados
             </p>
           </motion.div>
         )}
