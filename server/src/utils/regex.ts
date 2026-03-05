@@ -13,7 +13,7 @@
  * Grupos: [1] data  [2] descrição  [3] valor
  */
 export const REGEX_TRANSACAO =
-    /(\d{2}\/\d{2}(?:\/\d{4})?)\s{1,10}(.{3,80}?)\s{1,5}(-?[\d]{1,3}(?:\.\d{3})*,\d{2})/g;
+    /(\d{2}[\/\-]\d{2}(?:[\/\-]\d{4})?)\s{1,10}(.{3,80}?)\s{1,5}(-?[\d]{1,3}(?:\.\d{3})*,\d{2})/g;
 
 /**
  * Regex alternativa — DD/MM[/YYYY]  VALOR  DESCRIÇÃO
@@ -21,13 +21,13 @@ export const REGEX_TRANSACAO =
  * Grupos: [1] data  [2] valor  [3] descrição
  */
 export const REGEX_TRANSACAO_ALT =
-    /(\d{2}\/\d{2}(?:\/\d{4})?)\s+(-?[\d]{1,3}(?:\.\d{3})*,\d{2})\s+(.{3,80})/g;
+    /(\d{2}[\/\-]\d{2}(?:[\/\-]\d{4})?)\s+(-?[\d]{1,3}(?:\.\d{3})*,\d{2})\s+(.{3,80})/g;
 
 /**
- * Padrão monetário flexível — aceita sinal e espaço antes dos dígitos.
- * Ex: 1.250,35 | +13,00 | -45,00 | 1250,00
+ * Padrão monetário flexível — aceita sinal, prefixo R$ e espaço antes dos dígitos.
+ * Ex: 1.250,35 | +13,00 | -45,00 | R$ 12,54 | R$168,60
  */
-export const REGEX_VALOR_FLEX = /([+-]?\s*\d{1,3}(?:\.\d{3})*,\d{2})/;
+export const REGEX_VALOR_FLEX = /([+-]?\s*(?:R\$\s*)?\d{1,3}(?:\.\d{3})*,\d{2})/;
 
 /**
  * Data flexível — cobre todos os formatos conhecidos:
@@ -39,11 +39,11 @@ export const REGEX_DATA_FLEX =
     /^(\d{2}[\/\-\s]\d{2}(?:[\/\-\s]\d{2,4})?|\d{2}[\/\-\s]+(?:JAN|FEV|MAR|ABR|MAI|JUN|JUL|AGO|SET|OUT|NOV|DEZ)[\/\-\s]?(?:\d{2,4})?)/i;
 
 /**
- * Linha que contém apenas um valor monetário (formato Nubank/Inter).
- * Ex: "  1.250,35 C"  |  "-250,00 D"  |  "+13,00"
+ * Linha que contém apenas um valor monetário (formato Nubank/Inter/Mercado Pago).
+ * Ex: "  1.250,35 C"  |  "-250,00 D"  |  "+13,00"  |  "R$ 12,54"
  */
 export const REGEX_LINHA_SO_VALOR =
-    /^([+-]?\s*\d{1,3}(?:\.\d{3})*,\d{2})\s*(?:[CD])?$/i;
+    /^(?:R\$\s*)?([+-]?\s*\d{1,3}(?:\.\d{3})*,\d{2})\s*(?:[CD])?$/i;
 
 /** Detecta mês/ano no cabeçalho do extrato. Ex: "01/2024" */
 export const REGEX_MES_ANO = /(\d{2})\/(\d{4})/;
@@ -122,8 +122,11 @@ export const KEYWORDS_CREDITO = [
     'RESCISAO',
     'FGTS',
 
-    // Plataformas digitais
+    // Plataformas digitais (Mercado Pago, PicPay, etc.)
     'RECEBIMENTO DE PAGAMENTO',
+    'LIBERACAO DE DINHEIRO',    // Mercado Pago: liberação de receita de vendas
+    'PAGAMENTO COM CODIGO QR',  // Mercado Pago: pagamento recebido via QR
+    'VENDA',                    // Mercado Pago / PicPay: receita de venda
 ] as const;
 
 // ─── KEYWORDS DE IGNORAR ─────────────────────────────────────────────────────

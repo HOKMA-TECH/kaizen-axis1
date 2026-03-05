@@ -106,8 +106,8 @@ export function extrairMultiEstrategia(texto: string): TransacaoBruta[] {
      * Limpa pipes do Nubank na descrição: "Remetente | Pix" → "Remetente  Pix"
      */
     function add(dataRaw: string, descricaoRaw: string, valorRaw: string): void {
-        // Normaliza valor: remove espaços internos, remove "+" inicial
-        let v = valorRaw.replace(/\s+/g, '');
+        // Normaliza valor: remove espaços, strip "R$" (Mercado Pago), remove "+" inicial
+        let v = valorRaw.replace(/\s+/g, '').replace(/^R\$/i, '').replace(/^-R\$/i, '-');
         if (v.startsWith('+')) v = v.substring(1);
 
         // Limpa pipes do Nubank e espaços excessivos
@@ -175,9 +175,9 @@ export function extrairMultiEstrategia(texto: string): TransacaoBruta[] {
             // ── Estratégia 3c: linha sem data — herda dataContextual ─────────
             // (formato Nubank: transações agrupadas sob uma data)
 
-            // Extrai todos os valores monetários na linha
+            // Extrai todos os valores monetários na linha (suporta prefixo R$)
             const valoresMatches = Array.from(
-                linha.matchAll(/(?:^|\s|\|)([+-]?\s*\d{1,3}(?:\.\d{3})*,\d{2})(?:\s|\||$)/g)
+                linha.matchAll(/(?:^|\s|\|)([+-]?\s*(?:R\$\s*)?\d{1,3}(?:\.\d{3})*,\d{2})(?:\s|\||$)/g)
             );
 
             if (valoresMatches.length > 0) {

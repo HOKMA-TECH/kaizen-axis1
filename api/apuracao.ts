@@ -41,7 +41,8 @@ interface ContextoNomes {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 function parseMoeda(raw: string): number {
-    const limpo = raw.trim();
+    // Strip prefixo "R$" (Mercado Pago, alguns PDFs do Itaú/Caixa)
+    const limpo = raw.trim().replace(/^R\$\s*/i, '').replace(/^-R\$\s*/i, '-').trim();
     if (limpo.includes(',')) {
         const v = parseFloat(limpo.replace(/\./g, '').replace(',', '.'));
         return isNaN(v) ? 0 : Math.round(v * 100);
@@ -138,8 +139,11 @@ const KEYWORDS_CREDITO = [
     'PREMIO', 'BONIFICACAO', 'GRATIFICACAO', 'ADIANTAMENTO SALARIAL', 'FERIAS', 'DECIMO TERCEIRO', '13 SALARIO',
     // Benefícios / Rescisão
     'BENEFICIO', 'AUXILIO', 'INDENIZACAO', 'RESCISAO', 'FGTS',
-    // Plataformas digitais
+    // Plataformas digitais (Mercado Pago, PicPay, etc.)
     'RECEBIMENTO DE PAGAMENTO',
+    'LIBERACAO DE DINHEIRO',    // Mercado Pago: liberação de receita de vendas
+    'PAGAMENTO COM CODIGO QR',  // Mercado Pago: pagamento recebido via QR
+    'VENDA',                    // Mercado Pago / PicPay
 ];
 
 const KEYWORDS_IGNORAR = [
@@ -252,8 +256,8 @@ function classificar(
 // PARSER — Extração de transações via regex (multi-estratégia)
 // ═══════════════════════════════════════════════════════════════════════════════
 
-// Padrão monetário flexível: 250,00 | + 13,00 | - 45,00
-const VALOR_RE = /([+-]?\s*\d{1,3}(?:\.\d{3})*,\d{2})/;
+// Padrão monetário flexível: 250,00 | + 13,00 | - 45,00 | R$ 12,54
+const VALOR_RE = /([+-]?\s*(?:R\$\s*)?\d{1,3}(?:\.\d{3})*,\d{2})/;
 // Formatos de data suportados: 15/03/2024, 15-03, 15 FEV 2024, 15/FEV
 const DATA_RE = /^(\d{2}[/-\s]\d{2}(?:[/-\s]\d{2,4})?|\d{2}[/-\s]+(?:JAN|FEV|MAR|ABR|MAI|JUN|JUL|AGO|SET|OUT|NOV|DEZ)[/-\s]?(?:\d{2,4})?)/i;
 
@@ -264,8 +268,8 @@ function extrair(texto: string): Array<{ dataRaw: string; descricaoRaw: string; 
     const todos: Array<{ dataRaw: string; descricaoRaw: string; valorRaw: string }> = [];
 
     function add(dataRaw: string, descricaoRaw: string, valorRaw: string) {
-        // Limpar valor (+ 13,00 -> 13,00, - 45,00 -> -45,00)
-        let v = valorRaw.replace(/\s+/g, '');
+        // Limpar valor: remove espaços, strip "R$" (Mercado Pago), remove "+" inicial
+        let v = valorRaw.replace(/\s+/g, '').replace(/^R\$/i, '').replace(/^-R\$/i, '-');
         if (v.startsWith('+')) v = v.substring(1);
 
         // Limpar descrição de barras pipe (|) comuns no Nubank
@@ -304,7 +308,7 @@ function extrair(texto: string): Array<{ dataRaw: string; descricaoRaw: string; 
 
             // Se não tem valor, mas a linha a seguir só tem valor (Estratégia 3)
             const proxLinha = i + 1 < linhas.length ? linhas[i + 1] : '';
-            const mValorProximo = proxLinha.match(/^([+-]?\s*\d{1,3}(?:\.\d{3})*,\d{2})\s*(?:[CD])?$/i);
+            const mValorProximo = proxLinha.match(/^(?:R\$\s*)?([+-]?\s*\d{1,3}(?:\.\d{3})*,\d{2})\s*(?:[CD])?$/i);
 
             if (mValorProximo && descSemData.length > 0) {
                 add(dataContextual, descSemData, mValorProximo[1]);
@@ -323,7 +327,7 @@ function extrair(texto: string): Array<{ dataRaw: string; descricaoRaw: string; 
             // Regex global para pegar o ÚLTIMO valor da linha, ignorando valores no meio (ex: 0,00 | +13,00 | -45,00)
             // No Nubank, as vezes a linha da transação tem o valor no meio "Transferência Recebida - Nome | 12,50 | Tran"
             // Vamos procurar qualquer valor monetário na linha
-            const valoresMatches = Array.from(linha.matchAll(/(?:^|\s|\|)([+-]?\s*\d{1,3}(?:\.\d{3})*,\d{2})(?:\s|\||$)/g));
+            const valoresMatches = Array.from(linha.matchAll(/(?:^|\s|\|)([+-]?\s*(?:R\$\s*)?\d{1,3}(?:\.\d{3})*,\d{2})(?:\s|\||$)/g));
 
             if (valoresMatches.length > 0) {
                 // Assumir o primeiro valor encontrado como sendo o da transação se não for 0,00

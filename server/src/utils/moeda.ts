@@ -10,7 +10,8 @@
  * Retorna 0 se inválido.
  */
 export function parseMoeda(raw: string): number {
-    const limpo = raw.trim();
+    // Strip prefixo "R$" (Mercado Pago, alguns PDFs do Itaú/Caixa)
+    const limpo = raw.trim().replace(/^R\$\s*/i, '').replace(/^-R\$\s*/i, '-').trim();
 
     // Detectar o separador decimal: vírgula → BR
     if (limpo.includes(',')) {
