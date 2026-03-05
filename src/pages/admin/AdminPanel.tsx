@@ -450,6 +450,25 @@ export default function AdminPanel() {
       case 'reports':
         return (
           <div className="space-y-6 print:space-y-4">
+            {/* ── Presence Report shortcut ── */}
+            <div className="print:hidden">
+              <button
+                onClick={() => navigate('/admin/reports/presence')}
+                className="w-full flex items-center justify-between gap-3 bg-gold-50 dark:bg-gold-900/20 border border-gold-200 dark:border-gold-800 rounded-xl px-4 py-3 hover:bg-gold-100 dark:hover:bg-gold-900/30 transition-colors"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-gold-400 flex items-center justify-center">
+                    <BarChart3 size={16} className="text-white" />
+                  </div>
+                  <div className="text-left">
+                    <p className="text-sm font-semibold text-text-primary">Relatório de Presença e Engajamento</p>
+                    <p className="text-xs text-text-secondary">Check-ins, score de engajamento e alertas de ausência</p>
+                  </div>
+                </div>
+                <ChevronDown size={16} className="text-gold-500 -rotate-90 shrink-0" />
+              </button>
+            </div>
+
             <div className="flex flex-col gap-4 print:hidden">
               <div className="bg-white p-4 rounded-xl border border-surface-200 shadow-sm space-y-3">
                 <div className="flex items-center gap-2 text-gold-600 font-semibold mb-2">

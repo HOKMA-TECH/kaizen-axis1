@@ -24,6 +24,7 @@ import Settings from '@/pages/Settings';
 import Reports from '@/pages/Reports';
 import PotentialClients from '@/pages/PotentialClients';
 import AdminPanel from '@/pages/admin/AdminPanel';
+import PresenceReport from '@/pages/admin/PresenceReport';
 import Onboarding from '@/pages/Onboarding';
 import PdfTools from '@/pages/PdfTools';
 import Portals from '@/pages/Portals';
@@ -139,6 +140,13 @@ export default function App() {
         <Route path="/admin" element={
           <RoleRoute allowed={['ADMIN']}>
             <AdminPanel />
+          </RoleRoute>
+        } />
+
+        {/* ── Presence Report: ADMIN + DIRETOR only ────────────────────── */}
+        <Route path="/admin/reports/presence" element={
+          <RoleRoute allowed={['ADMIN', 'DIRETOR']}>
+            <PresenceReport />
           </RoleRoute>
         } />
       </Routes>
