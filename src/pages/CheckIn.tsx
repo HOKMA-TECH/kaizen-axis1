@@ -109,15 +109,15 @@ export default function CheckIn() {
       let msg: string;
       if (code === 1) {
         // PERMISSION_DENIED — bloqueio específico do site no Safari (diferente do sistema)
-        msg = 'Localização bloqueada para este site no Safari. Para liberar: toque em "Aa" (ou ⓘ) na barra de endereços → "Ajustes do Site" → Localização → "Permitir". Depois recarregue e tente novamente.';
+        msg = '[Erro 1] Localização bloqueada para este site no Safari. Para liberar: toque em "Aa" (ou ⓘ) na barra de endereços → "Ajustes do Site" → Localização → "Permitir". Depois recarregue e tente novamente.';
       } else if (code === 2) {
         // POSITION_UNAVAILABLE
-        msg = 'Sinal GPS indisponível. Tente ao ar livre ou próximo a uma janela.';
+        msg = '[Erro 2] Sinal GPS indisponível. Tente ao ar livre ou próximo a uma janela.';
       } else if (code === 3) {
         // TIMEOUT mesmo na tentativa WiFi
-        msg = 'GPS demorou para responder mesmo via WiFi. Verifique se Serviços de Localização está ativo em Ajustes > Privacidade > Serviços de Localização.';
+        msg = '[Erro 3] GPS demorou para responder mesmo via WiFi. Verifique se Serviços de Localização está ativo em Ajustes > Privacidade > Serviços de Localização.';
       } else {
-        msg = 'Seu navegador não suporta localização. Use o Safari ou Chrome atualizado.';
+        msg = '[Sem GPS] Seu navegador não suporta localização. Use o Safari ou Chrome atualizado.';
       }
       setStep('error');
       setResult({ message: msg });
