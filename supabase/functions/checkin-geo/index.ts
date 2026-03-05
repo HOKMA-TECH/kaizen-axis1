@@ -5,7 +5,7 @@ import { createClient } from 'jsr:@supabase/supabase-js@2';
 // ── Config ────────────────────────────────────────────────────────────────────
 const OFFICE_LAT  = parseFloat(Deno.env.get('OFFICE_LATITUDE')  || '-23.5505');
 const OFFICE_LNG  = parseFloat(Deno.env.get('OFFICE_LONGITUDE') || '-46.6333');
-const MAX_RADIUS  = 100;  // metros — raio máximo da imobiliária
+const MAX_RADIUS  = 50;   // metros — raio máximo da imobiliária
 const MAX_ACCURACY = 30;  // metros — precisão mínima aceitável do GPS
 
 // ── Haversine ─────────────────────────────────────────────────────────────────
@@ -131,11 +131,11 @@ Deno.serve(async (req: Request) => {
     }
   }
 
-  // ── 6. Janela de horário: 08:00–14:00 BRT (DEV_TEST: desativado temporariamente)
-  // const brtHour = getBRTHour();
-  // if (brtHour < 8 || brtHour >= 14) {
-  //   return json({ error: 'fora_do_horario', message: 'Check-in permitido apenas entre 08:00 e 14:00.', brt_hour: brtHour }, 403);
-  // }
+  // ── 6. Janela de horário: 08:00–14:00 BRT ────────────────────────────────
+  const brtHour = getBRTHour();
+  if (brtHour < 8 || brtHour >= 14) {
+    return json({ error: 'fora_do_horario', message: 'Check-in permitido apenas entre 08:00 e 14:00.', brt_hour: brtHour }, 403);
+  }
 
   // ── 7. Geolocalização (Haversine) ─────────────────────────────────────────
   const distance = haversineMeters(latitude, longitude, OFFICE_LAT, OFFICE_LNG);

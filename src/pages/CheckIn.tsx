@@ -55,7 +55,7 @@ export default function CheckIn() {
     return () => clearInterval(t);
   }, []);
 
-  const isOpen = true; // DEV_TEST — remover após teste (era: brtHour >= 8 && brtHour < 14)
+  const isOpen = brtHour >= 8 && brtHour < 14;
 
   // ── Fila do dia ───────────────────────────────────────────────────────────
   const fetchQueue = useCallback(async () => {
@@ -136,10 +136,8 @@ export default function CheckIn() {
 
     setStep('sending');
 
-    // Obtém token explicitamente para garantir que functions.invoke() use o JWT correto
     const { data: { session: freshSession } } = await supabase.auth.getSession();
     const accessToken = freshSession?.access_token ?? null;
-    const dbgExp      = freshSession?.expires_at;
 
     const abortCtrl = new AbortController();
     const timeoutId = setTimeout(() => abortCtrl.abort(), 20_000);
@@ -163,19 +161,7 @@ export default function CheckIn() {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const body: any = await (error as any).context?.json().catch(() => ({}));
 
-          if (status === 401) {
-            // Decodifica o payload do JWT para ver o issuer (qual projeto Supabase emitiu)
-            let iss = 'n/a';
-            if (accessToken) {
-              try {
-                const p = JSON.parse(atob(accessToken.split('.')[1].replace(/-/g,'+').replace(/_/g,'/')));
-                iss = p.iss ?? 'n/a';
-              } catch { /* ignore */ }
-            }
-            setStep('login');
-            setResult({ message: `iss:${iss}\nfn:${JSON.stringify(body)}` });
-            return;
-          }
+          if (status === 401) { setStep('login'); return; }
 
           if (status === 409) {
             setStep('already');
@@ -188,9 +174,8 @@ export default function CheckIn() {
           setResult({ message: body?.message || body?.error || `Erro ${status}`, distance: body?.distance });
           return;
         }
-        // FunctionsRelayError ou outro erro de rede — mostrar diagnóstico temporariamente
         setStep('error');
-        setResult({ message: `[${error.name}] ${error.message || 'sem mensagem'}` });
+        setResult({ message: 'Erro de conexão. Verifique sua internet.' });
         return;
       }
 
@@ -381,8 +366,8 @@ export default function CheckIn() {
               <p className="text-sm font-semibold text-amber-700 dark:text-amber-400">
                 Sessão expirada
               </p>
-              <p className="text-xs text-amber-600/80 dark:text-amber-400/70 whitespace-pre-wrap break-all">
-                {result?.message || 'Sua sessão venceu. Faça login novamente para continuar.'}
+              <p className="text-xs text-amber-600/80 dark:text-amber-400/70">
+                Sua sessão venceu. Faça login novamente para continuar.
               </p>
               <button
                 onClick={async () => { await signOut(); navigate('/login'); }}
