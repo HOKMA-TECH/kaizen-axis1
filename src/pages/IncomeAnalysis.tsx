@@ -257,13 +257,70 @@ export default function IncomeAnalysis() {
     if (fileRef.current) fileRef.current.value = '';
   };
 
-  const handleExportJson = () => {
+  const handleExportCsv = () => {
     if (!resultado) return;
-    const blob = new Blob([JSON.stringify(resultado, null, 2)], { type: 'application/json' });
+
+    // Formata número em BRL com separador de milhar ponto e decimal vírgula
+    const fmt = (centavos: number) =>
+      (centavos / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+    const linhas: string[] = [];
+    const sep = ';'; // Excel BR usa ponto-e-vírgula
+
+    // Cabeçalho do documento
+    linhas.push(`APURAÇÃO DE RENDA - KAIZEN AXIS`);
+    linhas.push(`Cliente${sep}${nomeCliente}`);
+    linhas.push(`Gerado em${sep}${new Date().toLocaleString('pt-BR')}`);
+    linhas.push(`Versão do algoritmo${sep}${resultado.algoritmoVersao}`);
+    linhas.push('');
+
+    // Resumo executivo
+    linhas.push('RESUMO');
+    linhas.push(`Métrica${sep}Valor`);
+    linhas.push(`Renda Média Mensal Apurada${sep}R$ ${fmt(resultado.mediaMensalReal)}`);
+    linhas.push(`Total Apurado (soma dos créditos)${sep}R$ ${fmt(resultado.totalApurado)}`);
+    linhas.push(`Divisão ÷ 6 meses${sep}R$ ${fmt(resultado.divisao6Meses)}`);
+    linhas.push(`Divisão ÷ 12 meses${sep}R$ ${fmt(resultado.divisao12Meses)}`);
+    linhas.push(`Meses Considerados${sep}${resultado.mesesConsiderados}`);
+    linhas.push(`Maior Mês${sep}R$ ${fmt(resultado.maiorMes)}`);
+    linhas.push(`Menor Mês${sep}R$ ${fmt(resultado.menorMes)}`);
+    linhas.push(`Créditos Válidos (qtd)${sep}${resultado.transacoesConsideradas}`);
+    linhas.push(`Transações Ignoradas (qtd)${sep}${resultado.transacoesIgnoradas}`);
+    linhas.push(`Excluiu Autotransferências${sep}${resultado.criteriosAplicados.excluiuAutoTransferencia ? 'Sim' : 'Não'}`);
+    linhas.push(`Excluiu Transferências de Pais${sep}${resultado.criteriosAplicados.excluiuTransferenciaPais ? 'Sim' : 'Não'}`);
+    if (resultado.avisos.length > 0) linhas.push(`Avisos${sep}${resultado.avisos.join(' | ')}`);
+    linhas.push('');
+
+    // Detalhamento mensal
+    linhas.push('DETALHAMENTO MENSAL');
+    linhas.push(`Mês${sep}Total (R$)`);
+    Object.entries(resultado.totalPorMes)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .forEach(([mes, valor]) => linhas.push(`${mes}${sep}R$ ${fmt(valor)}`));
+    linhas.push('');
+
+    // Transações sinalizadas para revisão manual (se houver)
+    if (resultado.transacoesSinalizadas.length > 0) {
+      linhas.push('TRANSAÇÕES PARA REVISÃO MANUAL');
+      linhas.push(`Mês${sep}Valor (R$)${sep}Descrição${sep}Motivo`);
+      resultado.transacoesSinalizadas.forEach(t =>
+        linhas.push(`${t.mes}${sep}R$ ${fmt(t.valor)}${sep}${t.descricao}${sep}${t.motivo}`)
+      );
+      linhas.push('');
+    }
+
+    // Rodapé de auditoria
+    linhas.push('AUDITORIA');
+    linhas.push(`Hash PDF${sep}${resultado.auditoria.hashPdf}`);
+    linhas.push(`Timestamp${sep}${new Date(resultado.auditoria.timestamp).toLocaleString('pt-BR')}`);
+
+    // BOM UTF-8 para o Excel abrir acentos corretamente
+    const csv = '\uFEFF' + linhas.join('\r\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `apuracao_${nomeCliente.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.json`;
+    a.download = `apuracao_${nomeCliente.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.csv`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -530,7 +587,7 @@ export default function IncomeAnalysis() {
               <RoundedButton variant="outline" fullWidth onClick={handleNovaAnalise}>
                 <RefreshCw size={14} className="mr-1" /> Nova Análise
               </RoundedButton>
-              <RoundedButton fullWidth onClick={handleExportJson}>
+              <RoundedButton fullWidth onClick={handleExportCsv}>
                 <Download size={14} className="mr-1" /> Exportar JSON
               </RoundedButton>
             </div>
