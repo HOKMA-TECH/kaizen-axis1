@@ -164,10 +164,16 @@ export default function CheckIn() {
           const body: any = await (error as any).context?.json().catch(() => ({}));
 
           if (status === 401) {
-            const hasToken = !!accessToken;
-            const expStr   = dbgExp ? new Date(dbgExp * 1000).toISOString() : 'null';
+            // Decodifica o payload do JWT para ver o issuer (qual projeto Supabase emitiu)
+            let iss = 'n/a';
+            if (accessToken) {
+              try {
+                const p = JSON.parse(atob(accessToken.split('.')[1].replace(/-/g,'+').replace(/_/g,'/')));
+                iss = p.iss ?? 'n/a';
+              } catch { /* ignore */ }
+            }
             setStep('login');
-            setResult({ message: `401 · token:${hasToken} · exp:${expStr} · fn:${JSON.stringify(body)}` });
+            setResult({ message: `iss:${iss}\nfn:${JSON.stringify(body)}` });
             return;
           }
 
