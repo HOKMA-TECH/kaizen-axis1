@@ -80,18 +80,27 @@ export default function CheckIn() {
     setStep('locating');
     setResult(null);
 
-    // iOS Safari: separar o tipo do erro para dar mensagem específica.
-    // maximumAge: 30s permite usar posição em cache → GPS não precisa "aquecer" do zero.
-    // timeout: 20s para cobrir ambientes internos onde o sinal demora.
+    // iOS Safari: tenta alta precisão (GPS) primeiro.
+    // Se der timeout (indoor/sinal fraco), cai para baixa precisão (WiFi/rede) — suficiente para 100m.
     type GeoResult = GeolocationPosition | GeolocationPositionError | null;
-    const geoResult = await new Promise<GeoResult>(resolve => {
-      if (!navigator.geolocation) { resolve(null); return; }
-      navigator.geolocation.getCurrentPosition(
-        pos => resolve(pos),
-        err => resolve(err),
-        { enableHighAccuracy: true, timeout: 20_000, maximumAge: 30_000 },
-      );
-    });
+
+    const tryGeo = (highAccuracy: boolean, timeout: number) =>
+      new Promise<GeoResult>(resolve => {
+        if (!navigator.geolocation) { resolve(null); return; }
+        navigator.geolocation.getCurrentPosition(
+          pos => resolve(pos),
+          err => resolve(err),
+          { enableHighAccuracy: highAccuracy, timeout, maximumAge: 60_000 },
+        );
+      });
+
+    // 1ª tentativa: GPS de alta precisão (15s)
+    let geoResult = await tryGeo(true, 15_000);
+
+    // 2ª tentativa: se deu timeout, usa WiFi/rede (sem GPS — mais rápido indoor)
+    if (geoResult && 'code' in geoResult && (geoResult as GeolocationPositionError).code === 3) {
+      geoResult = await tryGeo(false, 10_000);
+    }
 
     // Determina se é erro ou posição válida
     const isError = !geoResult || 'code' in geoResult;
@@ -99,17 +108,16 @@ export default function CheckIn() {
       const code = (geoResult as GeolocationPositionError | null)?.code ?? 0;
       let msg: string;
       if (code === 1) {
-        // PERMISSION_DENIED — GPS ativo no sistema mas bloqueado para este site
-        msg = 'Localização bloqueada para este site. No iPhone: Ajustes > Safari > Localização > "Perguntar" ou "Permitir". Depois recarregue a página e tente novamente.';
+        // PERMISSION_DENIED — bloqueio específico do site no Safari (diferente do sistema)
+        msg = 'Localização bloqueada para este site no Safari. Para liberar: toque em "Aa" (ou ⓘ) na barra de endereços → "Ajustes do Site" → Localização → "Permitir". Depois recarregue e tente novamente.';
       } else if (code === 2) {
         // POSITION_UNAVAILABLE
-        msg = 'Sinal de GPS indisponível. Tente ao ar livre ou próximo a uma janela.';
+        msg = 'Sinal GPS indisponível. Tente ao ar livre ou próximo a uma janela.';
       } else if (code === 3) {
-        // TIMEOUT
-        msg = 'GPS demorou para responder. Certifique-se de estar ao ar livre e tente novamente.';
+        // TIMEOUT mesmo na tentativa WiFi
+        msg = 'GPS demorou para responder mesmo via WiFi. Verifique se Serviços de Localização está ativo em Ajustes > Privacidade > Serviços de Localização.';
       } else {
-        // navigator.geolocation não existe (navegador muito antigo)
-        msg = 'Seu navegador não suporta localização GPS. Use o Safari ou Chrome atualizado.';
+        msg = 'Seu navegador não suporta localização. Use o Safari ou Chrome atualizado.';
       }
       setStep('error');
       setResult({ message: msg });
