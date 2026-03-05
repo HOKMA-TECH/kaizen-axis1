@@ -1,80 +1,200 @@
 /**
- * Regex patterns para extração de transações de extratos bancários brasileiros.
+ * Regex patterns e keywords para extração de extratos bancários brasileiros.
  *
- * Padrão geral de linha de extrato:
- * DD/MM[/YYYY]  DESCRIÇÃO DA TRANSAÇÃO  1.250,35
- *
- * Variações cobertas:
- * - Data com ou sem ano: "15/03" | "15/03/2024"
- * - Valor positivo com separadores BR: "1.250,35" | "250,00" | "1.250"
- * - Valor negativo com "-": "-250,00"
- * - Descrição pode ter múltiplos espaços
+ * Cobertura de bancos:
+ *   Itaú, Bradesco, Nubank, Santander, C6, Inter, Caixa, BB, Sicredi, XP,
+ *   BTG, Safra, Mercado Pago, PicPay e similares.
  */
 
+// ─── REGEX DE EXTRAÇÃO ────────────────────────────────────────────────────────
+
 /**
- * Regex principal de extração de linha de extrato.
- * Grupos:
- *  [1] data: DD/MM ou DD/MM/YYYY
- *  [2] descricao: texto entre data e valor
- *  [3] valor: número no formato BR (pode ter sinal negativo)
+ * Regex principal — DD/MM[/YYYY]  DESCRIÇÃO  VALOR
+ * Grupos: [1] data  [2] descrição  [3] valor
  */
 export const REGEX_TRANSACAO =
     /(\d{2}\/\d{2}(?:\/\d{4})?)\s{1,10}(.{3,80}?)\s{1,5}(-?[\d]{1,3}(?:\.\d{3})*,\d{2})/g;
 
 /**
- * Regex alternativa para extratos que colocam o valor antes da descrição
- * ou com tabs como separador.
- * Ex: "15/03  1.250,35  PIX RECEBIDO JOAO SILVA"
+ * Regex alternativa — DD/MM[/YYYY]  VALOR  DESCRIÇÃO
+ * Usado em alguns formatos de Bradesco e Banco do Brasil.
+ * Grupos: [1] data  [2] valor  [3] descrição
  */
 export const REGEX_TRANSACAO_ALT =
     /(\d{2}\/\d{2}(?:\/\d{4})?)\s+(-?[\d]{1,3}(?:\.\d{3})*,\d{2})\s+(.{3,80})/g;
 
 /**
- * Keywords de crédito válido (POSSÍVEL CRÉDITO).
- * A descrição deve conter pelo menos uma dessas strings.
- * Comparação feita em uppercase normalizado.
+ * Padrão monetário flexível — aceita sinal e espaço antes dos dígitos.
+ * Ex: 1.250,35 | +13,00 | -45,00 | 1250,00
  */
-export const KEYWORDS_CREDITO = [
-    'PIX RECEBIDO',
-    'TED RECEBIDA',
-    'DOC RECEBIDO',
-    'DEPOSITO',
-    'DEPOSITO IDENTIFICADO',
-    'CREDITO',
-] as const;
+export const REGEX_VALOR_FLEX = /([+-]?\s*\d{1,3}(?:\.\d{3})*,\d{2})/;
 
 /**
- * Palavras que indicam estorno/devolução.
- * Se presentes, a transação é ignorada automaticamente.
+ * Data flexível — cobre todos os formatos conhecidos:
+ *   DD/MM        DD/MM/YYYY    DD-MM-YYYY
+ *   DD MMM YYYY  (ex: 04 FEV 2025 — Nubank)
+ *   DD/MMM       (ex: 04/FEV — extratos antigos)
+ */
+export const REGEX_DATA_FLEX =
+    /^(\d{2}[\/\-\s]\d{2}(?:[\/\-\s]\d{2,4})?|\d{2}[\/\-\s]+(?:JAN|FEV|MAR|ABR|MAI|JUN|JUL|AGO|SET|OUT|NOV|DEZ)[\/\-\s]?(?:\d{2,4})?)/i;
+
+/**
+ * Linha que contém apenas um valor monetário (formato Nubank/Inter).
+ * Ex: "  1.250,35 C"  |  "-250,00 D"  |  "+13,00"
+ */
+export const REGEX_LINHA_SO_VALOR =
+    /^([+-]?\s*\d{1,3}(?:\.\d{3})*,\d{2})\s*(?:[CD])?$/i;
+
+/** Detecta mês/ano no cabeçalho do extrato. Ex: "01/2024" */
+export const REGEX_MES_ANO = /(\d{2})\/(\d{4})/;
+
+/** CPF parcial na descrição. Ex: "PIX CPF 123.456.789-09" */
+export const REGEX_CPF_NA_DESC = /\b\d{3}\.?\d{3}\.?\d{3}-?\d{2}\b/g;
+
+/** Extrai apenas dígitos de um CPF formatado. */
+export const REGEX_CPF_DIGITS = /[^\d]/g;
+
+// ─── KEYWORDS DE CRÉDITO ─────────────────────────────────────────────────────
+
+/**
+ * Palavras-chave que indicam POSSÍVEL CRÉDITO de renda.
+ * A descrição deve conter pelo menos uma (normalizada, uppercase).
+ *
+ * Mapeamento por banco:
+ *   Nubank:       "Transferência recebida", "PIX recebido"
+ *   Itaú:         "PIX Recebido", "TED Recebida", "DOC Recebido"
+ *   Bradesco:     "TEV Recebida", "TED Recebida", "Depósito Identificado"
+ *   Caixa/BB:     "Depósito", "Crédito"
+ *   Santander/C6: "Crédito TED", "Transferência Recebida"
+ *   Inter:        "Pix Recebido", "Transferência Recebida"
+ *   Mercado Pago: "Recebimento de pagamento"
+ */
+export const KEYWORDS_CREDITO = [
+    // PIX
+    'PIX RECEBIDO',
+    'RECEBIMENTO PIX',
+    'RECEBIMENTO DE PIX',
+    'TRANSFERENCIA PIX RECEBIDA',
+
+    // TED / DOC
+    'TED RECEBIDA',
+    'TED CREDITO',
+    'DOC RECEBIDO',
+    'DOC CREDITO',
+    'TEV RECEBIDA',           // Bradesco (Transferência Eletrônica de Valor)
+
+    // Depósito
+    'DEPOSITO',
+    'DEPOSITO IDENTIFICADO',
+    'DEPOSITO BANCARIO',
+    'DEPOSITO EM CONTA',
+
+    // Crédito genérico
+    'CREDITO',
+    'CREDITO EM CONTA',
+
+    // Transferência recebida
+    'TRANSFERENCIA RECEBIDA',
+    'TRANSFERENCIA CREDITADA',
+    'RECEBIMENTO',
+    'RECEBIMENTO DE TRANSFERENCIA',
+    'PAGAMENTO RECEBIDO',
+
+    // Remuneração / Salário
+    'SALARIO',
+    'REMUNERACAO',
+    'VENCIMENTO',
+    'HONORARIO',
+    'COMISSAO',
+    'PROVENTO',
+    'PREMIO',
+    'BONIFICACAO',
+    'GRATIFICACAO',
+    'ADIANTAMENTO SALARIAL',
+    'FERIAS',
+    'DECIMO TERCEIRO',
+    '13 SALARIO',
+
+    // Benefícios / Rescisão
+    'BENEFICIO',
+    'AUXILIO',
+    'INDENIZACAO',
+    'RESCISAO',
+    'FGTS',
+
+    // Plataformas digitais
+    'RECEBIMENTO DE PAGAMENTO',
+] as const;
+
+// ─── KEYWORDS DE IGNORAR ─────────────────────────────────────────────────────
+
+/**
+ * Palavras que indicam transações que NÃO devem ser contadas como renda.
+ * Verificadas ANTES das keywords de crédito (regra 2 da ordem obrigatória).
  */
 export const KEYWORDS_IGNORAR = [
+    // Estornos / Devoluções
     'ESTORNO',
     'DEVOLUCAO',
+    'DEVOLUCAO PIX',
+    'ESTORNO PIX',
+    'CANCELAMENTO',
+
+    // Autotransferência explícita
     'ENTRE CONTAS',
     'TRANSFERENCIA ENTRE CONTAS',
     'MESMA TITULARIDADE',
+    'CONTA PROPRIA',
+
+    // Rendimentos / Aplicações (não são renda de trabalho)
+    'RENDIMENTO',
+    'RENDIMENTO POUPANCA',
+    'RENDIMENTO CDB',
+    'RESGATE',
+    'RESGATE CDB',
+    'RESGATE POUPANCA',
+    'RESGATE FUNDO',
+    'APLICACAO',
+    'APLICACAO AUTOMATICA',
+    'POUPANCA',
+    'CDB',
+    'CDI',
+    'IOF',
+
+    // Empréstimos (entrada de dívida, não renda)
+    'EMPRESTIMO',
+    'ANTECIPACAO',
+    'CREDITO CONSIGNADO',
+    'LIBERACAO EMPRESTIMO',
+
+    // Tarifas / Saldo (não são créditos de renda)
+    'SALDO',
+    'SALDO ANTERIOR',
+    'TARIFA',
+    'TAXA',
+    'JUROS',
+    'MULTA',
+    'COBRANCA',
+    'ANUIDADE',
 ] as const;
 
 /**
- * Palavra especial que indica autotransferência explícita.
- * Força exclusão mesmo sem match de nome.
+ * Palavra especial que força match forte imediato (autotransferência explícita).
+ * Verificada individualmente no matching service antes da tokenização.
  */
 export const KEYWORD_MESMA_TITULARIDADE = 'MESMA TITULARIDADE';
 
 /**
- * Regex para extrair CPF parcial de uma descrição.
- * Captura sequências de 3+ dígitos que podem ser parte de CPF.
- * Ex: "PIX CPF 123.456.789-09"
+ * Prefixos de linhas de cabeçalho/rodapé a ignorar durante parsing.
+ * Comparação após normalização uppercase.
  */
-export const REGEX_CPF_NA_DESC = /\b\d{3}\.?\d{3}\.?\d{3}-?\d{2}\b/g;
-
-/**
- * Regex para extrair dígitos de um CPF formatado.
- */
-export const REGEX_CPF_DIGITS = /[^\d]/g;
-
-/**
- * Regex para detectar o mês/ano de um cabeçalho de extrato.
- * Ex: "Extrato de Janeiro/2024" | "01/2024"
- */
-export const REGEX_MES_ANO = /(\d{2})\/(\d{4})/;
+export const LINHAS_LIXO = [
+    'SALDO FINAL DO PERIODO',
+    'SALDO INICIAL DO PERIODO',
+    'SALDO INICIAL',
+    'SALDO FINAL',
+    'TOTAL DE ENTRADAS',
+    'TOTAL DE SAIDAS',
+    'TOTAL ENTRADAS',
+    'TOTAL SAIDAS',
+] as const;

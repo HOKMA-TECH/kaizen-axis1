@@ -123,15 +123,37 @@ function calcularMatch(nome: string, descricao: string, cpf?: string): Resultado
 // ═══════════════════════════════════════════════════════════════════════════════
 
 const KEYWORDS_CREDITO = [
-    'PIX RECEBIDO', 'TED RECEBIDA', 'DOC RECEBIDO', 'DEPOSITO', 'CREDITO',
-    'TRANSFERENCIA RECEBIDA', 'RECEBIMENTO', 'PAGAMENTO RECEBIDO',
-    'TRANSFERENCIA', 'SALARIO', 'REMUNERACAO', 'VENCIMENTO', 'HONORARIO'
+    // PIX
+    'PIX RECEBIDO', 'RECEBIMENTO PIX', 'RECEBIMENTO DE PIX', 'TRANSFERENCIA PIX RECEBIDA',
+    // TED / DOC
+    'TED RECEBIDA', 'TED CREDITO', 'DOC RECEBIDO', 'DOC CREDITO', 'TEV RECEBIDA',
+    // Depósito
+    'DEPOSITO', 'DEPOSITO IDENTIFICADO', 'DEPOSITO BANCARIO', 'DEPOSITO EM CONTA',
+    // Crédito genérico
+    'CREDITO', 'CREDITO EM CONTA',
+    // Transferência recebida (específico — não inclui "TRANSFERENCIA" genérico)
+    'TRANSFERENCIA RECEBIDA', 'TRANSFERENCIA CREDITADA', 'RECEBIMENTO', 'RECEBIMENTO DE TRANSFERENCIA', 'PAGAMENTO RECEBIDO',
+    // Remuneração / Salário
+    'SALARIO', 'REMUNERACAO', 'VENCIMENTO', 'HONORARIO', 'COMISSAO', 'PROVENTO',
+    'PREMIO', 'BONIFICACAO', 'GRATIFICACAO', 'ADIANTAMENTO SALARIAL', 'FERIAS', 'DECIMO TERCEIRO', '13 SALARIO',
+    // Benefícios / Rescisão
+    'BENEFICIO', 'AUXILIO', 'INDENIZACAO', 'RESCISAO', 'FGTS',
+    // Plataformas digitais
+    'RECEBIMENTO DE PAGAMENTO',
 ];
 
 const KEYWORDS_IGNORAR = [
-    'ESTORNO', 'DEVOLUCAO', 'ENTRE CONTAS', 'TRANSFERENCIA ENTRE CONTAS',
-    'RESGATE', 'RENDIMENTO', 'EMPRESTIMO', 'ANTECIPACAO', 'CANCELAMENTO',
-    'SALDO', 'POUPANCA', 'APLICACAO', 'CDB', 'CDI', 'TARIFA'
+    // Estornos / Devoluções
+    'ESTORNO', 'DEVOLUCAO', 'DEVOLUCAO PIX', 'ESTORNO PIX', 'CANCELAMENTO',
+    // Autotransferência
+    'ENTRE CONTAS', 'TRANSFERENCIA ENTRE CONTAS', 'MESMA TITULARIDADE', 'CONTA PROPRIA',
+    // Rendimentos / Aplicações
+    'RENDIMENTO', 'RENDIMENTO POUPANCA', 'RENDIMENTO CDB', 'RESGATE', 'RESGATE CDB',
+    'RESGATE POUPANCA', 'RESGATE FUNDO', 'APLICACAO', 'APLICACAO AUTOMATICA', 'POUPANCA', 'CDB', 'CDI', 'IOF',
+    // Empréstimos
+    'EMPRESTIMO', 'ANTECIPACAO', 'CREDITO CONSIGNADO', 'LIBERACAO EMPRESTIMO',
+    // Tarifas / Saldo
+    'SALDO', 'SALDO ANTERIOR', 'TARIFA', 'TAXA', 'JUROS', 'MULTA', 'COBRANCA', 'ANUIDADE',
 ];
 
 function normalizarData(dataRaw: string): { data: string; mes: string } {
@@ -143,6 +165,9 @@ function normalizarData(dataRaw: string): { data: string; mes: string } {
     const MESES: Record<string, string> = {
         JAN: '01', FEV: '02', MAR: '03', ABR: '04', MAI: '05', JUN: '06',
         JUL: '07', AGO: '08', SET: '09', OUT: '10', NOV: '11', DEZ: '12',
+        JANEIRO: '01', FEVEREIRO: '02', MARCO: '03', ABRIL: '04',
+        MAIO: '05', JUNHO: '06', JULHO: '07', AGOSTO: '08',
+        SETEMBRO: '09', OUTUBRO: '10', NOVEMBRO: '11', DEZEMBRO: '12',
     };
 
     const parts = limpo.split(' ');
@@ -156,10 +181,12 @@ function normalizarData(dataRaw: string): { data: string; mes: string } {
         if (/^\d+$/.test(mesStr)) {
             mes = mesStr.padStart(2, '0');
         } else {
-            mes = MESES[mesStr.substring(0, 3)] || '01';
+            mes = MESES[mesStr] || MESES[mesStr.substring(0, 3)] || '01';
         }
 
-        const ano = parts[2] || String(new Date().getFullYear());
+        let anoRaw = parts[2] || String(new Date().getFullYear());
+        // Normaliza ano de 2 dígitos: "24" → "2024"
+        const ano = anoRaw.length === 2 ? `20${anoRaw}` : anoRaw;
         return {
             data: `${ano}-${mes}-${dia}`,
             mes: `${ano}-${mes}`,
@@ -388,7 +415,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         const avisos: string[] = [];
         const mesesConsiderados = Object.keys(totalPorMes).length;
-        if (mesesConsiderados < 2 && creditos.length > 0) {
+
+        if (mesesConsiderados === 0) {
+            res.status(422).json({
+                erro: 'Nenhum crédito válido identificado após classificação. Verifique se o nome do cliente está correto e se o extrato contém créditos reconhecíveis.',
+                totalTransacoesBrutas: brutas.length,
+                transacoesIgnoradas: ignoradas.length,
+                transacoesSinalizadas: sinalizadas.length,
+            }); return;
+        }
+
+        if (mesesConsiderados < 2) {
             avisos.push(`Apenas ${mesesConsiderados} mês(es) com créditos válidos. Resultado pode não ser representativo.`);
         }
 

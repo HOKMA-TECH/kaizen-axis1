@@ -4,55 +4,54 @@ import {
     limparTextoPdf,
     extrairComRegexPadrao,
     extrairComRegexAlt,
+    extrairMultiEstrategia,
+    deduplicar,
 } from './base.parser';
 
 /**
- * BancoPadraoParser — Parser genérico para extratos bancários brasileiros.
+ * BancoPadraoParser v2 — Parser multi-estratégia para extratos bancários brasileiros.
  *
- * Suporta formatos de: Itaú, Bradesco, Nubank, Santander, C6, Inter e similares.
- * Estratégia: tenta o regex padrão primeiro. Se não encontrar transações,
- * tenta o regex alternativo. O banco com mais transações extraídas vence.
+ * Bancos testados:
+ *   Nubank     — Data em cabeçalho de seção, valores por linha
+ *   Itaú       — Formato padrão DD/MM DESCRIÇÃO VALOR
+ *   Bradesco   — Padrão + TEV + formato alternativo com valor antes
+ *   Santander  — Formato padrão DD/MM/YYYY DESCRIÇÃO VALOR
+ *   C6 Bank    — Semelhante ao Nubank (data + transações)
+ *   Inter      — Data contextual + transações em bloco
+ *   Caixa      — Formato padrão com Depósito/Crédito
+ *   BB         — Alternativo (valor antes da descrição)
  *
- * Formato padrão:
- *   DD/MM[/YYYY]  DESCRIÇÃO  1.250,35
- *
- * Formato alternativo (valor antes da descrição):
- *   DD/MM[/YYYY]  1.250,35  DESCRIÇÃO
+ * Algoritmo de seleção de melhor resultado:
+ *   Executa as 3 estratégias e seleciona a que extraiu mais transações.
+ *   Critério: quantidade (determinístico, não probabilístico).
  */
 export class BancoPadraoParser implements BaseParser {
-    nome = 'BancoPadraoParser-v1';
+    nome = 'BancoPadraoParser-v2';
 
     extrair(textoRaw: string): TransacaoBruta[] {
         const texto = limparTextoPdf(textoRaw);
 
-        // Tenta o regex padrão (mais comum)
-        const resultadoPadrao = extrairComRegexPadrao(texto);
+        // ── Estratégia 1: Regex padrão (DD/MM DESCRIÇÃO VALOR) ──────────────
+        // Cobre: Itaú, Santander, C6, Caixa, maioria dos bancos tradicionais
+        const s1 = extrairComRegexPadrao(texto);
 
-        // Tenta o regex alternativo
-        const resultadoAlt = extrairComRegexAlt(texto);
+        // ── Estratégia 2: Regex alternativa (DD/MM VALOR DESCRIÇÃO) ─────────
+        // Cobre: Banco do Brasil (PDF), alguns formatos do Bradesco
+        const s2 = extrairComRegexAlt(texto);
 
-        // Usa o resultado com mais transações (heurística de quantidade, não de conteúdo)
-        const melhor = resultadoPadrao.length >= resultadoAlt.length
-            ? resultadoPadrao
-            : resultadoAlt;
+        // ── Estratégia 3: Multi-linha contextual ─────────────────────────────
+        // Cobre: Nubank (data como cabeçalho), Inter, C6 (bloco por data)
+        const s3 = extrairMultiEstrategia(texto);
 
-        // Deduplica: remove transações com exata mesma data+descricao+valor
+        // Seleciona o resultado com MAIS transações (critério determinístico)
+        const melhor = [s1, s2, s3].reduce(
+            (max, current) => current.length > max.length ? current : max,
+            [] as TransacaoBruta[]
+        );
+
+        // Deduplica (segurança extra caso estratégias retornem sobreposição)
         return deduplicar(melhor);
     }
-}
-
-/**
- * Remove transações exatamente duplicadas (mesma data + descricao + valor).
- * Usa chave composta para deduplicação determinística.
- */
-function deduplicar(transacoes: TransacaoBruta[]): TransacaoBruta[] {
-    const vistas = new Set<string>();
-    return transacoes.filter(t => {
-        const chave = `${t.dataRaw}|${t.descricaoRaw}|${t.valorRaw}`;
-        if (vistas.has(chave)) return false;
-        vistas.add(chave);
-        return true;
-    });
 }
 
 /** Instância singleton para uso nos serviços */
