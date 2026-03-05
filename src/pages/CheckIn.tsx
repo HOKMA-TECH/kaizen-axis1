@@ -165,9 +165,9 @@ export default function CheckIn() {
           setResult({ message: body?.message || body?.error || `Erro ${status}`, distance: body?.distance });
           return;
         }
-        // FunctionsRelayError ou outro erro de rede
+        // FunctionsRelayError ou outro erro de rede — mostrar diagnóstico temporariamente
         setStep('error');
-        setResult({ message: 'Erro de conexão. Verifique sua internet.' });
+        setResult({ message: `[${error.name}] ${error.message || 'sem mensagem'}` });
         return;
       }
 
