@@ -136,6 +136,11 @@ export default function CheckIn() {
 
     setStep('sending');
 
+    // debug: inspecionar sessão antes de invocar
+    const { data: { session: dbgSession } } = await supabase.auth.getSession();
+    const dbgToken = dbgSession?.access_token;
+    const dbgExp   = dbgSession?.expires_at;
+
     try {
       const { data, error } = await supabase.functions.invoke('checkin-geo', {
         body: {
@@ -152,7 +157,13 @@ export default function CheckIn() {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const body: any = await (error as any).context?.json().catch(() => ({}));
 
-          if (status === 401) { setStep('login'); return; }
+          if (status === 401) {
+            const hasToken = !!dbgToken;
+            const expStr   = dbgExp ? new Date(dbgExp * 1000).toISOString() : 'null';
+            setStep('login');
+            setResult({ message: `401 · token:${hasToken} · exp:${expStr} · fn:${JSON.stringify(body)}` });
+            return;
+          }
 
           if (status === 409) {
             setStep('already');
@@ -356,8 +367,8 @@ export default function CheckIn() {
               <p className="text-sm font-semibold text-amber-700 dark:text-amber-400">
                 Sessão expirada
               </p>
-              <p className="text-xs text-amber-600/80 dark:text-amber-400/70">
-                Sua sessão venceu. Faça login novamente para continuar.
+              <p className="text-xs text-amber-600/80 dark:text-amber-400/70 whitespace-pre-wrap break-all">
+                {result?.message || 'Sua sessão venceu. Faça login novamente para continuar.'}
               </p>
               <button
                 onClick={async () => { await signOut(); navigate('/login'); }}
