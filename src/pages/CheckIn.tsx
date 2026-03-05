@@ -126,7 +126,18 @@ export default function CheckIn() {
 
     setStep('sending');
 
-    const { data: { session } } = await supabase.auth.getSession();
+    // Obtém ou renova a sessão antes de chamar a função
+    let { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      const { data: refreshed } = await supabase.auth.refreshSession();
+      session = refreshed.session;
+    }
+    if (!session?.access_token) {
+      setStep('error');
+      setResult({ message: 'Sessão expirada. Faça login novamente.' });
+      return;
+    }
+
     const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
 
     try {
@@ -134,7 +145,7 @@ export default function CheckIn() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session?.access_token}`,
+          'Authorization': `Bearer ${session.access_token}`,
         },
         body: JSON.stringify({
           latitude:  pos.coords.latitude,
