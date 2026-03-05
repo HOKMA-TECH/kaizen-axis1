@@ -397,6 +397,15 @@ export default function Amortization() {
 
   const incomeOk = base ? base.firstInstallment <= maxInstallment : null;
 
+  // ── Limites operacionais da Caixa (SBPE 2025) ─────────────────────────────
+  const limitWarnings: string[] = [];
+  if (pv > 0 && pv < 80_000)
+    limitWarnings.push(`Valor financiado mínimo: R$ 80.000,00 (atual: ${fmtBRL(pv)})`);
+  if (pv > 1_500_000)
+    limitWarnings.push(`Valor financiado máximo (SBPE): R$ 1.500.000,00 (atual: ${fmtBRL(pv)})`);
+  if (annualRate > 0 && annualRate < 4.5)
+    limitWarnings.push(`Taxa mínima aceita: 4,50% a.a. (FGTS renda baixa). Taxa informada: ${annualRate}% a.a.`);
+
   // Reset table page on new simulation
   useEffect(() => setTablePage(0), [base]);
 
@@ -600,6 +609,18 @@ export default function Amortization() {
                   />
                 </div>
 
+                {/* Operational limits alerts */}
+                {limitWarnings.length > 0 && (
+                  <div className="mt-3 space-y-2">
+                    {limitWarnings.map((w, i) => (
+                      <div key={i} className="rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/30 p-3 flex items-start gap-2">
+                        <AlertTriangle size={16} className="text-amber-500 flex-shrink-0 mt-0.5" />
+                        <p className="text-xs text-amber-700 dark:text-amber-400">{w}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
                 {/* Income alert */}
                 {incomeOk === false && (
                   <div className="mt-3 rounded-xl bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/30 p-3 flex items-start gap-2">
@@ -668,23 +689,23 @@ export default function Amortization() {
                     </PremiumCard>
 
                     {/* Opção B */}
-                    <PremiumCard className="p-4 border-purple-200 dark:border-purple-800/30 bg-purple-50 dark:bg-purple-900/10">
+                    <PremiumCard className="p-4 border-orange-200 dark:border-orange-800/30 bg-orange-50 dark:bg-orange-900/10">
                       <div className="flex items-center gap-2 mb-3">
-                        <div className="w-7 h-7 rounded-full bg-purple-500 text-white flex items-center justify-center text-xs font-bold flex-shrink-0">B</div>
+                        <div className="w-7 h-7 rounded-full bg-orange-500 text-white flex items-center justify-center text-xs font-bold flex-shrink-0">B</div>
                         <div>
-                          <p className="font-bold text-purple-800 dark:text-purple-300 text-sm">Reduzir a Parcela</p>
-                          <p className="text-xs text-purple-600 dark:text-purple-400">Mantém o prazo original ({extra.remainingBefore} meses)</p>
+                          <p className="font-bold text-orange-800 dark:text-orange-300 text-sm">Reduzir a Parcela</p>
+                          <p className="text-xs text-orange-600 dark:text-orange-400">Mantém o prazo original ({extra.remainingBefore} meses)</p>
                         </div>
                       </div>
 
                       <div className="text-center my-4">
-                        <p className="text-xs text-purple-600 dark:text-purple-400 mb-1">Nova parcela mensal</p>
-                        <p className="text-3xl font-black text-purple-700 dark:text-purple-300">
+                        <p className="text-xs text-orange-600 dark:text-orange-400 mb-1">Nova parcela mensal</p>
+                        <p className="text-3xl font-black text-orange-700 dark:text-orange-300">
                           {fmtBRL(extra.optB.newInstallment)}
                         </p>
-                        <div className="inline-flex items-center gap-1 mt-1 bg-purple-100 dark:bg-purple-900/30 rounded-full px-3 py-0.5">
-                          <ArrowRight size={12} className="text-purple-500 rotate-180" />
-                          <span className="text-xs font-bold text-purple-700 dark:text-purple-400">
+                        <div className="inline-flex items-center gap-1 mt-1 bg-orange-100 dark:bg-orange-900/30 rounded-full px-3 py-0.5">
+                          <ArrowRight size={12} className="text-orange-500 rotate-180" />
+                          <span className="text-xs font-bold text-orange-700 dark:text-orange-400">
                             -{fmtBRL(extra.optB.reduction)}/mês
                           </span>
                         </div>
@@ -692,19 +713,19 @@ export default function Amortization() {
 
                       <div className="space-y-2 text-sm">
                         <div className="flex justify-between">
-                          <span className="text-purple-600 dark:text-purple-400 text-xs">Parcela antes da amortização</span>
+                          <span className="text-orange-600 dark:text-orange-400 text-xs">Parcela antes da amortização</span>
                           <span className="font-medium text-text-primary">{fmtBRL(extra.installmentBeforeExtra)}</span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-purple-600 dark:text-purple-400 text-xs">Nova parcela</span>
-                          <span className="font-bold text-purple-700 dark:text-purple-300">{fmtBRL(extra.optB.newInstallment)}</span>
+                          <span className="text-orange-600 dark:text-orange-400 text-xs">Nova parcela</span>
+                          <span className="font-bold text-orange-700 dark:text-orange-300">{fmtBRL(extra.optB.newInstallment)}</span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-purple-600 dark:text-purple-400 text-xs">Redução mensal</span>
+                          <span className="text-orange-600 dark:text-orange-400 text-xs">Redução mensal</span>
                           <span className="font-bold text-green-600 dark:text-green-400">{fmtBRL(extra.optB.reduction)}</span>
                         </div>
-                        <div className="flex justify-between border-t border-purple-200 dark:border-purple-800/30 pt-2 mt-2">
-                          <span className="text-purple-600 dark:text-purple-400 text-xs font-semibold">Economia em juros</span>
+                        <div className="flex justify-between border-t border-orange-200 dark:border-orange-800/30 pt-2 mt-2">
+                          <span className="text-orange-600 dark:text-orange-400 text-xs font-semibold">Economia em juros</span>
                           <span className="font-bold text-green-600 dark:text-green-400">{fmtBRL(extra.optB.totalInterestSaved)}</span>
                         </div>
                       </div>
