@@ -285,8 +285,8 @@ function classificar(
 
 // Padrão monetário flexível com sufixo D/C opcional (Caixa, BB): 250,00 | 1.250,00 C | 250,00D
 const VALOR_RE = /([+-]?\s*(?:R\$\s*)?\d{1,3}(?:\.\d{3})*,\d{2})(\s*[CD])?(?=\s|$|\|)/i;
-// Formatos de data suportados: 15/03/2024, 15-03, 15 FEV 2024, 15/FEV
-const DATA_RE = /^(\d{2}[/-\s]\d{2}(?:[/-\s]\d{2,4})?|\d{2}[/-\s]+(?:JAN|FEV|MAR|ABR|MAI|JUN|JUL|AGO|SET|OUT|NOV|DEZ)[/-\s]?(?:\d{2,4})?)/i;
+// Formatos de data: 15/03/2024 | 15-03 | 15.03.2024 | 15 FEV 2024 | 15/FEV
+const DATA_RE = /^(\d{2}[/\-\.\s]\d{2}(?:[/\-\.\s]\d{2,4})?|\d{2}[/\-\.\s]+(?:JAN|FEV|MAR|ABR|MAI|JUN|JUL|AGO|SET|OUT|NOV|DEZ)[/\-\.\s]?(?:\d{2,4})?)/i;
 
 // Mapa de meses por extenso (Inter)
 const MESES_EXTENSO_API: Record<string, string> = {
@@ -296,14 +296,23 @@ const MESES_EXTENSO_API: Record<string, string> = {
 };
 
 function extrair(texto: string): Array<{ dataRaw: string; descricaoRaw: string; valorRaw: string }> {
-    // Normaliza "11 de Fevereiro de 2025" → "11/FEV/2025" (formato Inter)
     const normalizado = texto
         .replace(/\r\n/g, '\n').replace(/\r/g, '\n')
+        // "11 de Fevereiro de 2025" → "11/FEV/2025" (Inter)
         .replace(
             /(\d{1,2})\s+de\s+(janeiro|fevereiro|mar(?:ç|c)o|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro)\s+de\s+(\d{4})/gi,
             (_, d, m, a) => {
                 const key = m.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
                 return `${d.padStart(2, '0')}/${MESES_EXTENSO_API[key] ?? 'JAN'}/${a}`;
+            }
+        )
+        // "Setembro 2025" / "setembro/2025" → "01/SET/2025"
+        // Cabeçalhos de seção em PDFs mesclados (sem dia) — permite identificar o mês correto
+        .replace(
+            /\b(janeiro|fevereiro|mar(?:ç|c)o|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro)[\s\/]+(\d{4})\b/gi,
+            (_, m, a) => {
+                const key = m.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+                return `01/${MESES_EXTENSO_API[key] ?? 'JAN'}/${a}`;
             }
         );
     const limpo = normalizado.trim();
@@ -337,7 +346,8 @@ function extrair(texto: string): Array<{ dataRaw: string; descricaoRaw: string; 
         }
     }
 
-    let dataContextual = ''; // Guarda a última data lida (ex: Nubank cabeçalho "04 FEV 2025")
+    let dataContextual = ''; // Guarda a última data lida
+    let anoContextual = String(new Date().getFullYear()); // Último ano 4-dígitos visto
 
     for (let i = 0; i < linhas.length; i++) {
         const linha = linhas[i];
@@ -345,7 +355,16 @@ function extrair(texto: string): Array<{ dataRaw: string; descricaoRaw: string; 
         // 1. Verificar se a linha começa com uma data conhecida
         const mData = linha.match(DATA_RE);
         if (mData) {
-            dataContextual = mData[1];
+            let dataCandidata = mData[1];
+            // Extrair e guardar o ano (20XX) para reutilizar em datas DD/MM sem ano
+            const mAno = dataCandidata.match(/\b(20\d{2})\b/);
+            if (mAno) {
+                anoContextual = mAno[1];
+            } else {
+                // DD/MM sem ano → anexar o último ano visto para evitar assumir ano atual
+                dataCandidata = `${dataCandidata}/${anoContextual}`;
+            }
+            dataContextual = dataCandidata;
 
             // Tentar extrair valor da mesma linha (Estratégia 1 e 2 juntas)
             const descSemData = linha.substring(mData[0].length).trim();
