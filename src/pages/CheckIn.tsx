@@ -40,7 +40,7 @@ function getBRTHour() {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function CheckIn() {
-  const { user, session, signOut } = useApp();
+  const { user, signOut } = useApp();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const qrToken = searchParams.get('token'); // token vindo do QR scan
@@ -136,66 +136,48 @@ export default function CheckIn() {
 
     setStep('sending');
 
-    // Obtém token mais recente do cliente Supabase (pode ter sido auto-renovado)
-    const { data: { session: liveSession } } = await supabase.auth.getSession();
-    let accessToken: string | null = liveSession?.access_token ?? session?.access_token ?? null;
-
-    // Se não tem token, tenta refresh antes de desistir
-    if (!accessToken) {
-      const { data: r } = await supabase.auth.refreshSession();
-      accessToken = r.session?.access_token ?? null;
-      if (!accessToken) { setStep('login'); return; }
-    }
-
-    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
-
-    const reqBody = JSON.stringify({
-      latitude:  pos.coords.latitude,
-      longitude: pos.coords.longitude,
-      accuracy:  pos.coords.accuracy,
-      ...(token ? { qrToken: token } : {}),
-    });
-
-    const callFn = (tok: string) => fetch(`${supabaseUrl}/functions/v1/checkin-geo`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${tok}` },
-      body: reqBody,
-    });
-
     try {
-      let res = await callFn(accessToken);
+      const { data, error } = await supabase.functions.invoke('checkin-geo', {
+        body: {
+          latitude:  pos.coords.latitude,
+          longitude: pos.coords.longitude,
+          accuracy:  pos.coords.accuracy,
+          ...(token ? { qrToken: token } : {}),
+        },
+      });
 
-      // Se 401 (token rejeitado pelo servidor), renova e tenta UMA vez mais
-      if (res.status === 401) {
-        const { data: r } = await supabase.auth.refreshSession();
-        const newToken = r.session?.access_token ?? null;
-        if (!newToken) { setStep('login'); return; }
-        accessToken = newToken;
-        res = await callFn(accessToken);
-      }
+      if (error) {
+        if (error.name === 'FunctionsHttpError') {
+          const status = (error as any).context?.status as number | undefined;
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const body: any = await (error as any).context?.json().catch(() => ({}));
 
-      const data = await res.json();
+          if (status === 401) { setStep('login'); return; }
 
-      if (res.status === 409) {
-        setStep('already');
-        setResult({ position: data.position, message: data.message || 'Você já fez check-in hoje.' });
-        fetchQueue();
+          if (status === 409) {
+            setStep('already');
+            setResult({ position: body?.position, message: body?.message || 'Você já fez check-in hoje.' });
+            fetchQueue();
+            return;
+          }
+
+          setStep('error');
+          setResult({ message: body?.message || body?.error || `Erro ${status}`, distance: body?.distance });
+          return;
+        }
+        // FunctionsRelayError ou outro erro de rede
+        setStep('error');
+        setResult({ message: 'Erro de conexão. Verifique sua internet.' });
         return;
       }
 
-      if (res.ok) {
-        setStep('success');
-        setResult({ position: data.position, message: data.message, distance: data.distance });
-        fetchQueue();
-      } else if (res.status === 401) {
-        setStep('login');
-      } else {
-        setStep('error');
-        setResult({ message: data.message || data.error || 'Erro ao realizar check-in.', distance: data.distance });
-      }
+      // Sucesso 200
+      setStep('success');
+      setResult({ position: data.position, message: data.message, distance: data.distance });
+      fetchQueue();
     } catch {
       setStep('error');
-      setResult({ message: 'Erro de conexão. Verifique sua internet.' });
+      setResult({ message: 'Erro inesperado. Tente novamente.' });
     }
   }
 
