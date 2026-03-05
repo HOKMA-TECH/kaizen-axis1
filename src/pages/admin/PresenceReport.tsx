@@ -187,31 +187,131 @@ export default function PresenceReport() {
     }
   }, [fetchReport, period, customStart, customEnd]);
 
-  // ── CSV Export ──────────────────────────────────────────────────────────────
-  const exportCSV = () => {
-    if (!data?.ranking) return;
+  // ── PDF Export ──────────────────────────────────────────────────────────────
+  const exportPDF = async () => {
+    if (!data) return;
     const { start, end } = getDateRange();
-    const header = ['Nome', 'Diretoria', 'Equipe', 'Dias Presença', 'Último Check-in', 'Taxa %', 'Leads Atendidos', 'Vendas', 'Score', 'Engajamento'];
-    const rows = data.ranking.map(r => [
-      r.name,
-      dirName(r.directorate_id),
-      r.team ?? '—',
-      r.dias_presenca,
-      fmtDate(r.ultimo_checkin),
-      `${r.taxa_presenca}%`,
-      r.leads_atendidos,
-      r.vendas,
-      r.score,
-      classify(r.score).label,
-    ]);
-    const csv = [header, ...rows].map(row => row.join(';')).join('\n');
-    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `presenca_${start}_${end}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+    const { default: jsPDF } = await import('jspdf');
+    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+
+    const W  = doc.internal.pageSize.getWidth();
+    const m  = 14;
+    const cw = W - m * 2;
+    let y    = 18;
+
+    const nl = () => { if (y > 272) { doc.addPage(); y = 18; } };
+
+    // ── Cabeçalho ──
+    doc.setFontSize(16); doc.setFont('helvetica', 'bold'); doc.setTextColor(20, 20, 20);
+    doc.text('Relatório de Presença', m, y); y += 6;
+    doc.setFontSize(8); doc.setFont('helvetica', 'normal'); doc.setTextColor(130, 130, 130);
+    doc.text(
+      `Período: ${fmtDate(start)} – ${fmtDate(end)}   |   Gerado em: ${new Date().toLocaleDateString('pt-BR')}`,
+      m, y,
+    ); y += 7;
+    doc.setDrawColor(212, 160, 23); doc.setLineWidth(0.4); doc.line(m, y, W - m, y); y += 8;
+
+    // ── Métricas ──
+    doc.setFontSize(10); doc.setFont('helvetica', 'bold'); doc.setTextColor(20, 20, 20);
+    doc.text('Métricas', m, y); y += 5;
+    const mw = cw / 4;
+    [
+      ['Total Check-ins', String(data.metrics.total_checkins)],
+      ['Ativos (7d)',      String(data.metrics.usuarios_ativos)],
+      ['Inativos',         String(data.metrics.usuarios_inativos)],
+      ['Média/dia',        String(data.metrics.media_diaria)],
+    ].forEach(([lbl, val], i) => {
+      const mx = m + i * mw;
+      doc.setFillColor(248, 248, 248);
+      doc.roundedRect(mx, y, mw - 2, 14, 1.5, 1.5, 'F');
+      doc.setFontSize(7); doc.setFont('helvetica', 'normal'); doc.setTextColor(110, 110, 110);
+      doc.text(lbl, mx + (mw - 2) / 2, y + 4.5, { align: 'center' });
+      doc.setFontSize(12); doc.setFont('helvetica', 'bold'); doc.setTextColor(20, 20, 20);
+      doc.text(val, mx + (mw - 2) / 2, y + 11, { align: 'center' });
+    });
+    y += 20;
+
+    // ── Helpers de tabela ──
+    type Col = { text: string; w: number };
+    const ROW_H = 6;
+
+    const thead = (cols: Col[]) => {
+      nl();
+      doc.setFillColor(245, 245, 245); doc.rect(m, y - ROW_H + 1, cw, ROW_H + 1, 'F');
+      doc.setFontSize(7.5); doc.setFont('helvetica', 'bold'); doc.setTextColor(90, 90, 90);
+      let x = m + 1.5;
+      cols.forEach(c => { doc.text(c.text, x, y); x += c.w; });
+      y += ROW_H;
+    };
+
+    const trow = (cells: Col[], alt: boolean) => {
+      nl();
+      if (alt) { doc.setFillColor(252, 252, 252); doc.rect(m, y - ROW_H + 1, cw, ROW_H, 'F'); }
+      doc.setFontSize(8); doc.setFont('helvetica', 'normal'); doc.setTextColor(25, 25, 25);
+      let x = m + 1.5;
+      cells.forEach(c => {
+        const maxChars = Math.max(3, Math.floor(c.w / 1.9));
+        const txt = c.text.length > maxChars ? c.text.slice(0, maxChars - 1) + '…' : c.text;
+        doc.text(txt, x, y); x += c.w;
+      });
+      y += ROW_H;
+    };
+
+    // ── Ranking de Presença ──
+    doc.setFontSize(10); doc.setFont('helvetica', 'bold'); doc.setTextColor(20, 20, 20);
+    doc.text('Ranking de Presença', m, y); y += 5;
+    const rCols: Col[] = [
+      { text: '#', w: 8 }, { text: 'Nome', w: 55 }, { text: 'Dias', w: 20 },
+      { text: 'Taxa%', w: 20 }, { text: 'Último CI', w: 28 }, { text: 'Score', w: 22 }, { text: 'Nível', w: 29 },
+    ];
+    thead(rCols);
+    data.ranking.forEach((row, i) => {
+      trow([
+        { text: String(i + 1),            w: 8  },
+        { text: row.name,                  w: 55 },
+        { text: String(row.dias_presenca), w: 20 },
+        { text: `${row.taxa_presenca}%`,   w: 20 },
+        { text: fmtDate(row.ultimo_checkin), w: 28 },
+        { text: String(row.score),         w: 22 },
+        { text: classify(row.score).label, w: 29 },
+      ], i % 2 === 1);
+    });
+    y += 6;
+
+    // ── Score de Engajamento ──
+    nl();
+    doc.setFontSize(10); doc.setFont('helvetica', 'bold'); doc.setTextColor(20, 20, 20);
+    doc.text('Score de Engajamento', m, y); y += 5;
+    const sCols: Col[] = [
+      { text: 'Nome', w: 58 }, { text: 'Presença', w: 26 }, { text: 'Leads', w: 24 },
+      { text: 'Vendas', w: 24 }, { text: 'Score', w: 24 }, { text: 'Nível', w: 26 },
+    ];
+    thead(sCols);
+    [...data.ranking].sort((a, b) => b.score - a.score).forEach((row, i) => {
+      trow([
+        { text: row.name,                       w: 58 },
+        { text: String(row.dias_presenca),       w: 26 },
+        { text: String(row.leads_atendidos),     w: 24 },
+        { text: String(row.vendas),              w: 24 },
+        { text: String(row.score),               w: 24 },
+        { text: classify(row.score).label,       w: 26 },
+      ], i % 2 === 1);
+    });
+
+    // ── Alertas de Ausência ──
+    if (data.alerts.length > 0) {
+      y += 8; nl();
+      doc.setFontSize(10); doc.setFont('helvetica', 'bold'); doc.setTextColor(20, 20, 20);
+      doc.text(`Alertas de Ausência (${data.alerts.length})`, m, y); y += 6;
+      doc.setFontSize(8.5); doc.setFont('helvetica', 'normal');
+      data.alerts.forEach(a => {
+        nl();
+        doc.setTextColor(190, 35, 35);
+        doc.text(`• ${a.name}  —  ausente há ${a.dias_ausente} dias`, m + 2, y); y += 5.5;
+      });
+    }
+
+    doc.save(`presenca_${start}_${end}.pdf`);
   };
 
   // ─── Render ────────────────────────────────────────────────────────────────
@@ -237,9 +337,9 @@ export default function PresenceReport() {
             </div>
           </div>
         </div>
-        <RoundedButton size="sm" variant="outline" onClick={exportCSV} disabled={!data}>
+        <RoundedButton size="sm" variant="outline" onClick={exportPDF} disabled={!data}>
           <Download size={14} />
-          Exportar
+          Exportar PDF
         </RoundedButton>
       </div>
 

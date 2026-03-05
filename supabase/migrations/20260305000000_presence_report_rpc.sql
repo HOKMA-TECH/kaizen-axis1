@@ -145,26 +145,22 @@ BEGIN
           'leads_atendidos',(
             SELECT COUNT(*) FROM public.leads l
             WHERE l.assigned_to = p.id
-              AND l.assigned_at IS NOT NULL
-              AND l.assigned_at::DATE BETWEEN p_start AND p_end
+              AND l.created_at::DATE BETWEEN p_start AND p_end
           ),
           'vendas', (
             SELECT COUNT(*) FROM public.leads l
             WHERE l.assigned_to = p.id
-              AND l.assigned_at IS NOT NULL
-              AND l.assigned_at::DATE BETWEEN p_start AND p_end
+              AND l.created_at::DATE BETWEEN p_start AND p_end
               AND LOWER(COALESCE(l.stage, '')) IN ('convertido', 'concluído', 'contrato', 'conclusao', 'concluido')
           ),
           'score', (
             COUNT(DISTINCT dc.checkin_date) * 2
             + (SELECT COUNT(*) FROM public.leads l
                WHERE l.assigned_to = p.id
-               AND l.assigned_at IS NOT NULL
-               AND l.assigned_at::DATE BETWEEN p_start AND p_end)
+               AND l.created_at::DATE BETWEEN p_start AND p_end)
             + (SELECT COUNT(*) FROM public.leads l
                WHERE l.assigned_to = p.id
-               AND l.assigned_at IS NOT NULL
-               AND l.assigned_at::DATE BETWEEN p_start AND p_end
+               AND l.created_at::DATE BETWEEN p_start AND p_end
                AND LOWER(COALESCE(l.stage, '')) IN ('convertido', 'concluído', 'contrato', 'conclusao', 'concluido')
               ) * 5
           )
@@ -198,7 +194,8 @@ BEGIN
           AND UPPER(COALESCE(p.status, '')) IN ('ACTIVE', 'ATIVO')
           AND (p_directorate IS NULL OR p.directorate_id = p_directorate)
         GROUP BY p.id, p.name, p.team, p.directorate_id
-        HAVING CURRENT_DATE - COALESCE(MAX(dc.checkin_date), '1970-01-01'::DATE) > 10
+        HAVING MAX(dc.checkin_date) IS NOT NULL
+           AND CURRENT_DATE - MAX(dc.checkin_date) > 10
       ) t
     ), '[]'::JSONB)
 
