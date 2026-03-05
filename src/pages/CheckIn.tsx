@@ -40,7 +40,7 @@ function getBRTHour() {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function CheckIn() {
-  const { user, session } = useApp();
+  const { user, session, signOut } = useApp();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const qrToken = searchParams.get('token'); // token vindo do QR scan
@@ -136,9 +136,11 @@ export default function CheckIn() {
 
     setStep('sending');
 
-    // Usa a sessão do contexto; se estiver vazia, tenta renovar
-    // (AppContext agora ignora TOKEN_REFRESHED para não disparar setLoading → blink)
-    let accessToken = session?.access_token;
+    // Verifica se o token existe e não está expirado (expires_at em segundos Unix)
+    // Se expirado ou ausente, renova — TOKEN_REFRESHED agora é seguro (AppContext o ignora)
+    const now = Math.floor(Date.now() / 1000);
+    const tokenExpired = !session?.access_token || (session.expires_at != null && session.expires_at < now + 30);
+    let accessToken: string | null = tokenExpired ? null : (session!.access_token);
     if (!accessToken) {
       const { data } = await supabase.auth.refreshSession();
       accessToken = data.session?.access_token ?? null;
@@ -369,7 +371,7 @@ export default function CheckIn() {
                 Sua sessão venceu. Faça login novamente para continuar.
               </p>
               <button
-                onClick={async () => { await supabase.auth.signOut(); navigate('/login'); }}
+                onClick={async () => { await signOut(); navigate('/login'); }}
                 className="w-full py-2 rounded-full bg-amber-500 text-white text-sm font-semibold"
               >
                 Ir para Login
