@@ -424,7 +424,7 @@ export default function CheckIn() {
           <div className="space-y-2.5 pt-2">
             {[
               { icon: Clock,    label: 'Horário de check-in', value: '08:00 – 14:00' },
-              { icon: MapPin,   label: 'Raio permitido',      value: '100m da imobiliária' },
+              { icon: MapPin,   label: 'Raio permitido',      value: '50m da imobiliária' },
               { icon: Users,    label: 'Distribuição ativa',  value: '08:00 – 22:00, Round-Robin' },
             ].map(({ icon: Icon, label, value }) => (
               <div key={label} className="flex items-center gap-3 bg-card-bg rounded-xl p-4 border border-surface-100">
