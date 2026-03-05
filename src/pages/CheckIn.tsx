@@ -69,35 +69,54 @@ export default function CheckIn() {
 
   useEffect(() => { fetchQueue(); }, [fetchQueue]);
 
-  // ── Check-in via QR: auto-inicia se tiver token na URL ───────────────────
-  // O usuário chegou pelo QR scan — inicia automaticamente após 1s
-  useEffect(() => {
-    if (qrToken && step === 'idle' && isOpen) {
-      const t = setTimeout(() => submitCheckin(qrToken), 800);
-      return () => clearTimeout(t);
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [qrToken, isOpen]);
+  // ── Check-in via QR ───────────────────────────────────────────────────────
+  // iOS Safari bloqueia getCurrentPosition se não for disparado por gesto do usuário.
+  // Por isso NÃO auto-submitamos: apenas mostramos o banner de confirmação e o botão.
+  // O usuário toca no botão → dispara o gesto → iOS permite a solicitação de GPS.
+  // (o useEffect anterior que fazia auto-submit foi removido intencionalmente)
 
   // ── Lógica de check-in ────────────────────────────────────────────────────
   async function submitCheckin(token?: string) {
     setStep('locating');
     setResult(null);
 
-    const pos = await new Promise<GeolocationPosition | null>(resolve => {
+    // iOS Safari: separar o tipo do erro para dar mensagem específica.
+    // maximumAge: 30s permite usar posição em cache → GPS não precisa "aquecer" do zero.
+    // timeout: 20s para cobrir ambientes internos onde o sinal demora.
+    type GeoResult = GeolocationPosition | GeolocationPositionError | null;
+    const geoResult = await new Promise<GeoResult>(resolve => {
       if (!navigator.geolocation) { resolve(null); return; }
       navigator.geolocation.getCurrentPosition(
-        resolve,
-        () => resolve(null),
-        { enableHighAccuracy: true, timeout: 10_000 },
+        pos => resolve(pos),
+        err => resolve(err),
+        { enableHighAccuracy: true, timeout: 20_000, maximumAge: 30_000 },
       );
     });
 
-    if (!pos) {
+    // Determina se é erro ou posição válida
+    const isError = !geoResult || 'code' in geoResult;
+    if (isError) {
+      const code = (geoResult as GeolocationPositionError | null)?.code ?? 0;
+      let msg: string;
+      if (code === 1) {
+        // PERMISSION_DENIED — GPS ativo no sistema mas bloqueado para este site
+        msg = 'Localização bloqueada para este site. No iPhone: Ajustes > Safari > Localização > "Perguntar" ou "Permitir". Depois recarregue a página e tente novamente.';
+      } else if (code === 2) {
+        // POSITION_UNAVAILABLE
+        msg = 'Sinal de GPS indisponível. Tente ao ar livre ou próximo a uma janela.';
+      } else if (code === 3) {
+        // TIMEOUT
+        msg = 'GPS demorou para responder. Certifique-se de estar ao ar livre e tente novamente.';
+      } else {
+        // navigator.geolocation não existe (navegador muito antigo)
+        msg = 'Seu navegador não suporta localização GPS. Use o Safari ou Chrome atualizado.';
+      }
       setStep('error');
-      setResult({ message: 'Não foi possível obter sua localização. Ative o GPS e tente novamente.' });
+      setResult({ message: msg });
       return;
     }
+
+    const pos = geoResult as GeolocationPosition;
 
     setStep('sending');
 
@@ -196,7 +215,7 @@ export default function CheckIn() {
               <div>
                 <p className="text-sm font-semibold text-gold-600 dark:text-gold-400">QR Code escaneado</p>
                 <p className="text-xs text-gold-600/70 dark:text-gold-400/70">
-                  {isLoading ? 'Validando sua localização...' : 'Toque no botão abaixo para confirmar'}
+                  {isLoading ? 'Validando sua localização...' : 'Toque no botão abaixo para liberar o GPS e confirmar'}
                 </p>
               </div>
             </motion.div>
