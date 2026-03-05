@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   QrCode, MapPin, CheckCircle, AlertCircle,
@@ -41,6 +41,7 @@ function getBRTHour() {
 
 export default function CheckIn() {
   const { user } = useApp();
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const qrToken = searchParams.get('token'); // token vindo do QR scan
 
@@ -112,7 +113,7 @@ export default function CheckIn() {
       if (code === 1) {
         // PERMISSION_DENIED — cada plataforma tem um caminho diferente
         if (isIOS) {
-          msg = 'Permissão de localização negada no Safari. FECHE esta aba e abra o link novamente. Se já fez isso, vá em: Ajustes > Privacidade > Serviços de Localização > Safari Sites > "Ao Usar o App". Depois feche e reabra a aba.';
+          msg = 'Permissão negada no Safari. Tente:\n1. Toque no ícone "AA" (ou cadeado) na barra de endereço > "Ajustes do site" > Localização > Permitir.\n2. Se não aparecer essa opção: Ajustes > Safari > Avançado > Dados de Sites > apague o site kaizen-axis > abra de novo.\n3. Verifique também: Ajustes > Privacidade > Serviços de Localização > Sites do Safari > "Ao Usar o App".';
         } else if (isAndroid) {
           msg = 'Permissão de localização negada. Toque no ícone de cadeado 🔒 na barra de endereço > Permissões > Localização > Permitir. Depois recarregue a página.';
         } else {
@@ -177,6 +178,10 @@ export default function CheckIn() {
         setStep('success');
         setResult({ position: data.position, message: data.message, distance: data.distance });
         fetchQueue();
+      } else if (res.status === 401 || data.message === 'Invalid JWT' || data.message === 'missing authorization header') {
+        // Sessão rejeitada pela função — força novo login
+        await supabase.auth.signOut();
+        navigate('/login');
       } else {
         setStep('error');
         setResult({ message: data.message || 'Erro ao realizar check-in.', distance: data.distance });
