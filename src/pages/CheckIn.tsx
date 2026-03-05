@@ -55,7 +55,7 @@ export default function CheckIn() {
     return () => clearInterval(t);
   }, []);
 
-  const isOpen = brtHour >= 8 && brtHour < 14;
+  const isOpen = true; // DEV_TEST — remover após teste (era: brtHour >= 8 && brtHour < 14)
 
   // ── Fila do dia ───────────────────────────────────────────────────────────
   const fetchQueue = useCallback(async () => {
