@@ -136,13 +136,14 @@ export default function CheckIn() {
 
     setStep('sending');
 
-    // debug: inspecionar sessão antes de invocar
-    const { data: { session: dbgSession } } = await supabase.auth.getSession();
-    const dbgToken = dbgSession?.access_token;
-    const dbgExp   = dbgSession?.expires_at;
+    // Obtém token explicitamente para garantir que functions.invoke() use o JWT correto
+    const { data: { session: freshSession } } = await supabase.auth.getSession();
+    const accessToken = freshSession?.access_token ?? null;
+    const dbgExp      = freshSession?.expires_at;
 
     try {
       const { data, error } = await supabase.functions.invoke('checkin-geo', {
+        headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
         body: {
           latitude:  pos.coords.latitude,
           longitude: pos.coords.longitude,
@@ -158,7 +159,7 @@ export default function CheckIn() {
           const body: any = await (error as any).context?.json().catch(() => ({}));
 
           if (status === 401) {
-            const hasToken = !!dbgToken;
+            const hasToken = !!accessToken;
             const expStr   = dbgExp ? new Date(dbgExp * 1000).toISOString() : 'null';
             setStep('login');
             setResult({ message: `401 · token:${hasToken} · exp:${expStr} · fn:${JSON.stringify(body)}` });
