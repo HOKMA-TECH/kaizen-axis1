@@ -106,16 +106,25 @@ export default function CheckIn() {
     const isError = !geoResult || 'code' in geoResult;
     if (isError) {
       const code = (geoResult as GeolocationPositionError | null)?.code ?? 0;
+      const isIOS     = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+      const isAndroid = /Android/i.test(navigator.userAgent);
       let msg: string;
       if (code === 1) {
-        // PERMISSION_DENIED — mudar a permissão mid-session não tem efeito: precisa recarregar
-        msg = 'Permissão de localização negada. Se já autorizou nas configurações: FECHE esta aba do Safari e abra novamente (a permissão só vale para novas abas). No iPhone: Ajustes > Privacidade > Serviços de Localização > Safari Sites > "Ao Usar o App".';
+        // PERMISSION_DENIED — cada plataforma tem um caminho diferente
+        if (isIOS) {
+          msg = 'Permissão de localização negada no Safari. FECHE esta aba e abra o link novamente. Se já fez isso, vá em: Ajustes > Privacidade > Serviços de Localização > Safari Sites > "Ao Usar o App". Depois feche e reabra a aba.';
+        } else if (isAndroid) {
+          msg = 'Permissão de localização negada. Toque no ícone de cadeado 🔒 na barra de endereço > Permissões > Localização > Permitir. Depois recarregue a página.';
+        } else {
+          // Desktop (Chrome, Edge, Firefox…)
+          msg = 'Permissão de localização bloqueada no navegador. Clique no ícone de cadeado 🔒 à esquerda da barra de endereço, vá em "Permissões do site" (ou "Configurações do site") > Localização > Permitir. Em seguida recarregue a página (F5).';
+        }
       } else if (code === 2) {
-        msg = 'Sinal GPS indisponível. Tente ao ar livre ou próximo a uma janela.';
+        msg = 'Sinal de localização indisponível. No computador, verifique se o Windows tem permissão de localização: Configurações > Privacidade > Localização.';
       } else if (code === 3) {
-        msg = 'GPS demorou para responder. Verifique Ajustes > Privacidade > Serviços de Localização e tente novamente.';
+        msg = 'Localização demorou para responder. Tente novamente ou verifique as permissões do navegador.';
       } else {
-        msg = 'Seu navegador não suporta localização. Use o Safari ou Chrome atualizado.';
+        msg = 'Seu navegador não suporta localização. Use Chrome ou Edge atualizados.';
       }
       setStep('error');
       setResult({ message: msg });
