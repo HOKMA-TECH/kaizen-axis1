@@ -75,6 +75,7 @@ export const KEYWORDS_CREDITO = [
     'RECEBIMENTO PIX',
     'RECEBIMENTO DE PIX',
     'TRANSFERENCIA PIX RECEBIDA',
+    'PIXRECEBIDO',              // Santander / C6 / alguns bancos sem espaço
 
     // TED / DOC
     'TED RECEBIDA',
@@ -148,6 +149,14 @@ export const KEYWORDS_IGNORAR = [
     'TRANSFERENCIA ENTRE CONTAS',
     'MESMA TITULARIDADE',
     'CONTA PROPRIA',
+
+    // PIX enviado (saída — nunca é renda)
+    'PIXENVIADO',
+    'PIX ENVIADO',
+
+    // Correção monetária (reajuste de poupança — não é renda de trabalho)
+    'CORRECAO MONETARIA',
+    'CORR MONETARIA',
 
     // Rendimentos / Aplicações (não são renda de trabalho)
     'RENDIMENTO',

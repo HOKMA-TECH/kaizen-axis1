@@ -126,6 +126,7 @@ function calcularMatch(nome: string, descricao: string, cpf?: string): Resultado
 const KEYWORDS_CREDITO = [
     // PIX
     'PIX RECEBIDO', 'RECEBIMENTO PIX', 'RECEBIMENTO DE PIX', 'TRANSFERENCIA PIX RECEBIDA',
+    'PIXRECEBIDO',                      // Santander / C6 / alguns bancos sem espaço
     'CRED PIX', 'CR PIX',               // Caixa Econômica / Banco do Brasil abreviados
     // TED / DOC
     'TED RECEBIDA', 'TED CREDITO', 'DOC RECEBIDO', 'DOC CREDITO', 'TEV RECEBIDA',
@@ -156,9 +157,13 @@ const KEYWORDS_IGNORAR = [
     'ESTORNO', 'DEVOLUCAO', 'DEVOLUCAO PIX', 'ESTORNO PIX', 'CANCELAMENTO',
     // Autotransferência
     'ENTRE CONTAS', 'TRANSFERENCIA ENTRE CONTAS', 'MESMA TITULARIDADE', 'CONTA PROPRIA',
+    // PIX enviado (saída de dinheiro — nunca é renda)
+    'PIXENVIADO', 'PIX ENVIADO',
     // Rendimentos / Aplicações
     'RENDIMENTO', 'RENDIMENTO POUPANCA', 'RENDIMENTO CDB', 'RESGATE', 'RESGATE CDB',
     'RESGATE POUPANCA', 'RESGATE FUNDO', 'APLICACAO', 'APLICACAO AUTOMATICA', 'POUPANCA', 'CDB', 'CDI', 'IOF',
+    // Correção monetária (reajuste de poupança/investimento — não é renda de trabalho)
+    'CORRECAO MONETARIA', 'CORR MONETARIA',
     // Empréstimos
     'EMPRESTIMO', 'ANTECIPACAO', 'CREDITO CONSIGNADO', 'LIBERACAO EMPRESTIMO',
     // Tarifas / Saldo
