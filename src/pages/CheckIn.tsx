@@ -141,6 +141,9 @@ export default function CheckIn() {
     const accessToken = freshSession?.access_token ?? null;
     const dbgExp      = freshSession?.expires_at;
 
+    const abortCtrl = new AbortController();
+    const timeoutId = setTimeout(() => abortCtrl.abort(), 20_000);
+
     try {
       const { data, error } = await supabase.functions.invoke('checkin-geo', {
         headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
@@ -150,7 +153,9 @@ export default function CheckIn() {
           accuracy:  pos.coords.accuracy,
           ...(token ? { qrToken: token } : {}),
         },
+        signal: abortCtrl.signal,
       });
+      clearTimeout(timeoutId);
 
       if (error) {
         if (error.name === 'FunctionsHttpError') {
@@ -187,9 +192,11 @@ export default function CheckIn() {
       setStep('success');
       setResult({ position: data.position, message: data.message, distance: data.distance });
       fetchQueue();
-    } catch {
+    } catch (err: unknown) {
+      clearTimeout(timeoutId);
+      const isAbort = err instanceof Error && err.name === 'AbortError';
       setStep('error');
-      setResult({ message: 'Erro inesperado. Tente novamente.' });
+      setResult({ message: isAbort ? 'Servidor demorou demais. Tente novamente.' : 'Erro inesperado. Tente novamente.' });
     }
   }
 
@@ -319,12 +326,12 @@ export default function CheckIn() {
                 exit={{ opacity: 0, y: -8 }}
                 className={cn(
                   'w-full max-w-xs rounded-2xl p-4 text-center border',
-                  alreadyDone || step === 'success'
+                  alreadyDone
                     ? 'bg-green-50 dark:bg-green-900/20 border-green-100 dark:border-green-800'
                     : 'bg-red-50 dark:bg-red-900/20 border-red-100 dark:border-red-800',
                 )}
               >
-                {(alreadyDone || step === 'success') && displayPosition && (
+                {(alreadyDone) && displayPosition && (
                   <>
                     <p className="text-4xl font-bold text-green-600 dark:text-green-400">
                       #{displayPosition}
@@ -337,7 +344,7 @@ export default function CheckIn() {
                 <p className={cn(
                   'text-sm font-medium',
                   step === 'error' ? 'text-left whitespace-pre-line' : 'text-center',
-                  alreadyDone || step === 'success'
+                  alreadyDone
                     ? 'text-green-700 dark:text-green-400'
                     : 'text-red-700 dark:text-red-400',
                 )}>

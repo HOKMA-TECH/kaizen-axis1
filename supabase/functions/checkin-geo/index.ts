@@ -52,25 +52,44 @@ function json(body: unknown, status = 200) {
   });
 }
 
+// ── Decode JWT payload sem chamada de rede ────────────────────────────────────
+// O platform Supabase já validou a assinatura antes de rotear para cá.
+// Apenas decodificamos o payload para obter o sub (user id) e exp.
+function decodeJWTPayload(token: string): { sub?: string; exp?: number } | null {
+  try {
+    const part = token.split('.')[1];
+    if (!part) return null;
+    const padded = part.replace(/-/g, '+').replace(/_/g, '/');
+    const json   = atob(padded.padEnd(padded.length + (4 - padded.length % 4) % 4, '='));
+    return JSON.parse(json);
+  } catch { return null; }
+}
+
 // ── Handler ───────────────────────────────────────────────────────────────────
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
   if (req.method !== 'POST') return json({ error: 'method_not_allowed' }, 405);
 
-  // ── 1. Autenticação via JWT ───────────────────────────────────────────────
+  // ── 1. Autenticação via JWT (decode local — sem chamada de rede) ──────────
   const authHeader = req.headers.get('Authorization');
   if (!authHeader) return json({ error: 'unauthorized' }, 401);
+
+  const rawToken = authHeader.replace(/^Bearer\s+/i, '');
+  const payload  = decodeJWTPayload(rawToken);
+  if (!payload?.sub) return json({ error: 'unauthorized' }, 401);
+
+  // Verifica expiração (exp é em segundos)
+  if (payload.exp && payload.exp < Math.floor(Date.now() / 1000)) {
+    return json({ error: 'unauthorized' }, 401);
+  }
+
+  const userId = payload.sub;
 
   const supabase = createClient(
     Deno.env.get('SUPABASE_URL')!,
     Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
     { auth: { persistSession: false } },
   );
-
-  const { data: { user }, error: authErr } = await supabase.auth.getUser(
-    authHeader.replace('Bearer ', ''),
-  );
-  if (authErr || !user) return json({ error: 'unauthorized' }, 401);
 
   // ── 2. Body ───────────────────────────────────────────────────────────────
   let body: { latitude: number; longitude: number; accuracy?: number; qrToken?: string };
@@ -130,7 +149,7 @@ Deno.serve(async (req: Request) => {
 
   // ── 8. Inserção atômica via RPC ───────────────────────────────────────────
   const { data, error: rpcErr } = await supabase.rpc('fazer_checkin', {
-    p_user_id:   user.id,
+    p_user_id:   userId,
     p_latitude:  latitude,
     p_longitude: longitude,
   });
