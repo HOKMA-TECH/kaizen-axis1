@@ -19,7 +19,7 @@ interface CheckinRecord {
   profiles: { name: string | null; avatar_url: string | null; role: string | null } | null;
 }
 
-type Step = 'idle' | 'locating' | 'sending' | 'success' | 'error' | 'already';
+type Step = 'idle' | 'locating' | 'sending' | 'success' | 'error' | 'already' | 'login';
 
 interface CheckinResult {
   position?: number;
@@ -136,15 +136,15 @@ export default function CheckIn() {
 
     setStep('sending');
 
-    // Obtém ou renova a sessão antes de chamar a função
-    let { data: { session } } = await supabase.auth.getSession();
+    // Sempre renova o token antes de enviar (access_token expira em 1h)
+    const { data: refreshed } = await supabase.auth.refreshSession();
+    let session = refreshed.session;
+    // Fallback: usa sessão existente se o refresh falhar por outro motivo
     if (!session) {
-      const { data: refreshed } = await supabase.auth.refreshSession();
-      session = refreshed.session;
+      session = (await supabase.auth.getSession()).data.session;
     }
     if (!session?.access_token) {
-      setStep('error');
-      setResult({ message: 'Sessão expirada. Faça login novamente.' });
+      setStep('login');
       return;
     }
 
@@ -179,9 +179,7 @@ export default function CheckIn() {
         setResult({ position: data.position, message: data.message, distance: data.distance });
         fetchQueue();
       } else if (res.status === 401 || data.message === 'Invalid JWT' || data.message === 'missing authorization header') {
-        // Sessão rejeitada pela função — força novo login
-        await supabase.auth.signOut();
-        navigate('/login');
+        setStep('login');
       } else {
         setStep('error');
         setResult({ message: data.message || 'Erro ao realizar check-in.', distance: data.distance });
@@ -356,6 +354,28 @@ export default function CheckIn() {
               </motion.div>
             )}
           </AnimatePresence>
+
+          {/* Sessão expirada — mostra card com botão de login */}
+          {step === 'login' && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="w-full max-w-xs rounded-2xl p-5 text-center border bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800 space-y-3"
+            >
+              <p className="text-sm font-semibold text-amber-700 dark:text-amber-400">
+                Sessão expirada
+              </p>
+              <p className="text-xs text-amber-600/80 dark:text-amber-400/70">
+                Sua sessão venceu. Faça login novamente para continuar.
+              </p>
+              <button
+                onClick={async () => { await supabase.auth.signOut(); navigate('/login'); }}
+                className="w-full py-2 rounded-full bg-amber-500 text-white text-sm font-semibold"
+              >
+                Ir para Login
+              </button>
+            </motion.div>
+          )}
         </div>
 
         {/* ── Fila do dia ───────────────────────────────────────────────── */}
