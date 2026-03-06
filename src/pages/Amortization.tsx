@@ -1,392 +1,167 @@
 import { useState, useMemo } from 'react';
 import { SectionHeader, PremiumCard } from '@/components/ui/PremiumComponents';
-import {
-  DollarSign, User, Percent, Clock, TrendingDown,
-  ChevronDown, ChevronUp, Printer, AlertTriangle, CheckCircle2, Shield, Home, Calendar,
-} from 'lucide-react';
+import { DollarSign, Percent, Clock, TrendingDown, AlertTriangle, CheckCircle2 } from 'lucide-react';
 
-/* ─── CONSTANTES ─────────────────────────────────────── */
-const MIP_TABLE = [
-  { maxAge: 30, rate: 0.0000850  },
-  { maxAge: 40, rate: 0.0001124  },
-  { maxAge: 50, rate: 0.0002020  },
-  { maxAge: 55, rate: 0.0003990  },
-  { maxAge: 60, rate: 0.0006420  },
-  { maxAge: 65, rate: 0.0008560  },
-  { maxAge: Infinity, rate: 0.0012620 },
-] as const;
+const AZUL    = '#005CA9';
+const AZUL_BG = '#EBF4FF';
+const LARANJA = '#F47920';
+const LAR_BG  = '#FFF4EC';
 
-const DFI_RATE  = 0.0000890;
-const MESES_PT  = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
-const AZUL      = '#005CA9';
-const AZUL_ESC  = '#003D6E';
-const LARANJA   = '#F47920';
-
-/* ─── TIPOS ─────────────────────────────────────────── */
-interface Row {
-  k: number; mes: number; ano: number;
-  sd_ini: number; amort: number; juros: number;
-  pmt: number; mip: number; dfi: number;
-  total: number; sd_fim: number;
-}
-interface ExtraResult {
-  SD_M: number; SD_novo: number; restantes: number;
-  novos_meses: number; parcelas_econ: number; anos_econ: number; economia_A: number;
-  nova_PMT: number; reducao: number; economia_B: number;
-}
-interface CalcResult {
-  i: number; PMT: number; schedule: Row[];
-  totalJuros: number; totalMIP: number; totalDFI: number; totalPago: number;
-  row1: Row; extra: ExtraResult | null; parcelaTotalHoje: number;
-}
-
-/* ─── FUNÇÕES PURAS ─────────────────────────────────── */
+/* ─── formatação ─── */
 const fmtBRL = (v: number) =>
   v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
 function parseCurrency(s: string): number {
-  const v = parseFloat(s.replace(/\./g, '').replace(',', '.'));
-  return isNaN(v) ? 0 : v;
+  const n = parseFloat(s.replace(/\./g, '').replace(',', '.'));
+  return isNaN(n) ? 0 : n;
 }
 
-function aliquotaMIP(age: number): number {
-  for (const b of MIP_TABLE) if (age <= b.maxAge) return b.rate;
-  return MIP_TABLE[MIP_TABLE.length - 1].rate;
-}
-
-function calcIdade(nascStr: string, refMes: number, refAno: number): number {
-  const p = nascStr.split('/');
-  if (p.length !== 3 || p[2].length < 4) return 35;
-  const nm = parseInt(p[1]), ny = parseInt(p[2]);
-  if (isNaN(nm) || isNaN(ny)) return 35;
-  let a = refAno - ny;
-  if (nm > refMes) a--;
-  return Math.max(0, a);
-}
-
-function getMesAno(mes1: number, ano1: number, k: number) {
-  const off = (mes1 - 1) + (k - 1);
-  return { mes: (off % 12) + 1, ano: ano1 + Math.floor(off / 12) };
-}
-
-/** SD_k = PV · [(1+i)^n − (1+i)^k] / [(1+i)^n − 1] */
-function saldoK(PV: number, i: number, n: number, k: number): number {
-  const fn = Math.pow(1 + i, n);
-  return PV * (fn - Math.pow(1 + i, k)) / (fn - 1);
-}
-
-function buildSchedule(PV: number, i: number, n: number, PMT: number,
-  nasc: string, mes1: number, ano1: number): Row[] {
-  const rows: Row[] = [];
-  let SD = PV;
-  for (let k = 1; k <= n; k++) {
-    const sd_ini = SD;
-    const juros  = sd_ini * i;
-    const amort  = PMT - juros;
-    const sd_fim = Math.max(0, sd_ini - amort);
-    const { mes, ano } = getMesAno(mes1, ano1, k);
-    const mip = sd_ini * aliquotaMIP(calcIdade(nasc, mes, ano));
-    const dfi = sd_ini * DFI_RATE;
-    rows.push({ k, mes, ano, sd_ini, amort, juros, pmt: PMT, mip, dfi, total: PMT + mip + dfi, sd_fim });
-    if (sd_fim < 0.01) break;
-    SD = sd_fim;
-  }
-  return rows;
-}
-
-/* ─── MÁSCARAS ─────────────────────────────────────── */
-function maskCurrency(e: React.ChangeEvent<HTMLInputElement>, setter: (v: string) => void) {
+function maskCurrency(e: React.ChangeEvent<HTMLInputElement>, set: (v: string) => void) {
   const raw = e.target.value.replace(/\D/g, '');
-  if (!raw) { setter(''); return; }
-  setter((parseInt(raw, 10) / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
-}
-function maskDate(e: React.ChangeEvent<HTMLInputElement>, setter: (v: string) => void) {
-  let v = e.target.value.replace(/\D/g, '');
-  if (v.length > 2) v = v.slice(0, 2) + '/' + v.slice(2);
-  if (v.length > 5) v = v.slice(0, 5) + '/' + v.slice(5, 9);
-  setter(v);
-}
-function maskMonthYear(e: React.ChangeEvent<HTMLInputElement>, setter: (v: string) => void) {
-  let v = e.target.value.replace(/\D/g, '');
-  if (v.length > 2) v = v.slice(0, 2) + '/' + v.slice(2, 6);
-  setter(v);
+  if (!raw) { set(''); return; }
+  set((parseInt(raw, 10) / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
 }
 
-/* ─── MetricCard ────────────────────────────────────── */
-function MCard({ label, value, sub, color }: {
-  label: string; value: string; sub?: string; color?: 'blue' | 'red' | 'orange' | 'green';
-}) {
-  const map = {
-    blue:   { bg: '#EBF4FF', border: AZUL,      val: AZUL_ESC  },
-    red:    { bg: '#FEF2F2', border: '#B02A37', val: '#B02A37' },
-    orange: { bg: '#FFF4EC', border: LARANJA,   val: '#7C3100' },
-    green:  { bg: '#ECFDF5', border: '#1B6B3A', val: '#1B6B3A' },
-  };
-  const s = color ? map[color] : { bg: '#F9FAFB', border: '#D1D5DB', val: '#1F2937' };
+/* ─── subcomponente linha de resultado ─── */
+function Row({ label, value, sub, bold }: { label: string; value: string; sub?: string; bold?: boolean }) {
   return (
-    <div className="rounded-xl p-3 border" style={{ background: s.bg, borderColor: s.border }}>
-      <p className="text-xs text-text-secondary mb-1 uppercase tracking-wide font-semibold">{label}</p>
-      <p className="text-sm font-bold" style={{ color: s.val }}>{value}</p>
-      {sub && <p className="text-xs text-text-secondary mt-0.5">{sub}</p>}
+    <div className="flex items-center justify-between py-2.5 border-b border-surface-100 last:border-0">
+      <span className="text-sm text-text-secondary">{label}</span>
+      <div className="text-right">
+        <span className={`text-sm ${bold ? 'font-bold text-text-primary' : 'font-semibold text-text-primary'}`}>{value}</span>
+        {sub && <p className="text-xs text-text-secondary">{sub}</p>}
+      </div>
     </div>
   );
 }
 
-/* ─── COMPONENTE PRINCIPAL ──────────────────────────── */
 export default function Amortization() {
-  const [aval,   setAval]   = useState('');
-  const [compra, setCompra] = useState('');
-  const [fin,    setFin]    = useState('');
-  const [sub,    setSub]    = useState('');
-  const [renda,  setRenda]  = useState('');
-  const [nasc,   setNasc]   = useState('');
-  const [inicio, setInicio] = useState('');
-  const [taxa,   setTaxa]   = useState('5,00');
-  const [prazo,  setPrazo]  = useState('420');
-  const [exMes,  setExMes]  = useState('');
-  const [exVal,  setExVal]  = useState('');
+  const [fin,   setFin]   = useState('');
+  const [taxa,  setTaxa]  = useState('');
+  const [prazo, setPrazo] = useState('');
+  const [renda, setRenda] = useState('');
+  const [extra, setExtra] = useState('');
+  const [erro,  setErro]  = useState('');
 
-  const [result,    setResult]    = useState<CalcResult | null>(null);
-  const [showTable, setShowTable] = useState(false);
-  const [erro,      setErro]      = useState('');
+  const [result, setResult] = useState<{
+    parcela: number; amortizacao: number; juros: number; pctJuros: number;
+    totalJuros: number; totalPago: number;
+    eliminadas: number; tempoMeses: number; tempoAnos: number;
+    jurosEconomizados: number; valorUtilizado: number; valorSobra: number;
+  } | null>(null);
 
-  const avalNum   = useMemo(() => parseCurrency(aval),   [aval]);
-  const compraNum = useMemo(() => parseCurrency(compra), [compra]);
-  const finNum    = useMemo(() => parseCurrency(fin),    [fin]);
-  const subNum    = useMemo(() => parseCurrency(sub),    [sub]);
-  const rendaNum  = useMemo(() => parseCurrency(renda),  [renda]);
-  const exValNum  = useMemo(() => parseCurrency(exVal),  [exVal]);
-  const exMesNum  = useMemo(() => parseInt(exMes) || 0,  [exMes]);
-  const taxaNum   = useMemo(() => parseFloat(taxa.replace(',', '.')) || 0, [taxa]);
-  const nNum      = useMemo(() => Math.max(12, Math.min(420, parseInt(prazo) || 420)), [prazo]);
-
-  const valorBase = useMemo(() => {
-    if (avalNum > 0 && compraNum > 0) return Math.min(avalNum, compraNum);
-    return avalNum || compraNum || 0;
-  }, [avalNum, compraNum]);
-
-  const recursosProprios = useMemo(() =>
-    Math.max(0, valorBase - finNum - subNum), [valorBase, finNum, subNum]);
-
-  const parcelaMaxima = useMemo(() => rendaNum * 0.3, [rendaNum]);
-
-  const startParsed = useMemo(() => {
-    const p = inicio.split('/');
-    if (p.length !== 2 || p[1].length < 4) return null;
-    const mes = parseInt(p[0]), ano = parseInt(p[1]);
-    if (isNaN(mes) || isNaN(ano) || mes < 1 || mes > 12) return null;
-    return { mes, ano };
-  }, [inicio]);
+  const finNum   = useMemo(() => parseCurrency(fin),   [fin]);
+  const rendaNum = useMemo(() => parseCurrency(renda), [renda]);
+  const extraNum = useMemo(() => parseCurrency(extra), [extra]);
+  const prazoNum = useMemo(() => parseInt(prazo) || 0, [prazo]);
 
   function calcular() {
     setErro('');
-    if (finNum < 1000) { setErro('Preencha o valor do financiamento.'); return; }
-    if (taxaNum <= 0)  { setErro('Taxa inválida.'); return; }
+    if (finNum   < 1)  { setErro('Informe o valor do financiamento.'); return; }
+    if (prazoNum < 1)  { setErro('Informe o prazo em meses.'); return; }
+    if (rendaNum < 1)  { setErro('Informe a renda bruta mensal.'); return; }
 
-    const PV  = finNum;
-    const i   = taxaNum / 12 / 100;                    // taxa proporcional Caixa
-    const fn  = Math.pow(1 + i, nNum);
-    const PMT = PV * (i * fn) / (fn - 1);
+    const parcela     = rendaNum * 0.30;
+    const amortizacao = finNum / prazoNum;
+    const juros       = parcela - amortizacao;
+    const pctJuros    = (juros / parcela) * 100;
+    const totalJuros  = juros * prazoNum;
+    const totalPago   = parcela * prazoNum;
 
-    const mes1  = startParsed?.mes || new Date().getMonth() + 2;
-    const ano1  = startParsed?.ano || new Date().getFullYear();
-    const nascS = nasc.length === 10 ? nasc : '01/01/1990';
-
-    const schedule     = buildSchedule(PV, i, nNum, PMT, nascS, mes1 > 12 ? 1 : mes1, ano1);
-    const totalJuros   = schedule.reduce((s, r) => s + r.juros, 0);
-    const totalMIP     = schedule.reduce((s, r) => s + r.mip,   0);
-    const totalDFI     = schedule.reduce((s, r) => s + r.dfi,   0);
-    const totalPago    = PMT * schedule.length;
-    const row1         = schedule[0];
-
-    let parcelaTotalHoje = row1.total;
-    const hoje  = new Date();
-    const kHoje = (hoje.getFullYear() - ano1) * 12 + (hoje.getMonth() + 1 - mes1) + 1;
-    if (kHoje >= 1 && kHoje <= schedule.length) parcelaTotalHoje = schedule[kHoje - 1].total;
-
-    let extra: ExtraResult | null = null;
-    if (exMesNum >= 1 && exMesNum < nNum && exValNum > 0) {
-      const SD_M      = saldoK(PV, i, nNum, exMesNum);
-      const SD_novo   = Math.max(0, SD_M - exValNum);
-      const restantes = nNum - exMesNum;
-      if (SD_novo > 1) {
-        const novos_meses   = Math.ceil(Math.log(PMT / (PMT - SD_novo * i)) / Math.log(1 + i));
-        const parcelas_econ = restantes - novos_meses;
-        const anos_econ     = parcelas_econ / 12;
-        const economia_A    = PMT * restantes - PMT * novos_meses;
-        const fB            = Math.pow(1 + i, restantes);
-        const nova_PMT      = SD_novo * (i * fB) / (fB - 1);
-        const reducao       = PMT - nova_PMT;
-        const economia_B    = PMT * restantes - nova_PMT * restantes;
-        extra = { SD_M, SD_novo, restantes, novos_meses, parcelas_econ, anos_econ, economia_A, nova_PMT, reducao, economia_B };
-      }
+    let eliminadas = 0, valorUtilizado = 0, valorSobra = 0, jurosEconomizados = 0;
+    if (extraNum > 0 && amortizacao > 0) {
+      eliminadas       = Math.floor(extraNum / amortizacao);
+      valorUtilizado   = eliminadas * amortizacao;
+      valorSobra       = extraNum - valorUtilizado;
+      jurosEconomizados = eliminadas * juros;
     }
 
-    setResult({ i, PMT, schedule, totalJuros, totalMIP, totalDFI, totalPago, row1, extra, parcelaTotalHoje });
-    setTimeout(() => document.getElementById('amort-resultado')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
+    setResult({
+      parcela, amortizacao, juros, pctJuros,
+      totalJuros, totalPago,
+      eliminadas, tempoMeses: eliminadas, tempoAnos: eliminadas / 12,
+      jurosEconomizados, valorUtilizado, valorSobra,
+    });
+
+    setTimeout(() =>
+      document.getElementById('resultado-amort')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
   }
 
-  const ic = "w-full p-3 rounded-xl border border-surface-200 bg-surface-50 dark:bg-surface-100 text-text-primary text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 transition-all";
+  const ic = "w-full p-3 rounded-xl border border-surface-200 bg-surface-50 text-text-primary text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 transition-all";
   const lb = "text-xs font-semibold text-text-secondary uppercase tracking-wide mb-1 flex items-center gap-1.5";
 
   return (
     <div className="p-4 md:p-6 pb-28 min-h-screen bg-surface-50">
       <SectionHeader
-        title="Calculadora de Amortização"
-        subtitle="Sistema PRICE · Minha Casa Minha Vida · Caixa Econômica Federal"
+        title="Simulador PRICE"
+        subtitle="Calculadora FGTS · Caixa Econômica Federal"
       />
 
       {/* Badge CEF */}
       <div className="rounded-xl p-3 border flex items-center gap-3 mb-5"
-        style={{ background: '#EBF4FF', borderColor: AZUL }}>
+        style={{ background: AZUL_BG, borderColor: AZUL }}>
         <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white text-xs font-black flex-shrink-0"
           style={{ background: AZUL }}>CEF</div>
         <div>
-          <p className="text-sm font-bold" style={{ color: AZUL_ESC }}>Sistema PRICE FGTS</p>
-          <p className="text-xs text-text-secondary">Taxa proporcional i = taxa ÷ 12 ÷ 100 · Parcela (a+j) fixa · MIP e DFI por faixa etária</p>
+          <p className="text-sm font-bold" style={{ color: AZUL }}>Sistema PRICE FGTS</p>
+          <p className="text-xs text-text-secondary">Parcela = 30% da renda · Amortização = Financiamento ÷ Prazo</p>
         </div>
       </div>
 
       <div className="space-y-4">
-
-        {/* ── Seção 1: Imóvel ── */}
-        <PremiumCard className="p-4 space-y-3">
-          <h3 className="font-bold text-sm flex items-center gap-2" style={{ color: AZUL }}>
-            <Home size={15} /> Dados do Imóvel
-          </h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label className={lb}><DollarSign size={12} /> Valor de Avaliação (R$)</label>
-              <input className={ic} value={aval} inputMode="numeric"
-                onChange={e => maskCurrency(e, setAval)} placeholder="176.000,00" />
-            </div>
-            <div>
-              <label className={lb}><DollarSign size={12} /> Valor de Compra/Venda (R$)</label>
-              <input className={ic} value={compra} inputMode="numeric"
-                onChange={e => maskCurrency(e, setCompra)} placeholder="161.000,00" />
-            </div>
-          </div>
-          {valorBase > 0 && (
-            <div className="text-xs rounded-lg px-3 py-2" style={{ background: '#EBF4FF', color: AZUL_ESC }}>
-              Valor base (Caixa usa o menor): <strong>{fmtBRL(valorBase)}</strong>
-              {avalNum > 0 && compraNum > 0 && (
-                <span className="ml-1 text-gray-500">
-                  ← {valorBase === compraNum ? 'compra/venda' : 'avaliação'}
-                </span>
-              )}
-            </div>
-          )}
-        </PremiumCard>
-
-        {/* ── Seção 2: Financiamento ── */}
+        {/* ── Dados ── */}
         <PremiumCard className="p-4 space-y-3">
           <h3 className="font-bold text-sm flex items-center gap-2" style={{ color: AZUL }}>
             <DollarSign size={15} /> Dados do Financiamento
           </h3>
+
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className={lb}><DollarSign size={12} /> Valor Financiado (R$)</label>
+              <label className={lb}><DollarSign size={12} /> Valor do Financiamento (R$)</label>
               <input className={ic} value={fin} inputMode="numeric"
                 onChange={e => maskCurrency(e, setFin)} placeholder="136.252,47" />
             </div>
             <div>
-              <label className={lb}><DollarSign size={12} /> Subsídio do Governo (R$)</label>
-              <input className={ic} value={sub} inputMode="numeric"
-                onChange={e => maskCurrency(e, setSub)} placeholder="19.800,00" />
-              <p className="text-xs text-text-secondary mt-0.5">Informativo — não altera o PMT</p>
-            </div>
-          </div>
-          {(finNum > 0 || subNum > 0) && valorBase > 0 && (
-            <div className="text-xs rounded-lg px-3 py-2" style={{ background: '#EBF4FF', color: AZUL_ESC }}>
-              Recursos próprios: <strong>{fmtBRL(recursosProprios)}</strong>
-              <span className="text-gray-500 ml-1">
-                ({fmtBRL(valorBase)} − {fmtBRL(finNum)}{subNum > 0 ? ` − ${fmtBRL(subNum)}` : ''})
-              </span>
-            </div>
-          )}
-        </PremiumCard>
-
-        {/* ── Seção 3: Cliente ── */}
-        <PremiumCard className="p-4 space-y-3">
-          <h3 className="font-bold text-sm flex items-center gap-2" style={{ color: AZUL }}>
-            <User size={15} /> Dados do Cliente
-          </h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label className={lb}><DollarSign size={12} /> Renda Bruta Mensal (R$)</label>
-              <input className={ic} value={renda} inputMode="numeric"
-                onChange={e => maskCurrency(e, setRenda)} placeholder="5.000,00" />
-              {parcelaMaxima > 0 && (
-                <p className="text-xs text-text-secondary mt-0.5">
-                  Máximo 30%: <strong>{fmtBRL(parcelaMaxima)}</strong>
-                </p>
-              )}
-            </div>
-            <div>
-              <label className={lb}><User size={12} /> Data de Nascimento</label>
-              <input className={ic} value={nasc} inputMode="numeric" maxLength={10}
-                onChange={e => maskDate(e, setNasc)} placeholder="dd/mm/aaaa" />
-              {nasc.length === 10 && (
-                <p className="text-xs text-text-secondary mt-0.5">
-                  MIP hoje: {(aliquotaMIP(calcIdade(nasc, new Date().getMonth()+1, new Date().getFullYear())) * 100).toFixed(5)}%/mês
-                </p>
-              )}
-            </div>
-          </div>
-        </PremiumCard>
-
-        {/* ── Seção 4: Contrato ── */}
-        <PremiumCard className="p-4 space-y-3">
-          <h3 className="font-bold text-sm flex items-center gap-2" style={{ color: AZUL }}>
-            <Clock size={15} /> Dados do Contrato
-          </h3>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-            <div>
               <label className={lb}><Percent size={12} /> Taxa Nominal (% a.a.)</label>
               <input className={ic} value={taxa} inputMode="decimal"
                 onChange={e => setTaxa(e.target.value)} placeholder="5,00" />
-              {taxaNum > 0 && (
+            </div>
+            <div>
+              <label className={lb}><Clock size={12} /> Prazo (meses)</label>
+              <input className={ic} value={prazo} type="number" min={1} max={420}
+                onChange={e => setPrazo(e.target.value)} placeholder="420" />
+              {prazoNum > 0 && (
                 <p className="text-xs text-text-secondary mt-0.5">
-                  i = {(taxaNum / 12 / 100 * 100).toFixed(6)}%/mês
+                  {Math.floor(prazoNum / 12)} anos{prazoNum % 12 ? ` e ${prazoNum % 12} meses` : ''}
                 </p>
               )}
             </div>
             <div>
-              <label className={lb}><Clock size={12} /> Prazo (meses)</label>
-              <input className={ic} value={prazo} type="number" min={12} max={420}
-                onChange={e => setPrazo(e.target.value)} />
-              <p className="text-xs text-text-secondary mt-0.5">
-                {nNum} meses = {Math.floor(nNum/12)} anos{nNum%12 ? ` e ${nNum%12} meses` : ''}
-              </p>
-            </div>
-            <div className="col-span-2 sm:col-span-1">
-              <label className={lb}><Calendar size={12} /> 1ª Parcela (mm/aaaa)</label>
-              <input className={ic} value={inicio} inputMode="numeric" maxLength={7}
-                onChange={e => maskMonthYear(e, setInicio)} placeholder="mm/aaaa" />
+              <label className={lb}><DollarSign size={12} /> Renda Bruta Mensal (R$)</label>
+              <input className={ic} value={renda} inputMode="numeric"
+                onChange={e => maskCurrency(e, setRenda)} placeholder="2.550,00" />
+              {rendaNum > 0 && (
+                <p className="text-xs text-text-secondary mt-0.5">
+                  Parcela máx. (30%): <strong>{fmtBRL(rendaNum * 0.3)}</strong>
+                </p>
+              )}
             </div>
           </div>
         </PremiumCard>
 
-        {/* ── Seção 5: Amortização Extra ── */}
+        {/* ── Amortização Extra ── */}
         <PremiumCard className="p-4 space-y-3">
           <h3 className="font-bold text-sm flex items-center gap-2" style={{ color: LARANJA }}>
-            <TrendingDown size={15} /> Amortização Extraordinária
+            <TrendingDown size={15} /> Amortização Extra
             <span className="font-normal text-text-secondary text-xs">(opcional)</span>
           </h3>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className={lb}><Clock size={12} /> Após a parcela nº</label>
-              <input className={ic} value={exMes} type="number" min={1}
-                onChange={e => setExMes(e.target.value)} placeholder="24" />
-            </div>
-            <div>
-              <label className={lb}><DollarSign size={12} /> Valor extra (R$)</label>
-              <input className={ic} value={exVal} inputMode="numeric"
-                onChange={e => maskCurrency(e, setExVal)} placeholder="5.000,00" />
-            </div>
+          <div>
+            <label className={lb}><DollarSign size={12} /> Valor da Amortização Extra (R$)</label>
+            <input className={ic} value={extra} inputMode="numeric"
+              onChange={e => maskCurrency(e, setExtra)} placeholder="1.000,00" />
           </div>
           <p className="text-xs text-text-secondary">
-            Compara: Opção A (reduzir prazo) vs Opção B (reduzir parcela)
+            Cada R$ amortizado extra elimina parcelas inteiras sem pagar juros adicionais.
           </p>
         </PremiumCard>
 
@@ -397,324 +172,148 @@ export default function Amortization() {
             <p className="text-xs text-red-700 font-semibold">{erro}</p>
           </div>
         )}
+
         <button onClick={calcular}
           className="w-full py-4 rounded-xl text-white font-bold text-base transition-all hover:opacity-90 active:scale-95"
           style={{ background: AZUL }}>
-          Simular Financiamento
+          Calcular
         </button>
       </div>
 
       {/* ══════════ RESULTADOS ══════════ */}
       {result && (
-        <div id="amort-resultado" className="mt-6 space-y-5">
+        <div id="resultado-amort" className="mt-6 space-y-4">
 
-          {/* ── Resumo ── */}
+          {/* ── Bloco 1: Resumo ── */}
           <PremiumCard className="p-4">
             <h3 className="font-bold text-sm mb-3 flex items-center gap-2" style={{ color: AZUL }}>
               <CheckCircle2 size={15} /> Resumo do Financiamento
             </h3>
 
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-2 mb-3">
-              {valorBase > 0 && <MCard label="Valor Base" value={fmtBRL(valorBase)} />}
-              {subNum > 0    && <MCard label="Subsídio"   value={fmtBRL(subNum)} sub="informativo" color="orange" />}
-              {valorBase > 0 && <MCard label="Recursos Próprios" value={fmtBRL(recursosProprios)} />}
-              <MCard label="Financiamento (PV)" value={fmtBRL(finNum)} color="blue" />
-
-              {/* PMT destaque */}
-              <div className="rounded-xl p-3 border-2 col-span-2 md:col-span-1"
-                style={{ background: '#EBF4FF', borderColor: AZUL }}>
-                <p className="text-xs font-bold uppercase tracking-wide mb-1" style={{ color: AZUL }}>
-                  Parcela (a+j) — FIXA
-                </p>
-                <p className="text-xl font-black" style={{ color: AZUL_ESC }}>{fmtBRL(result.PMT)}</p>
-                <p className="text-xs text-text-secondary mt-1">
-                  {result.schedule.length} parcelas · i = {(result.i * 100).toFixed(6)}%/mês
-                </p>
-              </div>
-
-              <MCard label="1ª Parcela Total"   value={fmtBRL(result.row1.total)}          sub="PMT + MIP + DFI"
-                color={rendaNum > 0 && result.row1.total > parcelaMaxima ? 'red' : undefined} />
-              <MCard label="Parcela Total Hoje" value={fmtBRL(result.parcelaTotalHoje)}     sub="MIP na idade atual" />
-              <MCard label="Total Juros"        value={fmtBRL(result.totalJuros)}           color="red" />
-              <MCard label="Total Pago (a+j)"   value={fmtBRL(result.totalPago)}            sub={`${result.schedule.length} × PMT`} />
-              <MCard label="Total MIP"          value={fmtBRL(result.totalMIP)}             sub="Seguro vida" />
-              <MCard label="Total DFI"          value={fmtBRL(result.totalDFI)}             sub="Seguro imóvel" />
+            {/* Destaque PMT */}
+            <div className="rounded-xl p-4 border-2 mb-4 text-center"
+              style={{ background: AZUL_BG, borderColor: AZUL }}>
+              <p className="text-xs font-bold uppercase tracking-wide mb-1" style={{ color: AZUL }}>
+                Parcela Mensal (30% da renda)
+              </p>
+              <p className="text-3xl font-black" style={{ color: AZUL }}>{fmtBRL(result.parcela)}</p>
+              <p className="text-xs text-text-secondary mt-1">
+                {fmtBRL(result.amortizacao)} amortização + {fmtBRL(result.juros)} juros
+              </p>
             </div>
 
-            {/* Barra de composição */}
-            {(() => {
-              const r = result.row1, tot = r.total;
-              const pAm = r.amort / tot * 100, pJu = r.juros / tot * 100;
-              const pM  = r.mip   / tot * 100, pD  = r.dfi  / tot * 100;
-              return (
-                <div className="rounded-xl bg-surface-100 border border-surface-200 p-3">
-                  <p className="text-xs font-semibold text-text-secondary mb-2">
-                    Composição da 1ª Parcela — {fmtBRL(tot)}
-                  </p>
-                  <div className="flex rounded-full overflow-hidden h-2.5 mb-2">
-                    <div style={{ width: `${pAm}%`, background: '#1B6B3A' }} />
-                    <div style={{ width: `${pJu}%`, background: '#B02A37' }} />
-                    <div style={{ width: `${pM}%`,  background: AZUL      }} />
-                    <div style={{ width: `${pD}%`,  background: '#7C3AED' }} />
-                  </div>
-                  <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs">
-                    {([
-                      ['#1B6B3A', `Amortização ${pAm.toFixed(1)}%`],
-                      ['#B02A37', `Juros ${pJu.toFixed(1)}%`],
-                      [AZUL,      `MIP ${pM.toFixed(2)}%`],
-                      ['#7C3AED', `DFI ${pD.toFixed(2)}%`],
-                    ] as [string, string][]).map(([c, l]) => (
-                      <span key={l} className="flex items-center gap-1">
-                        <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: c }} />
-                        {l}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              );
-            })()}
-
-            {/* Alerta de renda */}
-            {rendaNum > 0 && (
-              result.row1.total <= parcelaMaxima
-                ? <div className="mt-3 flex items-center gap-2 rounded-xl p-3 bg-green-50 border border-green-200">
-                    <CheckCircle2 size={14} className="text-green-600 flex-shrink-0" />
-                    <p className="text-xs text-green-700 font-semibold">
-                      Renda adequada — parcela total {fmtBRL(result.row1.total)} ≤ 30% da renda ({fmtBRL(parcelaMaxima)})
-                    </p>
-                  </div>
-                : <div className="mt-3 flex items-center gap-2 rounded-xl p-3 bg-red-50 border border-red-200">
-                    <AlertTriangle size={14} className="text-red-500 flex-shrink-0" />
-                    <p className="text-xs text-red-700 font-semibold">
-                      Renda insuficiente — parcela total {fmtBRL(result.row1.total)} &gt; 30% da renda ({fmtBRL(parcelaMaxima)})
-                    </p>
-                  </div>
-            )}
-
-            {/* Tabela MIP */}
-            <details className="mt-3">
-              <summary className="text-xs cursor-pointer font-semibold flex items-center gap-1" style={{ color: AZUL }}>
-                <Shield size={12} /> Tabela MIP/DFI por faixa etária
-              </summary>
-              <div className="mt-2 rounded-xl overflow-hidden border border-surface-200 text-xs">
-                <div className="grid grid-cols-3 text-white font-bold px-3 py-2" style={{ background: AZUL }}>
-                  <span>Faixa</span><span>MIP (%/mês)</span><span>DFI (%/mês)</span>
-                </div>
-                {[
-                  ['≤ 30 anos','0,00850%'],['31–40','0,01124%'],['41–50','0,02020%'],
-                  ['51–55','0,03990%'],['56–60','0,06420%'],['61–65','0,08560%'],['66+','0,12620%'],
-                ].map(([f, m], idx) => (
-                  <div key={f} className={`grid grid-cols-3 px-3 py-1.5 ${idx % 2 === 0 ? 'bg-surface-50' : ''}`}>
-                    <span>{f}</span><span>{m}</span><span>0,00890%</span>
-                  </div>
-                ))}
+            {/* Barra composição */}
+            <div className="rounded-xl bg-surface-100 border border-surface-200 p-3 mb-4">
+              <p className="text-xs font-semibold text-text-secondary mb-2">Composição da parcela</p>
+              <div className="flex rounded-full overflow-hidden h-3 mb-2">
+                <div title="Amortização"
+                  style={{ width: `${(result.amortizacao / result.parcela) * 100}%`, background: '#1B6B3A' }} />
+                <div title="Juros"
+                  style={{ width: `${(result.juros / result.parcela) * 100}%`, background: '#B02A37' }} />
               </div>
-            </details>
+              <div className="flex gap-4 text-xs">
+                <span className="flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 rounded-full" style={{ background: '#1B6B3A' }} />
+                  Amortização {((result.amortizacao / result.parcela) * 100).toFixed(1)}%
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 rounded-full" style={{ background: '#B02A37' }} />
+                  Juros {result.pctJuros.toFixed(1)}%
+                </span>
+              </div>
+            </div>
+
+            {/* Linhas de detalhe */}
+            <div className="divide-y divide-surface-100">
+              <Row label="Financiamento"                value={fmtBRL(finNum)} />
+              <Row label="Parcela mensal (30% da renda)" value={fmtBRL(result.parcela)} bold />
+              <Row label="Amortização real por parcela"  value={fmtBRL(result.amortizacao)}
+                sub={`${((result.amortizacao / result.parcela) * 100).toFixed(1)}% da parcela — abate o saldo`} />
+              <Row label="Juros por parcela"             value={fmtBRL(result.juros)}
+                sub={`${result.pctJuros.toFixed(1)}% da parcela`} />
+              <Row label="Total de juros no contrato"    value={fmtBRL(result.totalJuros)} />
+              <Row label="Total pago no contrato"        value={fmtBRL(result.totalPago)} bold />
+            </div>
           </PremiumCard>
 
-          {/* ── Amortização Extra ── */}
-          {result.extra && (
+          {/* ── Bloco 2: Amortização Extra ── */}
+          {extraNum > 0 && (
             <PremiumCard className="p-4">
-              <h3 className="font-bold text-sm mb-3 flex items-center gap-2" style={{ color: LARANJA }}>
-                <TrendingDown size={15} /> Amortização Extraordinária — Análise
+              <h3 className="font-bold text-sm mb-4 flex items-center gap-2" style={{ color: LARANJA }}>
+                <TrendingDown size={15} /> Resultado da Amortização Extra
               </h3>
 
-              <div className="text-xs rounded-lg px-3 py-2 mb-4 bg-surface-100 border border-surface-200">
-                Parcela <strong>{exMesNum}</strong>
-                {' '}· SD antes: <strong>{fmtBRL(result.extra.SD_M)}</strong>
-                {' '}· Pagamento extra: <strong>{fmtBRL(exValNum)}</strong>
-                {' '}· SD após: <strong>{fmtBRL(result.extra.SD_novo)}</strong>
-                {' '}· Restantes: <strong>{result.extra.restantes}</strong>
+              {/* Valor em destaque */}
+              <div className="rounded-xl p-4 border-2 mb-4 text-center"
+                style={{ background: LAR_BG, borderColor: LARANJA }}>
+                <p className="text-xs font-semibold text-text-secondary mb-1">Amortização extra de</p>
+                <p className="text-2xl font-black" style={{ color: LARANJA }}>{fmtBRL(extraNum)}</p>
               </div>
 
-              {/* Regra de ouro */}
-              <div className="rounded-xl px-3 py-2 mb-4 text-xs font-semibold"
-                style={{ background: '#FFF4EC', borderLeft: `3px solid ${LARANJA}`, color: '#7C3100' }}>
-                Regra de ouro: Opção A sempre economiza mais juros que a Opção B.
-                A escolha depende do objetivo: <strong>menor custo total</strong> (A) ou <strong>liquidez mensal</strong> (B).
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-
-                {/* Opção A */}
-                <div className="rounded-xl p-4 border-2" style={{ background: '#EBF4FF', borderColor: AZUL }}>
-                  <div className="flex items-center gap-2 mb-3">
-                    <div className="w-7 h-7 rounded-full text-white text-xs font-black flex items-center justify-center flex-shrink-0"
-                      style={{ background: AZUL }}>A</div>
-                    <div>
-                      <p className="font-bold text-sm" style={{ color: AZUL_ESC }}>Reduzir o Prazo</p>
-                      <p className="text-xs text-text-secondary">Mantém PMT = {fmtBRL(result.PMT)}</p>
-                    </div>
-                  </div>
-                  <div className="text-center my-3">
-                    <p className="text-xs text-text-secondary">Novas parcelas restantes</p>
-                    <p className="text-4xl font-black" style={{ color: AZUL }}>{result.extra.novos_meses}</p>
-                    <p className="text-sm font-semibold text-text-secondary">de {result.extra.restantes} originais</p>
-                    <div className="flex justify-center flex-wrap gap-2 mt-2">
-                      <span className="bg-white rounded-full px-2.5 py-0.5 text-xs font-bold text-green-700">
-                        ✂️ {result.extra.parcelas_econ} parcelas a menos
-                      </span>
-                      <span className="bg-white rounded-full px-2.5 py-0.5 text-xs font-bold text-green-700">
-                        📅 {result.extra.anos_econ.toFixed(2)} anos a menos
-                      </span>
-                    </div>
-                  </div>
-                  <div className="space-y-1 text-xs">
-                    {([
-                      ['Restantes originais', result.extra.restantes.toString()],
-                      ['Novas restantes',     result.extra.novos_meses.toString()],
-                      ['PMT mantida',         fmtBRL(result.PMT)],
-                    ] as [string,string][]).map(([l, v]) => (
-                      <div key={l} className="flex justify-between py-1 border-b border-blue-100">
-                        <span className="text-text-secondary">{l}</span>
-                        <span className="font-semibold">{v}</span>
-                      </div>
-                    ))}
-                    <div className="flex justify-between py-1 font-bold">
-                      <span className="text-text-secondary">Economia em juros</span>
-                      <span className="text-green-700">{fmtBRL(result.extra.economia_A)}</span>
-                    </div>
-                  </div>
+              {/* Métricas em grid */}
+              <div className="grid grid-cols-2 gap-3 mb-4">
+                {/* Parcelas eliminadas */}
+                <div className="rounded-xl p-4 border text-center"
+                  style={{ background: AZUL_BG, borderColor: AZUL }}>
+                  <p className="text-3xl font-black" style={{ color: AZUL }}>{result.eliminadas}</p>
+                  <p className="text-xs font-semibold mt-1" style={{ color: AZUL }}>✂️ Parcelas eliminadas</p>
                 </div>
 
-                {/* Opção B */}
-                <div className="rounded-xl p-4 border-2" style={{ background: '#FFF4EC', borderColor: LARANJA }}>
-                  <div className="flex items-center gap-2 mb-3">
-                    <div className="w-7 h-7 rounded-full text-white text-xs font-black flex items-center justify-center flex-shrink-0"
-                      style={{ background: LARANJA }}>B</div>
-                    <div>
-                      <p className="font-bold text-sm" style={{ color: '#7C3100' }}>Reduzir a Parcela</p>
-                      <p className="text-xs text-text-secondary">Mantém {result.extra.restantes} meses</p>
-                    </div>
-                  </div>
-                  <div className="text-center my-3">
-                    <p className="text-xs text-text-secondary">Nova parcela base (PMT)</p>
-                    <p className="text-4xl font-black" style={{ color: LARANJA }}>{fmtBRL(result.extra.nova_PMT)}</p>
-                    <p className="text-sm font-semibold text-text-secondary">era {fmtBRL(result.PMT)}</p>
-                    <span className="inline-flex items-center gap-1 bg-white rounded-full px-2.5 py-0.5 text-xs font-bold text-green-700 mt-2">
-                      ↓ {fmtBRL(result.extra.reducao)}/mês de redução
-                    </span>
-                  </div>
-                  <div className="space-y-1 text-xs">
-                    {([
-                      ['PMT atual',      fmtBRL(result.PMT)],
-                      ['Nova PMT',       fmtBRL(result.extra.nova_PMT)],
-                      ['Prazo mantido',  `${result.extra.restantes} meses`],
-                    ] as [string,string][]).map(([l, v]) => (
-                      <div key={l} className="flex justify-between py-1 border-b border-orange-100">
-                        <span className="text-text-secondary">{l}</span>
-                        <span className="font-semibold">{v}</span>
-                      </div>
-                    ))}
-                    <div className="flex justify-between py-1 font-bold">
-                      <span className="text-text-secondary">Economia em juros</span>
-                      <span className="text-green-700">{fmtBRL(result.extra.economia_B)}</span>
-                    </div>
-                  </div>
-                </div>
-
-              </div>
-
-              {/* Comparativo total */}
-              <div className="mt-3 rounded-xl bg-surface-100 border border-surface-200 p-3 text-xs">
-                <p className="font-semibold text-text-secondary mb-2">Comparativo de juros totais</p>
-                <div className="space-y-1">
-                  {([
-                    ['Sem amortização extra',      fmtBRL(result.PMT * result.extra.restantes), ''],
-                    ['Opção A (reduzir prazo)',     fmtBRL(result.PMT * result.extra.novos_meses), fmtBRL(result.extra.economia_A)],
-                    ['Opção B (reduzir parcela)',   fmtBRL(result.extra.nova_PMT * result.extra.restantes), fmtBRL(result.extra.economia_B)],
-                  ] as [string,string,string][]).map(([l, v, e]) => (
-                    <div key={l} className="flex justify-between items-center py-1 border-b border-surface-200">
-                      <span className="text-text-secondary">{l}</span>
-                      <span className="font-semibold">{v}{e && <span className="text-green-700 ml-2">−{e}</span>}</span>
-                    </div>
-                  ))}
+                {/* Juros economizados */}
+                <div className="rounded-xl p-4 border text-center"
+                  style={{ background: '#ECFDF5', borderColor: '#1B6B3A' }}>
+                  <p className="text-xl font-black" style={{ color: '#1B6B3A' }}>{fmtBRL(result.jurosEconomizados)}</p>
+                  <p className="text-xs font-semibold mt-1 text-green-700">💰 Juros economizados</p>
                 </div>
               </div>
+
+              {/* Tempo economizado */}
+              <div className="rounded-xl p-4 border mb-4" style={{ background: LAR_BG, borderColor: LARANJA }}>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-text-secondary">⏳ Tempo economizado</span>
+                  <div className="text-right">
+                    <p className="font-bold" style={{ color: LARANJA }}>
+                      {result.tempoMeses} {result.tempoMeses === 1 ? 'mês' : 'meses'}
+                    </p>
+                    {result.tempoAnos >= 1 && (
+                      <p className="text-xs text-text-secondary">
+                        {result.tempoAnos.toFixed(2)} anos
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Detalhamento do valor */}
+              <div className="rounded-xl bg-surface-100 border border-surface-200 p-3 text-xs space-y-2">
+                <p className="font-semibold text-text-secondary">Detalhamento</p>
+                <div className="flex justify-between">
+                  <span className="text-text-secondary">Parcelas eliminadas × amortização</span>
+                  <span className="font-semibold">{result.eliminadas} × {fmtBRL(result.amortizacao)} = {fmtBRL(result.valorUtilizado)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-text-secondary">Sobra abatida no saldo devedor</span>
+                  <span className="font-semibold">{fmtBRL(result.valorSobra)}</span>
+                </div>
+                <div className="flex justify-between border-t border-surface-200 pt-2">
+                  <span className="text-text-secondary">Juros economizados ({result.eliminadas} × {fmtBRL(result.juros)})</span>
+                  <span className="font-bold text-green-700">{fmtBRL(result.jurosEconomizados)}</span>
+                </div>
+              </div>
+
+              {result.eliminadas === 0 && (
+                <div className="mt-3 flex items-center gap-2 rounded-xl p-3 bg-yellow-50 border border-yellow-200">
+                  <AlertTriangle size={14} className="text-yellow-600 flex-shrink-0" />
+                  <p className="text-xs text-yellow-700 font-semibold">
+                    O valor extra é menor que uma amortização ({fmtBRL(result.amortizacao)}) — nenhuma parcela eliminada, mas o valor é abatido no saldo devedor.
+                  </p>
+                </div>
+              )}
             </PremiumCard>
           )}
 
-          {/* ── Tabela ── */}
-          <PremiumCard className="overflow-hidden">
-            <div className="p-4 flex items-center justify-between flex-wrap gap-2">
-              <button onClick={() => setShowTable(v => !v)}
-                className="flex items-center gap-2 font-semibold text-sm text-text-primary">
-                <span className="w-7 h-7 rounded-lg bg-surface-100 flex items-center justify-center">
-                  {showTable ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
-                </span>
-                Plano Completo de Amortização
-                <span className="text-xs text-text-secondary font-normal">({result.schedule.length} parcelas)</span>
-              </button>
-              <button onClick={() => window.print()}
-                className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-surface-200 hover:bg-surface-100 transition-colors text-text-secondary">
-                <Printer size={13} /> Imprimir / PDF
-              </button>
-            </div>
-
-            {showTable && (
-              <>
-                <div style={{ maxHeight: '520px', overflowY: 'auto', overflowX: 'auto' }}>
-                  <table className="w-full text-xs border-collapse" style={{ minWidth: '820px' }}>
-                    <thead style={{ position: 'sticky', top: 0, zIndex: 2, background: AZUL, color: 'white' }}>
-                      <tr>
-                        {['Nº','Mês/Ano','SD Inicial','Amortização','Juros','(a+j)','MIP','DFI','Total','SD Final'].map(h => (
-                          <th key={h}
-                            className={`px-2 py-2 font-semibold whitespace-nowrap ${h === 'Nº' || h === 'Mês/Ano' ? 'text-left' : 'text-right'}`}
-                            style={h === '(a+j)' ? { background: 'rgba(255,255,255,0.18)' } : {}}>
-                            {h}
-                          </th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {result.schedule.map(r => {
-                        const isExtra = r.k === exMesNum && exValNum > 0;
-                        const isAniv  = r.k % 12 === 0;
-                        return (
-                          <tr key={r.k} style={{
-                            background: isExtra ? '#FFF3CD' : isAniv ? '#EBF3FC' : '',
-                            borderBottom: '1px solid #F3F4F6',
-                          }}>
-                            <td className="px-2 py-1.5 text-left text-gray-400 font-medium">
-                              {isExtra ? '★ ' : ''}{r.k}
-                            </td>
-                            <td className="px-2 py-1.5 text-left whitespace-nowrap">
-                              {MESES_PT[r.mes - 1]}/{r.ano}
-                            </td>
-                            <td className="px-2 py-1.5 text-right">{fmtBRL(r.sd_ini)}</td>
-                            <td className="px-2 py-1.5 text-right" style={{ color: '#1B6B3A' }}>{fmtBRL(r.amort)}</td>
-                            <td className="px-2 py-1.5 text-right" style={{ color: '#B02A37' }}>{fmtBRL(r.juros)}</td>
-                            <td className="px-2 py-1.5 text-right font-bold"
-                              style={{ background: 'rgba(0,92,169,0.07)', color: AZUL_ESC }}>{fmtBRL(r.pmt)}</td>
-                            <td className="px-2 py-1.5 text-right" style={{ color: AZUL }}>{fmtBRL(r.mip)}</td>
-                            <td className="px-2 py-1.5 text-right" style={{ color: '#7C3AED' }}>{fmtBRL(r.dfi)}</td>
-                            <td className="px-2 py-1.5 text-right font-bold">{fmtBRL(r.total)}</td>
-                            <td className="px-2 py-1.5 text-right">{fmtBRL(r.sd_fim)}</td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-                <p className="text-xs text-center text-text-secondary py-2 border-t border-surface-200 italic">
-                  (a+j) fixo em todo o contrato · Amortização cresce, juros decrescem · MIP e DFI diminuem com o saldo
-                  {exValNum > 0 && ` · ★ parcela ${exMesNum} = mês do pagamento extra`}
-                  {' '}· linhas azuis = aniversários do contrato
-                </p>
-              </>
-            )}
-          </PremiumCard>
-
         </div>
       )}
-
-      <style>{`
-        @media print {
-          body > *:not(#amort-resultado) { display: none !important; }
-          #amort-resultado { display: block !important; }
-          @page { margin: 1cm; }
-        }
-      `}</style>
     </div>
   );
 }
