@@ -115,18 +115,18 @@ export default function Amortization() {
             <DollarSign size={15} /> Dados do Financiamento
           </h3>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label className={lb}><DollarSign size={12} /> Valor do Financiamento (R$)</label>
+          <div className="grid grid-cols-2 gap-3 items-end">
+            <div className="flex flex-col">
+              <label className={lb}><DollarSign size={12} /> Financiamento (R$)</label>
               <input className={ic} value={fin} inputMode="numeric"
                 onChange={e => maskCurrency(e, setFin)} placeholder="136.252,47" />
             </div>
-            <div>
+            <div className="flex flex-col">
               <label className={lb}><Percent size={12} /> Taxa Nominal (% a.a.)</label>
               <input className={ic} value={taxa} inputMode="decimal"
                 onChange={e => setTaxa(e.target.value)} placeholder="5,00" />
             </div>
-            <div>
+            <div className="flex flex-col">
               <label className={lb}><Clock size={12} /> Prazo (meses)</label>
               <input className={ic} value={prazo} type="number" min={1} max={420}
                 onChange={e => setPrazo(e.target.value)} placeholder="420" />
@@ -136,7 +136,7 @@ export default function Amortization() {
                 </p>
               )}
             </div>
-            <div>
+            <div className="flex flex-col">
               <label className={lb}><DollarSign size={12} /> Renda Bruta Mensal (R$)</label>
               <input className={ic} value={renda} inputMode="numeric"
                 onChange={e => maskCurrency(e, setRenda)} placeholder="2.550,00" />
