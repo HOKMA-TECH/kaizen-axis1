@@ -88,8 +88,8 @@ export default function Amortization() {
   return (
     <div className="p-4 md:p-6 pb-28 min-h-screen bg-surface-50">
       <SectionHeader
-        title="Simulador PRICE"
-        subtitle="Calculadora FGTS · Caixa Econômica Federal"
+        title="Amortização"
+        subtitle="Simulador de Amortização"
       />
 
       <AnimatePresence mode="wait">

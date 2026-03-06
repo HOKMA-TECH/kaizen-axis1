@@ -4,16 +4,16 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuthorization } from '@/hooks/useAuthorization';
 
 const menuItems = [
-  { icon: QrCode,      label: 'Check-in',          path: '/checkin',            desc: 'Marcar presença diária' },
-  { icon: Building2,   label: 'Empreendimentos',   path: '/developments',       desc: 'Catálogo completo' },
-  { icon: Globe,       label: 'Portais',            path: '/portals',            desc: 'Caixa e Construtoras' },
-  { icon: Calculator,  label: 'Apuração de Renda', path: '/income',             desc: 'Análise de crédito' },
-  { icon: Home,        label: 'Simulador PRICE',   path: '/amortization',       desc: 'Calculadora FGTS Caixa' },
-  { icon: BarChart3,   label: 'Relatórios',         path: '/reports',            desc: 'Inteligência e Forecast' },
-  { icon: FileType,    label: 'Conversor de PDF',  path: '/pdf-tools',          desc: 'Ferramentas de documentos' },
-  { icon: CheckSquare, label: 'Tarefas',            path: '/tasks',              desc: 'Minhas pendências' },
-  { icon: GraduationCap, label: 'Treinamentos',    path: '/training',           desc: 'Universidade corporativa' },
-  { icon: Settings,    label: 'Configurações',      path: '/settings',           desc: 'Preferências do app' },
+  { icon: QrCode, label: 'Check-in', path: '/checkin', desc: 'Marcar presença diária' },
+  { icon: Building2, label: 'Empreendimentos', path: '/developments', desc: 'Catálogo completo' },
+  { icon: Globe, label: 'Portais', path: '/portals', desc: 'Caixa e Construtoras' },
+  { icon: Calculator, label: 'Apuração de Renda', path: '/income', desc: 'Análise de crédito' },
+  { icon: Home, label: 'Amortização', path: '/amortization', desc: 'Simulador de Amortização' },
+  { icon: BarChart3, label: 'Relatórios', path: '/reports', desc: 'Inteligência e Forecast' },
+  { icon: FileType, label: 'Conversor de PDF', path: '/pdf-tools', desc: 'Ferramentas de documentos' },
+  { icon: CheckSquare, label: 'Tarefas', path: '/tasks', desc: 'Minhas pendências' },
+  { icon: GraduationCap, label: 'Treinamentos', path: '/training', desc: 'Universidade corporativa' },
+  { icon: Settings, label: 'Configurações', path: '/settings', desc: 'Preferências do app' },
 ];
 
 export default function More() {
