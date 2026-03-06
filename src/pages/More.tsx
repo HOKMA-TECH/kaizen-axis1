@@ -8,7 +8,6 @@ const menuItems = [
   { icon: Building2, label: 'Empreendimentos', path: '/developments', desc: 'Catálogo completo' },
   { icon: Globe, label: 'Portais', path: '/portals', desc: 'Caixa e Construtoras' },
   { icon: Calculator, label: 'Apuração de Renda', path: '/income', desc: 'Análise de crédito' },
-  { icon: Calculator, label: 'Amortização', path: '/amortization', desc: 'Simulador Caixa Econômica' },
   { icon: BarChart3, label: 'Relatórios', path: '/reports', desc: 'Inteligência e Forecast' },
   { icon: FileType, label: 'Conversor de PDF', path: '/pdf-tools', desc: 'Ferramentas de documentos' },
   { icon: CheckSquare, label: 'Tarefas', path: '/tasks', desc: 'Minhas pendências' },
