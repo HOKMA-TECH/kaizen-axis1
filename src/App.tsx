@@ -11,6 +11,7 @@ import NewClient from '@/pages/NewClient';
 import AutomationLeads from '@/pages/AutomationLeads';
 import SendEmail from '@/pages/SendEmail';
 import IncomeAnalysis from '@/pages/IncomeAnalysis';
+import Amortization from '@/pages/Amortization';
 import Schedule from '@/pages/Schedule';
 import Chat from '@/pages/Chat';
 import ChatDetail from '@/pages/ChatDetail';
@@ -112,6 +113,7 @@ export default function App() {
 
         <Route path="/automation-leads" element={<ProtectedRoute><AutomationLeads /></ProtectedRoute>} />
         <Route path="/income" element={<ProtectedRoute><IncomeAnalysis /></ProtectedRoute>} />
+        <Route path="/amortization" element={<ProtectedRoute><Amortization /></ProtectedRoute>} />
         <Route path="/schedule" element={<ProtectedRoute><Schedule /></ProtectedRoute>} />
         <Route path="/chat" element={<ProtectedRoute><Chat /></ProtectedRoute>} />
         <Route path="/chat/:id" element={<ProtectedRoute><ChatDetail /></ProtectedRoute>} />
