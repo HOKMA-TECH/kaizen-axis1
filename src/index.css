@@ -4,16 +4,16 @@
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
 
-  --color-gold-50: #F9F5E8;
-  --color-gold-100: #F0E6C8;
-  --color-gold-200: #E6D4A3;
-  --color-gold-300: #DCC27E;
-  --color-gold-400: #D4AF37; /* Primary Gold */
-  --color-gold-500: #B8962E;
-  --color-gold-600: #9C7E26;
-  --color-gold-700: #80661F;
-  --color-gold-800: #665018;
-  --color-gold-900: #4D3C12;
+  --color-gold-50: #FBF6E7;
+  --color-gold-100: #F4E8C2;
+  --color-gold-200: #ECD595;
+  --color-gold-300: #E4C366;
+  --color-gold-400: #D9AD34; /* Primary Gold from user image */
+  --color-gold-500: #B79029;
+  --color-gold-600: #937320;
+  --color-gold-700: #715717;
+  --color-gold-800: #513E0F;
+  --color-gold-900: #332608;
 
   --color-surface-50: var(--bg-app);
   --color-surface-100: var(--bg-subtle);
