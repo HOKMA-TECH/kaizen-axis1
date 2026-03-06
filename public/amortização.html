@@ -1,0 +1,1051 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Calculadora PRICE FGTS — Caixa MCMV</title>
+  <style>
+    :root {
+      --azul:     #005CA9;
+      --azul-esc: #003D6E;
+      --laranja:  #F47920;
+      --fundo:    #F0F4F8;
+      --verde:    #1B6B3A;
+      --vermelho: #B02A37;
+      --cinza:    #6B7280;
+      --borda:    #D1D5DB;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      background: var(--fundo);
+      color: #1F2937;
+      min-height: 100vh;
+    }
+
+    /* ── Header ── */
+    header {
+      background: var(--azul-esc);
+      color: white;
+      padding: 18px 24px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    .cef-logo {
+      width: 46px; height: 46px;
+      background: var(--laranja);
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 11px; font-weight: 900; color: white;
+      flex-shrink: 0; letter-spacing: -0.5px; line-height: 1.1; text-align: center;
+    }
+    header h1 { font-size: 19px; font-weight: 700; line-height: 1.2; }
+    header p  { font-size: 12px; opacity: 0.75; margin-top: 2px; }
+
+    /* ── Container ── */
+    .container { max-width: 960px; margin: 0 auto; padding: 24px 16px 60px; }
+
+    /* ── Card ── */
+    .card {
+      background: white;
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 16px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+    }
+    .card-title {
+      font-size: 13px; font-weight: 700;
+      color: var(--azul);
+      margin-bottom: 16px;
+      display: flex; align-items: center; gap: 8px;
+      border-bottom: 2px solid var(--fundo);
+      padding-bottom: 10px;
+    }
+    .card-title-icon {
+      width: 22px; height: 22px;
+      background: var(--azul);
+      border-radius: 6px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 12px; color: white; flex-shrink: 0;
+    }
+
+    /* ── Grid ── */
+    .grid   { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+    .span2  { grid-column: span 2; }
+
+    @media (max-width: 680px) {
+      .grid   { grid-template-columns: 1fr; }
+      .grid-3 { grid-template-columns: 1fr; }
+      .span2  { grid-column: span 1; }
+    }
+
+    /* ── Fields ── */
+    .field { display: flex; flex-direction: column; gap: 5px; }
+    label {
+      font-size: 11px; font-weight: 700;
+      color: var(--cinza);
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+    }
+    input {
+      padding: 10px 12px;
+      border: 1.5px solid var(--borda);
+      border-radius: 8px;
+      font-size: 14px;
+      font-family: inherit;
+      color: #1F2937;
+      background: white;
+      outline: none;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    input:focus {
+      border-color: var(--azul);
+      box-shadow: 0 0 0 3px rgba(0,92,169,0.1);
+    }
+
+    .hint { font-size: 12px; color: var(--cinza); }
+    .hint b { color: var(--azul-esc); }
+
+    /* ── Auto-calc boxes ── */
+    .auto-box {
+      background: var(--fundo);
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-size: 13px;
+      color: var(--azul-esc);
+      min-height: 38px;
+      display: flex;
+      align-items: center;
+    }
+    .auto-box b { color: var(--azul); }
+
+    /* ── Calc button ── */
+    .btn-calc {
+      width: 100%;
+      padding: 14px;
+      background: var(--azul);
+      color: white;
+      border: none;
+      border-radius: 10px;
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+      font-family: inherit;
+      letter-spacing: 0.3px;
+      transition: background 0.15s, transform 0.1s;
+      margin-top: 4px;
+    }
+    .btn-calc:hover { background: var(--azul-esc); }
+    .btn-calc:active { transform: scale(0.99); }
+
+    /* ── Resultado ── */
+    #resultado { display: none; }
+
+    /* ── Caixa badge ── */
+    .caixa-badge {
+      background: #EBF4FF;
+      border: 1.5px solid var(--azul);
+      border-radius: 10px;
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    .caixa-badge-logo {
+      width: 40px; height: 40px;
+      background: var(--azul);
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 10px; font-weight: 900; color: white;
+      flex-shrink: 0;
+    }
+    .caixa-badge-text p:first-child { font-size: 14px; font-weight: 700; color: var(--azul-esc); }
+    .caixa-badge-text p:last-child  { font-size: 12px; color: var(--cinza); margin-top: 2px; }
+
+    /* ── Metric cards ── */
+    .metric-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(175px, 1fr));
+      gap: 10px;
+    }
+    .mc {
+      background: var(--fundo);
+      border: 1px solid var(--borda);
+      border-radius: 10px;
+      padding: 13px 14px;
+    }
+    .mc.blue   { background: #EBF4FF; border-color: var(--azul); }
+    .mc.green  { background: #ECFDF5; border-color: var(--verde); }
+    .mc.red    { background: #FEF2F2; border-color: var(--vermelho); }
+    .mc.orange { background: #FFF4EC; border-color: var(--laranja); }
+
+    .mc-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.4px; color: var(--cinza); margin-bottom: 4px; font-weight: 700; }
+    .mc.blue   .mc-label { color: var(--azul); }
+    .mc.green  .mc-label { color: var(--verde); }
+    .mc.red    .mc-label { color: var(--vermelho); }
+    .mc.orange .mc-label { color: #7C3100; }
+
+    .mc-value  { font-size: 15px; font-weight: 700; color: #1F2937; }
+    .mc.blue   .mc-value { color: var(--azul-esc); font-size: 18px; }
+    .mc.green  .mc-value { color: var(--verde); font-size: 18px; }
+    .mc.red    .mc-value { color: var(--vermelho); font-size: 18px; }
+    .mc.orange .mc-value { color: var(--laranja); }
+
+    .mc-sub { font-size: 11px; color: var(--cinza); margin-top: 3px; }
+    .mc-tag {
+      display: inline-block;
+      background: var(--azul);
+      color: white;
+      font-size: 9px;
+      font-weight: 700;
+      padding: 1px 6px;
+      border-radius: 999px;
+      margin-top: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+
+    /* ── Income alert ── */
+    .alert {
+      border-radius: 10px;
+      padding: 11px 16px;
+      font-size: 13px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 10px;
+    }
+    .alert-ok  { background: #ECFDF5; border: 1px solid var(--verde); color: var(--verde); }
+    .alert-err { background: #FEF2F2; border: 1px solid var(--vermelho); color: var(--vermelho); }
+
+    /* ── Bar chart ── */
+    .comp-bar-wrap { margin-top: 12px; }
+    .comp-bar-label { font-size: 11px; color: var(--cinza); margin-bottom: 5px; font-weight: 600; }
+    .comp-bar { display: flex; height: 10px; border-radius: 999px; overflow: hidden; width: 100%; }
+    .bar-amort { background: var(--verde); }
+    .bar-juros { background: var(--vermelho); }
+    .bar-mip   { background: var(--azul); }
+    .bar-dfi   { background: #7C3AED; }
+    .comp-legend { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 6px; font-size: 11px; }
+    .leg-item { display: flex; align-items: center; gap: 4px; }
+    .leg-dot  { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+
+    /* ── Extra amortization ── */
+    .extra-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+    @media (max-width: 680px) { .extra-grid { grid-template-columns: 1fr; } }
+
+    .extra-card {
+      border-radius: 12px;
+      padding: 20px;
+    }
+    .extra-azul   { background: #EBF4FF; border: 2px solid var(--azul); }
+    .extra-laranja { background: #FFF4EC; border: 2px solid var(--laranja); }
+
+    .extra-head {
+      display: flex; align-items: center; gap: 10px; margin-bottom: 14px;
+    }
+    .extra-badge-letter {
+      width: 30px; height: 30px;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 14px; font-weight: 900; color: white;
+      flex-shrink: 0;
+    }
+    .badge-a { background: var(--azul); }
+    .badge-b { background: var(--laranja); }
+
+    .extra-head-text .et-title { font-size: 14px; font-weight: 700; }
+    .extra-azul   .et-title { color: var(--azul-esc); }
+    .extra-laranja .et-title { color: #7C3100; }
+    .extra-head-text .et-sub { font-size: 11px; color: var(--cinza); margin-top: 1px; }
+
+    .extra-center { text-align: center; margin: 12px 0; }
+    .extra-big-label { font-size: 11px; color: var(--cinza); margin-bottom: 4px; }
+    .extra-big {
+      font-size: 38px;
+      font-weight: 900;
+      line-height: 1;
+    }
+    .extra-azul   .extra-big { color: var(--azul); }
+    .extra-laranja .extra-big { color: var(--laranja); }
+    .extra-big-sub { font-size: 13px; font-weight: 600; margin-top: 2px; }
+    .extra-azul   .extra-big-sub { color: var(--azul-esc); }
+    .extra-laranja .extra-big-sub { color: #7C3100; }
+
+    .econ-pill {
+      display: inline-flex; align-items: center; gap: 4px;
+      background: white;
+      border-radius: 999px;
+      padding: 3px 10px;
+      font-size: 12px; font-weight: 700;
+      color: var(--verde);
+      margin-top: 4px;
+    }
+
+    .extra-rows { margin-top: 12px; }
+    .extra-row {
+      display: flex; justify-content: space-between;
+      font-size: 12px;
+      padding: 6px 0;
+      border-bottom: 1px solid rgba(0,0,0,0.07);
+    }
+    .extra-row:last-child { border-bottom: none; }
+    .extra-row .er-label { color: var(--cinza); }
+    .extra-row .er-val   { font-weight: 600; color: #1F2937; }
+    .extra-row .er-green { font-weight: 700; color: var(--verde); }
+
+    /* ── MIP Table ── */
+    details { margin-top: 12px; }
+    summary { cursor: pointer; font-size: 12px; color: var(--azul); font-weight: 600; padding: 4px 0; }
+    .mip-table {
+      margin-top: 8px;
+      border-radius: 8px;
+      overflow: hidden;
+      border: 1px solid var(--borda);
+      font-size: 12px;
+    }
+    .mip-table-head {
+      display: grid; grid-template-columns: 1fr 1fr 1fr;
+      background: var(--azul); color: white;
+      padding: 8px 10px; font-weight: 700;
+      gap: 4px;
+    }
+    .mip-table-row {
+      display: grid; grid-template-columns: 1fr 1fr 1fr;
+      padding: 7px 10px;
+      border-bottom: 1px solid var(--borda);
+      gap: 4px;
+      font-size: 12px;
+    }
+    .mip-table-row:last-child { border-bottom: none; }
+    .mip-table-row:nth-child(even) { background: var(--fundo); }
+
+    /* ── Table section ── */
+    .table-toggle {
+      display: flex; align-items: center;
+      justify-content: space-between;
+      cursor: pointer;
+      user-select: none;
+    }
+    .toggle-arrow { font-size: 18px; color: var(--azul); transition: transform 0.2s; }
+    .toggle-arrow.open { transform: rotate(180deg); }
+
+    .table-wrap {
+      margin-top: 12px;
+      overflow-y: auto;
+      max-height: 500px;
+      border: 1px solid var(--borda);
+      border-radius: 8px;
+    }
+    .table-wrap table {
+      width: 100%; border-collapse: collapse;
+      font-size: 12px; min-width: 820px;
+    }
+    .table-wrap thead {
+      position: sticky; top: 0;
+      background: var(--azul); color: white;
+      z-index: 2;
+    }
+    .table-wrap thead th {
+      padding: 9px 8px;
+      text-align: right;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+    .table-wrap thead th:nth-child(1),
+    .table-wrap thead th:nth-child(2) { text-align: left; }
+    th.col-aj { background: rgba(255,255,255,0.18); }
+
+    .table-wrap tbody tr { border-bottom: 1px solid #F3F4F6; }
+    .table-wrap tbody tr:hover { background: rgba(0,92,169,0.04); }
+    .table-wrap tbody td {
+      padding: 6px 8px;
+      text-align: right;
+      color: #374151;
+    }
+    .table-wrap tbody td:nth-child(1) { text-align: left; color: var(--cinza); font-weight: 500; }
+    .table-wrap tbody td:nth-child(2) { text-align: left; white-space: nowrap; }
+
+    td.aj-cell  { background: rgba(0,92,169,0.07); font-weight: 700; color: var(--azul-esc) !important; }
+    td.am-cell  { color: var(--verde) !important; }
+    td.ju-cell  { color: var(--vermelho) !important; }
+    td.mip-cell { color: #1D4ED8 !important; }
+    td.dfi-cell { color: #7C3AED !important; }
+
+    tr.row-aniv  { background: #EBF3FC; }
+    tr.row-extra { background: #FFF3CD !important; }
+    tr.row-extra td:first-child::before { content: '★ '; color: #B45309; }
+
+    .table-note {
+      font-size: 11px; color: var(--cinza);
+      text-align: center; padding: 8px;
+      border-top: 1px solid var(--borda);
+      font-style: italic;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="cef-logo">CEF</div>
+  <div>
+    <h1>Calculadora PRICE FGTS</h1>
+    <p>Minha Casa Minha Vida — Caixa Econômica Federal</p>
+  </div>
+</header>
+
+<div class="container">
+
+  <!-- ══════════════════ FORMULÁRIO ══════════════════ -->
+
+  <!-- Seção 1: Dados do Imóvel -->
+  <div class="card">
+    <div class="card-title"><div class="card-title-icon">🏠</div> Dados do Imóvel</div>
+    <div class="grid" style="margin-bottom:10px">
+      <div class="field">
+        <label>Valor de Avaliação (R$)</label>
+        <input type="text" id="avaliacao" inputmode="numeric" placeholder="140.800,00" oninput="maskCurrency(this); autoCalc()" />
+      </div>
+      <div class="field">
+        <label>Valor de Compra / Venda (R$)</label>
+        <input type="text" id="compra" inputmode="numeric" placeholder="140.800,00" oninput="maskCurrency(this); autoCalc()" />
+      </div>
+    </div>
+    <div class="auto-box" id="box-base">— preencha avaliação e compra</div>
+  </div>
+
+  <!-- Seção 2: Dados do Financiamento -->
+  <div class="card">
+    <div class="card-title"><div class="card-title-icon">💰</div> Dados do Financiamento</div>
+    <div class="grid" style="margin-bottom:10px">
+      <div class="field">
+        <label>Financiamento (R$)</label>
+        <input type="text" id="financiamento" inputmode="numeric" placeholder="140.800,00" oninput="maskCurrency(this); autoCalc()" />
+      </div>
+      <div class="field">
+        <label>Subsídio do Governo (R$)</label>
+        <input type="text" id="subsidio" inputmode="numeric" placeholder="0,00" oninput="maskCurrency(this); autoCalc()" />
+        <div class="hint">Informativo — não entra na fórmula do PMT</div>
+      </div>
+    </div>
+    <div class="auto-box" id="box-recursos">— preencha os dados acima</div>
+  </div>
+
+  <!-- Seção 3: Dados do Cliente -->
+  <div class="card">
+    <div class="card-title"><div class="card-title-icon">👤</div> Dados do Cliente</div>
+    <div class="grid" style="margin-bottom:10px">
+      <div class="field">
+        <label>Renda Bruta Mensal (R$)</label>
+        <input type="text" id="renda" inputmode="numeric" placeholder="5.000,00" oninput="maskCurrency(this); autoCalc()" />
+      </div>
+      <div class="field">
+        <label>Data de Nascimento</label>
+        <input type="text" id="nascimento" inputmode="numeric" placeholder="dd/mm/aaaa" maxlength="10" oninput="maskDate(this); autoCalc()" />
+        <div class="hint" id="hint-idade"></div>
+      </div>
+    </div>
+    <div class="auto-box" id="box-renda">— preencha a renda</div>
+  </div>
+
+  <!-- Seção 4: Dados do Contrato -->
+  <div class="card">
+    <div class="card-title"><div class="card-title-icon">📋</div> Dados do Contrato</div>
+    <div class="grid-3">
+      <div class="field">
+        <label>Taxa Nominal (% a.a.)</label>
+        <input type="number" id="taxa" value="5.00" step="0.01" min="0.1" max="30" placeholder="5,00" oninput="autoCalc()" />
+      </div>
+      <div class="field">
+        <label>Prazo (meses)</label>
+        <input type="number" id="prazo" value="420" min="12" max="420" placeholder="420" oninput="autoCalc()" />
+        <div class="hint" id="hint-prazo">420 meses = 35 anos</div>
+      </div>
+      <div class="field">
+        <label>Data da 1ª Parcela</label>
+        <input type="text" id="data-inicio" inputmode="numeric" placeholder="mm/aaaa" maxlength="7" oninput="maskMonthYear(this); autoCalc()" />
+        <div class="hint">Ex: 01/2025</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Seção 5: Amortização Extra -->
+  <div class="card">
+    <div class="card-title"><div class="card-title-icon">⚡</div> Amortização Extra <span style="font-weight:400;color:var(--cinza);font-size:11px;margin-left:4px">(opcional)</span></div>
+    <div class="grid">
+      <div class="field">
+        <label>Após a parcela nº</label>
+        <input type="number" id="extra-mes" min="1" placeholder="24" oninput="autoCalc()" />
+      </div>
+      <div class="field">
+        <label>Valor extra (R$)</label>
+        <input type="text" id="extra-valor" inputmode="numeric" placeholder="5.000,00" oninput="maskCurrency(this)" />
+      </div>
+    </div>
+  </div>
+
+  <!-- Botão -->
+  <button class="btn-calc" onclick="calcular()">Calcular Financiamento</button>
+
+  <!-- ══════════════════ RESULTADO ══════════════════ -->
+  <div id="resultado">
+
+    <!-- Badge Caixa -->
+    <div class="caixa-badge" style="margin-top:24px">
+      <div class="caixa-badge-logo">CEF</div>
+      <div class="caixa-badge-text">
+        <p>Sistema PRICE FGTS — Caixa Econômica Federal</p>
+        <p>Taxa proporcional · MIP + DFI · Saldo devedor por fórmula fechada</p>
+      </div>
+    </div>
+
+    <!-- Bloco 1: Resumo -->
+    <div class="card">
+      <div class="card-title"><div class="card-title-icon">📊</div> Resumo do Financiamento</div>
+      <div class="metric-grid" id="metric-grid"></div>
+      <div id="bar-composicao"></div>
+      <div id="alerta-renda"></div>
+
+      <!-- MIP/DFI table details -->
+      <details>
+        <summary>🛡️ Ver tabela de seguros MIP e DFI por faixa etária</summary>
+        <div class="mip-table">
+          <div class="mip-table-head">
+            <span>Faixa etária</span>
+            <span>MIP (% ao mês)</span>
+            <span>DFI (% ao mês)</span>
+          </div>
+          <div class="mip-table-row"><span>≤ 30 anos</span><span>0,00850%</span><span>0,00890%</span></div>
+          <div class="mip-table-row"><span>31 – 40 anos</span><span>0,01124%</span><span>0,00890%</span></div>
+          <div class="mip-table-row"><span>41 – 50 anos</span><span>0,02020%</span><span>0,00890%</span></div>
+          <div class="mip-table-row"><span>51 – 55 anos</span><span>0,03990%</span><span>0,00890%</span></div>
+          <div class="mip-table-row"><span>56 – 60 anos</span><span>0,06420%</span><span>0,00890%</span></div>
+          <div class="mip-table-row"><span>61 – 65 anos</span><span>0,08560%</span><span>0,00890%</span></div>
+          <div class="mip-table-row"><span>66+ anos</span><span>0,12620%</span><span>0,00890%</span></div>
+        </div>
+      </details>
+    </div>
+
+    <!-- Bloco 2: Amortização Extra -->
+    <div id="bloco-extra" class="card" style="display:none">
+      <div class="card-title"><div class="card-title-icon">⚡</div> Análise da Amortização Extra</div>
+      <div id="extra-info" style="font-size:13px;color:var(--cinza);margin-bottom:14px;padding:10px 12px;background:var(--fundo);border-radius:8px"></div>
+      <div class="extra-grid" id="extra-grid"></div>
+    </div>
+
+    <!-- Bloco 3: Tabela completa -->
+    <div class="card">
+      <div class="table-toggle" onclick="toggleTable()">
+        <div class="card-title" style="margin:0;border:none;padding:0">
+          <div class="card-title-icon">📋</div>
+          <span id="table-title">Plano de Amortização Completo</span>
+        </div>
+        <span class="toggle-arrow" id="toggle-arrow">▼</span>
+      </div>
+      <div class="table-wrap" id="table-wrap" style="display:none">
+        <table id="tabela">
+          <thead>
+            <tr>
+              <th>Nº</th>
+              <th>Mês/Ano</th>
+              <th>SD Inicial</th>
+              <th>Amortização</th>
+              <th>Juros</th>
+              <th class="col-aj">(a+j)</th>
+              <th>MIP</th>
+              <th>DFI</th>
+              <th>Total</th>
+              <th>SD Final</th>
+            </tr>
+          </thead>
+          <tbody id="tabela-body"></tbody>
+        </table>
+        <div class="table-note">
+          (a+j) é constante em todo o contrato · MIP e DFI decrescem com o saldo devedor
+          · ★ = mês da amortização extra · linhas azuis = aniversários do contrato
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /resultado -->
+</div><!-- /container -->
+
+<script>
+/* ════════════════════════════════════════════════════
+   CONSTANTES
+════════════════════════════════════════════════════ */
+const DFI_RATE = 0.0000890;
+const MESES_PT = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+
+const MIP_TABLE = [
+  { maxAge: 30, rate: 0.000085   },
+  { maxAge: 40, rate: 0.0001124  },
+  { maxAge: 50, rate: 0.000202   },
+  { maxAge: 55, rate: 0.000399   },
+  { maxAge: 60, rate: 0.000642   },
+  { maxAge: 65, rate: 0.000856   },
+  { maxAge: Infinity, rate: 0.001262 },
+];
+
+/* ════════════════════════════════════════════════════
+   HELPERS DE MÁSCARA
+════════════════════════════════════════════════════ */
+function maskCurrency(el) {
+  let raw = el.value.replace(/\D/g, '');
+  if (!raw) { el.value = ''; return; }
+  const num = parseInt(raw, 10) / 100;
+  el.value = num.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function parseCurrency(str) {
+  if (!str) return 0;
+  const v = parseFloat(str.replace(/\./g, '').replace(',', '.'));
+  return isNaN(v) ? 0 : v;
+}
+
+function maskDate(el) {
+  let v = el.value.replace(/\D/g, '');
+  if (v.length > 2) v = v.slice(0,2) + '/' + v.slice(2);
+  if (v.length > 5) v = v.slice(0,5) + '/' + v.slice(5,9);
+  el.value = v;
+}
+
+function maskMonthYear(el) {
+  let v = el.value.replace(/\D/g, '');
+  if (v.length > 2) v = v.slice(0,2) + '/' + v.slice(2,6);
+  el.value = v;
+}
+
+function brl(v) {
+  return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+}
+
+/* ════════════════════════════════════════════════════
+   MATEMÁTICA
+════════════════════════════════════════════════════ */
+function aliquotaMIP(idadeAnos) {
+  for (const b of MIP_TABLE) if (idadeAnos <= b.maxAge) return b.rate;
+  return MIP_TABLE[MIP_TABLE.length - 1].rate;
+}
+
+function calcIdadeAnos(nascStr, refMes, refAno) {
+  // nascStr: "dd/mm/aaaa"
+  const parts = nascStr.split('/');
+  if (parts.length !== 3 || parts[2].length !== 4) return 35;
+  const nascMes = parseInt(parts[1]);
+  const nascAno = parseInt(parts[2]);
+  if (isNaN(nascMes) || isNaN(nascAno)) return 35;
+  let anos = refAno - nascAno;
+  if (nascMes > refMes) anos--;
+  return Math.max(0, anos);
+}
+
+// Saldo devedor fechado após k pagamentos
+function SD(PV, i, n, k) {
+  const fator_n = Math.pow(1 + i, n);
+  const fator_k = Math.pow(1 + i, k);
+  return PV * (fator_n - fator_k) / (fator_n - 1);
+}
+
+function getMesAno(mes1, ano1, k) {
+  const offset = (mes1 - 1) + (k - 1);
+  return { mes: (offset % 12) + 1, ano: ano1 + Math.floor(offset / 12) };
+}
+
+function labelMesAno(mes, ano) {
+  return MESES_PT[mes - 1] + '/' + ano;
+}
+
+function buildSchedule(PV, i, n, PMT, nascStr, mes1, ano1, extraMes, extraVal) {
+  const rows = [];
+  let bal = PV;
+  for (let k = 1; k <= n; k++) {
+    const sd_ini = bal;
+    const juros  = sd_ini * i;
+    const amort  = PMT - juros;
+    const sd_fim = Math.max(0, sd_ini - amort);
+
+    const { mes, ano } = getMesAno(mes1, ano1, k);
+    const idade = calcIdadeAnos(nascStr, mes, ano);
+    const mip   = sd_ini * aliquotaMIP(idade);
+    const dfi   = sd_ini * DFI_RATE;
+    const total = PMT + mip + dfi;
+
+    rows.push({
+      k, mes, ano, sd_ini, amort, juros, PMT, mip, dfi, total, sd_fim,
+      isExtra: (extraMes > 0 && k === extraMes),
+    });
+
+    if (sd_fim < 0.01) break;
+    bal = sd_fim;
+  }
+  return rows;
+}
+
+/* ════════════════════════════════════════════════════
+   AUTO-CALC (atualiza hints em tempo real)
+════════════════════════════════════════════════════ */
+function autoCalc() {
+  const aval  = parseCurrency(document.getElementById('avaliacao').value);
+  const comp  = parseCurrency(document.getElementById('compra').value);
+  const fin   = parseCurrency(document.getElementById('financiamento').value);
+  const sub   = parseCurrency(document.getElementById('subsidio').value);
+  const renda = parseCurrency(document.getElementById('renda').value);
+  const prazo = parseInt(document.getElementById('prazo').value) || 0;
+  const nasc  = document.getElementById('nascimento').value;
+
+  // Valor base
+  const boxBase = document.getElementById('box-base');
+  if (aval > 0 && comp > 0) {
+    const base = Math.min(aval, comp);
+    const src  = base === aval ? 'avaliação' : 'compra/venda';
+    boxBase.innerHTML = `Valor base usado: <b>${brl(base)}</b> (menor: ${src})`;
+  } else if (aval > 0) {
+    boxBase.innerHTML = `Valor de avaliação: <b>${brl(aval)}</b>`;
+  } else {
+    boxBase.textContent = '— preencha avaliação e compra';
+  }
+
+  // Recursos próprios
+  const boxRec = document.getElementById('box-recursos');
+  if (aval > 0 || comp > 0) {
+    const base  = (aval > 0 && comp > 0) ? Math.min(aval, comp) : (aval || comp);
+    const rec   = Math.max(0, base - fin - sub);
+    boxRec.innerHTML = `Recursos próprios: <b>${brl(rec)}</b> (base ${brl(base)} − financ. ${brl(fin)}${sub > 0 ? ` − subsídio ${brl(sub)}` : ''})`;
+  } else {
+    boxRec.textContent = '— preencha os dados do imóvel';
+  }
+
+  // Parcela máxima
+  const boxRenda = document.getElementById('box-renda');
+  if (renda > 0) {
+    boxRenda.innerHTML = `Parcela máxima (30% da renda): <b>${brl(renda * 0.3)}</b>`;
+  } else {
+    boxRenda.textContent = '— preencha a renda';
+  }
+
+  // Prazo em anos
+  if (prazo > 0) {
+    document.getElementById('hint-prazo').textContent =
+      `${prazo} meses = ${Math.floor(prazo/12)} anos${prazo%12 ? ' e ' + (prazo%12) + ' meses' : ''}`;
+  }
+
+  // Idade atual
+  const hintIdade = document.getElementById('hint-idade');
+  if (nasc && nasc.length === 10) {
+    const hoje = new Date();
+    const idade = calcIdadeAnos(nasc, hoje.getMonth() + 1, hoje.getFullYear());
+    if (idade > 0) {
+      hintIdade.textContent = `Idade atual: ${idade} anos · alíquota MIP: ${(aliquotaMIP(idade) * 100).toFixed(5)}%`;
+    }
+  } else {
+    hintIdade.textContent = '';
+  }
+}
+
+/* ════════════════════════════════════════════════════
+   TOGGLE TABELA
+════════════════════════════════════════════════════ */
+function toggleTable() {
+  const wrap  = document.getElementById('table-wrap');
+  const arrow = document.getElementById('toggle-arrow');
+  const open  = wrap.style.display === 'none';
+  wrap.style.display  = open ? '' : 'none';
+  arrow.className = 'toggle-arrow' + (open ? ' open' : '');
+}
+
+/* ════════════════════════════════════════════════════
+   CALCULAR (principal)
+════════════════════════════════════════════════════ */
+function calcular() {
+  // ── Inputs
+  const aval  = parseCurrency(document.getElementById('avaliacao').value);
+  const comp  = parseCurrency(document.getElementById('compra').value);
+  const fin   = parseCurrency(document.getElementById('financiamento').value);
+  const sub   = parseCurrency(document.getElementById('subsidio').value);
+  const renda = parseCurrency(document.getElementById('renda').value);
+  const nasc  = document.getElementById('nascimento').value;
+  const taxa  = parseFloat(document.getElementById('taxa').value) || 0;
+  const n     = parseInt(document.getElementById('prazo').value) || 0;
+  const inicio = document.getElementById('data-inicio').value.trim();
+  const extraMesN = parseInt(document.getElementById('extra-mes').value) || 0;
+  const extraValN = parseCurrency(document.getElementById('extra-valor').value);
+
+  // ── Validações básicas
+  if (fin < 1000) { alert('Preencha o valor do financiamento.'); return; }
+  if (taxa <= 0)  { alert('Taxa inválida.'); return; }
+  if (n < 12)     { alert('Prazo mínimo: 12 meses.'); return; }
+
+  // ── Valor base e recursos
+  const base_imo = (aval > 0 && comp > 0) ? Math.min(aval, comp) : (aval || comp || fin);
+  const recursos  = Math.max(0, base_imo - fin - sub);
+
+  // ── Data de início
+  let mes1 = 1, ano1 = new Date().getFullYear();
+  if (inicio && inicio.length >= 7) {
+    const parts = inicio.split('/');
+    mes1 = parseInt(parts[0]) || 1;
+    ano1 = parseInt(parts[1]) || new Date().getFullYear();
+  }
+
+  // ── Data de nascimento (fallback)
+  const nascStr = (nasc && nasc.length === 10) ? nasc : '01/01/1990';
+
+  // ── MATEMÁTICA PRICE FGTS
+  const PV = fin;
+  const i  = taxa / 12 / 100;               // taxa proporcional
+  const fator_n = Math.pow(1 + i, n);
+  const PMT = PV * (i * fator_n) / (fator_n - 1);
+
+  // ── Cronograma completo
+  const schedule = buildSchedule(PV, i, n, PMT, nascStr, mes1, ano1, extraMesN, extraValN);
+
+  // Totais
+  const totalJuros  = schedule.reduce((s, r) => s + r.juros, 0);
+  const totalMIP    = schedule.reduce((s, r) => s + r.mip,   0);
+  const totalDFI    = schedule.reduce((s, r) => s + r.dfi,   0);
+  const totalPago   = PMT * schedule.length;
+  const totalComSeg = totalPago + totalMIP + totalDFI;
+
+  const row1 = schedule[0];
+  const parcMax = renda * 0.3;
+  const incomeOk = renda > 0 ? PMT <= parcMax : null;
+
+  // ── Parcela total estimada hoje
+  let parcelaTotalHoje = row1.total;
+  let mesHoje = 1, anoHoje = ano1;
+  {
+    const hoje = new Date();
+    anoHoje = hoje.getFullYear();
+    mesHoje = hoje.getMonth() + 1;
+    const kHoje = (anoHoje - ano1) * 12 + (mesHoje - mes1) + 1;
+    if (kHoje >= 1 && kHoje <= n) {
+      const sdHoje = SD(PV, i, n, kHoje - 1);
+      const idadeHoje = calcIdadeAnos(nascStr, mesHoje, anoHoje);
+      parcelaTotalHoje = PMT + sdHoje * aliquotaMIP(idadeHoje) + sdHoje * DFI_RATE;
+    }
+  }
+
+  // ══════════════ BLOCO 1 — Cards de resumo ══════════════
+  const mgEl = document.getElementById('metric-grid');
+  mgEl.innerHTML = '';
+
+  const cards = [
+    { label: 'Valor Base do Imóvel', value: brl(base_imo), sub: base_imo === aval ? '(avaliação)' : base_imo === comp ? '(compra/venda)' : '', cls: '' },
+    { label: 'Subsídio do Governo',  value: brl(sub),      sub: sub > 0 ? 'informativo' : 'não informado', cls: sub > 0 ? 'orange' : '' },
+    { label: 'Recursos Próprios',    value: brl(recursos),  sub: `Base − Financ.${sub > 0 ? ' − Subsídio' : ''}`, cls: '' },
+    { label: 'Financiamento (PV)',   value: brl(PV),        sub: `Taxa: ${taxa}% a.a. · i = ${(i * 100).toFixed(6)}%/mês`, cls: 'blue' },
+    null, // parcela PMT — blue+tag "nunca muda"
+    { label: 'Parcela Total 1º Mês', value: brl(row1.total), sub: `PMT + MIP + DFI`, cls: incomeOk === false ? 'red' : '' },
+    { label: 'Parcela Total Hoje',   value: brl(parcelaTotalHoje), sub: `${MESES_PT[mesHoje-1]}/${anoHoje}`, cls: '' },
+    { label: 'Total de Juros',       value: brl(totalJuros), sub: `em ${schedule.length} meses`, cls: 'red' },
+    { label: 'Total Pago (sem seg.)',value: brl(totalPago),  sub: `PMT × ${schedule.length} parcelas`, cls: '' },
+    { label: 'Total MIP',            value: brl(totalMIP),   sub: 'Seguro vida/invalidez', cls: '' },
+    { label: 'Total DFI',            value: brl(totalDFI),   sub: 'Seguro danos físicos', cls: '' },
+    { label: 'Total com Seguros',    value: brl(totalComSeg), sub: 'Custo total do contrato', cls: '' },
+  ];
+
+  // Inserir PMT no lugar do null
+  cards[4] = null;
+
+  // Rebuild cards manually to put the PMT card with special tag
+  const cardsHtml = cards.map((c, idx) => {
+    if (idx === 4) {
+      // PMT special card
+      return `<div class="mc blue">
+        <div class="mc-label">Parcela (a+j) — FIXA</div>
+        <div class="mc-value">${brl(PMT)}</div>
+        <div><span class="mc-tag">nunca muda</span></div>
+        <div class="mc-sub">Prazo: ${n} meses</div>
+      </div>`;
+    }
+    if (!c) return '';
+    return `<div class="mc ${c.cls}">
+      <div class="mc-label">${c.label}</div>
+      <div class="mc-value">${c.value}</div>
+      ${c.sub ? `<div class="mc-sub">${c.sub}</div>` : ''}
+    </div>`;
+  }).join('');
+  mgEl.innerHTML = cardsHtml;
+
+  // Composição da 1ª parcela
+  const compEl = document.getElementById('bar-composicao');
+  const tot1 = row1.total;
+  const pAm  = row1.amort / tot1 * 100;
+  const pJu  = row1.juros  / tot1 * 100;
+  const pMIP = row1.mip    / tot1 * 100;
+  const pDFI = row1.dfi    / tot1 * 100;
+  compEl.innerHTML = `
+    <div class="comp-bar-wrap" style="margin-top:14px">
+      <div class="comp-bar-label">Composição da 1ª Parcela Total (${brl(tot1)})</div>
+      <div class="comp-bar">
+        <div class="bar-amort" style="width:${pAm}%"></div>
+        <div class="bar-juros" style="width:${pJu}%"></div>
+        <div class="bar-mip"   style="width:${pMIP}%"></div>
+        <div class="bar-dfi"   style="width:${pDFI}%"></div>
+      </div>
+      <div class="comp-legend">
+        <div class="leg-item"><div class="leg-dot" style="background:var(--verde)"></div> Amortização ${pAm.toFixed(1)}%</div>
+        <div class="leg-item"><div class="leg-dot" style="background:var(--vermelho)"></div> Juros ${pJu.toFixed(1)}%</div>
+        <div class="leg-item"><div class="leg-dot" style="background:var(--azul)"></div> MIP ${pMIP.toFixed(2)}%</div>
+        <div class="leg-item"><div class="leg-dot" style="background:#7C3AED"></div> DFI ${pDFI.toFixed(2)}%</div>
+      </div>
+    </div>`;
+
+  // Alerta de renda
+  const alertEl = document.getElementById('alerta-renda');
+  if (incomeOk !== null) {
+    alertEl.innerHTML = incomeOk
+      ? `<div class="alert alert-ok">✅ Renda adequada — PMT ${brl(PMT)} ≤ 30% da renda ${brl(parcMax)}</div>`
+      : `<div class="alert alert-err">⚠️ Renda insuficiente — PMT ${brl(PMT)} > 30% da renda (limite: ${brl(parcMax)})</div>`;
+  } else {
+    alertEl.innerHTML = '';
+  }
+
+  // ══════════════ BLOCO 2 — Extra amortização ══════════════
+  const blocoExtra = document.getElementById('bloco-extra');
+  if (extraMesN >= 1 && extraMesN < n && extraValN > 0) {
+    const SD_M   = SD(PV, i, n, extraMesN);
+    const SD_nov = SD_M - extraValN;
+    const rem    = n - extraMesN;
+
+    if (SD_nov <= 0) {
+      blocoExtra.style.display = '';
+      document.getElementById('extra-info').innerHTML =
+        `🎉 <b>Financiamento quitado antecipadamente!</b> O valor extra de ${brl(extraValN)} é maior que o saldo restante de ${brl(SD_M)}.`;
+      document.getElementById('extra-grid').innerHTML = '';
+    } else {
+      // Opt A
+      const novos_meses = Math.ceil(
+        Math.log(PMT / (PMT - SD_nov * i)) / Math.log(1 + i)
+      );
+      const parcelas_econ = rem - novos_meses;
+      const anos_econ     = (parcelas_econ / 12).toFixed(2);
+      const econ_A        = PMT * rem - PMT * novos_meses;
+
+      // Opt B
+      const fator_B   = Math.pow(1 + i, rem);
+      const nova_PMT  = SD_nov * (i * fator_B) / (fator_B - 1);
+      const reducao   = PMT - nova_PMT;
+      const econ_B    = PMT * rem - nova_PMT * rem;
+
+      document.getElementById('extra-info').innerHTML =
+        `Parcela <b>${extraMesN}</b> · SD antes do extra: <b>${brl(SD_M)}</b> · SD após: <b>${brl(SD_nov)}</b> · Parcelas restantes originais: <b>${rem}</b>`;
+
+      document.getElementById('extra-grid').innerHTML = `
+        <!-- Card A -->
+        <div class="extra-card extra-azul">
+          <div class="extra-head">
+            <div class="extra-badge-letter badge-a">A</div>
+            <div class="extra-head-text">
+              <div class="et-title">Reduzir o Prazo</div>
+              <div class="et-sub">Mantém PMT original (${brl(PMT)})</div>
+            </div>
+          </div>
+          <div class="extra-center">
+            <div class="extra-big-label">Novas parcelas restantes</div>
+            <div class="extra-big">${novos_meses}</div>
+            <div class="extra-big-sub">de ${rem} originais</div>
+            <div><span class="econ-pill">✂️ ${parcelas_econ} parcelas economizadas</span></div>
+            <div><span class="econ-pill">📅 ${anos_econ} anos a menos</span></div>
+          </div>
+          <div class="extra-rows">
+            <div class="extra-row"><span class="er-label">SD antes da amortização extra</span><span class="er-val">${brl(SD_M)}</span></div>
+            <div class="extra-row"><span class="er-label">SD após amortização extra</span><span class="er-val">${brl(SD_nov)}</span></div>
+            <div class="extra-row"><span class="er-label">Parcelas restantes originais</span><span class="er-val">${rem}</span></div>
+            <div class="extra-row"><span class="er-label">Novas parcelas restantes</span><span class="er-val">${novos_meses}</span></div>
+            <div class="extra-row"><span class="er-label">Parcela base mantida (PMT)</span><span class="er-val">${brl(PMT)}</span></div>
+            <div class="extra-row"><span class="er-label">Economia em juros</span><span class="er-green">${brl(econ_A)}</span></div>
+          </div>
+        </div>
+
+        <!-- Card B -->
+        <div class="extra-card extra-laranja">
+          <div class="extra-head">
+            <div class="extra-badge-letter badge-b">B</div>
+            <div class="extra-head-text">
+              <div class="et-title">Reduzir a Parcela</div>
+              <div class="et-sub">Mantém prazo (${rem} meses)</div>
+            </div>
+          </div>
+          <div class="extra-center">
+            <div class="extra-big-label">Nova parcela base (PMT)</div>
+            <div class="extra-big">${brl(nova_PMT)}</div>
+            <div class="extra-big-sub">era ${brl(PMT)}</div>
+            <div><span class="econ-pill">↓ Redução de ${brl(reducao)}/mês</span></div>
+          </div>
+          <div class="extra-rows">
+            <div class="extra-row"><span class="er-label">PMT atual</span><span class="er-val">${brl(PMT)}</span></div>
+            <div class="extra-row"><span class="er-label">Novo PMT</span><span class="er-val">${brl(nova_PMT)}</span></div>
+            <div class="extra-row"><span class="er-label">Redução mensal</span><span class="er-green">${brl(reducao)}</span></div>
+            <div class="extra-row"><span class="er-label">Prazo mantido</span><span class="er-val">${rem} meses</span></div>
+            <div class="extra-row"><span class="er-label">Economia em juros</span><span class="er-green">${brl(econ_B)}</span></div>
+          </div>
+        </div>`;
+
+      blocoExtra.style.display = '';
+    }
+  } else {
+    blocoExtra.style.display = 'none';
+  }
+
+  // ══════════════ BLOCO 3 — Tabela ══════════════
+  document.getElementById('table-title').textContent =
+    `Plano de Amortização Completo (${schedule.length} parcelas)`;
+
+  const tbody = document.getElementById('tabela-body');
+  const frag  = document.createDocumentFragment();
+
+  for (const r of schedule) {
+    const tr = document.createElement('tr');
+    const isAniv = r.k % 12 === 0;
+    if (r.isExtra) tr.classList.add('row-extra');
+    else if (isAniv) tr.classList.add('row-aniv');
+
+    tr.innerHTML = `
+      <td>${r.k}</td>
+      <td>${labelMesAno(r.mes, r.ano)}</td>
+      <td>${brl(r.sd_ini)}</td>
+      <td class="am-cell">${brl(r.amort)}</td>
+      <td class="ju-cell">${brl(r.juros)}</td>
+      <td class="aj-cell">${brl(r.PMT)}</td>
+      <td class="mip-cell">${brl(r.mip)}</td>
+      <td class="dfi-cell">${brl(r.dfi)}</td>
+      <td><b>${brl(r.total)}</b></td>
+      <td>${brl(r.sd_fim)}</td>`;
+
+    frag.appendChild(tr);
+  }
+  tbody.innerHTML = '';
+  tbody.appendChild(frag);
+
+  // Mostra resultado
+  document.getElementById('resultado').style.display = '';
+  document.getElementById('resultado').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+/* ════════════════════════════════════════════════════
+   INIT
+════════════════════════════════════════════════════ */
+// Preencher data de início com mês seguinte
+(function() {
+  const d = new Date();
+  d.setMonth(d.getMonth() + 1);
+  const mes = String(d.getMonth() + 1).padStart(2, '0');
+  const ano = d.getFullYear();
+  document.getElementById('data-inicio').value = mes + '/' + ano;
+  autoCalc();
+})();
+</script>
+</body>
+</html>
