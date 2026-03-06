@@ -1,5 +1,5 @@
 import { PremiumCard, SectionHeader } from '@/components/ui/PremiumComponents';
-import { Building2, CheckSquare, GraduationCap, Calculator, Settings, ChevronRight, BarChart3, Lock, FileType, Globe, QrCode, Home } from 'lucide-react';
+import { Building2, CheckSquare, GraduationCap, Calculator, Settings, ChevronRight, BarChart3, Lock, FileType, Globe, QrCode } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuthorization } from '@/hooks/useAuthorization';
 
@@ -8,13 +8,12 @@ const menuItems = [
   { icon: Building2,   label: 'Empreendimentos',   path: '/developments',       desc: 'Catálogo completo' },
   { icon: Globe,       label: 'Portais',            path: '/portals',            desc: 'Caixa e Construtoras' },
   { icon: Calculator,  label: 'Apuração de Renda', path: '/income',             desc: 'Análise de crédito' },
-  { icon: Home,        label: 'Calculadora FGTS',  path: '/amortização.html',   desc: 'Simulador PRICE FGTS Caixa', external: true },
   { icon: BarChart3,   label: 'Relatórios',         path: '/reports',            desc: 'Inteligência e Forecast' },
   { icon: FileType,    label: 'Conversor de PDF',  path: '/pdf-tools',          desc: 'Ferramentas de documentos' },
   { icon: CheckSquare, label: 'Tarefas',            path: '/tasks',              desc: 'Minhas pendências' },
   { icon: GraduationCap, label: 'Treinamentos',    path: '/training',           desc: 'Universidade corporativa' },
   { icon: Settings,    label: 'Configurações',      path: '/settings',           desc: 'Preferências do app' },
-] as const;
+];
 
 export default function More() {
   const navigate = useNavigate();
@@ -63,8 +62,8 @@ export default function More() {
 
       {/* All menu items visible to all roles — data is scoped by RLS */}
       <div className="space-y-3">
-        {menuItems.map((item) => {
-          const card = (
+        {menuItems.map((item) => (
+          <Link key={item.path} to={item.path}>
             <PremiumCard className="flex items-center gap-4 hover:bg-surface-50 dark:hover:bg-surface-100/10 transition-colors py-4">
               <div className="w-10 h-10 rounded-full bg-surface-100 flex items-center justify-center text-text-secondary">
                 <item.icon size={20} />
@@ -75,11 +74,8 @@ export default function More() {
               </div>
               <ChevronRight size={18} className="text-surface-300" />
             </PremiumCard>
-          );
-          return 'external' in item && item.external
-            ? <a key={item.path} href={item.path}>{card}</a>
-            : <Link key={item.path} to={item.path}>{card}</Link>;
-        })}
+          </Link>
+        ))}
       </div>
     </div>
   );
