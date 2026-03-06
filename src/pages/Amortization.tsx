@@ -18,11 +18,13 @@ const MIP_TABLE = [
   { maxAge: Infinity, rate: 0.001262 },
 ] as const;
 
-const DFI_RATE = 0.0000890;
-const MESES_PT = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
-const AZUL     = '#005CA9';
-const AZUL_ESC = '#003D6E';
-const LARANJA  = '#F47920';
+const DFI_RATE  = 0.0000890;
+const MESES_PT  = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+const AZUL      = '#005CA9';
+const AZUL_ESC  = '#003D6E';
+const LARANJA   = '#F47920';
+const VERDE     = '#1B6B3A';
+const VERDE_CLR = '#ECFDF5';
 
 /* ════════════════════════════════════════════════════
    TIPOS
@@ -40,10 +42,33 @@ interface ExtraResult {
   nova_PMT: number; reducao: number; economia_B: number;
 }
 
+type FGTSModo = 'entrada' | 'amort' | 'parcelas';
+
+interface FGTSParcelaReduzida {
+  k: number; mes: number; ano: number;
+  total_orig: number; total_novo: number; reducao: number;
+}
+
+interface FGTSResult {
+  modo: FGTSModo;
+  fgtsVal: number;
+  fgtsMes: number;
+  /* Modo 1 — na entrada */
+  PV_original: number; PMT_original: number;
+  PV_novo: number;     PMT_novo: number;
+  economia_mensal: number; economia_total: number;
+  /* Modo 2 — amortização extraordinária */
+  extra?: ExtraResult;
+  /* Modo 3 — redução de parcelas por 12 meses */
+  reducao_mensal?: number;
+  parcelas_reduzidas?: FGTSParcelaReduzida[];
+}
+
 interface CalcResult {
   i: number; PMT: number; schedule: Row[];
   totalJuros: number; totalMIP: number; totalDFI: number; totalPago: number;
   row1: Row; extra: ExtraResult | null; parcelaTotalHoje: number;
+  fgts: FGTSResult | null;
 }
 
 /* ════════════════════════════════════════════════════
@@ -91,8 +116,8 @@ function buildSchedule(
   let SD = PV;
   for (let k = 1; k <= n; k++) {
     const sd_ini = SD;
-    const juros  = sd_ini * i;           // decresce mês a mês
-    const amort  = PMT - juros;          // CRESCE mês a mês (PRICE)
+    const juros  = sd_ini * i;
+    const amort  = PMT - juros;
     const sd_fim = Math.max(0, sd_ini - amort);
     const { mes, ano } = getMesAno(mes1, ano1, k);
     const mip = sd_ini * aliquotaMIP(calcIdade(nasc, mes, ano));
@@ -102,6 +127,20 @@ function buildSchedule(
     SD = sd_fim;
   }
   return rows;
+}
+
+/** Calcula ExtraResult dado SD_novo, PMT, i, restantes */
+function calcExtra(SD_M: number, SD_novo: number, PMT: number, i: number, restantes: number): ExtraResult | undefined {
+  if (SD_novo <= 1) return undefined;
+  const novos_meses   = Math.ceil(Math.log(PMT / (PMT - SD_novo * i)) / Math.log(1 + i));
+  const parcelas_econ = restantes - novos_meses;
+  const anos_econ     = parcelas_econ / 12;
+  const economia_A    = PMT * restantes - PMT * novos_meses;
+  const fB            = Math.pow(1 + i, restantes);
+  const nova_PMT      = SD_novo * (i * fB) / (fB - 1);
+  const reducao       = PMT - nova_PMT;
+  const economia_B    = PMT * restantes - nova_PMT * restantes;
+  return { SD_M, SD_novo, restantes, novos_meses, parcelas_econ, anos_econ, economia_A, nova_PMT, reducao, economia_B };
 }
 
 /* ════════════════════════════════════════════════════
@@ -135,7 +174,7 @@ function MCard({ label, value, sub, color }: {
     blue:   { bg: '#EBF4FF', border: AZUL,     val: AZUL_ESC },
     red:    { bg: '#FEF2F2', border: '#B02A37', val: '#B02A37' },
     orange: { bg: '#FFF4EC', border: LARANJA,   val: '#7C3100' },
-    green:  { bg: '#ECFDF5', border: '#1B6B3A', val: '#1B6B3A' },
+    green:  { bg: VERDE_CLR, border: VERDE,     val: VERDE    },
   };
   const s = color ? styles[color] : { bg: '#F9FAFB', border: '#D1D5DB', val: '#1F2937' };
   return (
@@ -143,6 +182,95 @@ function MCard({ label, value, sub, color }: {
       <p className="text-xs text-text-secondary mb-1 uppercase tracking-wide font-semibold">{label}</p>
       <p className="text-sm font-bold" style={{ color: s.val }}>{value}</p>
       {sub && <p className="text-xs text-text-secondary mt-0.5">{sub}</p>}
+    </div>
+  );
+}
+
+/* ════════════════════════════════════════════════════
+   SUB-COMPONENTE: ExtraCard (Opt A / Opt B)
+════════════════════════════════════════════════════ */
+function ExtraCard({ extra, PMT, title }: { extra: ExtraResult; PMT: number; title?: string }) {
+  return (
+    <div>
+      {title && (
+        <p className="text-xs font-bold mb-2 px-1" style={{ color: LARANJA }}>{title}</p>
+      )}
+      <div className="text-xs rounded-lg px-3 py-2 mb-3 bg-surface-100 border border-surface-200">
+        SD antes: <strong>{fmtBRL(extra.SD_M)}</strong>
+        {' '}· SD após: <strong>{fmtBRL(extra.SD_novo)}</strong>
+        {' '}· Restantes: <strong>{extra.restantes}</strong>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        {/* Opt A */}
+        <div className="rounded-xl p-4 border-2" style={{ background: '#EBF4FF', borderColor: AZUL }}>
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-7 h-7 rounded-full text-white text-xs font-black flex items-center justify-center flex-shrink-0" style={{ background: AZUL }}>A</div>
+            <div>
+              <p className="font-bold text-sm" style={{ color: AZUL_ESC }}>Reduzir o Prazo</p>
+              <p className="text-xs text-text-secondary">Mantém PMT = {fmtBRL(PMT)}</p>
+            </div>
+          </div>
+          <div className="text-center my-3">
+            <p className="text-xs text-text-secondary">Novas parcelas restantes</p>
+            <p className="text-4xl font-black" style={{ color: AZUL }}>{extra.novos_meses}</p>
+            <p className="text-sm font-semibold" style={{ color: AZUL_ESC }}>de {extra.restantes} originais</p>
+            <div className="flex justify-center flex-wrap gap-2 mt-2">
+              <span className="bg-white rounded-full px-2.5 py-0.5 text-xs font-bold text-green-700">✂️ {extra.parcelas_econ} parcelas economizadas</span>
+              <span className="bg-white rounded-full px-2.5 py-0.5 text-xs font-bold text-green-700">📅 {extra.anos_econ.toFixed(2)} anos a menos</span>
+            </div>
+          </div>
+          <div className="space-y-1 text-xs">
+            {[
+              ['Restantes originais', extra.restantes.toString()],
+              ['Novas restantes',     extra.novos_meses.toString()],
+              ['PMT mantida',         fmtBRL(PMT)],
+            ].map(([l, v]) => (
+              <div key={l} className="flex justify-between py-1 border-b border-blue-100">
+                <span className="text-text-secondary">{l}</span>
+                <span className="font-semibold">{v}</span>
+              </div>
+            ))}
+            <div className="flex justify-between py-1 font-bold">
+              <span className="text-text-secondary">Economia em juros</span>
+              <span className="text-green-700">{fmtBRL(extra.economia_A)}</span>
+            </div>
+          </div>
+        </div>
+        {/* Opt B */}
+        <div className="rounded-xl p-4 border-2" style={{ background: '#FFF4EC', borderColor: LARANJA }}>
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-7 h-7 rounded-full text-white text-xs font-black flex items-center justify-center flex-shrink-0" style={{ background: LARANJA }}>B</div>
+            <div>
+              <p className="font-bold text-sm" style={{ color: '#7C3100' }}>Reduzir a Parcela</p>
+              <p className="text-xs text-text-secondary">Mantém prazo ({extra.restantes} meses)</p>
+            </div>
+          </div>
+          <div className="text-center my-3">
+            <p className="text-xs text-text-secondary">Nova parcela base (PMT)</p>
+            <p className="text-4xl font-black" style={{ color: LARANJA }}>{fmtBRL(extra.nova_PMT)}</p>
+            <p className="text-sm font-semibold" style={{ color: '#7C3100' }}>era {fmtBRL(PMT)}</p>
+            <span className="inline-flex items-center gap-1 bg-white rounded-full px-2.5 py-0.5 text-xs font-bold text-green-700 mt-2">
+              ↓ Redução de {fmtBRL(extra.reducao)}/mês
+            </span>
+          </div>
+          <div className="space-y-1 text-xs">
+            {[
+              ['PMT atual',     fmtBRL(PMT)],
+              ['Novo PMT',      fmtBRL(extra.nova_PMT)],
+              ['Prazo mantido', `${extra.restantes} meses`],
+            ].map(([l, v]) => (
+              <div key={l} className="flex justify-between py-1 border-b border-orange-100">
+                <span className="text-text-secondary">{l}</span>
+                <span className="font-semibold">{v}</span>
+              </div>
+            ))}
+            <div className="flex justify-between py-1 font-bold">
+              <span className="text-text-secondary">Economia em juros</span>
+              <span className="text-green-700">{fmtBRL(extra.economia_B)}</span>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
@@ -164,21 +292,29 @@ export default function Amortization() {
   const [exMes,  setExMes]  = useState('');
   const [exVal,  setExVal]  = useState('');
 
+  // ── State: FGTS
+  const [fgtsAtivo,  setFgtsAtivo]  = useState(false);
+  const [fgtsVal,    setFgtsVal]    = useState('');
+  const [fgtsModo,   setFgtsModo]   = useState<FGTSModo>('entrada');
+  const [fgtsMesStr, setFgtsMesStr] = useState('');
+
   // ── State: UI
   const [result,    setResult]    = useState<CalcResult | null>(null);
   const [showTable, setShowTable] = useState(false);
   const [erro,      setErro]      = useState('');
 
   // ── Valores derivados em tempo real
-  const avalNum   = useMemo(() => parseCurrency(aval),   [aval]);
-  const compraNum = useMemo(() => parseCurrency(compra), [compra]);
-  const finNum    = useMemo(() => parseCurrency(fin),    [fin]);
-  const subNum    = useMemo(() => parseCurrency(sub),    [sub]);
-  const rendaNum  = useMemo(() => parseCurrency(renda),  [renda]);
-  const exValNum  = useMemo(() => parseCurrency(exVal),  [exVal]);
-  const exMesNum  = useMemo(() => parseInt(exMes) || 0,  [exMes]);
-  const taxaNum   = useMemo(() => parseFloat(taxa.replace(',', '.')) || 0, [taxa]);
-  const nNum      = useMemo(() => Math.max(12, Math.min(420, parseInt(prazo) || 420)), [prazo]);
+  const avalNum    = useMemo(() => parseCurrency(aval),   [aval]);
+  const compraNum  = useMemo(() => parseCurrency(compra), [compra]);
+  const finNum     = useMemo(() => parseCurrency(fin),    [fin]);
+  const subNum     = useMemo(() => parseCurrency(sub),    [sub]);
+  const rendaNum   = useMemo(() => parseCurrency(renda),  [renda]);
+  const exValNum   = useMemo(() => parseCurrency(exVal),  [exVal]);
+  const exMesNum   = useMemo(() => parseInt(exMes) || 0,  [exMes]);
+  const taxaNum    = useMemo(() => parseFloat(taxa.replace(',', '.')) || 0, [taxa]);
+  const nNum       = useMemo(() => Math.max(12, Math.min(420, parseInt(prazo) || 420)), [prazo]);
+  const fgtsNum    = useMemo(() => parseCurrency(fgtsVal), [fgtsVal]);
+  const fgtsMesNum = useMemo(() => parseInt(fgtsMesStr) || 0, [fgtsMesStr]);
 
   const valorBase = useMemo(() => {
     if (avalNum > 0 && compraNum > 0) return Math.min(avalNum, compraNum);
@@ -197,6 +333,16 @@ export default function Amortization() {
     if (isNaN(mes) || isNaN(ano) || mes < 1 || mes > 12) return null;
     return { mes, ano };
   }, [inicio]);
+
+  // Pré-visualização FGTS modo entrada (tempo real)
+  const fgtsPreviewPMT = useMemo(() => {
+    if (!fgtsAtivo || fgtsModo !== 'entrada' || fgtsNum <= 0 || finNum <= 0 || taxaNum <= 0) return null;
+    const PV_novo = Math.max(0, finNum - fgtsNum);
+    if (PV_novo < 1000) return null;
+    const i  = taxaNum / 12 / 100;
+    const fn = Math.pow(1 + i, nNum);
+    return PV_novo * (i * fn) / (fn - 1);
+  }, [fgtsAtivo, fgtsModo, fgtsNum, finNum, taxaNum, nNum]);
 
   // ── Cálculo principal
   function calcular() {
@@ -222,7 +368,6 @@ export default function Amortization() {
     const totalPago  = PMT * schedule.length;
     const row1       = schedule[0];
 
-    // Parcela estimada para o mês atual
     let parcelaTotalHoje = row1.total;
     const hoje  = new Date();
     const kHoje = (hoje.getFullYear() - ano1) * 12 + (hoje.getMonth() + 1 - mes1) + 1;
@@ -230,28 +375,66 @@ export default function Amortization() {
       parcelaTotalHoje = schedule[kHoje - 1].total;
     }
 
-    // Amortização extra
+    // Amortização extra manual
     let extra: ExtraResult | null = null;
     if (exMesNum >= 1 && exMesNum < nNum && exValNum > 0) {
       const SD_M    = saldoK(PV, i, nNum, exMesNum);
       const SD_novo = Math.max(0, SD_M - exValNum);
       const restantes = nNum - exMesNum;
-      if (SD_novo > 1) {
-        // Opt A — reduzir prazo, manter PMT
-        const novos_meses   = Math.ceil(Math.log(PMT / (PMT - SD_novo * i)) / Math.log(1 + i));
-        const parcelas_econ = restantes - novos_meses;
-        const anos_econ     = parcelas_econ / 12;
-        const economia_A    = PMT * restantes - PMT * novos_meses;
-        // Opt B — reduzir PMT, manter prazo
-        const fB       = Math.pow(1 + i, restantes);
-        const nova_PMT = SD_novo * (i * fB) / (fB - 1);
-        const reducao  = PMT - nova_PMT;
-        const economia_B = PMT * restantes - nova_PMT * restantes;
-        extra = { SD_M, SD_novo, restantes, novos_meses, parcelas_econ, anos_econ, economia_A, nova_PMT, reducao, economia_B };
+      extra = calcExtra(SD_M, SD_novo, PMT, i, restantes) ?? null;
+    }
+
+    // ── FGTS
+    let fgts: FGTSResult | null = null;
+    if (fgtsAtivo && fgtsNum > 0) {
+      if (fgtsModo === 'entrada') {
+        const PV_novo         = Math.max(0, PV - fgtsNum);
+        const PMT_novo        = PV_novo * (i * fn) / (fn - 1);
+        const economia_mensal = PMT - PMT_novo;
+        const economia_total  = economia_mensal * nNum;
+        fgts = {
+          modo: 'entrada', fgtsVal: fgtsNum, fgtsMes: 0,
+          PV_original: PV, PMT_original: PMT,
+          PV_novo, PMT_novo, economia_mensal, economia_total,
+        };
+      } else if (fgtsModo === 'amort' && fgtsMesNum >= 1 && fgtsMesNum < nNum) {
+        const SD_M    = saldoK(PV, i, nNum, fgtsMesNum);
+        const SD_novo = Math.max(0, SD_M - fgtsNum);
+        const restantes = nNum - fgtsMesNum;
+        const extraFGTS = calcExtra(SD_M, SD_novo, PMT, i, restantes);
+        fgts = {
+          modo: 'amort', fgtsVal: fgtsNum, fgtsMes: fgtsMesNum,
+          PV_original: PV, PMT_original: PMT,
+          PV_novo: 0, PMT_novo: 0, economia_mensal: 0, economia_total: 0,
+          extra: extraFGTS,
+        };
+      } else if (fgtsModo === 'parcelas' && fgtsMesNum >= 1) {
+        const reducao_mensal = fgtsNum / 12;
+        const inicio_k = fgtsMesNum;
+        const fim_k    = Math.min(fgtsMesNum + 11, schedule.length);
+        const parcelas_reduzidas: FGTSParcelaReduzida[] = [];
+        for (let k = inicio_k; k <= fim_k; k++) {
+          const r = schedule[k - 1];
+          if (r) {
+            parcelas_reduzidas.push({
+              k: r.k, mes: r.mes, ano: r.ano,
+              total_orig: r.total,
+              total_novo: Math.max(0, r.total - reducao_mensal),
+              reducao: reducao_mensal,
+            });
+          }
+        }
+        fgts = {
+          modo: 'parcelas', fgtsVal: fgtsNum, fgtsMes: fgtsMesNum,
+          PV_original: PV, PMT_original: PMT,
+          PV_novo: 0, PMT_novo: 0, economia_mensal: 0, economia_total: 0,
+          reducao_mensal,
+          parcelas_reduzidas,
+        };
       }
     }
 
-    setResult({ i, PMT, schedule, totalJuros, totalMIP, totalDFI, totalPago, row1, extra, parcelaTotalHoje });
+    setResult({ i, PMT, schedule, totalJuros, totalMIP, totalDFI, totalPago, row1, extra, parcelaTotalHoje, fgts });
     setTimeout(() => document.getElementById('resultado-fgts')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
   }
 
@@ -417,6 +600,109 @@ export default function Amortization() {
           </div>
         </PremiumCard>
 
+        {/* ══ Seção 6: Uso do FGTS ══ */}
+        <PremiumCard className="p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <h3 className="font-bold text-sm flex items-center gap-2" style={{ color: VERDE }}>
+              <DollarSign size={15} /> Uso do FGTS
+              <span className="font-normal text-text-secondary text-xs">(opcional)</span>
+            </h3>
+            <button
+              onClick={() => setFgtsAtivo(v => !v)}
+              className="px-3 py-1 rounded-full text-xs font-bold transition-all border"
+              style={fgtsAtivo
+                ? { background: VERDE, color: 'white', borderColor: VERDE }
+                : { background: 'transparent', color: '#6B7280', borderColor: '#D1D5DB' }}
+            >
+              {fgtsAtivo ? '✓ Ativado' : 'Ativar'}
+            </button>
+          </div>
+
+          {fgtsAtivo && (
+            <>
+              {/* Saldo FGTS */}
+              <div>
+                <label className={lb}><DollarSign size={12} /> Saldo FGTS disponível (R$)</label>
+                <input className={ic} value={fgtsVal} inputMode="numeric"
+                  onChange={e => maskCurrency(e, setFgtsVal)} placeholder="10.000,00" />
+              </div>
+
+              {/* Modo de utilização */}
+              <div>
+                <label className={lb}>Forma de utilização</label>
+                <div className="grid grid-cols-3 gap-2">
+                  {(['entrada', 'amort', 'parcelas'] as const).map(m => {
+                    const labels = {
+                      entrada:  'Na Entrada',
+                      amort:    'Amortizar SD',
+                      parcelas: 'Reduzir 12×',
+                    };
+                    const descs = {
+                      entrada:  'Reduz o valor financiado e o PMT',
+                      amort:    'Abate saldo devedor (Opt A ou B)',
+                      parcelas: 'Desconto em 12 parcelas consecutivas',
+                    };
+                    const sel = fgtsModo === m;
+                    return (
+                      <button key={m} onClick={() => setFgtsModo(m)}
+                        className="rounded-xl p-2.5 border-2 text-left transition-all"
+                        style={{
+                          borderColor: sel ? VERDE : '#E5E7EB',
+                          background:  sel ? VERDE_CLR : 'transparent',
+                        }}
+                      >
+                        <p className="text-xs font-bold leading-tight" style={{ color: sel ? VERDE : '#374151' }}>
+                          {labels[m]}
+                        </p>
+                        <p className="text-xs text-text-secondary mt-0.5 leading-tight">{descs[m]}</p>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Campo mês para modo 2 e 3 */}
+              {(fgtsModo === 'amort' || fgtsModo === 'parcelas') && (
+                <div>
+                  <label className={lb}><Clock size={12} />
+                    {fgtsModo === 'amort' ? 'Após a parcela nº' : 'A partir da parcela nº'}
+                  </label>
+                  <input className={ic} value={fgtsMesStr} type="number" min={1}
+                    onChange={e => setFgtsMesStr(e.target.value)}
+                    placeholder={fgtsModo === 'amort' ? '24' : '13'} />
+                  {fgtsModo === 'parcelas' && (
+                    <p className="text-xs text-text-secondary mt-0.5">
+                      O desconto será aplicado por 12 meses consecutivos
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {/* Pré-visualização em tempo real (modo entrada) */}
+              {fgtsModo === 'entrada' && fgtsNum > 0 && finNum > 0 && (
+                <div className="rounded-lg px-3 py-2 text-xs" style={{ background: VERDE_CLR, color: VERDE }}>
+                  <p>Financiamento com FGTS: <strong>{fmtBRL(Math.max(0, finNum - fgtsNum))}</strong>
+                    <span className="text-gray-500 ml-1">(era {fmtBRL(finNum)})</span>
+                  </p>
+                  {fgtsPreviewPMT !== null && (
+                    <p className="mt-0.5">PMT estimado: <strong>{fmtBRL(fgtsPreviewPMT)}</strong>
+                      {' '}· economia <strong>{fmtBRL(parseCurrency(fin) * (taxaNum / 12 / 100) * Math.pow(1 + taxaNum / 12 / 100, nNum) / (Math.pow(1 + taxaNum / 12 / 100, nNum) - 1) - fgtsPreviewPMT)}/mês</strong>
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {/* Pré-visualização modo 3 */}
+              {fgtsModo === 'parcelas' && fgtsNum > 0 && (
+                <div className="rounded-lg px-3 py-2 text-xs" style={{ background: VERDE_CLR, color: VERDE }}>
+                  Desconto por parcela: <strong>{fmtBRL(fgtsNum / 12)}/mês</strong> por 12 meses
+                  {' '}· Total FGTS utilizado: <strong>{fmtBRL(fgtsNum)}</strong>
+                </div>
+              )}
+            </>
+          )}
+        </PremiumCard>
+
         {/* ══ Botão Calcular ══ */}
         {erro && (
           <div className="flex items-center gap-2 rounded-xl p-3 bg-red-50 border border-red-200">
@@ -539,97 +825,127 @@ export default function Amortization() {
             </details>
           </PremiumCard>
 
-          {/* ── Amortização Extra ── */}
+          {/* ── Resultado FGTS ── */}
+          {result.fgts && (
+            <PremiumCard className="p-4">
+              <h3 className="font-bold text-sm mb-3 flex items-center gap-2" style={{ color: VERDE }}>
+                <DollarSign size={15} /> Simulação FGTS — {
+                  result.fgts.modo === 'entrada'  ? 'Uso na Entrada' :
+                  result.fgts.modo === 'amort'    ? `Amortização Extraordinária (após parcela ${result.fgts.fgtsMes})` :
+                  `Redução de Parcelas por 12 meses (a partir da parcela ${result.fgts.fgtsMes})`
+                }
+              </h3>
+
+              {/* Modo 1 — Entrada */}
+              {result.fgts.modo === 'entrada' && (
+                <>
+                  <div className="grid grid-cols-2 gap-2 mb-4">
+                    <MCard label="FGTS Utilizado"      value={fmtBRL(result.fgts.fgtsVal)} color="green" />
+                    <MCard label="Financ. sem FGTS"    value={fmtBRL(result.fgts.PV_original)} />
+                    <MCard label="Financ. com FGTS"    value={fmtBRL(result.fgts.PV_novo)}     color="green" />
+                    <MCard label="PMT sem FGTS"        value={fmtBRL(result.fgts.PMT_original)} />
+                  </div>
+
+                  <div className="rounded-xl p-4 border-2" style={{ background: VERDE_CLR, borderColor: VERDE }}>
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="w-10 h-10 rounded-full flex items-center justify-center text-white font-black flex-shrink-0" style={{ background: VERDE }}>
+                        <DollarSign size={18} />
+                      </div>
+                      <div>
+                        <p className="font-bold text-sm" style={{ color: VERDE }}>Nova PMT com FGTS na Entrada</p>
+                        <p className="text-xs text-text-secondary">Financiamento reduzido de {fmtBRL(result.fgts.PV_original)} para {fmtBRL(result.fgts.PV_novo)}</p>
+                      </div>
+                    </div>
+                    <div className="text-center my-3">
+                      <p className="text-xs text-text-secondary">Nova parcela base (PMT)</p>
+                      <p className="text-4xl font-black" style={{ color: VERDE }}>{fmtBRL(result.fgts.PMT_novo)}</p>
+                      <p className="text-sm font-semibold text-text-secondary">era {fmtBRL(result.fgts.PMT_original)}</p>
+                      <span className="inline-flex items-center gap-1 bg-white rounded-full px-3 py-0.5 text-xs font-bold mt-2" style={{ color: VERDE }}>
+                        ↓ {fmtBRL(result.fgts.economia_mensal)}/mês de economia
+                      </span>
+                    </div>
+                    <div className="space-y-1 text-xs">
+                      {[
+                        ['FGTS utilizado na entrada', fmtBRL(result.fgts.fgtsVal)],
+                        ['Financiamento resultante',  fmtBRL(result.fgts.PV_novo)],
+                        ['PMT original',              fmtBRL(result.fgts.PMT_original)],
+                        ['Nova PMT',                  fmtBRL(result.fgts.PMT_novo)],
+                        ['Economia por parcela',      fmtBRL(result.fgts.economia_mensal)],
+                      ].map(([l, v]) => (
+                        <div key={l} className="flex justify-between py-1.5 border-b border-green-100">
+                          <span className="text-text-secondary">{l}</span>
+                          <span className="font-semibold">{v}</span>
+                        </div>
+                      ))}
+                      <div className="flex justify-between py-1.5 font-bold text-sm">
+                        <span style={{ color: VERDE }}>Economia total estimada</span>
+                        <span style={{ color: VERDE }}>{fmtBRL(result.fgts.economia_total)}</span>
+                      </div>
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {/* Modo 2 — Amortização extraordinária */}
+              {result.fgts.modo === 'amort' && (
+                result.fgts.extra
+                  ? <ExtraCard extra={result.fgts.extra} PMT={result.PMT}
+                      title={`FGTS de ${fmtBRL(result.fgts.fgtsVal)} aplicado como amortização extraordinária na parcela ${result.fgts.fgtsMes}`}
+                    />
+                  : <div className="rounded-xl p-3 bg-red-50 border border-red-200 text-xs text-red-700 font-semibold">
+                      O saldo FGTS informado é maior ou igual ao saldo devedor nessa parcela — o financiamento seria quitado.
+                    </div>
+              )}
+
+              {/* Modo 3 — Redução de parcelas por 12 meses */}
+              {result.fgts.modo === 'parcelas' && result.fgts.parcelas_reduzidas && (
+                <>
+                  <div className="grid grid-cols-3 gap-2 mb-4">
+                    <MCard label="FGTS Total"        value={fmtBRL(result.fgts.fgtsVal)}           color="green" />
+                    <MCard label="Desconto/mês"      value={fmtBRL(result.fgts.reducao_mensal!)}    color="green" />
+                    <MCard label="Meses beneficiados" value={`${result.fgts.parcelas_reduzidas.length} meses`} />
+                  </div>
+
+                  <div className="rounded-xl overflow-hidden border border-surface-200 text-xs">
+                    <div className="grid grid-cols-4 text-white font-bold px-3 py-2" style={{ background: VERDE }}>
+                      <span>Nº</span>
+                      <span>Mês/Ano</span>
+                      <span className="text-right">Total Original</span>
+                      <span className="text-right">Com FGTS</span>
+                    </div>
+                    {result.fgts.parcelas_reduzidas.map((r, idx) => (
+                      <div key={r.k} className={`grid grid-cols-4 px-3 py-2 border-b border-surface-100 ${idx % 2 === 0 ? 'bg-surface-50' : ''}`}>
+                        <span className="font-medium text-gray-500">{r.k}</span>
+                        <span>{MESES_PT[r.mes - 1]}/{r.ano}</span>
+                        <span className="text-right line-through text-text-secondary">{fmtBRL(r.total_orig)}</span>
+                        <span className="text-right font-bold" style={{ color: VERDE }}>{fmtBRL(r.total_novo)}</span>
+                      </div>
+                    ))}
+                    <div className="grid grid-cols-4 px-3 py-2 font-bold text-sm" style={{ background: VERDE_CLR }}>
+                      <span className="col-span-2" style={{ color: VERDE }}>Total do período</span>
+                      <span className="text-right text-text-secondary line-through text-xs">
+                        {fmtBRL(result.fgts.parcelas_reduzidas.reduce((s, r) => s + r.total_orig, 0))}
+                      </span>
+                      <span className="text-right" style={{ color: VERDE }}>
+                        {fmtBRL(result.fgts.parcelas_reduzidas.reduce((s, r) => s + r.total_novo, 0))}
+                      </span>
+                    </div>
+                  </div>
+                  <p className="text-xs text-text-secondary mt-2 italic">
+                    O FGTS abate diretamente o valor total da parcela (PMT + MIP + DFI). O saldo devedor segue o plano PRICE original.
+                  </p>
+                </>
+              )}
+            </PremiumCard>
+          )}
+
+          {/* ── Amortização Extra Manual ── */}
           {result.extra && (
             <PremiumCard className="p-4">
               <h3 className="font-bold text-sm mb-2 flex items-center gap-2" style={{ color: LARANJA }}>
                 <TrendingDown size={15} /> Análise da Amortização Extra
               </h3>
-              <div className="text-xs rounded-lg px-3 py-2 mb-3 bg-surface-100 border border-surface-200">
-                Parcela <strong>{exMesNum}</strong>
-                {' '}· SD antes: <strong>{fmtBRL(result.extra.SD_M)}</strong>
-                {' '}· SD após: <strong>{fmtBRL(result.extra.SD_novo)}</strong>
-                {' '}· Restantes: <strong>{result.extra.restantes}</strong>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-
-                {/* Card A — Reduzir Prazo */}
-                <div className="rounded-xl p-4 border-2" style={{ background: '#EBF4FF', borderColor: AZUL }}>
-                  <div className="flex items-center gap-2 mb-3">
-                    <div className="w-7 h-7 rounded-full text-white text-xs font-black flex items-center justify-center flex-shrink-0" style={{ background: AZUL }}>A</div>
-                    <div>
-                      <p className="font-bold text-sm" style={{ color: AZUL_ESC }}>Reduzir o Prazo</p>
-                      <p className="text-xs text-text-secondary">Mantém PMT = {fmtBRL(result.PMT)}</p>
-                    </div>
-                  </div>
-                  <div className="text-center my-3">
-                    <p className="text-xs text-text-secondary">Novas parcelas restantes</p>
-                    <p className="text-4xl font-black" style={{ color: AZUL }}>{result.extra.novos_meses}</p>
-                    <p className="text-sm font-semibold" style={{ color: AZUL_ESC }}>de {result.extra.restantes} originais</p>
-                    <div className="flex justify-center flex-wrap gap-2 mt-2">
-                      <span className="bg-white rounded-full px-2.5 py-0.5 text-xs font-bold text-green-700">
-                        ✂️ {result.extra.parcelas_econ} parcelas economizadas
-                      </span>
-                      <span className="bg-white rounded-full px-2.5 py-0.5 text-xs font-bold text-green-700">
-                        📅 {result.extra.anos_econ.toFixed(2)} anos a menos
-                      </span>
-                    </div>
-                  </div>
-                  <div className="space-y-1 text-xs">
-                    {[
-                      ['Parcelas restantes originais', result.extra.restantes.toString()],
-                      ['Novas parcelas restantes',     result.extra.novos_meses.toString()],
-                      ['Parcela base mantida (PMT)',   fmtBRL(result.PMT)],
-                    ].map(([l, v]) => (
-                      <div key={l} className="flex justify-between py-1 border-b border-blue-100">
-                        <span className="text-text-secondary">{l}</span>
-                        <span className="font-semibold">{v}</span>
-                      </div>
-                    ))}
-                    <div className="flex justify-between py-1 font-bold">
-                      <span className="text-text-secondary">Economia em juros</span>
-                      <span className="text-green-700">{fmtBRL(result.extra.economia_A)}</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Card B — Reduzir Parcela */}
-                <div className="rounded-xl p-4 border-2" style={{ background: '#FFF4EC', borderColor: LARANJA }}>
-                  <div className="flex items-center gap-2 mb-3">
-                    <div className="w-7 h-7 rounded-full text-white text-xs font-black flex items-center justify-center flex-shrink-0" style={{ background: LARANJA }}>B</div>
-                    <div>
-                      <p className="font-bold text-sm" style={{ color: '#7C3100' }}>Reduzir a Parcela</p>
-                      <p className="text-xs text-text-secondary">Mantém prazo ({result.extra.restantes} meses)</p>
-                    </div>
-                  </div>
-                  <div className="text-center my-3">
-                    <p className="text-xs text-text-secondary">Nova parcela base (PMT)</p>
-                    <p className="text-4xl font-black" style={{ color: LARANJA }}>{fmtBRL(result.extra.nova_PMT)}</p>
-                    <p className="text-sm font-semibold" style={{ color: '#7C3100' }}>era {fmtBRL(result.PMT)}</p>
-                    <span className="inline-flex items-center gap-1 bg-white rounded-full px-2.5 py-0.5 text-xs font-bold text-green-700 mt-2">
-                      ↓ Redução de {fmtBRL(result.extra.reducao)}/mês
-                    </span>
-                  </div>
-                  <div className="space-y-1 text-xs">
-                    {[
-                      ['PMT atual',        fmtBRL(result.PMT)],
-                      ['Novo PMT',         fmtBRL(result.extra.nova_PMT)],
-                      ['Prazo mantido',    `${result.extra.restantes} meses`],
-                    ].map(([l, v]) => (
-                      <div key={l} className="flex justify-between py-1 border-b border-orange-100">
-                        <span className="text-text-secondary">{l}</span>
-                        <span className="font-semibold">{v}</span>
-                      </div>
-                    ))}
-                    <div className="flex justify-between py-1 font-bold">
-                      <span className="text-text-secondary">Economia em juros</span>
-                      <span className="text-green-700">{fmtBRL(result.extra.economia_B)}</span>
-                    </div>
-                  </div>
-                </div>
-
-              </div>
+              <ExtraCard extra={result.extra} PMT={result.PMT} />
             </PremiumCard>
           )}
 
@@ -661,16 +977,16 @@ export default function Amortization() {
                     <thead style={{ position: 'sticky', top: 0, zIndex: 2, background: AZUL, color: 'white' }}>
                       <tr>
                         {[
-                          { h: 'Nº',           aj: false },
-                          { h: 'Mês/Ano',      aj: false },
-                          { h: 'SD Inicial',   aj: false },
-                          { h: 'Amortização',  aj: false },
-                          { h: 'Juros',        aj: false },
-                          { h: '(a+j)',        aj: true  },
-                          { h: 'MIP',          aj: false },
-                          { h: 'DFI',          aj: false },
-                          { h: 'Total',        aj: false },
-                          { h: 'SD Final',     aj: false },
+                          { h: 'Nº',          aj: false },
+                          { h: 'Mês/Ano',     aj: false },
+                          { h: 'SD Inicial',  aj: false },
+                          { h: 'Amortização', aj: false },
+                          { h: 'Juros',       aj: false },
+                          { h: '(a+j)',       aj: true  },
+                          { h: 'MIP',         aj: false },
+                          { h: 'DFI',         aj: false },
+                          { h: 'Total',       aj: false },
+                          { h: 'SD Final',    aj: false },
                         ].map(({ h, aj }) => (
                           <th key={h}
                             className={`px-2 py-2 font-semibold whitespace-nowrap ${h === 'Nº' || h === 'Mês/Ano' ? 'text-left' : 'text-right'}`}
@@ -683,14 +999,18 @@ export default function Amortization() {
                     <tbody>
                       {result.schedule.map(r => {
                         const isExtra = r.k === exMesNum && exValNum > 0;
+                        const isFGTS  = result.fgts?.fgtsMes === r.k && (result.fgts?.modo === 'amort' || result.fgts?.modo === 'parcelas');
+                        const isFGTSRange = result.fgts?.modo === 'parcelas' &&
+                          result.fgts.parcelas_reduzidas?.some(pr => pr.k === r.k);
                         const isAniv  = r.k % 12 === 0;
+                        let bg = '';
+                        if (isFGTSRange)  bg = '#ECFDF5';
+                        else if (isExtra || isFGTS) bg = '#FFF3CD';
+                        else if (isAniv)  bg = '#EBF3FC';
                         return (
-                          <tr key={r.k} style={{
-                            background: isExtra ? '#FFF3CD' : isAniv ? '#EBF3FC' : '',
-                            borderBottom: '1px solid #F3F4F6',
-                          }}>
+                          <tr key={r.k} style={{ background: bg, borderBottom: '1px solid #F3F4F6' }}>
                             <td className="px-2 py-1.5 text-left text-gray-500 font-medium">
-                              {isExtra && '★ '}{r.k}
+                              {(isExtra || isFGTS) && '★ '}{r.k}
                             </td>
                             <td className="px-2 py-1.5 text-left whitespace-nowrap">
                               {MESES_PT[r.mes - 1]}/{r.ano}
@@ -711,7 +1031,9 @@ export default function Amortization() {
                 </div>
                 <p className="text-xs text-center text-text-secondary py-2 border-t border-surface-200 italic">
                   (a+j) constante em todo o contrato · Amortização cresce mês a mês · MIP e DFI decrescem com o saldo
-                  {exValNum > 0 && ` · ★ parcela ${exMesNum} = mês da amortização extra`}
+                  {exValNum > 0 && ` · ★ parcela ${exMesNum} = amortização extra`}
+                  {result.fgts?.modo === 'amort'    && ` · ★ parcela ${result.fgts.fgtsMes} = uso do FGTS`}
+                  {result.fgts?.modo === 'parcelas' && ` · verde = parcelas com desconto FGTS`}
                   {' '}· linhas azuis = aniversários do contrato
                 </p>
               </>
