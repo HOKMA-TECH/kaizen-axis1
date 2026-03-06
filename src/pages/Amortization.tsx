@@ -191,7 +191,8 @@ function calcExtra(
     // Option B — keep term, reduce installment
     const newSacA = balanceAfterExtra / remainingBefore;
     const nextInstB = newSacA + balanceAfterExtra * i;
-    const reduction = installmentBeforeExtra - nextInstB;
+    // Redução medida contra Opt A (parcela do próximo mês caso escolha Opt A)
+    const reduction = nextInstA - nextInstB;
 
     let intB = 0;
     let bB = balanceAfterExtra;
@@ -349,6 +350,7 @@ function InputField({
 export default function Amortization() {
   // ── Raw inputs (currency mask)
   const [pvRaw, setPvRaw] = useState('30000000'); // R$ 300.000,00 = 30000000 cents
+  const [pvFinRaw, setPvFinRaw] = useState('24000000'); // Valor financiado (default 80%)
   const [rdRaw, setRdRaw] = useState('800000');   // R$ 8.000,00
   const [annualRateStr, setAnnualRateStr] = useState('11.71');
   const [monthsStr, setMonthsStr] = useState('360');
@@ -362,9 +364,17 @@ export default function Amortization() {
   const PAGE = 24;
 
   // Formatted display values (two-decimal masked)
-  const pvDisplay = useMemo(() => formatInput(pvRaw), [pvRaw]);
-  const rdDisplay = useMemo(() => formatInput(rdRaw), [rdRaw]);
+  const pvDisplay    = useMemo(() => formatInput(pvRaw),    [pvRaw]);
+  const pvFinDisplay = useMemo(() => formatInput(pvFinRaw), [pvFinRaw]);
+  const rdDisplay    = useMemo(() => formatInput(rdRaw),    [rdRaw]);
   const extraDisplay = useMemo(() => formatInput(extraValRaw), [extraValRaw]);
+
+  // Quando o valor do imóvel muda, sugere automaticamente 80% como financiado
+  useEffect(() => {
+    const propVal = parseNum(pvDisplay);
+    if (propVal > 0) setPvFinRaw(String(Math.round(propVal * 0.8 * 100)));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pvRaw]);
 
   const handleCurrencyChange = useCallback(
     (setter: React.Dispatch<React.SetStateAction<string>>) =>
@@ -373,9 +383,9 @@ export default function Amortization() {
   );
 
   // ── Derived auto-calculated values
-  const pv = useMemo(() => parseNum(pvDisplay) * 0.8, [pvDisplay]);
-  const downPayment = useMemo(() => parseNum(pvDisplay) * 0.2, [pvDisplay]);
-  const propertyValue = useMemo(() => parseNum(pvDisplay), [pvDisplay]);
+  const propertyValue = useMemo(() => parseNum(pvDisplay),    [pvDisplay]);
+  const pv            = useMemo(() => parseNum(pvFinDisplay), [pvFinDisplay]); // valor financiado
+  const downPayment   = useMemo(() => Math.max(0, propertyValue - pv), [propertyValue, pv]); // recursos próprios
   const renda = useMemo(() => parseNum(rdDisplay), [rdDisplay]);
   const maxInstallment = useMemo(() => renda * 0.3, [renda]);
   const annualRate = useMemo(() => parseFloat(annualRateStr) || 0, [annualRateStr]);
@@ -403,8 +413,8 @@ export default function Amortization() {
     limitWarnings.push(`Valor financiado mínimo: R$ 80.000,00 (atual: ${fmtBRL(pv)})`);
   if (pv > 1_500_000)
     limitWarnings.push(`Valor financiado máximo (SBPE): R$ 1.500.000,00 (atual: ${fmtBRL(pv)})`);
-  if (annualRate > 0 && annualRate < 4.5)
-    limitWarnings.push(`Taxa mínima aceita: 4,50% a.a. (FGTS renda baixa). Taxa informada: ${annualRate}% a.a.`);
+  if (annualRate > 0 && annualRate < 3.0)
+    limitWarnings.push(`Taxa muito baixa: ${annualRate}% a.a. Verifique o valor informado.`);
 
   // Reset table page on new simulation
   useEffect(() => setTablePage(0), [base]);
@@ -459,14 +469,27 @@ export default function Amortization() {
                 />
               </div>
 
-              {/* Auto-calculated row */}
-              <div className="rounded-xl border border-gold-200 dark:border-gold-800/30 bg-gold-50 dark:bg-gold-900/10 p-3">
-                <p className="text-xs text-gold-600 dark:text-gold-400 font-medium mb-1">Valor Financiado (80%)</p>
-                <p className="font-bold text-text-primary">{pv > 0 ? fmtBRL(pv) : '—'}</p>
+              {/* Valor Financiado — editável */}
+              <div>
+                <label className={labelClass}><DollarSign size={13} className="text-gold-500" /> Valor Financiado (R$)</label>
+                <input
+                  className={inputClass}
+                  value={pvFinDisplay}
+                  onChange={e => handleCurrencyChange(setPvFinRaw)(e.target.value)}
+                  placeholder="240.000,00"
+                />
+                <p className="text-xs text-text-secondary mt-0.5">Sugerido: 80% do imóvel. Edite se necessário.</p>
               </div>
+
+              {/* Recursos Próprios — calculado */}
               <div className="rounded-xl border border-surface-200 bg-surface-100 p-3">
-                <p className="text-xs text-text-secondary font-medium mb-1">Entrada Necessária (20%)</p>
+                <p className="text-xs text-text-secondary font-medium mb-1">Recursos Próprios (Entrada)</p>
                 <p className="font-bold text-text-primary">{downPayment > 0 ? fmtBRL(downPayment) : '—'}</p>
+                {propertyValue > 0 && pv > 0 && (
+                  <p className="text-xs text-text-secondary mt-0.5">
+                    {fmtBRL(propertyValue)} − {fmtBRL(pv)} = {fmtBRL(downPayment)}
+                  </p>
+                )}
               </div>
 
               <div className={`rounded-xl border p-3 sm:col-span-2 flex items-center justify-between ${base && incomeOk === false
@@ -587,8 +610,8 @@ export default function Amortization() {
                 </h3>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
                   <MetricCard label="Valor do Imóvel" value={fmtBRL(propertyValue)} />
-                  <MetricCard label="Entrada (20%)" value={fmtBRL(downPayment)} />
-                  <MetricCard label="Valor Financiado (80%)" value={fmtBRL(pv)} highlight />
+                  <MetricCard label="Recursos Próprios" value={fmtBRL(downPayment)} />
+                  <MetricCard label="Valor Financiado" value={fmtBRL(pv)} highlight />
                   <MetricCard
                     label="Parcela Máxima (30% renda)"
                     value={maxInstallment > 0 ? fmtBRL(maxInstallment) : '—'}
@@ -621,6 +644,32 @@ export default function Amortization() {
                   </div>
                 )}
 
+                {/* Composição da 1ª parcela */}
+                {base && base.rows.length > 0 && (() => {
+                  const r = base.rows[0];
+                  const pctAmort = (r.amort / r.installment) * 100;
+                  const pctJuros = (r.interest / r.installment) * 100;
+                  return (
+                    <div className="mt-3 rounded-xl bg-surface-100 border border-surface-200 p-3">
+                      <p className="text-xs font-semibold text-text-secondary mb-2">Composição da 1ª Parcela</p>
+                      <div className="flex gap-0 rounded-lg overflow-hidden h-3 mb-2">
+                        <div className="bg-green-500 transition-all" style={{ width: `${pctAmort}%` }} />
+                        <div className="bg-red-400 transition-all" style={{ width: `${pctJuros}%` }} />
+                      </div>
+                      <div className="flex gap-4 text-xs">
+                        <span className="flex items-center gap-1.5 text-green-700 dark:text-green-400">
+                          <span className="w-2 h-2 rounded-full bg-green-500 inline-block" />
+                          Amortização {pctAmort.toFixed(1)}% ({fmtBRL(r.amort)})
+                        </span>
+                        <span className="flex items-center gap-1.5 text-red-600 dark:text-red-400">
+                          <span className="w-2 h-2 rounded-full bg-red-400 inline-block" />
+                          Juros {pctJuros.toFixed(1)}% ({fmtBRL(r.interest)})
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })()}
+
                 {/* Income alert */}
                 {incomeOk === false && (
                   <div className="mt-3 rounded-xl bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/30 p-3 flex items-start gap-2">
@@ -646,6 +695,18 @@ export default function Amortization() {
                       {' '}· Parcelas restantes originais: <strong className="text-text-primary">{extra.remainingBefore}</strong>
                     </p>
                   </div>
+
+                  {/* Regra de Ouro — SAC only */}
+                  {system === 'SAC' && (
+                    <div className="mx-0 rounded-xl bg-gold-50 dark:bg-gold-900/20 border border-gold-200 dark:border-gold-800/30 p-3 flex items-start gap-2">
+                      <span className="text-gold-500 text-base flex-shrink-0">★</span>
+                      <p className="text-xs text-gold-700 dark:text-gold-400">
+                        <strong>Regra de Ouro:</strong> A cada{' '}
+                        <strong>{fmtBRL(base!.pmt)}</strong> de amortização extra, uma parcela é
+                        eliminada do contrato — sem pagar os juros correspondentes.
+                      </p>
+                    </div>
+                  )}
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     {/* Opção A */}
