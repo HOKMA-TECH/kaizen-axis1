@@ -100,17 +100,6 @@ export default function Amortization() {
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: 20 }}
           >
-            {/* Badge */}
-            <div className="rounded-xl p-3 border border-gold-400/30 bg-card-bg flex items-center gap-3 mb-5">
-              <div className="w-10 h-10 rounded-xl bg-gold-400 flex items-center justify-center text-white text-xs font-black flex-shrink-0">
-                CEF
-              </div>
-              <div>
-                <p className="text-sm font-bold text-gold-600">Sistema PRICE FGTS</p>
-                <p className="text-xs text-text-secondary">Parcela = 30% da renda · Amortização = Financiamento ÷ Prazo</p>
-              </div>
-            </div>
-
             <div className="space-y-4">
 
               {/* ── Dados ── */}
