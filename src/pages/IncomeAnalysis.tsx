@@ -547,45 +547,105 @@ export default function IncomeAnalysis() {
         // ==========================================
         try {
           const doc = new jsPDF();
+          let y = 20;
+
+          // Função auxiliar para quebrar página
+          const checkPage = (add = 6) => {
+            if (y + add > 280) {
+              doc.addPage();
+              y = 20;
+            }
+          };
+
           doc.setFontSize(16);
-          doc.text('Apuracao de Renda - Kaizen Axis', 14, 20);
+          doc.setFont('helvetica', 'bold');
+          doc.text('Apuração de Renda - Kaizen Axis', 14, y);
+          y += 15;
 
           doc.setFontSize(10);
+          doc.setFont('helvetica', 'normal');
           const fmt = (c: number) => (c / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-          let y = 30;
-          doc.text(`Cliente ID: ${clienteVinculado}`, 14, y); y += 6;
-          doc.text(`Nome Titular: ${nomeCliente}`, 14, y); y += 6;
-          doc.text(`Documento (CPF): ${cpf || 'N/A'}`, 14, y); y += 6;
+
+          doc.text(`Nome Titular: ${nomeCliente || (clienteVinculado ? clients.find(c => c.id === clienteVinculado)?.name : 'Não informado')}`, 14, y); y += 6;
+          doc.text(`Documento (CPF): ${cpf || (clienteVinculado ? clients.find(c => c.id === clienteVinculado)?.cpf : 'N/A')}`, 14, y); y += 6;
           doc.text(`Gerado em: ${new Date().toLocaleString('pt-BR')}`, 14, y); y += 6;
-          doc.text(`Versao Algoritmo: ${resultado.algoritmoVersao}`, 14, y); y += 10;
+          doc.text(`Versao Algoritmo: ${resultado.algoritmoVersao}`, 14, y);
+          y += 12;
 
           doc.setFontSize(12);
-          doc.text('RESUMO (APOS REVISAO MANUAL)', 14, y); y += 8;
+          doc.setFont('helvetica', 'bold');
+          doc.text('RESUMO (APOS REVISAO MANUAL)', 14, y);
+          y += 10;
+
           doc.setFontSize(10);
-          doc.text(`Renda Media Mensal: R$ ${fmt(mediaMensalAtiva)}`, 14, y); y += 6;
-          doc.text(`Total Apurado: R$ ${fmt(totalApuradoAtivo)}`, 14, y); y += 6;
-          doc.text(`Divisao por 6: R$ ${fmt(Math.round(totalApuradoAtivo / 6))}`, 14, y); y += 6;
-          doc.text(`Divisao por 12: R$ ${fmt(Math.round(totalApuradoAtivo / 12))}`, 14, y); y += 6;
-          doc.text(`Meses Considerados: ${mesesAtivos}`, 14, y); y += 10;
+          doc.setFont('helvetica', 'normal');
+          doc.text(`Total Apurado: R$ ${fmt(totalApuradoAtivo)}`, 14, y); y += 8;
+          doc.text(`Renda Media Mensal: R$ ${fmt(mediaMensalAtiva)}`, 14, y); y += 8;
+          doc.text(`Divisao por 6: R$ ${fmt(Math.round(totalApuradoAtivo / 6))}`, 14, y); y += 8;
+          doc.text(`Divisao por 12: R$ ${fmt(Math.round(totalApuradoAtivo / 12))}`, 14, y); y += 8;
+          doc.text(`Meses Considerados: ${mesesAtivos}`, 14, y);
+          y += 12;
 
           doc.setFontSize(12);
-          doc.text('DETALHAMENTO MENSAL', 14, y); y += 8;
-          doc.setFontSize(10);
+          doc.setFont('helvetica', 'bold');
+          doc.text('DETALHAMENTO MENSAL', 14, y);
+          y += 10;
 
+          doc.setFontSize(10);
+          doc.setFont('helvetica', 'normal');
           Object.entries(totalPorMesAtivo)
             .sort(([a], [b]) => a.localeCompare(b))
             .forEach(([mes, valor]) => {
-              if (y > 270) { doc.addPage(); y = 20; }
-              doc.text(`${mes} .................... R$ ${fmt(valor)}`, 14, y); y += 6;
+              checkPage();
+              doc.text(`${mes} .................... R$ ${fmt(valor)}`, 14, y);
+              y += 8;
             });
 
-          y += 10;
-          if (y > 270) { doc.addPage(); y = 20; }
+          y += 4;
+          checkPage();
+          doc.text(`Timestamp: ${new Date(resultado.auditoria.timestamp).toLocaleString('pt-BR')}`, 14, y);
+          y += 12;
+
           doc.setFontSize(12);
-          doc.text('AUDITORIA E RASTREABILIDADE', 14, y); y += 8;
+          doc.setFont('helvetica', 'bold');
+          checkPage(15);
+          doc.text('Entradas consideradas nos respectivos meses:', 14, y);
+          y += 10;
+
           doc.setFontSize(10);
-          doc.text(`Hash Criptografico do Arquivo: ${resultado.auditoria.hashPdf}`, 14, y); y += 6;
-          doc.text(`Timestamp: ${new Date(resultado.auditoria.timestamp).toLocaleString('pt-BR')}`, 14, y); y += 6;
+          doc.setFont('helvetica', 'normal');
+
+          // Agrupar e listar transações válidas por mês
+          const transacoesPorMes: Record<string, typeof resultado.transacoesDetalhadas> = {};
+          resultado.transacoesDetalhadas.forEach(t => {
+            if (t.valor > 0 && validadas.has(t.id)) {
+              if (!transacoesPorMes[t.mes]) transacoesPorMes[t.mes] = [];
+              transacoesPorMes[t.mes].push(t);
+            }
+          });
+
+          Object.keys(transacoesPorMes).sort().forEach(mes => {
+            checkPage(15);
+            doc.setFont('helvetica', 'bold');
+            doc.text(mes, 14, y);
+            y += 6;
+
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(9);
+            transacoesPorMes[mes].forEach(t => {
+              checkPage(8);
+
+              // Evita que descrições muito longas vazem do PDF
+              let desc = t.descricao;
+              if (desc.length > 80) desc = desc.substring(0, 77) + '...';
+
+              doc.text(`- ${t.data} | R$ ${fmt(t.valor)} | ${desc}`, 14, y);
+              y += 5;
+            });
+
+            doc.setFontSize(10);
+            y += 4;
+          });
 
           const pdfBlob = doc.output('blob');
           const fileName = `apuracao_renda_${Date.now()}.pdf`;
