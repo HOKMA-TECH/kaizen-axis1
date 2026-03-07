@@ -252,7 +252,7 @@ CORRETORA: ${userName.toUpperCase()} - COORDENADOR: ${coordinatorName} - GERENTE
           <textarea
             value={body}
             onChange={(e) => setBody(e.target.value)}
-            className="w-full flex-1 bg-transparent border-none resize-none focus:outline-none text-text-primary leading-relaxed whitespace-pre-wrap"
+            className="w-full flex-1 min-h-[400px] bg-transparent border-none resize-y focus:outline-none text-text-primary leading-relaxed whitespace-pre-wrap"
             placeholder="Escreva sua mensagem..."
           />
 
