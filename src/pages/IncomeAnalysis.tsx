@@ -152,54 +152,37 @@ async function extrairTextoPdf(
     const viewport = pagina.getViewport({ scale: 1.0 });
     const pageWidth = viewport.width;
 
-    // ── Detecção de colunas via histograma X ──────────────────────────────────
-    // Agrupa items por X para detectar se há bimodalidade (2 colunas)
-    const xBuckets: Record<number, number> = {};
-    for (const item of content.items) {
-      const x = Math.round((item as any).transform[4] / (pageWidth / 10)) * (pageWidth / 10);
-      xBuckets[x] = (xBuckets[x] ?? 0) + 1;
-    }
-    const xVals = Object.keys(xBuckets).map(Number).sort((a, b) => a - b);
-    // Detecta gap > 30% da largura da página → layout de 2 colunas
-    let splitX = -1;
-    for (let j = 1; j < xVals.length; j++) {
-      if (xVals[j] - xVals[j - 1] > pageWidth * 0.30) {
-        splitX = (xVals[j - 1] + xVals[j]) / 2;
-        break;
-      }
-    }
-
-    // ── Reconstrução de linhas com tolerância Y adaptativa ────────────────────
-    // Tolerância maior (5px) para layouts densos; fallback a 2px se linha resultar sem valor
+    // ── Reconstrução baseada em Y (Linhas Tabulares) ──────────────────────────
+    // PDFs de bancos são tabelas. A abordagem correta é mapear todos os itens por
+    // sua coordenada Y (com pequena tolerância) e ordená-los da esquerda para a direita (X).
     const Y_TOLERANCE = 5;
+    const linesMap = new Map<number, any[]>();
 
-    function reconstruirLinhas(items: typeof content.items): string[] {
-      let ultimoY: number | null = null;
-      let linhaAtual = '';
-      const linhas: string[] = [];
-      for (const item of items) {
-        const textItem = item as { str: string; transform: number[] };
-        const y = Math.round(textItem.transform[5]);
-        if (ultimoY !== null && Math.abs(y - ultimoY) > Y_TOLERANCE) {
-          if (linhaAtual.trim()) linhas.push(linhaAtual.trim());
-          linhaAtual = textItem.str;
-        } else {
-          linhaAtual += (linhaAtual && textItem.str ? ' ' : '') + textItem.str;
+    for (const item of content.items) {
+      const textItem = item as { str: string; transform: number[] };
+      if (!textItem.str.trim()) continue;
+
+      const y = Math.round(textItem.transform[5]);
+      let matchedY = y;
+
+      for (const key of linesMap.keys()) {
+        if (Math.abs(key - y) <= Y_TOLERANCE) {
+          matchedY = key;
+          break;
         }
-        ultimoY = y;
       }
-      if (linhaAtual.trim()) linhas.push(linhaAtual.trim());
-      return linhas;
+
+      if (!linesMap.has(matchedY)) linesMap.set(matchedY, []);
+      linesMap.get(matchedY)!.push(textItem);
     }
 
-    let linhas: string[];
-    if (splitX > 0) {
-      // Processa cada coluna separadamente e concatena
-      const col1 = content.items.filter(it => (it as any).transform[4] <= splitX);
-      const col2 = content.items.filter(it => (it as any).transform[4] > splitX);
-      linhas = [...reconstruirLinhas(col1), ...reconstruirLinhas(col2)];
-    } else {
-      linhas = reconstruirLinhas(content.items);
+    const sortedYs = Array.from(linesMap.keys()).sort((a, b) => b - a); // Coordenadas Y no PDF são de baixo pra cima
+    const linhas: string[] = [];
+
+    for (const y of sortedYs) {
+      const lineItems = linesMap.get(y)!;
+      lineItems.sort((a, b) => a.transform[4] - b.transform[4]); // Ordena por X (esq -> dir)
+      linhas.push(lineItems.map(it => it.str.trim()).join(' '));
     }
 
     paginas.push(linhas.join('\n'));

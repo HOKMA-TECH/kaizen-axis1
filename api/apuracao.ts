@@ -408,6 +408,10 @@ function extrair(texto: string): Array<{ dataRaw: string; descricaoRaw: string; 
     let dataContextual = '';
     const mAnoInicial = limpo.match(/\b(20\d{2})\b/);
     let anoContextual = mAnoInicial ? mAnoInicial[1] : String(new Date().getFullYear());
+    let descAcumulada = ''; // Buffer para acumular descrições multi-linha (ex: Bradesco)
+
+    // Regex para ignorar cabeçalhos de página sem zerar o buffer (apenas pula a linha)
+    const CABECALHOS_IGNORE = /^(extrato de|bradesco|banco do brasil|lançamentos|histórico|docto|crédito|débito|saldo|data:|cliente:|agência:|conta:|^[\d/]+$)/i;
 
     for (let i = 0; i < linhas.length; i++) {
         const linha = linhas[i];
@@ -420,22 +424,26 @@ function extrair(texto: string): Array<{ dataRaw: string; descricaoRaw: string; 
             else { dataCandidata = `${dataCandidata}/${anoContextual}`; }
             dataContextual = dataCandidata;
 
-            const descSemData = linha.substring(mData[0].length).trim();
-            if (/^saldo\s+(do\s+dia|anterior|final)/i.test(descSemData)) {
+            let descSemData = linha.substring(mData[0].length).trim();
+            if (/^saldo\s+(do\s+dia|anterior|final|bloqueado)/i.test(descSemData)) {
                 // Atualiza o saldo se houver
                 const mSaldo = descSemData.match(VALOR_RE);
                 if (mSaldo) saldoAnteriorTracker = parseMoeda(mSaldo[1]);
+                descAcumulada = ''; // quebrou a continuidade
                 continue;
             }
 
-            // Capturar todos os números no final da string para identificar Valor e Saldo (Bradesco)
-            const valoresLine = Array.from(descSemData.matchAll(/([+-]?\s*(?:R\$\s*)?\d{1,3}(?:\.\d{3})*,\d{2})(?:\s*([CD]|\(\+\)|\(-\)|\+|-))?/ig));
+            // Capturar todos os números no final da string para identificar Valor e Saldo (Bradesco, BB)
+            const valoresLine = Array.from(descSemData.matchAll(/([+-]?\s*(?:R\$\s*)?\d{1,3}(?:\.\d{3})*,\d{2})(?:\s*([CD]|\(\+\)|\(-\)|\+|-))?(?=\s|$|\||[A-Z])/ig));
 
             if (valoresLine.length > 0) {
                 // Remove o bloco de números do final para sobrar a descrição
                 let descPura = descSemData;
-                valoresLine.forEach(m => descPura = descPura.replace(m[0], ''));
-                descPura = descPura.trim();
+                valoresLine.forEach(m => {
+                    descPura = descPura.replace(m[0], '');
+                });
+                descPura = `${descAcumulada} ${descPura}`.trim();
+                descAcumulada = ''; // limpa o buffer após uso
 
                 if (descPura.length === 0 || /^\d+$/.test(descPura)) continue;
 
@@ -462,14 +470,11 @@ function extrair(texto: string): Array<{ dataRaw: string; descricaoRaw: string; 
                     add(dataContextual, descPura, penult[1] + strMod, isCreditInferred);
                     saldoAnteriorTracker = saldoAtual;
                 } else {
-                    // Apenas 1 valor na linha
+                    // Apenas 1 valor na linha (ex: BB com (+), Nubank, Inter)
                     const vMatch = valoresLine[0];
                     const vNumStr = vMatch[1];
                     const suf = vMatch[2] ?? '';
                     add(dataContextual, descPura, vNumStr + suf);
-
-                    // Se a linha tem apenas 1 valor, pode quebrar a rastreabilidade do saldo sequencial
-                    // Mas se o saldo atualizar na linha "Saldo do dia", recuperamos a referência lá
                 }
                 continue;
             }
@@ -479,26 +484,37 @@ function extrair(texto: string): Array<{ dataRaw: string; descricaoRaw: string; 
             const mValorProximo = proxLinha.match(/^(?:R\$\s*)?([+-]?\s*\d{1,3}(?:\.\d{3})*,\d{2})\s*([CD]|\(\+\)|\(-\)|\+|-)?$/i);
             if (mValorProximo && descSemData.length > 0 && !/^saldo\s+/i.test(descSemData)) {
                 const dc = mValorProximo[2]?.trim() ?? '';
-                add(dataContextual, descSemData, mValorProximo[1] + dc);
+                let descPura = `${descAcumulada} ${descSemData}`.trim();
+                add(dataContextual, descPura, mValorProximo[1] + dc);
+                descAcumulada = '';
                 i++;
                 continue;
             }
 
             if (descSemData.length === 0 || descSemData.toLowerCase().includes('total de')) continue;
 
+            // Linha com DATA, mas SEM VALOR. Ex: "03/01/2025 TRANSFERENCIA PIX". Acumula.
+            descAcumulada = `${descAcumulada} ${descSemData}`.trim();
+
         } else if (dataContextual) {
             if (
                 linha.startsWith('Saldo final do período') ||
                 linha.startsWith('Saldo inicial') ||
                 linha.includes('Rendimento líquido') ||
-                /^saldo\s+(do\s+dia|anterior|final)/i.test(linha)
+                /^saldo\s+(do\s+dia|anterior|final|bloqueado)/i.test(linha)
             ) {
                 const mSaldo = linha.match(VALOR_RE);
                 if (mSaldo) saldoAnteriorTracker = parseMoeda(mSaldo[1]);
+                descAcumulada = '';
                 continue;
             }
 
-            const valoresMatches = Array.from(linha.matchAll(/([+-]?\s*(?:R\$\s*)?\d{1,3}(?:\.\d{3})*,\d{2})(?:\s*([CD]|\(\+\)|\(-\)|\+|-))?/ig));
+            // Ignorar cabeçalhos no meio do texto para não poluir o descAcumulada
+            if (CABECALHOS_IGNORE.test(linha)) {
+                continue;
+            }
+
+            const valoresMatches = Array.from(linha.matchAll(/([+-]?\s*(?:R\$\s*)?\d{1,3}(?:\.\d{3})*,\d{2})(?:\s*([CD]|\(\+\)|\(-\)|\+|-))?(?=\s|$|\||[A-Z])/ig));
             if (valoresMatches.length > 0) {
                 // Assume o penúltimo como o valor se tiver múltiplos (lógica Bradesco) e o último como saldo
                 let targetMatch = valoresMatches[0];
@@ -522,10 +538,17 @@ function extrair(texto: string): Array<{ dataRaw: string; descricaoRaw: string; 
                 const suf = targetMatch[2] ?? '';
 
                 const descParts = linha.split(valorRealNum);
-                const descPura = descParts[0].trim();
+                let descPura = descParts[0].trim();
+                descPura = `${descAcumulada} ${descPura}`.trim();
+                descAcumulada = '';
+
                 if (descPura.length > 0 && !/^\d+$/.test(descPura)) {
                     add(dataContextual, descPura, valorRealNum + suf, isCreditInferred);
                 }
+            } else {
+                // Linha sem valor financeiro e não é cabeçalho ou saldo.
+                // É continuação de descrição! Ex: "REM: Matheus Rodrigues 03/01"
+                descAcumulada = `${descAcumulada} ${linha}`.trim();
             }
         }
     }
