@@ -414,8 +414,28 @@ function extrair(texto: string): Array<{ dataRaw: string; descricaoRaw: string; 
     // Regex para ignorar cabeçalhos de página sem zerar o buffer (apenas pula a linha)
     const CABECALHOS_IGNORE = /^(extrato de|bradesco|banco do brasil|lançamentos|histórico|docto|crédito|débito|saldo|data:|cliente:|agência:|conta:|^[\d/]+$)/i;
 
+    // Máquina de estados para ignorar sessões inteiras (ex: Santander "Comprovantes de Pagamento")
+    let isIgnoredSection = false;
+    const SECTIONS_IGNORE = /^(comprovantes? de|pacote de servi[çc]os|[íi]ndices econ[óo]micos|resumo (do|de)|demonstrativo de|posi[çc][ãa]o de|investimentos)/i;
+    const SECTIONS_VALID = /^(conta corrente|movimenta[çc][ãa]o|lan[çc]amentos|hist[óo]rico(?! de))/i;
+
     for (let i = 0; i < linhas.length; i++) {
         const linha = linhas[i];
+
+        // Verifica mudança de sessão (apenas se a linha for curta para evitar falsos positivos no meio de descrições)
+        if (linha.length < 50) {
+            if (SECTIONS_IGNORE.test(linha)) {
+                isIgnoredSection = true;
+                continue;
+            } else if (SECTIONS_VALID.test(linha)) {
+                isIgnoredSection = false;
+                continue;
+            }
+        }
+
+        // Se estivermos dentro de uma sessão ignorada (como Comprovantes de Pix), pulamos o processamento da linha
+        if (isIgnoredSection) continue;
+
         const mData = linha.match(DATA_RE);
 
         if (mData) {
