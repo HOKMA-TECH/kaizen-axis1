@@ -166,6 +166,8 @@ const KEYWORDS_IGNORAR = [
     'CORRECAO MONETARIA', 'CORR MONETARIA',
     'EMPRESTIMO', 'ANTECIPACAO', 'CREDITO CONSIGNADO', 'LIBERACAO EMPRESTIMO',
     'SALDO', 'SALDO ANTERIOR', 'TARIFA', 'TAXA', 'JUROS', 'MULTA', 'COBRANCA', 'ANUIDADE',
+    // SUMMARIES: Linhas de soma do banco (ex: Santander)
+    'TOTAL DE CREDITOS', 'TOTAL DE DEBITOS', 'DEPOSITOS / TRANSFERENCIAS', 'SAQUES / TRANSFERENCIAS', 'SOMA', 'SUBTOTAL',
 ];
 
 // ── v3: Keywords de apostas/jogos (nova regra 2a) ────────────────────────────
