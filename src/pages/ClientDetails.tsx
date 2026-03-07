@@ -34,7 +34,7 @@ export default function ClientDetails() {
     if (!client || !id) return;
 
     if (newStage === 'Concluído' && (!client.development?.trim() || !client.intendedValue?.trim())) {
-      alert('⚠️ Para mover o cliente para a etapa "Concluído", é obrigatório preencher os campos "Empreendimento" e "Valor Pretendido".');
+      alert('⚠️ Para mover o cliente para a etapa "Concluído", é obrigatório preencher os campos "Empreendimento" e "Valor".');
       setIsEditingStage(false);
       setIsEditingInfo(true);
       return;
@@ -279,14 +279,26 @@ export default function ClientDetails() {
                   { label: 'Profissão', key: 'profession' },
                   { label: 'Renda Bruta', key: 'grossIncome' },
                   { label: 'Empreendimento', key: 'development' },
-                  { label: 'Valor Pretendido', key: 'intendedValue' },
+                  { label: 'Valor', key: 'intendedValue' },
                   { label: 'Região de Interesse', key: 'regionOfInterest' },
                 ].map(({ label, key }) => (
                   <div key={key}>
                     <label className="text-xs text-text-secondary uppercase tracking-wider mb-1 block">{label}</label>
                     <input
                       value={(editForm as Record<string, string>)[key] || ''}
-                      onChange={e => setEditForm({ ...editForm, [key]: e.target.value })}
+                      onChange={e => {
+                        let val = e.target.value;
+                        if (key === 'intendedValue') {
+                          let v = val.replace(/\D/g, '');
+                          if (v) {
+                            v = (parseInt(v, 10) / 100).toFixed(2);
+                            val = v.replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+                          } else {
+                            val = '';
+                          }
+                        }
+                        setEditForm({ ...editForm, [key]: val });
+                      }}
                       className="w-full p-2 bg-surface-50 rounded-lg border-none focus:ring-2 focus:ring-gold-400 text-sm text-text-primary"
                     />
                   </div>
@@ -341,7 +353,7 @@ export default function ClientDetails() {
                   { label: 'Fator Social', value: client.socialFactor },
                   { label: 'Região de Interesse', value: client.regionOfInterest },
                   { label: 'Empreendimento', value: client.development },
-                  { label: 'Valor Pretendido', value: client.intendedValue },
+                  { label: 'Valor', value: client.intendedValue },
                   { label: 'Observações', value: client.observations },
                 ].filter(item => item.value).map(({ label, value }) => (
                   <div key={label}>

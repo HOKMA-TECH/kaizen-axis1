@@ -235,8 +235,18 @@ function ConvertLeadModal({ lead, onClose, onConfirm }: {
                 <input className={inputClass} value={form.regionOfInterest} onChange={e => setForm(f => ({ ...f, regionOfInterest: e.target.value }))} placeholder="Bairro / Cidade" />
               </div>
               <div>
-                <label className="text-xs font-medium text-text-secondary mb-1 block">Valor Pretendido</label>
-                <input className={inputClass} value={form.intendedValue} onChange={e => setForm(f => ({ ...f, intendedValue: e.target.value }))} placeholder="R$ 200.000" />
+                <label className="text-xs font-medium text-text-secondary mb-1 block">Valor</label>
+                <input className={inputClass} value={form.intendedValue} onChange={e => {
+                  let val = e.target.value;
+                  let v = val.replace(/\D/g, '');
+                  if (v) {
+                    v = (parseInt(v, 10) / 100).toFixed(2);
+                    val = v.replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+                  } else {
+                    val = '';
+                  }
+                  setForm(f => ({ ...f, intendedValue: val }));
+                }} placeholder="R$ 200.000" />
               </div>
             </div>
             <div>

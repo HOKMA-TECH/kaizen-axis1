@@ -44,7 +44,16 @@ export default function NewClient() {
   const [documents, setDocuments] = useState<File[]>([]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target;
+    let { name, value } = e.target;
+    if (name === 'intendedValue') {
+      let v = value.replace(/\D/g, '');
+      if (v) {
+        v = (parseInt(v, 10) / 100).toFixed(2);
+        value = v.replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+      } else {
+        value = '';
+      }
+    }
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
@@ -281,7 +290,7 @@ export default function NewClient() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-text-secondary mb-1">Valor Pretendido</label>
+              <label className="block text-sm font-medium text-text-secondary mb-1">Valor</label>
               <input
                 name="intendedValue"
                 value={formData.intendedValue}
