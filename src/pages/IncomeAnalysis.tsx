@@ -269,7 +269,7 @@ function AccordionMes({
                 return (
                   <div
                     key={t.id}
-                    className={`flex items-center justify-between px-4 py-2.5 border-b border-surface-50 last:border-0 transition-colors ${ativa ? 'bg-white dark:bg-surface-100' : 'bg-surface-50 dark:bg-surface-200 opacity-50'
+                    className={`flex items-center justify-between px-4 py-2.5 border-b border-surface-50 last:border-0 transition-all ${ativa ? 'bg-white dark:bg-surface-100' : 'bg-surface-50 dark:bg-surface-200 opacity-60 grayscale'
                       }`}
                   >
                     <div className="flex items-center gap-2.5 flex-1 min-w-0">
@@ -332,17 +332,37 @@ export default function IncomeAnalysis() {
   const [showFinalModal, setShowFinalModal] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  // ── Estado de validação reativo ────────────────────────────────────────────
-  const [validadas, setValidadas] = useState<Set<string>>(new Set());
+  // ── Filtros Dinâmicos (Bolhas) e Overrides ─────────────────────────────────
+  const [exclusionBubbles, setExclusionBubbles] = useState<string[]>([]);
+  const [bubbleInput, setBubbleInput] = useState('');
+  const [userOverrides, setUserOverrides] = useState<Record<string, boolean>>({});
+
+  const validadas = useMemo(() => {
+    if (!resultado) return new Set<string>();
+    const ativas = new Set<string>();
+    for (const t of resultado.transacoesDetalhadas) {
+      let isAtiva = t.is_validated;
+      const desc = t.descricao.toUpperCase();
+
+      if (exclusionBubbles.some(b => desc.includes(b))) {
+        isAtiva = false;
+      }
+
+      if (userOverrides[t.id] !== undefined) {
+        isAtiva = userOverrides[t.id];
+      }
+
+      if (isAtiva) ativas.add(t.id);
+    }
+    return ativas;
+  }, [resultado, exclusionBubbles, userOverrides]);
 
   const toggleValidada = useCallback((id: string) => {
-    setValidadas(prev => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
+    setUserOverrides(prev => {
+      const current = validadas.has(id);
+      return { ...prev, [id]: !current };
     });
-  }, []);
+  }, [validadas]);
 
   // ── Recálculo reativo baseado nos toggles ──────────────────────────────────
   const { totalPorMesAtivo, totalApuradoAtivo, mediaMensalAtiva, maiorMesAtivo, menorMesAtivo, mesesAtivos } = useMemo(() => {
@@ -371,8 +391,9 @@ export default function IncomeAnalysis() {
     if (!resultado) return {};
     const grupos: Record<string, TransacaoDetalhada[]> = {};
     for (const t of resultado.transacoesDetalhadas) {
-      const isAtivavel = ['credito_valido', 'possivel_vinculo_familiar', 'possivel_renda_familiar'].includes(t.classificacao);
-      if (!isAtivavel) continue;
+      // Oculta apenas as entradas genéricas brutas e sem keyword do Accordion, 
+      // mas mostra TODO o resto (Apostas, Autotransferências, etc.) para controle do usuário.
+      if (t.classificacao === 'ignorar_sem_keyword') continue;
       if (!grupos[t.mes]) grupos[t.mes] = [];
       grupos[t.mes].push(t);
     }
@@ -440,11 +461,8 @@ export default function IncomeAnalysis() {
       const res = json as ResultadoApuracao;
       setResultado(res);
 
-      // Inicializa toggles: valida automaticamente os créditos válidos
-      const initValidadas = new Set<string>(
-        res.transacoesDetalhadas.filter(t => t.is_validated).map(t => t.id)
-      );
-      setValidadas(initValidadas);
+      // Limpa os overrides antigos e bolhas ao reanalisar (opcional)
+      setUserOverrides({});
       setStep(2);
     } catch (e) {
       setErro(`Falha ao processar: ${e instanceof Error ? e.message : 'Erro desconhecido'}`);
@@ -456,7 +474,7 @@ export default function IncomeAnalysis() {
 
   const handleNovaAnalise = () => {
     setStep(1); setResultado(null); setErro(null);
-    setArquivos([]); setValidadas(new Set());
+    setArquivos([]); setUserOverrides({}); setExclusionBubbles([]);
     if (fileRef.current) fileRef.current.value = '';
   };
 
@@ -480,6 +498,7 @@ export default function IncomeAnalysis() {
           totalPorMesAtivo,
           mediaMensalAtiva,
           validadas: [...validadas],
+          exclusionBubbles,
         },
         validado_em: new Date().toISOString(),
       };
@@ -688,7 +707,46 @@ export default function IncomeAnalysis() {
               <h2 className="text-4xl font-bold text-text-primary mt-2">{brl(mediaMensalAtiva)}</h2>
               <div className="flex items-center justify-center gap-2 mt-2 text-green-600 text-xs font-medium">
                 <CheckCircle2 size={14} />
-                {mesesAtivos} meses · {[...validadas].length} créditos validados
+                {mesesAtivos} meses · {validadas.size} créditos validados
+              </div>
+            </PremiumCard>
+
+            {/* Bolhas de Exclusão Interativas */}
+            <PremiumCard>
+              <h3 className="text-sm font-semibold text-text-primary mb-1">Bolhas de Exclusão (Filtro Dinâmico)</h3>
+              <p className="text-[11px] text-text-secondary mb-3 leading-relaxed">
+                Digite nomes ou termos para desconsiderar (ex: nome de parente ou empresa) e tecle <strong>Enter</strong>. Entradas com a bolha ficarão cinzas, mas podem ser reincluídas manualmente. Algumas já são filtradas automaticamente (Apostas, Titular).
+              </p>
+
+              <div className="flex flex-wrap gap-2 mb-3">
+                {exclusionBubbles.map(b => (
+                  <span key={b} className="inline-flex items-center gap-1 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 px-3 py-1 rounded-full text-xs font-medium transition-all">
+                    {b}
+                    <button onClick={() => setExclusionBubbles(prev => prev.filter(x => x !== b))} className="hover:text-red-900 focus:outline-none">
+                      <XCircle size={14} />
+                    </button>
+                  </span>
+                ))}
+              </div>
+
+              <div className="relative">
+                <input
+                  type="text"
+                  value={bubbleInput}
+                  onChange={e => setBubbleInput(e.target.value)}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter' && bubbleInput.trim()) {
+                      e.preventDefault();
+                      const newBubble = bubbleInput.trim().toUpperCase();
+                      if (!exclusionBubbles.includes(newBubble)) {
+                        setExclusionBubbles([...exclusionBubbles, newBubble]);
+                      }
+                      setBubbleInput('');
+                    }
+                  }}
+                  className="w-full p-3 bg-surface-50 rounded-xl border border-surface-200 focus:ring-2 focus:ring-gold-200 text-text-primary text-sm shadow-inner"
+                  placeholder="Tecle Enter para adicionar uma Tag/Bolha…"
+                />
               </div>
             </PremiumCard>
 
