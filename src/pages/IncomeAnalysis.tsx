@@ -300,10 +300,7 @@ export default function IncomeAnalysis() {
   // Form state
   const [nomeCliente, setNomeCliente] = useState('');
   const [cpf, setCpf] = useState('');
-  const [nomeMae, setNomeMae] = useState('');
-  const [nomePai, setNomePai] = useState('');
   const [arquivos, setArquivos] = useState<File[]>([]);
-  const [customKeywordsRaw, setCustomKeywordsRaw] = useState('');
   const [clienteVinculado, setClienteVinculado] = useState<string>('');
 
   // UX state
@@ -447,10 +444,6 @@ export default function IncomeAnalysis() {
       }
 
       setStatusMsg('Analisando transações…');
-      const customKeywords = customKeywordsRaw
-        .split(',')
-        .map(k => k.trim())
-        .filter(k => k.length >= 3);
 
       const resp = await fetch(API_URL, {
         method: 'POST',
@@ -459,8 +452,6 @@ export default function IncomeAnalysis() {
           textoExtrato: textoUnificado.trim(),
           hashPdf: hashPdfPrimeiro,
           nomeCliente, cpf: cpf || undefined,
-          nomePai: nomePai || undefined, nomeMae: nomeMae || undefined,
-          customKeywords: customKeywords.length ? customKeywords : undefined,
         }),
       });
 
@@ -746,30 +737,7 @@ export default function IncomeAnalysis() {
                   className="w-full p-3 bg-surface-50 rounded-xl border-none focus:ring-2 focus:ring-gold-200 text-text-primary text-sm"
                   placeholder="000.000.000-00" />
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-medium text-text-secondary mb-1">Nome da Mãe</label>
-                  <input type="text" value={nomeMae} onChange={e => setNomeMae(e.target.value)}
-                    className="w-full p-3 bg-surface-50 rounded-xl border-none focus:ring-2 focus:ring-gold-200 text-text-primary text-sm"
-                    placeholder="Maria da Silva" />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-text-secondary mb-1">Nome do Pai</label>
-                  <input type="text" value={nomePai} onChange={e => setNomePai(e.target.value)}
-                    className="w-full p-3 bg-surface-50 rounded-xl border-none focus:ring-2 focus:ring-gold-200 text-text-primary text-sm"
-                    placeholder="José da Silva" />
-                </div>
-              </div>
 
-              {/* Keywords customizadas */}
-              <div>
-                <label className="block text-xs font-medium text-text-secondary mb-1">
-                  Keywords de Aprovação <span className="text-text-secondary font-normal ml-1">(freelancers — separe por vírgula)</span>
-                </label>
-                <input type="text" value={customKeywordsRaw} onChange={e => setCustomKeywordsRaw(e.target.value)}
-                  className="w-full p-3 bg-surface-50 rounded-xl border-none focus:ring-2 focus:ring-gold-200 text-text-primary text-sm"
-                  placeholder="Ex: FREELA, PROJETO, CONSULTORIA" />
-              </div>
 
               {/* Vincular cliente */}
               {clients.length > 0 && (

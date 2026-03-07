@@ -46,9 +46,6 @@ interface Transacao {
 interface ContextoNomes {
     nomeCliente: string;
     cpf?: string;
-    nomePai?: string;
-    nomeMae?: string;
-    customKeywords?: string[];
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -263,10 +260,9 @@ function classificar(
         return { ...base, classificacao: 'ignorar_estorno', motivoExclusao: 'Estorno/investimento', is_validated: false, custom_tag: null };
     }
 
-    // 3. Sem keyword de crédito — EXCETO se tem keyword customizada
+    // 3. Sem keyword de crédito
     const temCredito = KEYWORDS_CREDITO.some(k => descNorm.includes(k));
-    const temCustom = ctx.customKeywords?.some(k => descNorm.includes(normalizar(k))) ?? false;
-    if (!temCredito && !temCustom) {
+    if (!temCredito) {
         return { ...base, classificacao: 'ignorar_sem_keyword', motivoExclusao: 'Sem keyword de crédito', is_validated: false, custom_tag: null };
     }
 
@@ -279,31 +275,14 @@ function classificar(
             return { ...base, classificacao: 'ignorar_autotransferencia', motivoExclusao: 'Autotransferência', is_validated: false, custom_tag: null };
         }
 
-        // 5. Match forte pai
-        if (ctx.nomePai && calcularMatch(ctx.nomePai, descricaoRaw) === 'forte') {
-            return { ...base, classificacao: 'ignorar_transferencia_pai', motivoExclusao: 'Transferência do pai', is_validated: false, custom_tag: null };
-        }
-
-        // 6. Match forte mãe
-        if (ctx.nomeMae && calcularMatch(ctx.nomeMae, descricaoRaw) === 'forte') {
-            return { ...base, classificacao: 'ignorar_transferencia_mae', motivoExclusao: 'Transferência da mãe', is_validated: false, custom_tag: null };
-        }
-
-        // 7. Match fraco → sinalizar ('possivel_vinculo_familiar'), incluído por padrão
-        const fracoPai = ctx.nomePai ? calcularMatch(ctx.nomePai, descricaoRaw) === 'fraco' : false;
-        const fracoMae = ctx.nomeMae ? calcularMatch(ctx.nomeMae, descricaoRaw) === 'fraco' : false;
+        // 5. Match fraco cliente → sinalizar ('possivel_vinculo_familiar'), incluído por padrão
         const fracoCliente = calcularMatch(ctx.nomeCliente, descricaoRaw, ctx.cpf) === 'fraco';
-        if (fracoCliente || fracoPai || fracoMae) {
+        if (fracoCliente) {
             return { ...base, classificacao: 'possivel_vinculo_familiar', motivoExclusao: 'Match fraco — revisão manual', is_validated: true, custom_tag: 'renda_familiar' };
         }
     }
 
-    // 8. Crédito customizado
-    if (temCustom && !temCredito) {
-        return { ...base, classificacao: 'credito_valido', is_validated: true, custom_tag: 'customizado' };
-    }
-
-    // 9. Crédito válido
+    // 8. Crédito válido
     return { ...base, classificacao: 'credito_valido', is_validated: true, custom_tag: null };
 }
 
@@ -612,23 +591,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
         body = body || {};
 
-        const { textoExtrato, hashPdf, nomeCliente, cpf, nomePai, nomeMae, customKeywords } = body;
+        const { textoExtrato, hashPdf, nomeCliente, cpf } = body;
 
         if (!nomeCliente?.trim()) { res.status(400).json({ erro: 'Campo "nomeCliente" é obrigatório.' }); return; }
         if (!textoExtrato?.trim()) { res.status(400).json({ erro: 'Texto do extrato é obrigatório.' }); return; }
 
-        // Sanitizar customKeywords: max 10, max 50 chars cada
-        const kw: string[] = (Array.isArray(customKeywords) ? customKeywords : [])
-            .slice(0, 10)
-            .map((k: string) => String(k).slice(0, 50).trim())
-            .filter((k: string) => k.length >= 3);
-
         const ctx: ContextoNomes = {
             nomeCliente: nomeCliente.trim(),
             cpf: cpf?.trim(),
-            nomePai: nomePai?.trim(),
-            nomeMae: nomeMae?.trim(),
-            customKeywords: kw,
         };
 
         // ── Parsear e classificar ──────────────────────────────────────────────
@@ -714,9 +684,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const menorMes = valores.length > 0 ? Math.min(...valores) : 0;
 
         const excluiuAutoTransferencia = transacoes.some(t => t.classificacao === 'ignorar_autotransferencia');
-        const excluiuTransferenciaPais = transacoes.some(t =>
-            ['ignorar_transferencia_pai', 'ignorar_transferencia_mae'].includes(t.classificacao)
-        );
 
         res.status(200).json({
             algoritmoVersao: '3.0.0-interactive',
@@ -743,11 +710,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             })),
             criteriosAplicados: {
                 excluiuAutoTransferencia,
-                excluiuTransferenciaPais,
                 excluiuApostas: qtdApostas > 0,
                 excluiuWashTrading: qtdWash > 0,
                 modoConservadorInteligente: true,
-                customKeywordsUsadas: kw,
             },
             auditoria: {
                 hashPdf,
