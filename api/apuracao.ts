@@ -168,6 +168,7 @@ const KEYWORDS_IGNORAR = [
     'SALDO', 'SALDO ANTERIOR', 'TARIFA', 'TAXA', 'JUROS', 'MULTA', 'COBRANCA', 'ANUIDADE',
     // SUMMARIES: Linhas de soma do banco (ex: Santander)
     'TOTAL DE CREDITOS', 'TOTAL DE DEBITOS', 'DEPOSITOS / TRANSFERENCIAS', 'SAQUES / TRANSFERENCIAS', 'SOMA', 'SUBTOTAL',
+    'OUTROS CREDITOS', 'PAGAMENTOS / TRANSFERENCIAS',
 ];
 
 // ── v3: Keywords de apostas/jogos (nova regra 2a) ────────────────────────────
