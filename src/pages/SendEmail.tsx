@@ -15,7 +15,7 @@ interface Attachment {
 export default function SendEmail() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { getClient, userName, getDownloadUrl } = useApp();
+  const { getClient, userName, profile, allProfiles, getDownloadUrl } = useApp();
   const [client, setClient] = useState<Client | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -33,6 +33,13 @@ export default function SendEmail() {
     if (found) {
       setClient(found);
       setSubject(`KAIZEN - APROVAR SICAQ CLIENTE:${found.name} CPF:${found.cpf || 'Não informado'}`);
+
+      const teamId = profile?.team_id;
+      const coordinatorObj = allProfiles.find(p => p.team_id === teamId && p.role === 'Coordenador');
+      const managerObj = allProfiles.find(p => p.team_id === teamId && p.role === 'Gerente');
+
+      const coordinatorName = coordinatorObj ? coordinatorObj.name.toUpperCase() : 'NÃO INFORMADO';
+      const managerName = managerObj ? managerObj.name.toUpperCase() : 'NÃO INFORMADO';
 
       const template = `Prezados,
 
@@ -53,7 +60,7 @@ Região de interesse: ${found.regionOfInterest || 'Não informado'}
 
 Observação: ${found.observations || 'Nenhuma observação.'}
 
-CORRETORA: ${userName} - COORDENADOR: THALITA BELLO - GERENTE: MARVYN LANDES`;
+CORRETORA: ${userName.toUpperCase()} - COORDENADOR: ${coordinatorName} - GERENTE: ${managerName}`;
 
       setBody(template);
 
@@ -65,7 +72,7 @@ CORRETORA: ${userName} - COORDENADOR: THALITA BELLO - GERENTE: MARVYN LANDES`;
         })));
       }
     }
-  }, [id, getClient, userName]);
+  }, [id, getClient, userName, profile, allProfiles]);
 
   // Convert a URL or File to base64 string
   const fileToBase64 = (file: File): Promise<string> => {
@@ -241,7 +248,7 @@ CORRETORA: ${userName} - COORDENADOR: THALITA BELLO - GERENTE: MARVYN LANDES`;
           </div>
         </PremiumCard>
 
-        <PremiumCard className="flex-1 min-h-[300px] flex flex-col">
+        <PremiumCard className="flex-1 min-h-[500px] flex flex-col">
           <textarea
             value={body}
             onChange={(e) => setBody(e.target.value)}

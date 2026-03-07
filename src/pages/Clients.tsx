@@ -382,9 +382,6 @@ export default function Clients() {
               className="w-full pl-10 pr-4 py-3 bg-surface-50 rounded-xl text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-gold-200 transition-all placeholder:text-text-secondary"
             />
           </div>
-          <button className="p-3 bg-surface-50 rounded-xl text-text-secondary hover:bg-surface-100">
-            <Filter size={20} />
-          </button>
         </div>
       </div>
 
@@ -469,10 +466,7 @@ export default function Clients() {
       {mainTab === 'documentacao' && (
         <div className="flex-1 px-5 py-4 overflow-y-auto pb-24">
           {/* Header info bar */}
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <p className="text-xs text-text-secondary">Leads recebidos via WhatsApp pelo n8n</p>
-            </div>
+          <div className="flex items-center justify-end mb-4">
             <span className="text-xs font-semibold text-green-600 bg-green-50 border border-green-200 px-2.5 py-1 rounded-full flex items-center gap-1">
               <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
               Fila ativa
