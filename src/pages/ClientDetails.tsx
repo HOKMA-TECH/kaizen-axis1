@@ -65,7 +65,15 @@ export default function ClientDetails() {
 
   const handleOpenDocument = async (path: string) => {
     if (!path) return;
-    const url = await getDownloadUrl(path);
+
+    // Se o path já for uma URL pública completa, abre direto
+    if (path.startsWith('http://') || path.startsWith('https://')) {
+      window.open(path, '_blank');
+      return;
+    }
+
+    // Caso contrário, tenta gerar o link assinado (fallback para paths relativos antigos)
+    const url = await getDownloadUrl(path, 'client-documents');
     if (url) {
       window.open(url, '_blank');
     } else {
