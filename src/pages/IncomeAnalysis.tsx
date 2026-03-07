@@ -295,13 +295,12 @@ function AccordionMes({
 // ─── Componente Principal ─────────────────────────────────────────────────────
 
 export default function IncomeAnalysis() {
-  const { clients, updateClient, user } = useApp();
+  const { user } = useApp();
 
   // Form state
   const [nomeCliente, setNomeCliente] = useState('');
   const [cpf, setCpf] = useState('');
   const [arquivos, setArquivos] = useState<File[]>([]);
-  const [clienteVinculado, setClienteVinculado] = useState<string>('');
 
   // UX state
   const [step, setStep] = useState<1 | 2>(1);
@@ -485,7 +484,7 @@ export default function IncomeAnalysis() {
       // Persistência no Supabase via link direto (sem edge function)
       const { supabase } = await import('@/lib/supabase');
       const auditPayload = {
-        client_id: clienteVinculado || null,
+        client_id: null,
         created_by: user?.id,
         algoritmo_versao: resultado.algoritmoVersao,
         hash_pdf: resultado.auditoria.hashPdf,
@@ -503,169 +502,138 @@ export default function IncomeAnalysis() {
         validado_em: new Date().toISOString(),
       };
 
-      // Calcular múltiplo se cliente vinculado
-      if (clienteVinculado) {
-        const cliente = clients.find(c => c.id === clienteVinculado);
-        if (cliente?.intendedValue) {
-          const valorPretendido = parseFloat(
-            cliente.intendedValue.replace(/[^\d,]/g, '').replace(',', '.')
-          ) * 100;
-          const parcelaEstimada = valorPretendido / 240; // 20 anos
-          if (parcelaEstimada > 0) {
-            auditPayload.renda_multiplo = Math.round((mediaMensalAtiva / parcelaEstimada) * 10) / 10;
+      // ==========================================
+      // Geração do PDF
+      // ==========================================
+      try {
+        const doc = new jsPDF();
+        let y = 20;
+
+        // Função auxiliar para quebrar página
+        const checkPage = (add = 6) => {
+          if (y + add > 280) {
+            doc.addPage();
+            y = 20;
           }
-        }
+        };
 
-        // ==========================================
-        // Geração do PDF e Salvamento em Ficha
-        // ==========================================
-        try {
-          const doc = new jsPDF();
-          let y = 20;
+        doc.setFontSize(16);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Apuração de Renda - Kaizen Axis', 14, y);
+        y += 15;
 
-          // Função auxiliar para quebrar página
-          const checkPage = (add = 6) => {
-            if (y + add > 280) {
-              doc.addPage();
-              y = 20;
-            }
-          };
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'normal');
+        const fmt = (c: number) => (c / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-          doc.setFontSize(16);
-          doc.setFont('helvetica', 'bold');
-          doc.text('Apuração de Renda - Kaizen Axis', 14, y);
-          y += 15;
+        doc.text(`Nome Titular: ${nomeCliente || 'Não informado'}`, 14, y); y += 6;
+        doc.text(`Documento (CPF): ${cpf || 'N/A'}`, 14, y); y += 6;
+        doc.text(`Gerado em: ${new Date().toLocaleString('pt-BR')}`, 14, y); y += 6;
+        doc.text(`Versao Algoritmo: ${resultado.algoritmoVersao}`, 14, y);
+        y += 12;
 
-          doc.setFontSize(10);
-          doc.setFont('helvetica', 'normal');
-          const fmt = (c: number) => (c / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        doc.setFontSize(12);
+        doc.setFont('helvetica', 'bold');
+        doc.text('RESUMO (APOS REVISAO MANUAL)', 14, y);
+        y += 10;
 
-          doc.text(`Nome Titular: ${nomeCliente || (clienteVinculado ? clients.find(c => c.id === clienteVinculado)?.name : 'Não informado')}`, 14, y); y += 6;
-          doc.text(`Documento (CPF): ${cpf || (clienteVinculado ? clients.find(c => c.id === clienteVinculado)?.cpf : 'N/A')}`, 14, y); y += 6;
-          doc.text(`Gerado em: ${new Date().toLocaleString('pt-BR')}`, 14, y); y += 6;
-          doc.text(`Versao Algoritmo: ${resultado.algoritmoVersao}`, 14, y);
-          y += 12;
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'normal');
+        doc.text(`Total Apurado: R$ ${fmt(totalApuradoAtivo)}`, 14, y); y += 8;
+        doc.text(`Renda Media Mensal: R$ ${fmt(mediaMensalAtiva)}`, 14, y); y += 8;
+        doc.text(`Divisao por 6: R$ ${fmt(Math.round(totalApuradoAtivo / 6))}`, 14, y); y += 8;
+        doc.text(`Divisao por 12: R$ ${fmt(Math.round(totalApuradoAtivo / 12))}`, 14, y); y += 8;
+        doc.text(`Meses Considerados: ${mesesAtivos}`, 14, y);
+        y += 12;
 
-          doc.setFontSize(12);
-          doc.setFont('helvetica', 'bold');
-          doc.text('RESUMO (APOS REVISAO MANUAL)', 14, y);
-          y += 10;
+        doc.setFontSize(12);
+        doc.setFont('helvetica', 'bold');
+        doc.text('DETALHAMENTO MENSAL', 14, y);
+        y += 10;
 
-          doc.setFontSize(10);
-          doc.setFont('helvetica', 'normal');
-          doc.text(`Total Apurado: R$ ${fmt(totalApuradoAtivo)}`, 14, y); y += 8;
-          doc.text(`Renda Media Mensal: R$ ${fmt(mediaMensalAtiva)}`, 14, y); y += 8;
-          doc.text(`Divisao por 6: R$ ${fmt(Math.round(totalApuradoAtivo / 6))}`, 14, y); y += 8;
-          doc.text(`Divisao por 12: R$ ${fmt(Math.round(totalApuradoAtivo / 12))}`, 14, y); y += 8;
-          doc.text(`Meses Considerados: ${mesesAtivos}`, 14, y);
-          y += 12;
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'normal');
+        Object.entries(totalPorMesAtivo)
+          .sort(([a], [b]) => a.localeCompare(b))
+          .forEach(([mes, valor]) => {
+            checkPage();
+            doc.text(`${mes} .................... R$ ${fmt(valor)}`, 14, y);
+            y += 8;
+          });
 
-          doc.setFontSize(12);
-          doc.setFont('helvetica', 'bold');
-          doc.text('DETALHAMENTO MENSAL', 14, y);
-          y += 10;
+        y += 4;
+        checkPage();
+        doc.text(`Timestamp: ${new Date(resultado.auditoria.timestamp).toLocaleString('pt-BR')}`, 14, y);
+        y += 12;
 
-          doc.setFontSize(10);
-          doc.setFont('helvetica', 'normal');
-          Object.entries(totalPorMesAtivo)
-            .sort(([a], [b]) => a.localeCompare(b))
-            .forEach(([mes, valor]) => {
-              checkPage();
-              doc.text(`${mes} .................... R$ ${fmt(valor)}`, 14, y);
-              y += 8;
-            });
+        doc.setFontSize(12);
+        doc.setFont('helvetica', 'bold');
+        checkPage(15);
+        doc.text('Entradas consideradas nos respectivos meses:', 14, y);
+        y += 10;
 
-          y += 4;
-          checkPage();
-          doc.text(`Timestamp: ${new Date(resultado.auditoria.timestamp).toLocaleString('pt-BR')}`, 14, y);
-          y += 12;
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'normal');
 
-          doc.setFontSize(12);
-          doc.setFont('helvetica', 'bold');
+        // Agrupar e listar transações válidas por mês
+        const transacoesPorMes: Record<string, typeof resultado.transacoesDetalhadas> = {};
+        resultado.transacoesDetalhadas.forEach(t => {
+          if (t.valor > 0 && validadas.has(t.id)) {
+            if (!transacoesPorMes[t.mes]) transacoesPorMes[t.mes] = [];
+            transacoesPorMes[t.mes].push(t);
+          }
+        });
+
+        Object.keys(transacoesPorMes).sort().forEach(mes => {
           checkPage(15);
-          doc.text('Entradas consideradas nos respectivos meses:', 14, y);
-          y += 10;
+          doc.setFont('helvetica', 'bold');
+          doc.text(mes, 14, y);
+          y += 6;
+
+          doc.setFont('helvetica', 'normal');
+          doc.setFontSize(9);
+          transacoesPorMes[mes].forEach(t => {
+            checkPage(8);
+
+            // Evita que descrições muito longas vazem do PDF
+            let desc = t.descricao;
+            if (desc.length > 80) desc = desc.substring(0, 77) + '...';
+
+            doc.text(`- ${t.data} | R$ ${fmt(t.valor)} | ${desc}`, 14, y);
+            y += 5;
+          });
 
           doc.setFontSize(10);
-          doc.setFont('helvetica', 'normal');
+          y += 4;
+        });
 
-          // Agrupar e listar transações válidas por mês
-          const transacoesPorMes: Record<string, typeof resultado.transacoesDetalhadas> = {};
-          resultado.transacoesDetalhadas.forEach(t => {
-            if (t.valor > 0 && validadas.has(t.id)) {
-              if (!transacoesPorMes[t.mes]) transacoesPorMes[t.mes] = [];
-              transacoesPorMes[t.mes].push(t);
-            }
+        const pdfBlob = doc.output('blob');
+        const fileName = `apuracao_renda_${Date.now()}.pdf`;
+        const storagePath = `general_audits/${fileName}`;
+
+        const fileObj = new File([pdfBlob], fileName, { type: 'application/pdf' });
+        const { error: uploadError } = await supabase.storage
+          .from('client-documents')
+          .upload(storagePath, fileObj, { contentType: 'application/pdf', upsert: false });
+
+        if (!uploadError) {
+          const { data: urlData } = supabase.storage.from('client-documents').getPublicUrl(storagePath);
+
+          await supabase.from('client_documents').insert({
+            client_id: null,
+            name: `Apuracao de Renda - ${new Date().toLocaleString('pt-BR').split(' ')[0].replace(/\//g, '-')}.pdf`,
+            type: 'Comprovante de Renda',
+            url: urlData.publicUrl,
+            created_by: user?.id ?? null,
           });
-
-          Object.keys(transacoesPorMes).sort().forEach(mes => {
-            checkPage(15);
-            doc.setFont('helvetica', 'bold');
-            doc.text(mes, 14, y);
-            y += 6;
-
-            doc.setFont('helvetica', 'normal');
-            doc.setFontSize(9);
-            transacoesPorMes[mes].forEach(t => {
-              checkPage(8);
-
-              // Evita que descrições muito longas vazem do PDF
-              let desc = t.descricao;
-              if (desc.length > 80) desc = desc.substring(0, 77) + '...';
-
-              doc.text(`- ${t.data} | R$ ${fmt(t.valor)} | ${desc}`, 14, y);
-              y += 5;
-            });
-
-            doc.setFontSize(10);
-            y += 4;
-          });
-
-          const pdfBlob = doc.output('blob');
-          const fileName = `apuracao_renda_${Date.now()}.pdf`;
-          const storagePath = `${clienteVinculado}/${fileName}`;
-
-          const fileObj = new File([pdfBlob], fileName, { type: 'application/pdf' });
-          const { error: uploadError } = await supabase.storage
-            .from('client-documents')
-            .upload(storagePath, fileObj, { contentType: 'application/pdf', upsert: false });
-
-          if (!uploadError) {
-            const { data: urlData } = supabase.storage.from('client-documents').getPublicUrl(storagePath);
-
-            await supabase.from('client_documents').insert({
-              client_id: clienteVinculado,
-              name: `Apuracao de Renda - ${new Date().toLocaleString('pt-BR').split(' ')[0].replace(/\//g, '-')}.pdf`,
-              type: 'Comprovante de Renda',
-              url: urlData.publicUrl,
-              created_by: user?.id ?? null,
-            });
-          } else {
-            console.error('Erro ao fazer upload do PDF da apuração:', uploadError);
-          }
-        } catch (pdfErr) {
-          console.error('Erro ao gerar/salvar PDF:', pdfErr);
+        } else {
+          console.error('Erro ao fazer upload do PDF da apuração:', uploadError);
         }
+      } catch (pdfErr) {
+        console.error('Erro ao gerar/salvar PDF:', pdfErr);
       }
 
       await supabase.from('income_audits').insert([auditPayload]);
-
-      // Automação de funil
-      if (clienteVinculado) {
-        const cliente = clients.find(c => c.id === clienteVinculado);
-        if (cliente?.intendedValue) {
-          const valorPretendido = parseFloat(
-            cliente.intendedValue.replace(/[^\d,]/g, '').replace(',', '.')
-          ) * 100;
-          const parcelaEstimada = valorPretendido / 240;
-          const multiplo = parcelaEstimada > 0 ? mediaMensalAtiva / parcelaEstimada : 0;
-          if (multiplo >= 3) {
-            await updateClient(clienteVinculado, { stage: 'Aprovado' });
-          } else if (multiplo >= 1.5) {
-            await updateClient(clienteVinculado, { stage: 'Em Tratativa' });
-          }
-        }
-      }
 
       setShowFinalModal(false);
       alert('✅ Apuração finalizada e salva com sucesso!');
@@ -676,43 +644,8 @@ export default function IncomeAnalysis() {
     }
   };
 
-  const handleExportCsv = () => {
-    if (!resultado) return;
-    const fmt = (c: number) => (c / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    const sep = ';';
-    const linhas: string[] = [];
-    linhas.push('APURAÇÃO DE RENDA - KAIZEN AXIS');
-    linhas.push(`Cliente${sep}${nomeCliente}`);
-    linhas.push(`Gerado em${sep}${new Date().toLocaleString('pt-BR')}`);
-    linhas.push(`Versão${sep}${resultado.algoritmoVersao}`);
-    linhas.push('');
-    linhas.push('RESUMO (APÓS REVISÃO MANUAL)');
-    linhas.push(`Renda Média Mensal${sep}R$ ${fmt(mediaMensalAtiva)}`);
-    linhas.push(`Total Apurado${sep}R$ ${fmt(totalApuradoAtivo)}`);
-    linhas.push(`Divisão ÷ 6${sep}R$ ${fmt(Math.round(totalApuradoAtivo / 6))}`);
-    linhas.push(`Divisão ÷ 12${sep}R$ ${fmt(Math.round(totalApuradoAtivo / 12))}`);
-    linhas.push(`Meses Considerados${sep}${mesesAtivos}`);
-    linhas.push('');
-    linhas.push('DETALHAMENTO MENSAL');
-    linhas.push(`Mês${sep}Total Validado`);
-    Object.entries(totalPorMesAtivo)
-      .sort(([a], [b]) => a.localeCompare(b))
-      .forEach(([mes, valor]) => linhas.push(`${mes}${sep}R$ ${fmt(valor)}`));
-    linhas.push('');
-    linhas.push('AUDITORIA');
-    linhas.push(`Hash PDF${sep}${resultado.auditoria.hashPdf}`);
-    linhas.push(`Timestamp${sep}${new Date(resultado.auditoria.timestamp).toLocaleString('pt-BR')}`);
-    const csv = '\uFEFF' + linhas.join('\r\n');
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `apuracao_${nomeCliente.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
 
-  // ── Render ─────────────────────────────────────────────────────────────────
+
   return (
     <div className="p-6 pb-28 min-h-screen bg-surface-50">
       <SectionHeader title="Apuração de Renda" subtitle="Motor determinístico v3 · Interactive Review" />
@@ -739,17 +672,6 @@ export default function IncomeAnalysis() {
               </div>
 
 
-              {/* Vincular cliente */}
-              {clients.length > 0 && (
-                <div>
-                  <label className="block text-xs font-medium text-text-secondary mb-1">Vincular ao Cliente <span className="text-text-secondary font-normal ml-1">(opcional — para salvar e automatizar funil)</span></label>
-                  <select value={clienteVinculado} onChange={e => setClienteVinculado(e.target.value)}
-                    className="w-full p-3 bg-surface-50 rounded-xl border-none focus:ring-2 focus:ring-gold-200 text-text-primary text-sm">
-                    <option value="">Selecionar cliente…</option>
-                    {clients.map(c => <option key={c.id} value={c.id}>{c.name} — {c.stage}</option>)}
-                  </select>
-                </div>
-              )}
             </PremiumCard>
 
             {/* Upload Multi-PDF */}
@@ -934,12 +856,9 @@ export default function IncomeAnalysis() {
             </PremiumCard>
 
             {/* Ações */}
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-2 gap-2">
               <RoundedButton variant="outline" onClick={handleNovaAnalise}>
                 <RefreshCw size={13} className="mr-1" /> Nova
-              </RoundedButton>
-              <RoundedButton variant="outline" onClick={handleExportCsv}>
-                <Download size={13} className="mr-1" /> CSV
               </RoundedButton>
               <RoundedButton onClick={() => setShowFinalModal(true)}>
                 <Save size={13} className="mr-1" /> Finalizar
@@ -958,24 +877,6 @@ export default function IncomeAnalysis() {
             <p className="text-xs text-text-secondary mt-1">{mesesAtivos} meses · {[...validadas].length} créditos</p>
           </div>
 
-          {clienteVinculado && (
-            <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-xl">
-              <p className="text-xs text-blue-700 dark:text-blue-300">
-                ⚡ O stage do cliente será atualizado automaticamente com base no múltiplo de renda.
-              </p>
-            </div>
-          )}
-
-          {!clienteVinculado && (
-            <div>
-              <label className="block text-xs font-medium text-text-secondary mb-1">Vincular ao cliente (opcional)</label>
-              <select value={clienteVinculado} onChange={e => setClienteVinculado(e.target.value)}
-                className="w-full p-3 bg-surface-50 rounded-xl border-none text-text-primary text-sm">
-                <option value="">Nenhum</option>
-                {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-              </select>
-            </div>
-          )}
 
           <RoundedButton fullWidth onClick={handleFinalizar} disabled={isSaving}>
             {isSaving ? <span className="flex items-center gap-2 justify-center"><Loader2 size={14} className="animate-spin" />Salvando…</span> : '✓ Confirmar e Salvar'}
