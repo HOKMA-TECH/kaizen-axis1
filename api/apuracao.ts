@@ -415,8 +415,12 @@ function extrair(texto: string): Array<{ dataRaw: string; descricaoRaw: string; 
     const CABECALHOS_IGNORE = /^(extrato de|bradesco|banco do brasil|lançamentos|histórico|docto|crédito|débito|saldo|data:|cliente:|agência:|conta:|^[\d/]+$)/i;
 
     // Máquina de estados para ignorar sessões inteiras (ex: Santander "Comprovantes de Pagamento")
-    let isIgnoredSection = false;
-    const SECTIONS_IGNORE = /^(comprovantes? de|pacote de servi[çc]os|[íi]ndices econ[óo]micos|resumo (do|de)|demonstrativo de|posi[çc][ãa]o de|investimentos)/i;
+    // Para o Santander, iniciamos ignorando tudo até achar a seção correta ("Conta Corrente"), 
+    // pois o extrato consolidado contém resumos e comprovantes que geram falsos positivos.
+    const isSantander = /santander/i.test(limpo.substring(0, 1500));
+    let isIgnoredSection = isSantander;
+
+    const SECTIONS_IGNORE = /^(comprovantes? de|pacote de servi[çc]os|[íi]ndices econ[óo]micos|resumo (do|de|consolidado)|demonstrativo de|posi[çc][ãa]o de|investimentos|t[íi]tulos? de capitaliza[çc][ãa]o|fundos? de investimento|cr[ée]dito pessoal|poupan[çc]a|cart[ãa]o de cr[ée]dito|seguros|prote[çc][ãa]o)/i;
     const SECTIONS_VALID = /^(conta corrente|movimenta[çc][ãa]o|lan[çc]amentos|hist[óo]rico(?! de))/i;
 
     for (let i = 0; i < linhas.length; i++) {
