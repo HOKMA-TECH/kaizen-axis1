@@ -135,9 +135,10 @@ function calcularMatch(nome: string, descricao: string, cpf?: string): Resultado
 // ── Keywords de crédito (whitelist) ──────────────────────────────────────────
 const KEYWORDS_CREDITO = [
     'PIX RECEBIDO', 'RECEBIMENTO PIX', 'RECEBIMENTO DE PIX', 'TRANSFERENCIA PIX RECEBIDA',
-    'PIXRECEBIDO',
-    'CRED PIX', 'CR PIX',
+    'PIXRECEBIDO', 'PIX', 'TRANSFERENCIA PIX', 'TRANSF', 'TRANSF SALDO',
+    'CRED PIX', 'CR PIX', 'REM', 'REM.', 'REM:', 'DES:',
     'TED RECEBIDA', 'TED CREDITO', 'DOC RECEBIDO', 'DOC CREDITO', 'TEV RECEBIDA',
+    'TED', 'DOC', 'TEV', 'LIQUIDACAO',
     'CRED TED', 'CR TED', 'CRED DOC', 'CR DOC',
     'DEPOSITO', 'DEPOSITO IDENTIFICADO', 'DEPOSITO BANCARIO', 'DEPOSITO EM CONTA', 'DEP IDENT',
     'CREDITO', 'CREDITO EM CONTA',
