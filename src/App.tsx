@@ -112,7 +112,11 @@ export default function App() {
         <Route path="/clients/:id/email" element={<ProtectedRoute><SendEmail /></ProtectedRoute>} />
 
         <Route path="/automation-leads" element={<ProtectedRoute><AutomationLeads /></ProtectedRoute>} />
-        <Route path="/income" element={<ProtectedRoute><IncomeAnalysis /></ProtectedRoute>} />
+        <Route path="/income" element={
+          <RoleRoute allowed={['ADMIN', 'DIRETOR', 'GERENTE', 'COORDENADOR']}>
+            <IncomeAnalysis />
+          </RoleRoute>
+        } />
         <Route path="/amortization" element={<ProtectedRoute><Amortization /></ProtectedRoute>} />
         <Route path="/schedule" element={<ProtectedRoute><Schedule /></ProtectedRoute>} />
         <Route path="/chat" element={<ProtectedRoute><Chat /></ProtectedRoute>} />

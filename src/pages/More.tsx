@@ -63,20 +63,27 @@ export default function More() {
 
       {/* All menu items visible to all roles — data is scoped by RLS */}
       <div className="space-y-3">
-        {menuItems.map((item) => (
-          <Link key={item.path} to={item.path}>
-            <PremiumCard className="flex items-center gap-4 hover:bg-surface-50 dark:hover:bg-surface-100/10 transition-colors py-4">
-              <div className="w-10 h-10 rounded-full bg-surface-100 flex items-center justify-center text-text-secondary">
-                <item.icon size={20} />
-              </div>
-              <div className="flex-1">
-                <h4 className="font-semibold text-text-primary">{item.label}</h4>
-                <p className="text-xs text-text-secondary">{item.desc}</p>
-              </div>
-              <ChevronRight size={18} className="text-surface-300" />
-            </PremiumCard>
-          </Link>
-        ))}
+        {menuItems
+          .filter(item => {
+            if (item.path === '/income' && !isAdmin && !isDirector && !isManager && !isCoordinator) {
+              return false;
+            }
+            return true;
+          })
+          .map((item) => (
+            <Link key={item.path} to={item.path}>
+              <PremiumCard className="flex items-center gap-4 hover:bg-surface-50 dark:hover:bg-surface-100/10 transition-colors py-4">
+                <div className="w-10 h-10 rounded-full bg-surface-100 flex items-center justify-center text-text-secondary">
+                  <item.icon size={20} />
+                </div>
+                <div className="flex-1">
+                  <h4 className="font-semibold text-text-primary">{item.label}</h4>
+                  <p className="text-xs text-text-secondary">{item.desc}</p>
+                </div>
+                <ChevronRight size={18} className="text-surface-300" />
+              </PremiumCard>
+            </Link>
+          ))}
       </div>
     </div>
   );
