@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import * as pdfjsLib from 'pdfjs-dist';
+import { jsPDF } from 'jspdf';
 import { Modal } from '@/components/ui/Modal';
 import { useApp } from '@/context/AppContext';
 
@@ -539,6 +540,77 @@ export default function IncomeAnalysis() {
           if (parcelaEstimada > 0) {
             auditPayload.renda_multiplo = Math.round((mediaMensalAtiva / parcelaEstimada) * 10) / 10;
           }
+        }
+
+        // ==========================================
+        // Geração do PDF e Salvamento em Ficha
+        // ==========================================
+        try {
+          const doc = new jsPDF();
+          doc.setFontSize(16);
+          doc.text('Apuracao de Renda - Kaizen Axis', 14, 20);
+
+          doc.setFontSize(10);
+          const fmt = (c: number) => (c / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+          let y = 30;
+          doc.text(`Cliente ID: ${clienteVinculado}`, 14, y); y += 6;
+          doc.text(`Nome Titular: ${nomeCliente}`, 14, y); y += 6;
+          doc.text(`Documento (CPF): ${cpf || 'N/A'}`, 14, y); y += 6;
+          doc.text(`Gerado em: ${new Date().toLocaleString('pt-BR')}`, 14, y); y += 6;
+          doc.text(`Versao Algoritmo: ${resultado.algoritmoVersao}`, 14, y); y += 10;
+
+          doc.setFontSize(12);
+          doc.text('RESUMO (APOS REVISAO MANUAL)', 14, y); y += 8;
+          doc.setFontSize(10);
+          doc.text(`Renda Media Mensal: R$ ${fmt(mediaMensalAtiva)}`, 14, y); y += 6;
+          doc.text(`Total Apurado: R$ ${fmt(totalApuradoAtivo)}`, 14, y); y += 6;
+          doc.text(`Divisao por 6: R$ ${fmt(Math.round(totalApuradoAtivo / 6))}`, 14, y); y += 6;
+          doc.text(`Divisao por 12: R$ ${fmt(Math.round(totalApuradoAtivo / 12))}`, 14, y); y += 6;
+          doc.text(`Meses Considerados: ${mesesAtivos}`, 14, y); y += 10;
+
+          doc.setFontSize(12);
+          doc.text('DETALHAMENTO MENSAL', 14, y); y += 8;
+          doc.setFontSize(10);
+
+          Object.entries(totalPorMesAtivo)
+            .sort(([a], [b]) => a.localeCompare(b))
+            .forEach(([mes, valor]) => {
+              if (y > 270) { doc.addPage(); y = 20; }
+              doc.text(`${mes} .................... R$ ${fmt(valor)}`, 14, y); y += 6;
+            });
+
+          y += 10;
+          if (y > 270) { doc.addPage(); y = 20; }
+          doc.setFontSize(12);
+          doc.text('AUDITORIA E RASTREABILIDADE', 14, y); y += 8;
+          doc.setFontSize(10);
+          doc.text(`Hash Criptografico do Arquivo: ${resultado.auditoria.hashPdf}`, 14, y); y += 6;
+          doc.text(`Timestamp: ${new Date(resultado.auditoria.timestamp).toLocaleString('pt-BR')}`, 14, y); y += 6;
+
+          const pdfBlob = doc.output('blob');
+          const fileName = `apuracao_renda_${Date.now()}.pdf`;
+          const storagePath = `${clienteVinculado}/${fileName}`;
+
+          const fileObj = new File([pdfBlob], fileName, { type: 'application/pdf' });
+          const { error: uploadError } = await supabase.storage
+            .from('client-documents')
+            .upload(storagePath, fileObj, { contentType: 'application/pdf', upsert: false });
+
+          if (!uploadError) {
+            const { data: urlData } = supabase.storage.from('client-documents').getPublicUrl(storagePath);
+
+            await supabase.from('client_documents').insert({
+              client_id: clienteVinculado,
+              name: `Apuracao de Renda - ${new Date().toLocaleString('pt-BR').split(' ')[0].replace(/\//g, '-')}.pdf`,
+              type: 'Comprovante de Renda',
+              url: urlData.publicUrl,
+              created_by: user?.id ?? null,
+            });
+          } else {
+            console.error('Erro ao fazer upload do PDF da apuração:', uploadError);
+          }
+        } catch (pdfErr) {
+          console.error('Erro ao gerar/salvar PDF:', pdfErr);
         }
       }
 
