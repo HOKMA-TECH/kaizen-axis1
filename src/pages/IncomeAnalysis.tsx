@@ -340,14 +340,33 @@ export default function IncomeAnalysis() {
   const validadas = useMemo(() => {
     if (!resultado) return new Set<string>();
     const ativas = new Set<string>();
+
+    // Helper para matching mais inteligente (ignora acentos e ajuda com nomes truncados)
+    const normalize = (str: string) => str.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+
     for (const t of resultado.transacoesDetalhadas) {
       // Filtrar estritamente apenas os créditos
       if (t.valor <= 0) continue;
 
       let isAtiva = t.is_validated;
-      const desc = t.descricao.toLowerCase();
+      const descNorm = normalize(t.descricao);
 
-      if (exclusionBubbles.some(b => desc.includes(b.trim().toLowerCase()))) {
+      // Verificação das bolhas
+      const hasBubble = exclusionBubbles.some(b => {
+        const bubbleNorm = normalize(b.trim());
+        if (descNorm.includes(bubbleNorm)) return true;
+
+        // Se a bolha for um nome completo, mas o banco truncou o final do nome (ex: Thalita Barros Bel...)
+        // Tentamos garantir o match se os 2 primeiros nomes baterem exatamente.
+        const words = bubbleNorm.split(/\s+/).filter(w => w.length > 2);
+        if (words.length >= 2) {
+          const firstTwoNames = `${words[0]} ${words[1]}`;
+          if (descNorm.includes(firstTwoNames)) return true;
+        }
+        return false;
+      });
+
+      if (hasBubble) {
         isAtiva = false;
       }
 
