@@ -284,9 +284,9 @@ function AccordionMes({
                           ? <ToggleRight size={22} className="text-green-500" />
                           : <ToggleLeft size={22} className="text-surface-400" />}
                       </button>
-                      <div className="min-w-0">
-                        <p className="text-xs text-text-primary truncate max-w-[180px]">{t.descricao}</p>
-                        <p className="text-[10px] text-text-secondary">{t.data}</p>
+                      <div className="flex-1 min-w-0 pr-2">
+                        <p className="text-xs text-text-primary leading-relaxed break-words">{t.descricao}</p>
+                        <p className="text-[10px] text-text-secondary mt-0.5">{t.data}</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-2 flex-shrink-0">
