@@ -105,7 +105,7 @@ async function ocrParalelo(
       new Promise<void>((resolve) => {
         // Importa o worker via URL estática — compatível com Vite bundler
         const worker = new Worker(
-          new URL('./workers/tesseractWorker.ts', import.meta.url),
+          new URL('../workers/tesseractWorker.ts', import.meta.url),
           { type: 'module' }
         );
         worker.onmessage = (e: MessageEvent<{ pageNum: number; text: string }>) => {
