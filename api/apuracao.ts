@@ -637,6 +637,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         let transacoes: Transacao[] = brutas.map(b => classificar(b.dataRaw, b.descricaoRaw, b.valorRaw, ctx));
 
+        // v3: Defesa extra - Deduplicação Exata (Data + Valor + Descrição normalizada)
+        // Evita que anexos de "Comprovantes" (ex: Santander) que vazem pelo filtro de seção 
+        // dobrem a renda ao registrar o mesmo PIX duas vezes.
+        const transacoesUnicas: Transacao[] = [];
+        const assinaturas = new Set<string>();
+
+        for (const t of transacoes) {
+            // Cria uma assinatura ignorando espaços extras, mantendo apenas alfanuméricos curtos para tolerância
+            const descCurta = t.descricao.replace(/[^A-Z0-9]/ig, '').substring(0, 15).toUpperCase();
+            const assinatura = `${t.data}_${t.valor}_${descCurta}`;
+
+            if (!assinaturas.has(assinatura)) {
+                assinaturas.add(assinatura);
+                transacoesUnicas.push(t);
+            }
+        }
+        transacoes = transacoesUnicas;
+
         // v3: pós-processamentos determinísticos
         transacoes = detectarWashTrading(transacoes);
 
