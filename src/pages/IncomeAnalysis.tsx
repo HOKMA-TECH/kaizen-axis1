@@ -295,12 +295,13 @@ function AccordionMes({
 // ─── Componente Principal ─────────────────────────────────────────────────────
 
 export default function IncomeAnalysis() {
-  const { user } = useApp();
+  const { clients, updateClient, user } = useApp();
 
   // Form state
   const [nomeCliente, setNomeCliente] = useState('');
   const [cpf, setCpf] = useState('');
   const [arquivos, setArquivos] = useState<File[]>([]);
+  const [clienteVinculado, setClienteVinculado] = useState<string>('');
 
   // UX state
   const [step, setStep] = useState<1 | 2>(1);
@@ -484,7 +485,7 @@ export default function IncomeAnalysis() {
       // Persistência no Supabase via link direto (sem edge function)
       const { supabase } = await import('@/lib/supabase');
       const auditPayload = {
-        client_id: null,
+        client_id: clienteVinculado || null,
         created_by: user?.id,
         algoritmo_versao: resultado.algoritmoVersao,
         hash_pdf: resultado.auditoria.hashPdf,
@@ -501,6 +502,20 @@ export default function IncomeAnalysis() {
         },
         validado_em: new Date().toISOString(),
       };
+
+      // Calcular múltiplo se cliente vinculado
+      if (clienteVinculado) {
+        const cliente = clients.find(c => c.id === clienteVinculado);
+        if (cliente?.intendedValue) {
+          const valorPretendido = parseFloat(
+            cliente.intendedValue.replace(/[^\d,]/g, '').replace(',', '.')
+          ) * 100;
+          const parcelaEstimada = valorPretendido / 240; // 20 anos
+          if (parcelaEstimada > 0) {
+            auditPayload.renda_multiplo = Math.round((mediaMensalAtiva / parcelaEstimada) * 10) / 10;
+          }
+        }
+      }
 
       // ==========================================
       // Geração do PDF
@@ -526,8 +541,8 @@ export default function IncomeAnalysis() {
         doc.setFont('helvetica', 'normal');
         const fmt = (c: number) => (c / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-        doc.text(`Nome Titular: ${nomeCliente || 'Não informado'}`, 14, y); y += 6;
-        doc.text(`Documento (CPF): ${cpf || 'N/A'}`, 14, y); y += 6;
+        doc.text(`Nome Titular: ${nomeCliente || (clienteVinculado ? clients.find(c => c.id === clienteVinculado)?.name : 'Não informado')}`, 14, y); y += 6;
+        doc.text(`Documento (CPF): ${cpf || (clienteVinculado ? clients.find(c => c.id === clienteVinculado)?.cpf : 'N/A')}`, 14, y); y += 6;
         doc.text(`Gerado em: ${new Date().toLocaleString('pt-BR')}`, 14, y); y += 6;
         doc.text(`Versao Algoritmo: ${resultado.algoritmoVersao}`, 14, y);
         y += 12;
@@ -609,7 +624,7 @@ export default function IncomeAnalysis() {
 
         const pdfBlob = doc.output('blob');
         const fileName = `apuracao_renda_${Date.now()}.pdf`;
-        const storagePath = `general_audits/${fileName}`;
+        const storagePath = clienteVinculado ? `${clienteVinculado}/${fileName}` : `general_audits/${fileName}`;
 
         const fileObj = new File([pdfBlob], fileName, { type: 'application/pdf' });
         const { error: uploadError } = await supabase.storage
@@ -620,7 +635,7 @@ export default function IncomeAnalysis() {
           const { data: urlData } = supabase.storage.from('client-documents').getPublicUrl(storagePath);
 
           await supabase.from('client_documents').insert({
-            client_id: null,
+            client_id: clienteVinculado || null,
             name: `Apuracao de Renda - ${new Date().toLocaleString('pt-BR').split(' ')[0].replace(/\//g, '-')}.pdf`,
             type: 'Comprovante de Renda',
             url: urlData.publicUrl,
@@ -634,6 +649,23 @@ export default function IncomeAnalysis() {
       }
 
       await supabase.from('income_audits').insert([auditPayload]);
+
+      // Automação de funil
+      if (clienteVinculado) {
+        const cliente = clients.find(c => c.id === clienteVinculado);
+        if (cliente?.intendedValue) {
+          const valorPretendido = parseFloat(
+            cliente.intendedValue.replace(/[^\d,]/g, '').replace(',', '.')
+          ) * 100;
+          const parcelaEstimada = valorPretendido / 240;
+          const multiplo = parcelaEstimada > 0 ? mediaMensalAtiva / parcelaEstimada : 0;
+          if (multiplo >= 3) {
+            await updateClient(clienteVinculado, { stage: 'Aprovado' });
+          } else if (multiplo >= 1.5) {
+            await updateClient(clienteVinculado, { stage: 'Em Tratativa' });
+          }
+        }
+      }
 
       setShowFinalModal(false);
       alert('✅ Apuração finalizada e salva com sucesso!');
@@ -671,7 +703,17 @@ export default function IncomeAnalysis() {
                   placeholder="000.000.000-00" />
               </div>
 
-
+              {/* Vincular cliente */}
+              {clients.length > 0 && (
+                <div>
+                  <label className="block text-xs font-medium text-text-secondary mb-1">Vincular ao Cliente</label>
+                  <select value={clienteVinculado} onChange={e => setClienteVinculado(e.target.value)}
+                    className="w-full p-3 bg-surface-50 rounded-xl border-none focus:ring-2 focus:ring-gold-200 text-text-primary text-sm">
+                    <option value="">Selecionar cliente…</option>
+                    {clients.map(c => <option key={c.id} value={c.id}>{c.name} — {c.stage}</option>)}
+                  </select>
+                </div>
+              )}
             </PremiumCard>
 
             {/* Upload Multi-PDF */}
@@ -877,7 +919,24 @@ export default function IncomeAnalysis() {
             <p className="text-xs text-text-secondary mt-1">{mesesAtivos} meses · {[...validadas].length} créditos</p>
           </div>
 
+          {clienteVinculado && (
+            <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-xl">
+              <p className="text-xs text-blue-700 dark:text-blue-300">
+                ⚡ O stage do cliente será atualizado automaticamente com base no múltiplo de renda.
+              </p>
+            </div>
+          )}
 
+          {!clienteVinculado && (
+            <div>
+              <label className="block text-xs font-medium text-text-secondary mb-1">Vincular ao cliente</label>
+              <select value={clienteVinculado} onChange={e => setClienteVinculado(e.target.value)}
+                className="w-full p-3 bg-surface-50 rounded-xl border-none text-text-primary text-sm">
+                <option value="">Nenhum</option>
+                {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+            </div>
+          )}
           <RoundedButton fullWidth onClick={handleFinalizar} disabled={isSaving}>
             {isSaving ? <span className="flex items-center gap-2 justify-center"><Loader2 size={14} className="animate-spin" />Salvando…</span> : '✓ Confirmar e Salvar'}
           </RoundedButton>
