@@ -335,7 +335,7 @@ function detectarWashTrading(transacoes: Transacao[]): Transacao[] {
 // PARSER — Extração de transações via regex (multi-estratégia) — inalterado v2
 // ═══════════════════════════════════════════════════════════════════════════════
 
-const VALOR_RE = /([+-]?\s*(?:R\$\s*)?\d{1,3}(?:\.\d{3})*,\d{2})(\s*[CD])?(?=\s|$|\|)/i;
+const VALOR_RE = /([+-]?\s*(?:R\$\s*)?\d{1,3}(?:\.\d{3})*,\d{2})\s*([CD]|\(\+\)|\(-\)|\+|-)?(?=\s|$|\|)/i;
 const DATA_RE = /^(\d{2}[\/\-\.\s]\d{2}(?:[\/\-\.\s]\d{2,4})?|\d{2}[\/\-\.\s]+(?:JAN|FEV|MAR|ABR|MAI|JUN|JUL|AGO|SET|OUT|NOV|DEZ)[\/\-\.\s]?(?:\d{2,4})?)/i;
 
 const MESES_EXTENSO_API: Record<string, string> = {
@@ -367,13 +367,35 @@ function extrair(texto: string): Array<{ dataRaw: string; descricaoRaw: string; 
     const vistas = new Set<string>();
     const todos: Array<{ dataRaw: string; descricaoRaw: string; valorRaw: string }> = [];
 
-    function add(dataRaw: string, descricaoRaw: string, valorRaw: string) {
-        let v = valorRaw.replace(/\s+/g, '').replace(/^R\$/i, '').replace(/^-R\$/i, '-');
+    // Tracker para inferir sinal do Bradesco (matemática de Saldo)
+    let saldoAnteriorTracker: number | null = null;
+
+    function add(dataRaw: string, descricaoRaw: string, valorStr: string, isCreditInferred?: boolean) {
+        let v = valorStr.replace(/\s+/g, '').replace(/^R\$/i, '').replace(/^-R\$/i, '-');
         if (v.startsWith('+')) v = v.substring(1);
-        const mDC = v.match(/^(-?[\d.]+,\d{2})([CD])$/i);
+
+        // Suportar (D), (C), (+), (-) ou explicitos
+        const mDC = v.match(/^(-?[\d.]+,\d{2})([CD]|\(\+\)|\(-\)|\+|-)?$/i);
         if (mDC) {
-            v = mDC[2].toUpperCase() === 'D' ? `-${mDC[1].replace(/^-/, '')}` : mDC[1];
+            const numPart = mDC[1].replace(/^-/, '');
+            const suf = (mDC[2] ?? '').toUpperCase();
+
+            // Se já tem sinal negativo explícito no começo
+            if (mDC[1].startsWith('-')) {
+                v = `-${numPart}`;
+            } else if (suf === 'D' || suf === '(-)' || suf === '-') {
+                v = `-${numPart}`;
+            } else if (suf === 'C' || suf === '(+)' || suf === '+') {
+                v = numPart;
+            } else if (isCreditInferred === false) {
+                v = `-${numPart}`;
+            } else {
+                v = numPart;
+            }
+        } else if (isCreditInferred === false) {
+            v = `-${v}`;
         }
+
         const desc = descricaoRaw.replace(/\|/g, ' ').replace(/\s+/g, ' ').trim();
         if (desc.length < 3) return;
         const chave = `${dataRaw}|${desc}|${v}`;
@@ -390,6 +412,7 @@ function extrair(texto: string): Array<{ dataRaw: string; descricaoRaw: string; 
     for (let i = 0; i < linhas.length; i++) {
         const linha = linhas[i];
         const mData = linha.match(DATA_RE);
+
         if (mData) {
             let dataCandidata = mData[1];
             const mAno = dataCandidata.match(/\b(20\d{2})\b/);
@@ -398,22 +421,63 @@ function extrair(texto: string): Array<{ dataRaw: string; descricaoRaw: string; 
             dataContextual = dataCandidata;
 
             const descSemData = linha.substring(mData[0].length).trim();
-            if (/^saldo\s+do\s+dia/i.test(descSemData)) continue;
+            if (/^saldo\s+(do\s+dia|anterior|final)/i.test(descSemData)) {
+                // Atualiza o saldo se houver
+                const mSaldo = descSemData.match(VALOR_RE);
+                if (mSaldo) saldoAnteriorTracker = parseMoeda(mSaldo[1]);
+                continue;
+            }
 
-            const linhaTemValor = descSemData.match(VALOR_RE);
-            if (linhaTemValor) {
-                const dc = linhaTemValor[2]?.trim() ?? '';
-                const valorComDC = linhaTemValor[1] + dc;
-                const descPura = descSemData.replace(linhaTemValor[0], '').trim();
-                if (descPura.length > 0 && !/^\d+$/.test(descPura)) {
-                    add(dataContextual, descPura, valorComDC);
+            // Capturar todos os números no final da string para identificar Valor e Saldo (Bradesco)
+            const valoresLine = Array.from(descSemData.matchAll(/([+-]?\s*(?:R\$\s*)?\d{1,3}(?:\.\d{3})*,\d{2})(?:\s*([CD]|\(\+\)|\(-\)|\+|-))?/ig));
+
+            if (valoresLine.length > 0) {
+                // Remove o bloco de números do final para sobrar a descrição
+                let descPura = descSemData;
+                valoresLine.forEach(m => descPura = descPura.replace(m[0], ''));
+                descPura = descPura.trim();
+
+                if (descPura.length === 0 || /^\d+$/.test(descPura)) continue;
+
+                // Se houver mais de um número e for o layout Bradesco (Valor + Saldo no final)
+                if (valoresLine.length >= 2) {
+                    const ult = valoresLine[valoresLine.length - 1];
+                    const penult = valoresLine[valoresLine.length - 2];
+                    const saldoAtual = parseMoeda(ult[1]);
+                    const valorTransacaoNum = parseMoeda(penult[1]);
+
+                    const strMod = penult[2] ?? '';
+
+                    let isCreditInferred: boolean | undefined = undefined;
+
+                    // Se não tiver sinal explícito (D/C/+/-), tentar matemática
+                    if (!strMod.match(/[CD\+\-]/i) && saldoAnteriorTracker !== null) {
+                        if (Math.abs((saldoAnteriorTracker + valorTransacaoNum) - saldoAtual) < 5) {
+                            isCreditInferred = true;
+                        } else if (Math.abs((saldoAnteriorTracker - valorTransacaoNum) - saldoAtual) < 5) {
+                            isCreditInferred = false;
+                        }
+                    }
+
+                    add(dataContextual, descPura, penult[1] + strMod, isCreditInferred);
+                    saldoAnteriorTracker = saldoAtual;
+                } else {
+                    // Apenas 1 valor na linha
+                    const vMatch = valoresLine[0];
+                    const vNumStr = vMatch[1];
+                    const suf = vMatch[2] ?? '';
+                    add(dataContextual, descPura, vNumStr + suf);
+
+                    // Se a linha tem apenas 1 valor, pode quebrar a rastreabilidade do saldo sequencial
+                    // Mas se o saldo atualizar na linha "Saldo do dia", recuperamos a referência lá
                 }
                 continue;
             }
 
+            // Tratamento Fallback (descrição em uma linha, valor na próxima)
             const proxLinha = i + 1 < linhas.length ? linhas[i + 1] : '';
-            const mValorProximo = proxLinha.match(/^(?:R\$\s*)?([+-]?\s*\d{1,3}(?:\.\d{3})*,\d{2})\s*([CD])?$/i);
-            if (mValorProximo && descSemData.length > 0) {
+            const mValorProximo = proxLinha.match(/^(?:R\$\s*)?([+-]?\s*\d{1,3}(?:\.\d{3})*,\d{2})\s*([CD]|\(\+\)|\(-\)|\+|-)?$/i);
+            if (mValorProximo && descSemData.length > 0 && !/^saldo\s+/i.test(descSemData)) {
                 const dc = mValorProximo[2]?.trim() ?? '';
                 add(dataContextual, descSemData, mValorProximo[1] + dc);
                 i++;
@@ -421,22 +485,46 @@ function extrair(texto: string): Array<{ dataRaw: string; descricaoRaw: string; 
             }
 
             if (descSemData.length === 0 || descSemData.toLowerCase().includes('total de')) continue;
+
         } else if (dataContextual) {
             if (
                 linha.startsWith('Saldo final do período') ||
                 linha.startsWith('Saldo inicial') ||
                 linha.includes('Rendimento líquido') ||
-                /^saldo\s+do\s+dia/i.test(linha)
-            ) continue;
+                /^saldo\s+(do\s+dia|anterior|final)/i.test(linha)
+            ) {
+                const mSaldo = linha.match(VALOR_RE);
+                if (mSaldo) saldoAnteriorTracker = parseMoeda(mSaldo[1]);
+                continue;
+            }
 
-            const valoresMatches = Array.from(linha.matchAll(/(?:^|\s|\|)([+-]?\s*(?:R\$\s*)?\d{1,3}(?:\.\d{3})*,\d{2})(?:\s|\||$)/g));
+            const valoresMatches = Array.from(linha.matchAll(/([+-]?\s*(?:R\$\s*)?\d{1,3}(?:\.\d{3})*,\d{2})(?:\s*([CD]|\(\+\)|\(-\)|\+|-))?/ig));
             if (valoresMatches.length > 0) {
-                const valorTarget = valoresMatches.find(m => m[1] !== '0,00') || valoresMatches[0];
-                const valorReal = valorTarget[1];
-                const descParts = linha.split(valorReal);
+                // Assume o penúltimo como o valor se tiver múltiplos (lógica Bradesco) e o último como saldo
+                let targetMatch = valoresMatches[0];
+                let isCreditInferred: boolean | undefined = undefined;
+
+                if (valoresMatches.length >= 2) {
+                    const ult = valoresMatches[valoresMatches.length - 1];
+                    targetMatch = valoresMatches[valoresMatches.length - 2];
+
+                    const saldoAtual = parseMoeda(ult[1]);
+                    const valorNum = parseMoeda(targetMatch[1]);
+
+                    if (!(targetMatch[2] ?? '').match(/[CD\+\-]/i) && saldoAnteriorTracker !== null) {
+                        if (Math.abs((saldoAnteriorTracker + valorNum) - saldoAtual) < 5) isCreditInferred = true;
+                        else if (Math.abs((saldoAnteriorTracker - valorNum) - saldoAtual) < 5) isCreditInferred = false;
+                    }
+                    saldoAnteriorTracker = saldoAtual;
+                }
+
+                const valorRealNum = targetMatch[1];
+                const suf = targetMatch[2] ?? '';
+
+                const descParts = linha.split(valorRealNum);
                 const descPura = descParts[0].trim();
                 if (descPura.length > 0 && !/^\d+$/.test(descPura)) {
-                    add(dataContextual, descPura, valorReal);
+                    add(dataContextual, descPura, valorRealNum + suf, isCreditInferred);
                 }
             }
         }
