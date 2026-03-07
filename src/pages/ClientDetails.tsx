@@ -33,6 +33,13 @@ export default function ClientDetails() {
   const handleStageChange = async (newStage: ClientStage) => {
     if (!client || !id) return;
 
+    if (newStage === 'Concluído' && !client.development?.trim()) {
+      alert('⚠️ Para mover o cliente para a etapa "Concluído", é obrigatório preencher o campo "Empreendimento".');
+      setIsEditingStage(false);
+      setIsEditingInfo(true);
+      return;
+    }
+
     try {
       await updateClient(id, { stage: newStage });
       setIsEditingStage(false);
