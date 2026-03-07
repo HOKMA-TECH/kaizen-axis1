@@ -341,10 +341,13 @@ export default function IncomeAnalysis() {
     if (!resultado) return new Set<string>();
     const ativas = new Set<string>();
     for (const t of resultado.transacoesDetalhadas) {
-      let isAtiva = t.is_validated;
-      const desc = t.descricao.toUpperCase();
+      // Filtrar estritamente apenas os créditos
+      if (t.valor <= 0) continue;
 
-      if (exclusionBubbles.some(b => desc.includes(b))) {
+      let isAtiva = t.is_validated;
+      const desc = t.descricao.toLowerCase();
+
+      if (exclusionBubbles.some(b => desc.includes(b.trim().toLowerCase()))) {
         isAtiva = false;
       }
 
@@ -369,7 +372,7 @@ export default function IncomeAnalysis() {
     if (!resultado) return { totalPorMesAtivo: {}, totalApuradoAtivo: 0, mediaMensalAtiva: 0, maiorMesAtivo: 0, menorMesAtivo: 0, mesesAtivos: 0 };
     const porMes: Record<string, number> = {};
     for (const t of resultado.transacoesDetalhadas) {
-      if (validadas.has(t.id)) {
+      if (t.valor > 0 && validadas.has(t.id)) {
         porMes[t.mes] = (porMes[t.mes] ?? 0) + t.valor;
       }
     }
@@ -391,6 +394,9 @@ export default function IncomeAnalysis() {
     if (!resultado) return {};
     const grupos: Record<string, TransacaoDetalhada[]> = {};
     for (const t of resultado.transacoesDetalhadas) {
+      // Garantir estritamente entradas no Accordion (valor > 0)
+      if (t.valor <= 0) continue;
+
       // Oculta apenas as entradas genéricas brutas e sem keyword do Accordion, 
       // mas mostra TODO o resto (Apostas, Autotransferências, etc.) para controle do usuário.
       if (t.classificacao === 'ignorar_sem_keyword') continue;
