@@ -1,54 +1,49 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { SectionHeader, PremiumCard, RoundedButton } from '@/components/ui/PremiumComponents';
 import { MetricCard } from '@/components/reports/MetricCard';
 import { CircularScore } from '@/components/reports/CircularScore';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { Download, FileSpreadsheet, FileText, Loader2, Building2, Users, TrendingUp, Target, ArrowLeft, AlertCircle } from 'lucide-react';
+import { Download, FileSpreadsheet, FileText, Loader2, Building2, Users, TrendingUp, Target, ArrowLeft, AlertCircle, Timer } from 'lucide-react';
 import { Modal } from '@/components/ui/Modal';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useApp } from '@/context/AppContext';
 import { useAuthorization } from '@/hooks/useAuthorization';
+import { useReportsData } from '@/hooks/useReportsData';
 import { supabase } from '@/lib/supabase';
-
-// ─── Types ────────────────────────────────────────────────────────────────────
-
-interface DiretoriaResumo {
-  total_clientes: number;
-  total_vendas: number;
-  taxa_conversao: number;
-  receita_total: number;
-}
-
-interface DiretoriaEquipe {
-  equipe_id: string;
-  equipe_nome: string;
-  total_clientes: number;
-  total_vendas: number;
-}
-
-interface DiretoriaCorretor {
-  corretor_id: string;
-  corretor_nome: string;
-  equipe: string;
-  total_clientes: number;
-  total_vendas: number;
-}
-
-interface DiretoriaReport {
-  diretoria_nome: string;
-  resumo: DiretoriaResumo;
-  equipes: DiretoriaEquipe[];
-  corretores: DiretoriaCorretor[];
-}
+import type { DiretoriaReport, DiretoriaResumo } from '@/types/reports';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const brl = (n: number) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(n);
 
+/** Convert period label to ISO start date (end date = today) */
+function periodToDates(period: string): { start: string; end: string } {
+  const end = new Date();
+  const start = new Date();
+  if (period === '30 dias') start.setDate(end.getDate() - 30);
+  else if (period === '60 dias') start.setDate(end.getDate() - 60);
+  else if (period === '90 dias') start.setDate(end.getDate() - 90);
+  else {
+    // Custom: parse 'DD/MM/YYYY - DD/MM/YYYY'
+    const parts = period.split(' - ');
+    if (parts.length === 2) {
+      const [d1, m1, y1] = parts[0].split('/');
+      const [d2, m2, y2] = parts[1].split('/');
+      return { start: `${y1}-${m1}-${d1}`, end: `${y2}-${m2}-${d2}` };
+    }
+  }
+  return {
+    start: start.toISOString().split('T')[0],
+    end: end.toISOString().split('T')[0],
+  };
+}
+
 // ─── Sub-view: Diretoria Report ────────────────────────────────────────────────
 
-function DiretoriaReportView({ dirId, dirName }: { dirId: string; dirName: string }) {
+function DiretoriaReportView({
+  dirId, dirName, startDate, endDate,
+}: { dirId: string; dirName: string; startDate: string; endDate: string }) {
   const navigate = useNavigate();
   const [data, setData] = useState<DiretoriaReport | null>(null);
   const [loadingDir, setLoadingDir] = useState(true);
@@ -58,14 +53,18 @@ function DiretoriaReportView({ dirId, dirName }: { dirId: string; dirName: strin
     setLoadingDir(true);
     setError(null);
     supabase
-      .rpc('get_relatorio_diretoria', { diretoria_uuid: dirId })
+      .rpc('get_relatorio_diretoria', {
+        diretoria_uuid: dirId,
+        p_start_date: startDate ? new Date(startDate).toISOString() : null,
+        p_end_date: endDate ? new Date(endDate + 'T23:59:59').toISOString() : null,
+      })
       .then(({ data: result, error: rpcError }) => {
         if (rpcError) { setError(rpcError.message); }
         else if ((result as any)?.error) { setError((result as any).error); }
         else { setData(result as DiretoriaReport); }
         setLoadingDir(false);
       });
-  }, [dirId]);
+  }, [dirId, startDate, endDate]);
 
   if (loadingDir) {
     return (
@@ -85,9 +84,7 @@ function DiretoriaReportView({ dirId, dirName }: { dirId: string; dirName: strin
             <h3 className="font-bold text-text-primary mb-1">Diretoria não encontrada</h3>
             <p className="text-sm text-text-secondary">{error ?? 'Não foi possível carregar os dados.'}</p>
           </div>
-          <RoundedButton onClick={() => navigate('/reports')}>
-            ← Ver Relatório Global
-          </RoundedButton>
+          <RoundedButton onClick={() => navigate('/reports')}>← Ver Relatório Global</RoundedButton>
         </PremiumCard>
       </div>
     );
@@ -149,11 +146,20 @@ function DiretoriaReportView({ dirId, dirName }: { dirId: string; dirName: strin
           </div>
         </PremiumCard>
 
-        <PremiumCard highlight className="flex flex-col gap-1">
+        <PremiumCard className="flex flex-col gap-1">
+          <p className="text-[10px] text-text-secondary uppercase tracking-wide">Ciclo Médio de Venda</p>
+          <div className="flex items-end gap-2 mt-1">
+            <Timer size={18} className="text-purple-500 mb-0.5" />
+            <h3 className="text-2xl font-bold text-text-primary">
+              {resumo.ciclo_medio_dias ?? 0}
+              <span className="text-sm font-normal text-text-secondary ml-1">dias</span>
+            </h3>
+          </div>
+        </PremiumCard>
+
+        <PremiumCard highlight className="col-span-2 flex flex-col gap-1">
           <p className="text-[10px] text-gold-700 dark:text-gold-400 uppercase tracking-wide">Receita Total</p>
-          <h3 className="text-xl font-bold text-text-primary mt-1 leading-tight">
-            {brl(resumo.receita_total ?? 0)}
-          </h3>
+          <h3 className="text-2xl font-bold text-text-primary mt-1">{brl(resumo.receita_total ?? 0)}</h3>
         </PremiumCard>
       </section>
 
@@ -180,7 +186,7 @@ function DiretoriaReportView({ dirId, dirName }: { dirId: string; dirName: strin
                   const conv = eq.total_clientes > 0
                     ? Math.round((eq.total_vendas / eq.total_clientes) * 100) : 0;
                   return (
-                    <tr key={eq.equipe_id ?? i} className="border-b border-surface-100 last:border-0 hover:bg-surface-50 dark:hover:bg-surface-800 transition-colors">
+                    <tr key={eq.equipe_id ?? i} className="border-b border-surface-100 last:border-0 hover:bg-surface-50 transition-colors">
                       <td className="p-3 font-medium text-text-primary">{eq.equipe_nome}</td>
                       <td className="p-3 text-center text-text-secondary">{eq.total_clientes}</td>
                       <td className="p-3 text-center font-bold text-green-600">{eq.total_vendas}</td>
@@ -242,65 +248,70 @@ function DiretoriaReportView({ dirId, dirName }: { dirId: string; dirName: strin
 export default function Reports() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { clients, leads, loading } = useApp();
+  const { loading } = useApp();
   const { isAdmin } = useAuthorization();
+
+  // ── Period state
   const [period, setPeriod] = useState('30 dias');
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [isDateModalOpen, setIsDateModalOpen] = useState(false);
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
+  const [startDateInput, setStartDateInput] = useState('');
+  const [endDateInput, setEndDateInput] = useState('');
 
   // ── Route-level scope reading
   const scope = searchParams.get('scope') ?? 'global';
   const dirId = searchParams.get('id');
   const dirName = decodeURIComponent(searchParams.get('name') ?? 'Diretoria');
 
-  // ─── All hooks must run unconditionally (Rules of Hooks) ──────────────────
-  const metrics = useMemo(() => {
-    const totalClients = clients.length;
-    const closedSales = clients.filter(c => c.stage === 'Concluído' || c.stage === 'Vendas Concluidas').length;
-    const conversionRate = totalClients > 0 ? (closedSales / totalClients) * 100 : 0;
-    return [
-      { id: '1', label: 'Vendas Totais', value: closedSales.toString(), change: '+12%', trend: 'up' as const, period: 'vs. mês anterior' },
-      { id: '2', label: 'Novos Leads', value: leads.length.toString(), change: '+8%', trend: 'up' as const, period: 'vs. mês anterior' },
-      { id: '3', label: 'Taxa de Conversão', value: `${conversionRate.toFixed(1)}%`, change: '+2.4%', trend: 'up' as const, period: 'vs. mês anterior' },
-      { id: '4', label: 'Ciclo de Vendas', value: '18 dias', change: '-2 dias', trend: 'down' as const, period: 'vs. mês anterior' },
-    ];
-  }, [clients, leads]);
+  // ── Derive ISO dates from selected period
+  const { start: startDate, end: endDate } = periodToDates(period);
 
-  const forecastTotal = useMemo(() => {
-    const approved = clients.filter(c => c.stage === 'Aprovado');
-    return approved.reduce((acc, c) => {
-      const val = parseFloat(c.intendedValue.replace(/[^\d]/g, '')) || 0;
-      return acc + val;
-    }, 0);
-  }, [clients]);
+  // ── Business Intelligence hook — reactive to date range
+  const { globalMetrics, weightedPipeline, forecastTotal, healthScores } = useReportsData({
+    startDate,
+    endDate,
+  });
 
-  const chartData = useMemo(() => {
-    const months = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
-    const currentMonth = new Date().getMonth();
-    return months.map((m, i) => {
-      const monthClients = clients.filter(c => new Date(c.createdAt).getMonth() === i);
-      const predicted = monthClients.reduce((acc, c) => acc + (parseFloat(c.intendedValue.replace(/[^\d]/g, '')) || 0), 0) || (i <= currentMonth ? 100000 + (i * 20000) : 0);
-      return { month: m, predicted: predicted / 1000, confirmed: (i <= currentMonth ? predicted * 0.7 : 0) / 1000 };
-    });
-  }, [clients]);
-
-  const clientHealth = useMemo(() => {
-    return clients.slice(0, 5).map(c => {
-      let score = 50;
-      if (c.stage === 'Aprovado') score = 85;
-      if (c.stage === 'Em Tratativa') score = 70;
-      if (c.stage === 'Reprovado') score = 20;
-      return { id: c.id, name: c.name, stage: c.stage, score, potentialValue: c.intendedValue, conversionProbability: score };
-    });
-  }, [clients]);
+  // ── Metric cards for display
+  const metrics = [
+    {
+      id: '1',
+      label: 'Vendas Totais',
+      value: globalMetrics.totalVendas.toString(),
+      change: '',
+      trend: 'up' as const,
+      period: `no período de ${period}`,
+    },
+    {
+      id: '2',
+      label: 'Novos Leads',
+      value: globalMetrics.novosLeads.toString(),
+      change: '',
+      trend: 'up' as const,
+      period: 'total no sistema',
+    },
+    {
+      id: '3',
+      label: 'Taxa de Conversão',
+      value: `${globalMetrics.taxaConversao.toFixed(1)}%`,
+      change: '',
+      trend: 'up' as const,
+      period: `no período de ${period}`,
+    },
+    {
+      id: '4',
+      label: 'Ciclo de Vendas',
+      value: globalMetrics.cicloMedioDias > 0 ? `${globalMetrics.cicloMedioDias} dias` : '— dias',
+      change: '',
+      trend: 'down' as const,
+      period: 'média real',
+    },
+  ];
 
   // ── Delegate to diretoria sub-view (ADMIN only)
   if (scope === 'diretoria' && dirId && isAdmin) {
-    return <DiretoriaReportView dirId={dirId} dirName={dirName} />;
+    return <DiretoriaReportView dirId={dirId} dirName={dirName} startDate={startDate} endDate={endDate} />;
   }
-
 
   const handlePeriodChange = (p: string) => {
     if (p === 'Personalizado') setIsDateModalOpen(true);
@@ -308,8 +319,9 @@ export default function Reports() {
   };
 
   const applyCustomDate = () => {
-    if (startDate && endDate) {
-      setPeriod(`${startDate.split('-').reverse().join('/')} - ${endDate.split('-').reverse().join('/')}`);
+    if (startDateInput && endDateInput) {
+      const fmt = (d: string) => d.split('-').reverse().join('/');
+      setPeriod(`${fmt(startDateInput)} - ${fmt(endDateInput)}`);
       setIsDateModalOpen(false);
     } else alert('Por favor, selecione as datas de início e fim.');
   };
@@ -318,7 +330,7 @@ export default function Reports() {
     const fileName = `relatorio_estrategico_${new Date().toISOString().split('T')[0]}.${format === 'excel' ? 'csv' : 'pdf'}`;
     if (format === 'excel') {
       const headers = ['Cliente', 'Estágio', 'Valor Potencial', 'Health Score'];
-      const rows = clientHealth.map(c => [c.name, c.stage, c.potentialValue, c.score]);
+      const rows = healthScores.map(c => [c.name, c.stage, c.potentialValue, c.score]);
       const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
       const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
@@ -343,65 +355,91 @@ export default function Reports() {
           <h1 className="text-2xl font-bold text-text-primary">Relatórios</h1>
           <p className="text-text-secondary text-sm">Inteligência Estratégica — Visão Global</p>
         </div>
-        <button onClick={() => setIsExportModalOpen(true)} className="p-2 bg-white dark:bg-surface-100 border border-surface-200 rounded-lg text-text-secondary hover:text-gold-600 shadow-sm">
+        <button
+          onClick={() => setIsExportModalOpen(true)}
+          className="p-2 bg-white dark:bg-surface-100 border border-surface-200 rounded-lg text-text-secondary hover:text-gold-600 shadow-sm"
+        >
           <Download size={20} />
         </button>
       </div>
 
+      {/* ── Period Filters ── */}
       <div className="flex gap-2 mb-6 overflow-x-auto no-scrollbar pb-2">
         {['30 dias', '60 dias', '90 dias', 'Personalizado'].map((p) => (
-          <button key={p} onClick={() => handlePeriodChange(p)}
-            className={`px-4 py-2 rounded-full text-xs font-medium whitespace-nowrap transition-all ${period === p || (p === 'Personalizado' && period.includes('/')) ? 'bg-gold-500 text-white shadow-md' : 'bg-white dark:bg-surface-100 text-text-secondary border border-surface-200'}`}>
+          <button
+            key={p}
+            onClick={() => handlePeriodChange(p)}
+            className={`px-4 py-2 rounded-full text-xs font-medium whitespace-nowrap transition-all ${period === p || (p === 'Personalizado' && period.includes('/'))
+                ? 'bg-gold-500 text-white shadow-md'
+                : 'bg-white dark:bg-surface-100 text-text-secondary border border-surface-200'
+              }`}
+          >
             {p}
           </button>
         ))}
       </div>
 
+      {/* ── Metric Cards ── */}
       <section className="grid grid-cols-2 gap-3 mb-8">
         {metrics.map((metric) => (
           <MetricCard key={metric.id} {...metric} inverse={metric.label === 'Ciclo de Vendas'} />
         ))}
       </section>
 
+      {/* ── Weighted Pipeline Chart ── */}
       <section className="mb-8">
-        <SectionHeader title="Forecast Comercial" subtitle="Previsão de Faturamento" />
+        <SectionHeader title="Forecast Comercial" subtitle="Pipeline Ponderado por Probabilidade de Estágio" />
         <PremiumCard className="p-4 h-80">
           <div className="flex justify-between items-center mb-4">
             <div>
-              <p className="text-xs text-text-secondary uppercase">Receita Projetada (Aprovados)</p>
-              <h3 className="text-xl font-bold text-text-primary">R$ {(forecastTotal / 1000000).toFixed(2)}M</h3>
+              <p className="text-xs text-text-secondary uppercase">Receita Ponderada (Pipeline)</p>
+              <h3 className="text-xl font-bold text-text-primary">
+                R$ {(forecastTotal / 1000000).toFixed(2)}M
+              </h3>
+            </div>
+            <div className="text-right">
+              <p className="text-[10px] text-text-secondary uppercase">Período</p>
+              <p className="text-xs font-medium text-text-primary">{period}</p>
             </div>
           </div>
-          <div className="h-56 w-full">
+          <div className="h-48 w-full">
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={chartData}>
+              <AreaChart data={weightedPipeline}>
                 <defs>
-                  <linearGradient id="colorPredicted" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#D4AF37" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="#D4AF37" stopOpacity={0} />
+                  <linearGradient id="colorWeighted" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#D9AD34" stopOpacity={0.3} />
+                    <stop offset="95%" stopColor="#D9AD34" stopOpacity={0} />
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
                 <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#6B7280' }} dy={10} />
                 <YAxis hide />
-                <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.1)' }} />
-                <Area type="monotone" dataKey="predicted" stroke="#D4AF37" strokeWidth={3} fillOpacity={1} fill="url(#colorPredicted)" />
+                <Tooltip
+                  contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.1)' }}
+                  formatter={(val: number, name: string) => [
+                    `R$ ${val.toFixed(0)}k`,
+                    name === 'weighted' ? 'Pipeline Ponderado' : 'Confirmado',
+                  ]}
+                />
+                <Area type="monotone" dataKey="weighted" stroke="#D9AD34" strokeWidth={3} fillOpacity={1} fill="url(#colorWeighted)" />
                 <Area type="monotone" dataKey="confirmed" stroke="#10B981" strokeWidth={2} strokeDasharray="5 5" fill="transparent" />
               </AreaChart>
             </ResponsiveContainer>
           </div>
           <div className="flex justify-center gap-4 mt-2">
-            <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-gold-500" /><span className="text-[10px] text-text-secondary">Previsto</span></div>
+            <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-gold-500" /><span className="text-[10px] text-text-secondary">Pipeline Ponderado</span></div>
             <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-green-500" /><span className="text-[10px] text-text-secondary">Confirmado</span></div>
           </div>
         </PremiumCard>
       </section>
 
+      {/* ── Health Score ── */}
       <section>
-        <SectionHeader title="Health Score Comercial" subtitle="Risco e Probabilidade" />
+        <SectionHeader title="Health Score Comercial" subtitle="Risco e Probabilidade — Ponderado" />
         <div className="space-y-3">
-          {clientHealth.length === 0 ? <p className="text-sm text-text-secondary text-center py-8">Dados insuficientes para análise.</p> :
-            clientHealth.map((client) => (
+          {healthScores.length === 0
+            ? <p className="text-sm text-text-secondary text-center py-8">Dados insuficientes para análise.</p>
+            : healthScores.map((client) => (
               <PremiumCard key={client.id} className="flex items-center justify-between p-4" onClick={() => navigate(`/clients/${client.id}`)}>
                 <div className="flex items-center gap-3">
                   <CircularScore score={client.score} />
@@ -421,6 +459,7 @@ export default function Reports() {
         </div>
       </section>
 
+      {/* ── Export Modal ── */}
       <Modal isOpen={isExportModalOpen} onClose={() => setIsExportModalOpen(false)} title="Exportar Relatório">
         <div className="space-y-4">
           <p className="text-sm text-text-secondary text-center">Selecione o formato para os dados de ({period}).</p>
@@ -437,10 +476,17 @@ export default function Reports() {
         </div>
       </Modal>
 
+      {/* ── Custom Date Modal ── */}
       <Modal isOpen={isDateModalOpen} onClose={() => setIsDateModalOpen(false)} title="Período Personalizado">
         <div className="space-y-4">
-          <div><label className="block text-sm font-medium text-text-secondary mb-1">Início</label><input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="w-full p-3 bg-surface-50 rounded-xl border-none focus:ring-2 focus:ring-gold-200 text-text-primary" /></div>
-          <div><label className="block text-sm font-medium text-text-secondary mb-1">Fim</label><input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="w-full p-3 bg-surface-50 rounded-xl border-none focus:ring-2 focus:ring-gold-200 text-text-primary" /></div>
+          <div>
+            <label className="block text-sm font-medium text-text-secondary mb-1">Início</label>
+            <input type="date" value={startDateInput} onChange={e => setStartDateInput(e.target.value)} className="w-full p-3 bg-surface-50 rounded-xl border-none focus:ring-2 focus:ring-gold-200 text-text-primary" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-text-secondary mb-1">Fim</label>
+            <input type="date" value={endDateInput} onChange={e => setEndDateInput(e.target.value)} className="w-full p-3 bg-surface-50 rounded-xl border-none focus:ring-2 focus:ring-gold-200 text-text-primary" />
+          </div>
           <RoundedButton fullWidth onClick={applyCustomDate}>Aplicar Filtro</RoundedButton>
         </div>
       </Modal>

@@ -6,7 +6,8 @@ export type ClientStage =
   | "Reprovado"
   | "Em Tratativa"
   | "Contrato"
-  | "Concluído";
+  | "Concluído"
+  | "Novo Lead";
 
 export const CLIENT_STAGES: ClientStage[] = [
   "Documentação",
@@ -54,6 +55,8 @@ export interface Client {
   history: ClientHistory[];
   documents: ClientDocument[];
   createdAt: string;
+  closed_at?: string;  // set by DB trigger when stage → 'Concluído'
+  updated_at?: string;
 }
 
 export const MOCK_CLIENTS: Client[] = [

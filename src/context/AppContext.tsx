@@ -18,6 +18,7 @@ export interface Profile {
   name: string;
   role: string;
   team?: string;
+  team_id?: string | null;      // UUID FK to teams (normalized)
   status?: string;
   directorate_id?: string | null;
   manager_id?: string | null;
@@ -378,6 +379,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         grossIncome: client.gross_income, incomeType: client.income_type,
         socialFactor: client.social_factor, regionOfInterest: client.region_of_interest,
         intendedValue: client.intended_value, createdAt: client.created_at,
+        closed_at: client.closed_at,
+        updated_at: client.updated_at,
         history: (client.history || []).map((h: any) => ({ ...h, user: h.user_name }))
           .sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()),
         documents: (client.documents || []).map((d: any) => ({ ...d, file_path: d.url || d.file_path, uploadDate: d.upload_date }))
