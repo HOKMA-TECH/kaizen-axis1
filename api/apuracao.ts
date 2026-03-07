@@ -321,48 +321,15 @@ function detectarWashTrading(transacoes: Transacao[]): Transacao[] {
         if (t.classificacao !== 'credito_valido' && t.classificacao !== 'possivel_vinculo_familiar') return t;
         const chave = `${t.data}|${t.valor}`;
         if (debitos.has(chave)) {
-            return { ...t, classificacao: 'ignorar_washtrading' as ClassificacaoTransacao, motivoExclusao: 'Wash trading (in-and-out)', is_validated: false, custom_tag: 'washtrading' as CustomTag };
+            // Keep in UI by classifying it as something the UI displays (e.g., possivel_vinculo_familiar)
+            // but default to unchecked (is_validated: false)
+            return { ...t, classificacao: 'possivel_vinculo_familiar' as ClassificacaoTransacao, motivoExclusao: 'Wash trading (in-and-out)', is_validated: false, custom_tag: 'washtrading' as CustomTag };
         }
         return t;
     });
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// v3: PÓS-PROCESSAMENTO — Terceiros recorrentes (≥3× mesmo CPF/nome externo)
-// ═══════════════════════════════════════════════════════════════════════════════
-
-function sinalizarTerceirosRecorrentes(transacoes: Transacao[]): Transacao[] {
-    // Extrai "remetente" da descrição: aprox. tudo após "PIX RECEBIDO " ou "TED RECEBIDA "
-    const PREFIXOS_REMETENTE = ['PIX RECEBIDO', 'RECEBIMENTO PIX', 'TED RECEBIDA', 'TED CREDITO', 'TRANSFERENCIA RECEBIDA'];
-    const freq = new Map<string, number>();
-
-    const remetentes: (string | null)[] = transacoes.map(t => {
-        if (t.classificacao !== 'credito_valido') return null;
-        const descNorm = normalizar(t.descricao);
-        for (const pfx of PREFIXOS_REMETENTE) {
-            const idx = descNorm.indexOf(pfx);
-            if (idx >= 0) {
-                const resto = descNorm.substring(idx + pfx.length).trim();
-                if (resto.length >= 5) {
-                    const tokens = resto.split(' ').slice(0, 3).join(' ');
-                    freq.set(tokens, (freq.get(tokens) ?? 0) + 1);
-                    return tokens;
-                }
-            }
-        }
-        return null;
-    });
-
-    const recorrentes = new Set([...freq.entries()].filter(([, n]) => n >= 3).map(([k]) => k));
-
-    return transacoes.map((t, i) => {
-        const rem = remetentes[i];
-        if (rem && recorrentes.has(rem) && t.custom_tag === null) {
-            return { ...t, custom_tag: 'renda_familiar' as CustomTag, classificacao: 'possivel_renda_familiar' as ClassificacaoTransacao };
-        }
-        return t;
-    });
-}
+// (Removido: Terceiros recorrentes / Renda familiar a pedido do usuário)
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // PARSER — Extração de transações via regex (multi-estratégia) — inalterado v2
@@ -536,7 +503,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         // v3: pós-processamentos determinísticos
         transacoes = detectarWashTrading(transacoes);
-        transacoes = sinalizarTerceirosRecorrentes(transacoes);
 
         // ── Agrupar créditos por mês ───────────────────────────────────────────
         const creditosValidos = transacoes.filter(t =>
@@ -575,9 +541,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (qtdApostas > 0) {
             avisos.push(`${qtdApostas} transação(ões) de apostas/jogos foram excluídas.`);
         }
-        const qtdWash = transacoes.filter(t => t.classificacao === 'ignorar_washtrading').length;
+        const qtdWash = transacoes.filter(t => t.custom_tag === 'washtrading').length;
         if (qtdWash > 0) {
-            avisos.push(`${qtdWash} transação(ões) identificadas como wash trading (in-and-out) foram excluídas.`);
+            avisos.push(`${qtdWash} transação(ões) de wash trading (in-and-out) foram sinalizadas para sua revisão e excluídas do cálculo padrão.`);
         }
 
         // ── Métricas ──────────────────────────────────────────────────────────
