@@ -421,13 +421,14 @@ function extrair(texto: string): Array<{ dataRaw: string; descricaoRaw: string; 
     let isIgnoredSection = isSantander;
 
     const SECTIONS_IGNORE = /^(comprovantes? de|pacote de servi[çc]os|[íi]ndices econ[óo]micos|resumo (do|de|consolidado)|demonstrativo de|posi[çc][ãa]o de|investimentos|t[íi]tulos? de capitaliza[çc][ãa]o|fundos? de investimento|cr[ée]dito pessoal|poupan[çc]a|cart[ãa]o de cr[ée]dito|seguros|prote[çc][ãa]o)/i;
-    const SECTIONS_VALID = /^(conta corrente|movimenta[çc][ãa]o|lan[çc]amentos|hist[óo]rico(?! de))/i;
+    // Remove the ^ anchor for CONTA CORRENTE because it can be indented or have dashes attached 
+    const SECTIONS_VALID = /(conta corrente|movimenta[çc][ãa]o|lan[çc]amentos|hist[óo]rico(?! de))/i;
 
     for (let i = 0; i < linhas.length; i++) {
         const linha = linhas[i];
 
         // Verifica mudança de sessão (apenas se a linha for curta para evitar falsos positivos no meio de descrições)
-        if (linha.length < 50) {
+        if (linha.length < 80) {
             if (SECTIONS_IGNORE.test(linha)) {
                 isIgnoredSection = true;
                 continue;
