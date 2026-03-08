@@ -31,7 +31,7 @@ export default function AdminPanel() {
   // Team modal
   const [isTeamModalOpen, setIsTeamModalOpen] = useState(false);
   const [editingTeam, setEditingTeam] = useState<Team | null>(null);
-  const [teamForm, setTeamForm] = useState<Partial<Team>>({ name: '', directorate: '' });
+  const [teamForm, setTeamForm] = useState<Partial<Team>>({ name: '', directorate_id: '' });
   const [isSavingTeam, setIsSavingTeam] = useState(false);
 
   // Goal modal
@@ -720,7 +720,7 @@ export default function AdminPanel() {
             <div className="flex justify-end">
               <RoundedButton size="sm" onClick={() => {
                 setEditingDir(null);
-                setDirForm({ name: '', description: '' });
+                setDirForm({ name: '', description: '', manager_id: null });
                 setIsDirModalOpen(true);
               }}>
                 <Plus size={16} className="mr-1" /> Nova Diretoria
@@ -735,11 +735,16 @@ export default function AdminPanel() {
                     </div>
                     <div>
                       <p className="font-semibold text-text-primary">{d.name}</p>
-                      {d.description && <p className="text-xs text-text-secondary">{d.description}</p>}
+                      <p className="text-xs text-text-secondary">{d.description || 'Sem descrição'}</p>
+                      {d.manager_id && (
+                        <p className="text-[10px] font-semibold text-gold-600 mt-0.5">
+                          Gestor: {allProfiles.find(p => p.id === d.manager_id)?.name || 'Desconhecido'}
+                        </p>
+                      )}
                     </div>
                   </div>
                   <div className="flex gap-2">
-                    <button onClick={() => { setEditingDir(d); setDirForm({ ...d }); setIsDirModalOpen(true); }}
+                    <button onClick={() => { setEditingDir(d); setDirForm({ name: d.name, description: d.description, manager_id: d.manager_id }); setIsDirModalOpen(true); }}
                       className="p-2 rounded-lg hover:bg-surface-100 text-text-secondary">
                       <Edit2 size={16} />
                     </button>
@@ -980,6 +985,16 @@ export default function AdminPanel() {
               placeholder="Ex: DIRETORIA COMERCIAL" />
           </div>
           <div>
+            <label className="block text-sm font-medium text-text-secondary mb-1">Gestor Responsável (Opcional)</label>
+            <select value={dirForm.manager_id || ''} onChange={e => setDirForm(p => ({ ...p, manager_id: e.target.value }))}
+              className="w-full p-3 bg-surface-50 rounded-xl border-none focus:ring-2 focus:ring-gold-200 text-text-primary">
+              <option value="">Nenhum Gestor</option>
+              {allProfiles.filter(p => p.role === 'DIRETOR' || p.role === 'ADMIN' || p.role === 'GERENTE').map(p => (
+                <option key={p.id} value={p.id}>{p.name} ({p.role})</option>
+              ))}
+            </select>
+          </div>
+          <div>
             <label className="block text-sm font-medium text-text-secondary mb-1">Descrição (opcional)</label>
             <textarea value={dirForm.description || ''} onChange={e => setDirForm(p => ({ ...p, description: e.target.value }))}
               className="w-full p-3 bg-surface-50 rounded-xl border-none focus:ring-2 focus:ring-gold-200 text-text-primary h-20"
@@ -990,7 +1005,7 @@ export default function AdminPanel() {
             setIsSavingDir(true);
             try {
               if (editingDir) await updateDirectorate(editingDir.id, dirForm);
-              else await addDirectorate({ name: dirForm.name, description: dirForm.description });
+              else await addDirectorate({ name: dirForm.name, description: dirForm.description, manager_id: dirForm.manager_id });
               setIsDirModalOpen(false);
             } finally { setIsSavingDir(false); }
           }} disabled={isSavingDir}>

@@ -10,6 +10,7 @@ export interface Directorate {
   id: string;
   name: string;
   description?: string;
+  manager_id?: string | null;
   created_at?: string;
 }
 
@@ -793,7 +794,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const addDirectorate = useCallback(async (data: Omit<Directorate, 'id'>) => {
     try {
-      const { error } = await supabase.from('directorates').insert([data]);
+      const { error } = await supabase.from('directorates').insert([{
+        name: data.name,
+        description: data.description,
+        manager_id: data.manager_id || null
+      }]);
       if (error) throw error;
       await refreshDirectorates();
     } catch (e) {
@@ -804,7 +809,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const updateDirectorate = useCallback(async (id: string, data: Partial<Directorate>) => {
     try {
-      const { error } = await supabase.from('directorates').update(data).eq('id', id);
+      const updateData: any = { ...data };
+      if ('manager_id' in data) updateData.manager_id = data.manager_id ? data.manager_id : null;
+
+      const { error } = await supabase.from('directorates').update(updateData).eq('id', id);
       if (error) throw error;
       await refreshDirectorates();
     } catch (e) {
