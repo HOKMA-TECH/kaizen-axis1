@@ -517,9 +517,6 @@ export default function AdminPanel() {
                   </div>
 
                   <div className="flex gap-2">
-                    <button onClick={() => window.print()} className="flex items-center gap-1.5 px-3 py-1.5 border border-surface-200 rounded-lg text-text-secondary text-[11px] font-bold hover:text-gold-600 hover:bg-gold-50 transition-colors shadow-sm" title="Baixar PDF">
-                      <Printer size={14} /> PDF
-                    </button>
                     <button onClick={handleExportCSV} disabled={isGeneratingCSV || !reportData} className="flex items-center gap-1.5 px-3 py-1.5 border border-surface-200 bg-surface-800 text-white rounded-lg text-[11px] font-bold hover:bg-surface-700 transition-colors shadow-sm disabled:opacity-50" title="Exportar Planilha CSV">
                       {isGeneratingCSV ? <Loader2 size={14} className="animate-spin" /> : <FileSpreadsheet size={14} />} CSV
                     </button>
