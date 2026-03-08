@@ -939,7 +939,7 @@ export default function AdminPanel() {
               <select value={goalForm.measure_type || 'currency'} onChange={e => setGoalForm(p => ({ ...p, measure_type: e.target.value }))}
                 className="w-full p-3 bg-surface-50 rounded-xl border-none focus:ring-2 focus:ring-gold-200 text-text-primary">
                 <option value="currency">Soma de Valores (R$)</option>
-                <option value="quantity">Quantidade de Contratos</option>
+                <option value="quantity">Quantidades</option>
               </select>
             </div>
             <div>
@@ -953,7 +953,7 @@ export default function AdminPanel() {
               <label className="block text-sm font-medium text-text-secondary mb-1">Tipo</label>
               <select value={goalForm.type} onChange={e => setGoalForm(p => ({ ...p, type: e.target.value }))}
                 className="w-full p-3 bg-surface-50 rounded-xl border-none focus:ring-2 focus:ring-gold-200 text-text-primary">
-                {isMission ? <option>Missão</option> : <><option>Mensal</option><option>Trimestral</option><option>Personalizada</option></>}
+                {isMission ? <option>Missão</option> : <><option>Semanal</option><option>Mensal</option><option>Personalizada</option></>}
               </select>
             </div>
             {/* Espaço para alinhar caso necessário, ou pode remover */}

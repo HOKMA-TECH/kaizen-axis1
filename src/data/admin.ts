@@ -31,7 +31,7 @@ export interface Goal {
   currentProgress: number;
   startDate: string;
   deadline: string;
-  type: 'Mensal' | 'Trimestral' | 'Personalizada' | 'Missão';
+  type: 'Semanal' | 'Mensal' | 'Personalizada' | 'Missão';
   assigneeId: string; // Team ID or User ID
   assigneeType: 'Team' | 'User' | 'All';
   points?: number; // For gamification
@@ -60,7 +60,7 @@ export const MOCK_TEAMS: Team[] = [
 ];
 
 export const MOCK_GOALS: Goal[] = [
-  { id: '1', title: 'Meta Q1 2024', description: 'Vendas totais do trimestre', target: 5000000, currentProgress: 3200000, startDate: '2024-01-01', deadline: '2024-03-31', type: 'Trimestral', assigneeId: '1', assigneeType: 'Team', points: 0 },
+  { id: '1', title: 'Meta Q1 2024', description: 'Vendas totais do trimestre', target: 5000000, currentProgress: 3200000, startDate: '2024-01-01', deadline: '2024-03-31', type: 'Mensal', assigneeId: '1', assigneeType: 'Team', points: 0 },
   { id: '2', title: 'Venda de Lançamento', description: 'Vender 2 unidades do Reserva Imperial', target: 2, currentProgress: 1, startDate: '2024-02-01', deadline: '2024-02-28', type: 'Mensal', assigneeId: '3', assigneeType: 'User', points: 50 },
 ];
 
