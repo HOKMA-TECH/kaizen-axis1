@@ -1022,8 +1022,29 @@ export default function AdminPanel() {
             </div>
             <div>
               <label className="block text-sm font-medium text-text-secondary mb-1">Alvo</label>
-              <input type="number" value={goalForm.target || ''} onChange={e => setGoalForm(p => ({ ...p, target: Number(e.target.value) }))}
-                className="w-full p-3 bg-surface-50 rounded-xl border-none focus:ring-2 focus:ring-gold-200 text-text-primary" />
+              {(goalForm.measure_type || 'currency') === 'currency' ? (
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={goalForm.target ? Number(goalForm.target).toLocaleString('pt-BR') : ''}
+                  onChange={e => {
+                    // Strip everything except digits, then store as number
+                    const raw = e.target.value.replace(/\D/g, '');
+                    setGoalForm(p => ({ ...p, target: raw ? Number(raw) : 0 }));
+                  }}
+                  placeholder="Ex: 10.000.000"
+                  className="w-full p-3 bg-surface-50 rounded-xl border-none focus:ring-2 focus:ring-gold-200 text-text-primary"
+                />
+              ) : (
+                <input
+                  type="number"
+                  min={1}
+                  value={goalForm.target || ''}
+                  onChange={e => setGoalForm(p => ({ ...p, target: Number(e.target.value) }))}
+                  placeholder="Ex: 5"
+                  className="w-full p-3 bg-surface-50 rounded-xl border-none focus:ring-2 focus:ring-gold-200 text-text-primary"
+                />
+              )}
             </div>
           </div>
           <div className="grid grid-cols-2 gap-4">
