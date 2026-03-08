@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { SectionHeader, PremiumCard, RoundedButton } from '@/components/ui/PremiumComponents';
-import { Users, Shield, Target, Megaphone, BarChart3, Plus, Search, Trophy, Download, FileSpreadsheet, FileText, Trash2, Edit2, ChevronDown, Calendar, Loader2, Building2, TrendingUp, Printer } from 'lucide-react';
+import { Users, Shield, Target, Megaphone, BarChart3, Plus, Search, Trophy, Download, FileSpreadsheet, FileText, Trash2, Edit2, ChevronDown, Calendar, Loader2, Building2, TrendingUp, Printer, Star, Award, Zap, Flame } from 'lucide-react';
 import { Modal } from '@/components/ui/Modal';
 import { useApp, Team, Goal, Announcement, Directorate } from '@/context/AppContext';
 import { useAuthorization } from '@/hooks/useAuthorization';
@@ -8,7 +8,7 @@ import { Navigate, useNavigate } from 'react-router-dom';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, Legend } from 'recharts';
 import { supabase } from '@/lib/supabase';
 
-type Tab = 'users' | 'teams' | 'goals' | 'announcements' | 'reports' | 'directorates';
+type Tab = 'users' | 'teams' | 'goals' | 'announcements' | 'reports' | 'directorates' | 'achievements';
 
 export default function AdminPanel() {
   // ── Hard role guard: only ADMIN can access this page ────────────────────────
@@ -815,8 +815,115 @@ export default function AdminPanel() {
             }
           </div>
         );
+      case 'achievements':
+        return renderAchievementsTab();
     }
+  }; // end renderContent
+
+  // ── Achievements state (inline, not in AppContext) ─────────────────────────
+  const [achievements, setAchievements] = useState<any[]>([]);
+  const [isAchievementModalOpen, setIsAchievementModalOpen] = useState(false);
+  const [editingAchievement, setEditingAchievement] = useState<any | null>(null);
+  const [achievementForm, setAchievementForm] = useState<any>({
+    title: '', description: '', icon: 'Award', condition_type: 'sales_count', condition_value: 1
+  });
+
+  const CONDITION_LABELS: Record<string, string> = {
+    sales_count: '# Vendas',
+    sales_value: 'Valor de Vendas (R$)',
+    streak_days: 'Dias Seguidos',
+    approved_count: '# Fichas Aprovadas',
+    goals_count: '# Metas Concluídas',
+    missions_count: '# Missões Concluídas',
   };
+  const ICON_OPTIONS = ['Award', 'Trophy', 'Star', 'Zap', 'Flame', 'Shield', 'Target', 'TrendingUp'];
+
+  useEffect(() => {
+    if (activeTab === 'achievements') {
+      supabase.from('achievements').select('*').order('condition_type').order('condition_value')
+        .then(({ data }) => setAchievements(data || []));
+    }
+  }, [activeTab]);
+
+  const openAchievementModal = (ach?: any) => {
+    setEditingAchievement(ach || null);
+    setAchievementForm(ach
+      ? { title: ach.title, description: ach.description, icon: ach.icon, condition_type: ach.condition_type, condition_value: ach.condition_value }
+      : { title: '', description: '', icon: 'Award', condition_type: 'sales_count', condition_value: 1 }
+    );
+    setIsAchievementModalOpen(true);
+  };
+
+  const saveAchievement = async () => {
+    if (!achievementForm.title.trim()) return;
+    if (editingAchievement) {
+      await supabase.from('achievements').update(achievementForm).eq('id', editingAchievement.id);
+    } else {
+      await supabase.from('achievements').insert([achievementForm]);
+    }
+    setIsAchievementModalOpen(false);
+    const { data } = await supabase.from('achievements').select('*').order('condition_type').order('condition_value');
+    setAchievements(data || []);
+  };
+
+  const deleteAchievement = async (id: string) => {
+    if (!confirm('Excluir conquista?')) return;
+    await supabase.from('achievements').delete().eq('id', id);
+    setAchievements(prev => prev.filter(a => a.id !== id));
+  };
+
+  const renderAchievementsTab = () => (
+    <div className="space-y-3">
+      <div className="flex justify-end">
+        <RoundedButton size="sm" onClick={() => openAchievementModal()}>
+          <Plus size={14} className="mr-1" /> Nova Conquista
+        </RoundedButton>
+      </div>
+
+      {/* Group by condition type */}
+      {Object.entries(CONDITION_LABELS).map(([type, label]) => {
+        const group = achievements.filter(a => a.condition_type === type);
+        if (group.length === 0) return null;
+        return (
+          <div key={type}>
+            <p className="text-[11px] font-bold text-text-secondary uppercase tracking-widest mb-2 mt-4 flex items-center gap-1">
+              <Award size={12} className="text-gold-500" /> {label}
+            </p>
+            <div className="space-y-2">
+              {group.map(ach => (
+                <PremiumCard key={ach.id} className="p-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-gold-50 dark:bg-gold-900/20 border border-gold-200 dark:border-gold-800 flex items-center justify-center flex-shrink-0">
+                      <Star size={18} className="text-gold-500" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-bold text-text-primary text-sm">{ach.title}</p>
+                      <p className="text-xs text-text-secondary truncate">{ach.description}</p>
+                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-surface-100 text-text-secondary mt-1 inline-block">
+                        Gatilho: {ach.condition_type === 'sales_value'
+                          ? `R$ ${Number(ach.condition_value).toLocaleString('pt-BR')}`
+                          : ach.condition_value}
+                      </span>
+                    </div>
+                    <div className="flex gap-2 flex-shrink-0">
+                      <button onClick={() => openAchievementModal(ach)} className="p-1.5 bg-surface-50 rounded-full hover:text-gold-600"><Edit2 size={13} /></button>
+                      <button onClick={() => deleteAchievement(ach.id)} className="p-1.5 bg-surface-50 rounded-full hover:text-red-500"><Trash2 size={13} /></button>
+                    </div>
+                  </div>
+                </PremiumCard>
+              ))}
+            </div>
+          </div>
+        );
+      })}
+
+      {achievements.length === 0 && (
+        <p className="text-center text-text-secondary py-8">Nenhuma conquista cadastrada ainda.</p>
+      )}
+    </div>
+  );
+
+
 
   return (
     <div className="p-6 pb-24 min-h-screen bg-surface-50 print:p-0 print:bg-white">
@@ -832,6 +939,7 @@ export default function AdminPanel() {
           { id: 'announcements', label: 'Anúncios', icon: Megaphone },
           { id: 'reports', label: 'Relatórios', icon: BarChart3 },
           { id: 'directorates', label: 'Diretorias', icon: Building2 },
+          { id: 'achievements', label: 'Conquistas', icon: Award },
         ].map((tab) => (
           <button key={tab.id} onClick={() => setActiveTab(tab.id as Tab)}
             className={`flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap transition-all ${activeTab === tab.id ? 'bg-gold-500 text-white shadow-md shadow-gold-500/20' : 'bg-white dark:bg-surface-100 text-text-secondary border border-surface-200'}`}>
@@ -1169,6 +1277,53 @@ export default function AdminPanel() {
           }} disabled={isSavingDir}>
             {isSavingDir ? <><Loader2 size={16} className="animate-spin" /> Salvando...</> : 'Salvar Diretoria'}
           </RoundedButton>
+        </div>
+      </Modal>
+      {/* Achievements Modal */}
+      <Modal isOpen={isAchievementModalOpen} onClose={() => setIsAchievementModalOpen(false)} title={editingAchievement ? 'Editar Conquista' : 'Nova Conquista'}>
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-text-secondary mb-1">Título</label>
+            <input value={achievementForm.title || ''} onChange={e => setAchievementForm((p: any) => ({ ...p, title: e.target.value }))}
+              className="w-full p-3 bg-surface-50 rounded-xl border-none focus:ring-2 focus:ring-gold-200 text-text-primary" placeholder="Ex: Primeira Venda" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-text-secondary mb-1">Descrição</label>
+            <textarea value={achievementForm.description || ''} onChange={e => setAchievementForm((p: any) => ({ ...p, description: e.target.value }))}
+              className="w-full p-3 bg-surface-50 rounded-xl border-none focus:ring-2 focus:ring-gold-200 text-text-primary h-20" placeholder="Descrição da conquista..." />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-text-secondary mb-1">Tipo de Gatilho</label>
+              <select value={achievementForm.condition_type} onChange={e => setAchievementForm((p: any) => ({ ...p, condition_type: e.target.value }))}
+                className="w-full p-3 bg-surface-50 rounded-xl border-none focus:ring-2 focus:ring-gold-200 text-text-primary">
+                <option value="sales_count"># Vendas</option>
+                <option value="sales_value">Valor de Vendas (R$)</option>
+                <option value="streak_days">Dias Seguidos</option>
+                <option value="approved_count"># Fichas Aprovadas</option>
+                <option value="goals_count"># Metas Concluídas</option>
+                <option value="missions_count"># Missões Concluídas</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-text-secondary mb-1">
+                {achievementForm.condition_type === 'sales_value' ? 'Valor (R$)' : 'Quantidade'}
+              </label>
+              {achievementForm.condition_type === 'sales_value' ? (
+                <input type="text" inputMode="numeric"
+                  value={achievementForm.condition_value ? Number(achievementForm.condition_value).toLocaleString('pt-BR') : ''}
+                  onChange={e => { const raw = e.target.value.replace(/\D/g, ''); setAchievementForm((p: any) => ({ ...p, condition_value: raw ? Number(raw) : 0 })); }}
+                  placeholder="Ex: 1.000.000"
+                  className="w-full p-3 bg-surface-50 rounded-xl border-none focus:ring-2 focus:ring-gold-200 text-text-primary" />
+              ) : (
+                <input type="number" min={1}
+                  value={achievementForm.condition_value || ''}
+                  onChange={e => setAchievementForm((p: any) => ({ ...p, condition_value: Number(e.target.value) }))}
+                  className="w-full p-3 bg-surface-50 rounded-xl border-none focus:ring-2 focus:ring-gold-200 text-text-primary" />
+              )}
+            </div>
+          </div>
+          <RoundedButton fullWidth onClick={saveAchievement}>Salvar Conquista</RoundedButton>
         </div>
       </Modal>
     </div>
