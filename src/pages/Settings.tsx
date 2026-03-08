@@ -7,6 +7,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { Modal } from '@/components/ui/Modal';
 import { supabase } from '@/lib/supabase';
+import { GamificationProfile } from '@/components/gamification/GamificationProfile';
 
 // ─── tipos ──────────────────────────────────────────────────────────────────
 interface Profile {
@@ -378,6 +379,12 @@ export default function Settings() {
         </div>
         <ChevronRight className="text-text-secondary group-hover:text-gold-500 transition-colors flex-shrink-0" />
       </PremiumCard>
+
+      {/* ── Gamificação ─────────────────────────────────────────────────── */}
+      <section>
+        <h3 className="text-xs font-bold text-text-secondary uppercase tracking-wider mb-3 ml-1">Seu Progresso & Conquistas</h3>
+        <GamificationProfile />
+      </section>
 
       {/* ── Aparência ───────────────────────────────────────────────────── */}
       <section>

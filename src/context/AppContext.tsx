@@ -301,6 +301,46 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     previousGoalsRef.current = goals;
   }, [goals]);
 
+  // ─── System Events (Gamification) ─────────────────────────────────────────
+  React.useEffect(() => {
+    if (!user) return;
+
+    const channel = supabase.channel('public:system_events')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'system_events',
+          filter: `user_id=eq.${user.id}`,
+        },
+        (payload) => {
+          const eventInfo: any = payload.new;
+          if (
+            eventInfo.type === 'achievement_unlocked' ||
+            eventInfo.type === 'goal_achieved' ||
+            eventInfo.type === 'mission_completed'
+          ) {
+            confetti({
+              particleCount: 200,
+              spread: 100,
+              origin: { y: 0.6 },
+              colors: ['#D4AF37', '#FFDF00', '#FFFFFF', '#10B981'] // Gold, Silver, Emerald
+            });
+            // Optional: Show browser alert if desired.
+            if (eventInfo.payload?.title) {
+              console.log(`[Gamification Event]: ${eventInfo.payload.title}`);
+            }
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user]);
+
   // ─── Auth ─────────────────────────────────────────────────────────────────
 
   const fetchProfile = async (userId: string) => {
