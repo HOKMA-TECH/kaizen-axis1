@@ -98,9 +98,9 @@ function DiretoriaReportView({
       ? 'text-gold-600' : 'text-red-500';
 
   return (
-    <div className="p-6 pb-24 min-h-screen bg-surface-50">
+    <div className="p-6 pb-24 min-h-screen bg-surface-50 print:bg-white print:p-0 print:min-h-0 print:h-auto print:block">
       {/* ── Header ── */}
-      <div className="flex items-start justify-between mb-6 gap-3">
+      <div className="flex items-start justify-between mb-6 gap-3 print:mb-2">
         <div>
           <button
             onClick={() => navigate('/reports')}
@@ -338,8 +338,10 @@ export default function Reports() {
       link.setAttribute('href', url);
       link.setAttribute('download', fileName);
       link.click();
-    } else window.print();
-    setIsExportModalOpen(false);
+    } else {
+      setIsExportModalOpen(false);
+      setTimeout(() => { window.print(); }, 150);
+    }
   };
 
   if (loading) return (
@@ -349,29 +351,29 @@ export default function Reports() {
   );
 
   return (
-    <div className="p-6 pb-24 min-h-screen bg-surface-50">
-      <div className="flex justify-between items-center mb-6">
+    <div className="p-6 pb-24 min-h-screen bg-surface-50 print:bg-white print:p-0 print:min-h-0 print:h-auto print:block">
+      <div className="flex justify-between items-center mb-6 print:mb-2">
         <div>
           <h1 className="text-2xl font-bold text-text-primary">Relatórios</h1>
           <p className="text-text-secondary text-sm">Inteligência Estratégica — Visão Global</p>
         </div>
         <button
           onClick={() => setIsExportModalOpen(true)}
-          className="p-2 bg-white dark:bg-surface-100 border border-surface-200 rounded-lg text-text-secondary hover:text-gold-600 shadow-sm"
+          className="p-2 bg-white dark:bg-surface-100 border border-surface-200 rounded-lg text-text-secondary hover:text-gold-600 shadow-sm print:hidden"
         >
           <Download size={20} />
         </button>
       </div>
 
       {/* ── Period Filters ── */}
-      <div className="flex gap-2 mb-6 overflow-x-auto no-scrollbar pb-2">
+      <div className="flex gap-2 mb-6 overflow-x-auto no-scrollbar pb-2 print:hidden">
         {['30 dias', '60 dias', '90 dias', 'Personalizado'].map((p) => (
           <button
             key={p}
             onClick={() => handlePeriodChange(p)}
             className={`px-4 py-2 rounded-full text-xs font-medium whitespace-nowrap transition-all ${period === p || (p === 'Personalizado' && period.includes('/'))
-                ? 'bg-gold-500 text-white shadow-md'
-                : 'bg-white dark:bg-surface-100 text-text-secondary border border-surface-200'
+              ? 'bg-gold-500 text-white shadow-md'
+              : 'bg-white dark:bg-surface-100 text-text-secondary border border-surface-200'
               }`}
           >
             {p}
@@ -387,7 +389,7 @@ export default function Reports() {
       </section>
 
       {/* ── Weighted Pipeline Chart ── */}
-      <section className="mb-8">
+      <section className="mb-8 print:break-inside-avoid">
         <SectionHeader title="Forecast Comercial" subtitle="Pipeline Ponderado por Probabilidade de Estágio" />
         <PremiumCard className="p-4 h-80">
           <div className="flex justify-between items-center mb-4">

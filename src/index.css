@@ -100,3 +100,15 @@ body {
   margin-top: 1em;
   margin-bottom: 0.5em;
 }
+
+@media print {
+  body, html {
+    background-color: white !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  .break-inside-avoid {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+}
