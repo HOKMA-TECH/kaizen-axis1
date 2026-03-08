@@ -672,9 +672,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     try {
       const { error } = await supabase.from('teams').insert([{
         name: data.name,
-        manager_id: data.manager_id,
-        directorate_id: data.directorate_id,
-        members: data.members
+        manager_id: data.manager_id || null,
+        directorate_id: data.directorate_id || null,
+        members: data.members || []
       }]);
       if (error) throw error;
       await refreshTeams();
@@ -687,8 +687,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const updateTeam = useCallback(async (id: string, data: Partial<Team>) => {
     try {
       const updateData: any = { ...data };
-      if ('directorate_id' in data) updateData.directorate_id = data.directorate_id;
-      if ('manager_id' in data) updateData.manager_id = data.manager_id;
+      if ('directorate_id' in data) updateData.directorate_id = data.directorate_id ? data.directorate_id : null;
+      if ('manager_id' in data) updateData.manager_id = data.manager_id ? data.manager_id : null;
 
       const { error } = await supabase.from('teams').update(updateData).eq('id', id);
       if (error) throw error;
