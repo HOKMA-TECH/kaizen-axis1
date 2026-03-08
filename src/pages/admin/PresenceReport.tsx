@@ -22,9 +22,9 @@ interface Metrics {
   media_diaria: number;
 }
 
-interface DailyPoint  { date: string; checkins: number; }
+interface DailyPoint { date: string; checkins: number; }
 interface WeeklyPoint { week: string; week_key: string; checkins: number; }
-interface DirPoint    { name: string; checkins: number; }
+interface DirPoint { name: string; checkins: number; }
 
 interface RankingRow {
   id: string;
@@ -73,19 +73,19 @@ const fmtDate = (s: string | null) => {
 };
 
 const classify = (score: number) =>
-  score >= 50 ? { label: 'Alto',  icon: '🔥', color: 'text-orange-500' }
-: score >= 25 ? { label: 'Médio', icon: '⚡', color: 'text-yellow-500' }
-:               { label: 'Baixo', icon: '⚠️',  color: 'text-red-500'   };
+  score >= 50 ? { label: 'Alto', icon: '🔥', color: 'text-orange-500' }
+    : score >= 25 ? { label: 'Médio', icon: '⚡', color: 'text-yellow-500' }
+      : { label: 'Baixo', icon: '⚠️', color: 'text-red-500' };
 
 type Period = 'week' | 'month' | 'quarter' | 'semester' | 'year' | 'custom';
 
 const PERIOD_LABELS: Record<Period, string> = {
-  week:     'Última Semana',
-  month:    'Último Mês',
-  quarter:  'Último Trimestre',
+  week: 'Última Semana',
+  month: 'Último Mês',
+  quarter: 'Último Trimestre',
   semester: 'Último Semestre',
-  year:     'Último Ano',
-  custom:   'Personalizado',
+  year: 'Último Ano',
+  custom: 'Personalizado',
 };
 
 const PERIOD_DAYS: Record<Exclude<Period, 'custom'>, number> = {
@@ -96,26 +96,26 @@ const PERIOD_DAYS: Record<Exclude<Period, 'custom'>, number> = {
 
 export default function PresenceReport() {
   const navigate = useNavigate();
-  const { user, allProfiles, directorates } = useApp();
+  const { user, allProfiles, directorates, teams } = useApp();
   const { isAdmin, role } = useAuthorization();
 
-  const isDirector   = role === 'DIRETOR';
+  const isDirector = role === 'DIRETOR';
   const canFilterDir = isAdmin;
   // DIRETOR sees all teams within their directorate; ADMIN sees all
   const canFilterTeam = isAdmin || isDirector;
 
   // ── Filters ─────────────────────────────────────────────────────────────────
-  const [period,     setPeriod]     = useState<Period>('month');
+  const [period, setPeriod] = useState<Period>('month');
   const [customStart, setCustomStart] = useState('');
-  const [customEnd,   setCustomEnd]   = useState('');
-  const [filterDir,   setFilterDir]   = useState('');
-  const [filterTeam,  setFilterTeam]  = useState('');
-  const [filterUser,  setFilterUser]  = useState('');
+  const [customEnd, setCustomEnd] = useState('');
+  const [filterDir, setFilterDir] = useState('');
+  const [filterTeam, setFilterTeam] = useState('');
+  const [filterUser, setFilterUser] = useState('');
 
   // ── Data ────────────────────────────────────────────────────────────────────
-  const [data,    setData]    = useState<ReportData | null>(null);
+  const [data, setData] = useState<ReportData | null>(null);
   const [loading, setLoading] = useState(false);
-  const [error,   setError]   = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   // Unique teams from corretores
   const teamOptions = Array.from(
@@ -126,12 +126,16 @@ export default function PresenceReport() {
     )
   ).sort();
 
+  // Team name lookup
+  const teamName = (id: string | null) =>
+    id ? (teams.find(t => t.id === id)?.name ?? id) : '—';
+
   // Corretores for filter dropdown
   const corretorOptions = allProfiles
     .filter(p => {
       if (p.role?.toUpperCase() !== 'CORRETOR') return false;
-      if (filterDir  && p.directorate_id !== filterDir)  return false;
-      if (filterTeam && p.team           !== filterTeam) return false;
+      if (filterDir && p.directorate_id !== filterDir) return false;
+      if (filterTeam && p.team !== filterTeam) return false;
       return true;
     })
     .sort((a, b) => a.name.localeCompare(b.name));
@@ -146,12 +150,12 @@ export default function PresenceReport() {
     if (period === 'custom') {
       return {
         start: customStart || toISO(subDays(today, 30)),
-        end:   customEnd   || toISO(today),
+        end: customEnd || toISO(today),
       };
     }
     return {
       start: toISO(subDays(today, PERIOD_DAYS[period])),
-      end:   toISO(today),
+      end: toISO(today),
     };
   };
 
@@ -163,12 +167,12 @@ export default function PresenceReport() {
     const { start, end } = getDateRange();
 
     const { data: result, error: rpcErr } = await supabase.rpc('get_presence_report', {
-      p_start:       start,
-      p_end:         end,
-      p_directorate: filterDir  || null,
-      p_team:        filterTeam || null,
-      p_corretor:    filterUser || null,
-      p_caller_id:   user?.id   ?? null,
+      p_start: start,
+      p_end: end,
+      p_directorate: filterDir || null,
+      p_team: filterTeam || null,
+      p_corretor: filterUser || null,
+      p_caller_id: user?.id ?? null,
     });
 
     if (rpcErr) {
@@ -178,7 +182,7 @@ export default function PresenceReport() {
     }
 
     setLoading(false);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [period, customStart, customEnd, filterDir, filterTeam, filterUser, user?.id]);
 
   useEffect(() => {
@@ -194,10 +198,10 @@ export default function PresenceReport() {
     const { default: jsPDF } = await import('jspdf');
     const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
 
-    const W  = doc.internal.pageSize.getWidth();
-    const m  = 14;
+    const W = doc.internal.pageSize.getWidth();
+    const m = 14;
     const cw = W - m * 2;
-    let y    = 18;
+    let y = 18;
 
     const nl = () => { if (y > 272) { doc.addPage(); y = 18; } };
 
@@ -217,9 +221,9 @@ export default function PresenceReport() {
     const mw = cw / 4;
     [
       ['Total Check-ins', String(data.metrics.total_checkins)],
-      ['Ativos (7d)',      String(data.metrics.usuarios_ativos)],
-      ['Inativos',         String(data.metrics.usuarios_inativos)],
-      ['Média/dia',        String(data.metrics.media_diaria)],
+      ['Ativos (7d)', String(data.metrics.usuarios_ativos)],
+      ['Inativos', String(data.metrics.usuarios_inativos)],
+      ['Média/dia', String(data.metrics.media_diaria)],
     ].forEach(([lbl, val], i) => {
       const mx = m + i * mw;
       doc.setFillColor(248, 248, 248);
@@ -267,12 +271,12 @@ export default function PresenceReport() {
     thead(rCols);
     data.ranking.forEach((row, i) => {
       trow([
-        { text: String(i + 1),            w: 8  },
-        { text: row.name,                  w: 55 },
+        { text: String(i + 1), w: 8 },
+        { text: row.name, w: 55 },
         { text: String(row.dias_presenca), w: 20 },
-        { text: `${row.taxa_presenca}%`,   w: 20 },
+        { text: `${row.taxa_presenca}%`, w: 20 },
         { text: fmtDate(row.ultimo_checkin), w: 28 },
-        { text: String(row.score),         w: 22 },
+        { text: String(row.score), w: 22 },
         { text: classify(row.score).label, w: 29 },
       ], i % 2 === 1);
     });
@@ -289,12 +293,12 @@ export default function PresenceReport() {
     thead(sCols);
     [...data.ranking].sort((a, b) => b.score - a.score).forEach((row, i) => {
       trow([
-        { text: row.name,                       w: 58 },
-        { text: String(row.dias_presenca),       w: 26 },
-        { text: String(row.leads_atendidos),     w: 24 },
-        { text: String(row.vendas),              w: 24 },
-        { text: String(row.score),               w: 24 },
-        { text: classify(row.score).label,       w: 26 },
+        { text: row.name, w: 58 },
+        { text: String(row.dias_presenca), w: 26 },
+        { text: String(row.leads_atendidos), w: 24 },
+        { text: String(row.vendas), w: 24 },
+        { text: String(row.score), w: 24 },
+        { text: classify(row.score).label, w: 26 },
       ], i % 2 === 1);
     });
 
@@ -414,7 +418,7 @@ export default function PresenceReport() {
               >
                 <option value="">Todas</option>
                 {teamOptions.map(t => (
-                  <option key={t} value={t}>{t}</option>
+                  <option key={t} value={t}>{teamName(t)}</option>
                 ))}
               </select>
             </div>
@@ -594,7 +598,7 @@ export default function PresenceReport() {
                           <td className="p-3 font-medium text-text-primary">
                             {row.name}
                             {row.team && (
-                              <span className="ml-1.5 text-[10px] text-text-secondary">{row.team}</span>
+                              <span className="ml-1.5 text-[10px] text-text-secondary bg-surface-100 px-1.5 py-0.5 rounded-sm">{teamName(row.team)}</span>
                             )}
                           </td>
                           {canFilterDir && (
@@ -677,7 +681,7 @@ export default function PresenceReport() {
                     <div className="flex-1 min-w-0">
                       <p className="font-semibold text-text-primary text-sm">{a.name}</p>
                       <p className="text-xs text-text-secondary">
-                        {a.team && `Equipe ${a.team} · `}
+                        {a.team && `Equipe ${teamName(a.team)} · `}
                         {a.directorate_id && `${dirName(a.directorate_id)} · `}
                         Ausente há {a.dias_ausente} dias
                       </p>
