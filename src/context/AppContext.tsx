@@ -796,6 +796,18 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     } catch (e) { console.error('Erro ao buscar metas:', e); }
   }, []);
 
+  // ─── Goals Realtime (auto-refresh when trigger updates progress) ──────────
+  React.useEffect(() => {
+    if (!user) return;
+    const goalsChannel = supabase.channel('public:goals:realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'goals' }, () => {
+        refreshGoals();
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(goalsChannel); };
+  }, [user, refreshGoals]);
+
+
   const addGoal = useCallback(async (data: Omit<Goal, 'id'>) => {
     try {
       const { error } = await supabase.from('goals').insert([{
