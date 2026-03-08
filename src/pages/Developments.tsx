@@ -414,7 +414,6 @@ export default function Developments() {
                         </p>
                       </div>
                     )}
-                    <p className="text-[11px] text-text-secondary">Máx. 100 MB. Para PDFs maiores use "Link externo".</p>
                   </>
                 ) : (
                   <>
