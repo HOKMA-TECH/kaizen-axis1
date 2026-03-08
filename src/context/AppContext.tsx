@@ -559,7 +559,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       }]);
       if (error) throw error;
       await refreshAppointments();
-    } catch (e) { console.error('Erro ao adicionar agendamento:', e); }
+    } catch (e: any) {
+      console.error('Erro ao adicionar agendamento:', e);
+      throw e;
+    }
   }, [refreshAppointments, user, profile]);
 
   const updateAppointment = useCallback(async (id: string, data: Partial<Appointment>) => {

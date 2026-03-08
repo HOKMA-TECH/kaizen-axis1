@@ -63,6 +63,8 @@ export default function Schedule() {
         await addAppointment(formData as Omit<Appointment, 'id' | 'created_at'>);
       }
       setIsModalOpen(false);
+    } catch (e: any) {
+      alert(`Erro ao salvar: ${e.message || 'Erro desconhecido'}`);
     } finally {
       setIsSaving(false);
     }
@@ -115,7 +117,7 @@ export default function Schedule() {
                 key={date.toString()}
                 onClick={() => setSelectedDate(date)}
                 className={`flex flex-col items-center justify-center min-w-[3rem] h-16 rounded-2xl transition-all ${isSelected ? 'bg-gold-400 text-white shadow-lg shadow-gold-400/30 scale-105'
-                    : 'bg-card-bg text-text-secondary border border-surface-200'
+                  : 'bg-card-bg text-text-secondary border border-surface-200'
                   }`}
               >
                 <span className="text-[10px] font-medium uppercase">{format(date, 'EEE', { locale: ptBR })}</span>
