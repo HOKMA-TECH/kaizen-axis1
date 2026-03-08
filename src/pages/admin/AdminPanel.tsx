@@ -779,23 +779,23 @@ export default function AdminPanel() {
 
             <div className="grid gap-3">
               {pendingUsers.map(u => (
-                <PremiumCard key={u.id} className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-amber-200/50 dark:border-amber-700/30">
-                  <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-full bg-surface-200 dark:bg-surface-800 flex items-center justify-center text-text-primary font-bold text-lg">
+                <PremiumCard key={u.id} className="p-3 sm:p-4 flex flex-col md:flex-row md:items-center justify-between gap-3 border-amber-200/50 dark:border-amber-700/30 overflow-hidden">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-10 h-10 shrink-0 rounded-full bg-surface-200 dark:bg-surface-800 flex items-center justify-center text-text-primary font-bold text-lg">
                       {(u.name || '?').charAt(0).toUpperCase()}
                     </div>
-                    <div>
-                      <p className="font-bold text-text-primary text-lg">{u.name}</p>
-                      <p className="text-xs font-semibold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/30 px-2 py-0.5 rounded uppercase tracking-wider mt-1 w-max">
+                    <div className="min-w-0">
+                      <p className="font-bold text-text-primary text-sm sm:text-base truncate">{u.name}</p>
+                      <p className="text-[9px] sm:text-[10px] font-semibold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/30 px-2 py-0.5 rounded uppercase tracking-wider mt-0.5 w-max">
                         Novo Cadastro
                       </p>
                     </div>
                   </div>
-                  <div className="flex gap-2 w-full sm:w-auto">
-                    <RoundedButton onClick={() => handleRejectUser(u.id)} variant="outline" className="flex-1 sm:flex-none justify-center text-red-500 border-red-200 hover:bg-red-50 dark:hover:bg-red-900/20 text-sm">
+                  <div className="flex gap-2 w-full md:w-auto shrink-0 mt-1 md:mt-0">
+                    <RoundedButton onClick={() => handleRejectUser(u.id)} variant="outline" className="flex-1 md:flex-none justify-center text-red-500 border-red-200 hover:bg-red-50 dark:hover:bg-red-900/20 text-xs px-3 py-1.5 min-w-[100px]">
                       Recusar
                     </RoundedButton>
-                    <RoundedButton onClick={() => handleOpenApprovalModal(u.id)} className="flex-1 sm:flex-none justify-center bg-green-500 hover:bg-green-600 text-white border-0 shadow-lg shadow-green-500/20 text-sm">
+                    <RoundedButton onClick={() => handleOpenApprovalModal(u.id)} className="flex-1 md:flex-none justify-center bg-green-500 hover:bg-green-600 text-white border-0 shadow-sm shadow-green-500/20 text-xs px-3 py-1.5 min-w-[120px] whitespace-nowrap">
                       Aceitar Acesso
                     </RoundedButton>
                   </div>
