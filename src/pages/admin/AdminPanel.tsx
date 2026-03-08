@@ -291,28 +291,6 @@ export default function AdminPanel() {
       case 'users':
         return (
           <div className="space-y-6">
-            {pendingUsers.length > 0 && (
-              <section>
-                <h3 className="text-sm font-bold text-text-secondary uppercase mb-3 flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
-                  Solicitações Pendentes ({pendingUsers.length})
-                </h3>
-                <div className="grid gap-3">
-                  {pendingUsers.map(u => (
-                    <PremiumCard key={u.id} className="p-4 flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-gold-100 dark:bg-gold-900/30 flex items-center justify-center text-gold-700 dark:text-gold-400 font-bold text-sm">{(u.name || '?').charAt(0)}</div>
-                        <div><p className="font-semibold text-text-primary">{u.name}</p><p className="text-xs text-text-secondary">{u.role}</p></div>
-                      </div>
-                      <div className="flex gap-2">
-                        <RoundedButton size="sm" onClick={() => handleOpenApprovalModal(u.id)} className="bg-green-500 hover:bg-green-600 text-white border-0 text-xs">Aprovar</RoundedButton>
-                        <RoundedButton size="sm" variant="outline" onClick={() => handleRejectUser(u.id)} className="text-red-500 border-red-300 text-xs">Rejeitar</RoundedButton>
-                      </div>
-                    </PremiumCard>
-                  ))}
-                </div>
-              </section>
-            )}
             <section>
               <div className="flex justify-between items-center mb-3">
                 <h3 className="text-sm font-bold text-text-secondary uppercase">Usuários Ativos ({activeUsers.length})</h3>
@@ -783,7 +761,52 @@ export default function AdminPanel() {
         ))}
       </div>
 
-      <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">{renderTabContent()}</div>
+      <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+        {/* GLOBAL PENDING APPROVALS ALERT */}
+        {pendingUsers.length > 0 && (
+          <section className="mb-8 print:hidden">
+            <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700/50 rounded-2xl p-4 mb-4 shadow-sm flex items-start gap-4">
+              <div className="w-10 h-10 rounded-full bg-amber-100 dark:bg-amber-800/50 flex items-center justify-center shrink-0">
+                <Shield className="text-amber-600 dark:text-amber-400" size={20} />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-amber-800 dark:text-amber-300 font-bold">Atenção Necessária</h3>
+                <p className="text-sm text-amber-700 dark:text-amber-400/80 mt-1">
+                  Existem {pendingUsers.length} novo(s) usuário(s) aguardando liberação de acesso.
+                </p>
+              </div>
+            </div>
+
+            <div className="grid gap-3">
+              {pendingUsers.map(u => (
+                <PremiumCard key={u.id} className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-amber-200/50 dark:border-amber-700/30">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-full bg-surface-200 dark:bg-surface-800 flex items-center justify-center text-text-primary font-bold text-lg">
+                      {(u.name || '?').charAt(0).toUpperCase()}
+                    </div>
+                    <div>
+                      <p className="font-bold text-text-primary text-lg">{u.name}</p>
+                      <p className="text-xs font-semibold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/30 px-2 py-0.5 rounded uppercase tracking-wider mt-1 w-max">
+                        Novo Cadastro
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex gap-2 w-full sm:w-auto">
+                    <RoundedButton onClick={() => handleRejectUser(u.id)} variant="outline" className="flex-1 sm:flex-none justify-center text-red-500 border-red-200 hover:bg-red-50 dark:hover:bg-red-900/20 text-sm">
+                      Recusar
+                    </RoundedButton>
+                    <RoundedButton onClick={() => handleOpenApprovalModal(u.id)} className="flex-1 sm:flex-none justify-center bg-green-500 hover:bg-green-600 text-white border-0 shadow-lg shadow-green-500/20 text-sm">
+                      Aceitar Acesso
+                    </RoundedButton>
+                  </div>
+                </PremiumCard>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {renderTabContent()}
+      </div>
 
       {/* Approval Modal */}
       <Modal isOpen={isApprovalModalOpen} onClose={() => setIsApprovalModalOpen(false)} title="Aprovar Usuário">
