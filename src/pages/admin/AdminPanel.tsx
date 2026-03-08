@@ -373,31 +373,50 @@ export default function AdminPanel() {
         const displayedGoals = activeGoalTab === 'active' ? activeGoals : endedGoals;
 
         return (
-          <div className="space-y-4">
-            <div className="flex justify-between items-center bg-surface-50 p-1 rounded-xl">
-              <div className="flex w-full max-w-sm">
+          <div className="space-y-3">
+            {/* ── Filter Bar ────────────────────────────────────────── */}
+            <div className="flex flex-col gap-2">
+              {/* Segmented control */}
+              <div className="flex bg-surface-100 dark:bg-surface-200 rounded-2xl p-1 gap-1">
                 <button
                   onClick={() => setActiveGoalTab('active')}
-                  className={`flex-1 py-1.5 text-sm font-medium rounded-lg transition-colors ${activeGoalTab === 'active' ? 'bg-white text-gold-600 shadow-sm' : 'text-text-secondary hover:text-text-primary'}`}
+                  className={`flex-1 flex items-center justify-center gap-2 py-2.5 text-sm font-semibold rounded-xl transition-all duration-200 ${activeGoalTab === 'active' ? 'bg-white dark:bg-surface-50 text-gold-600 shadow-sm' : 'text-text-secondary hover:text-text-primary'}`}
                 >
+                  <span className={`w-2 h-2 rounded-full ${activeGoalTab === 'active' ? 'bg-gold-400' : 'bg-surface-300'}`} />
                   Em Andamento
+                  <span className={`text-xs px-1.5 py-0.5 rounded-full font-bold ${activeGoalTab === 'active' ? 'bg-gold-100 text-gold-600' : 'bg-surface-200 text-text-secondary'}`}>{activeGoals.length}</span>
                 </button>
                 <button
                   onClick={() => setActiveGoalTab('ended')}
-                  className={`flex-1 py-1.5 text-sm font-medium rounded-lg transition-colors ${activeGoalTab === 'ended' ? 'bg-white text-gold-600 shadow-sm' : 'text-text-secondary hover:text-text-primary'}`}
+                  className={`flex-1 flex items-center justify-center gap-2 py-2.5 text-sm font-semibold rounded-xl transition-all duration-200 ${activeGoalTab === 'ended' ? 'bg-white dark:bg-surface-50 text-text-primary shadow-sm' : 'text-text-secondary hover:text-text-primary'}`}
                 >
+                  <span className={`w-2 h-2 rounded-full ${activeGoalTab === 'ended' ? 'bg-surface-400' : 'bg-surface-300'}`} />
                   Encerradas
+                  <span className={`text-xs px-1.5 py-0.5 rounded-full font-bold bg-surface-200 text-text-secondary`}>{endedGoals.length}</span>
                 </button>
               </div>
-              <div className="flex justify-end gap-2">
-                <RoundedButton size="sm" variant="outline" onClick={() => openGoalModal(undefined, true)}><Trophy size={16} className="mr-1" /> Missão</RoundedButton>
-                <RoundedButton size="sm" onClick={() => openGoalModal()}><Plus size={16} className="mr-1" /> Nova Meta</RoundedButton>
+              {/* Action buttons */}
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  onClick={() => openGoalModal(undefined, true)}
+                  className="flex items-center justify-center gap-2 py-3 px-4 rounded-2xl border-2 border-gold-200 dark:border-gold-800 text-gold-600 dark:text-gold-400 bg-gold-50 dark:bg-gold-900/10 hover:bg-gold-100 dark:hover:bg-gold-900/20 font-semibold text-sm transition-all duration-200 active:scale-95"
+                >
+                  <Trophy size={16} /> Nova Missão
+                </button>
+                <button
+                  onClick={() => openGoalModal()}
+                  className="flex items-center justify-center gap-2 py-3 px-4 rounded-2xl bg-gold-500 hover:bg-gold-600 text-white font-semibold text-sm transition-all duration-200 shadow-sm active:scale-95"
+                >
+                  <Plus size={16} /> Nova Meta
+                </button>
               </div>
             </div>
 
+            {/* ── Goals List ────────────────────────────────────────── */}
             {loading ? <Loader2 size={24} className="animate-spin mx-auto text-gold-400 py-4" /> :
-              displayedGoals.length === 0 ? <p className="text-center text-text-secondary py-8">{activeGoalTab === 'active' ? 'Nenhuma meta em andamento.' : 'Nenhuma meta encerrada ainda.'}</p> :
-                displayedGoals.map(goal => {
+              displayedGoals.length === 0
+                ? <p className="text-center text-text-secondary py-8">{activeGoalTab === 'active' ? 'Nenhuma meta em andamento.' : 'Nenhuma meta encerrada ainda.'}</p>
+                : displayedGoals.map(goal => {
                   const progress = goal.target ? ((goal.current_progress || 0) / goal.target) * 100 : 0;
                   const formatGoalVal = (val: number) =>
                     goal.measure_type === 'quantity'
@@ -414,15 +433,15 @@ export default function AdminPanel() {
                   } else if (progress >= 67) {
                     progressColor = 'bg-green-500';
                     tierText = 'Prata';
-                    remainingToNextTier = (goal.target || 0) - (goal.current_progress || 0); // Ouro
+                    remainingToNextTier = (goal.target || 0) - (goal.current_progress || 0);
                   } else if (progress >= 34) {
                     progressColor = 'bg-orange-400';
                     tierText = 'Bronze';
-                    remainingToNextTier = ((goal.target || 0) * 0.67) - (goal.current_progress || 0); // Prata
+                    remainingToNextTier = ((goal.target || 0) * 0.67) - (goal.current_progress || 0);
                   } else {
                     progressColor = 'bg-blue-500';
                     tierText = 'Em Andamento';
-                    remainingToNextTier = ((goal.target || 0) * 0.34) - (goal.current_progress || 0); // Bronze
+                    remainingToNextTier = ((goal.target || 0) * 0.34) - (goal.current_progress || 0);
                   }
 
                   return (
@@ -463,7 +482,8 @@ export default function AdminPanel() {
                       </div>
                     </PremiumCard>
                   );
-                })}
+                })
+            }
           </div>
         );
       }
