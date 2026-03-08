@@ -1,15 +1,16 @@
 import React from 'react';
-import { Flame, Star, Trophy, Target, Shield, Award } from 'lucide-react';
+import { Flame, Star, Trophy, Target, Shield, Award, Zap } from 'lucide-react';
 import { useGamification } from '../../hooks/useGamification';
+import { PremiumCard } from '../ui/PremiumComponents';
 
 export function GamificationProfile() {
     const { myLeaderboardEntry, myAchievements, loading } = useGamification();
 
     if (loading) {
         return (
-            <div className="bg-white/80 backdrop-blur-md rounded-2xl shadow-xl border border-gray-100 p-6 flex items-center justify-center min-h-[150px]">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-500"></div>
-            </div>
+            <PremiumCard className="p-5 flex items-center justify-center min-h-[96px]">
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-gold-500" />
+            </PremiumCard>
         );
     }
 
@@ -18,94 +19,92 @@ export function GamificationProfile() {
     const score = myLeaderboardEntry?.ranking_score || 0;
 
     let RankIcon = Shield;
-    let rankColor = 'text-slate-400';
+    let rankGradient = 'from-surface-200 to-surface-100';
+    let rankIconColor = 'text-text-secondary';
     let rankLabel = 'Iniciante';
+    let rankBadgeClass = 'text-text-secondary bg-surface-100';
 
     if (score > 5000) {
         RankIcon = Trophy;
-        rankColor = 'text-amber-500';
+        rankGradient = 'from-gold-100 to-amber-50';
+        rankIconColor = 'text-gold-500';
         rankLabel = 'Elite Ouro';
+        rankBadgeClass = 'text-gold-600 bg-gold-50 border border-gold-200';
     } else if (score > 1000) {
         RankIcon = Star;
-        rankColor = 'text-emerald-500';
-        rankLabel = 'Profissional Prata';
+        rankGradient = 'from-emerald-50 to-teal-50';
+        rankIconColor = 'text-emerald-500';
+        rankLabel = 'Profissional';
+        rankBadgeClass = 'text-emerald-600 bg-emerald-50 border border-emerald-200';
     } else if (score > 100) {
         RankIcon = Target;
-        rankColor = 'text-blue-500';
+        rankGradient = 'from-blue-50 to-indigo-50';
+        rankIconColor = 'text-blue-500';
         rankLabel = 'Corretor Ativo';
+        rankBadgeClass = 'text-blue-600 bg-blue-50 border border-blue-200';
     }
 
     return (
-        <div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
-            <div className="p-6">
-                <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-
-                    {/* Rank & Pontos */}
-                    <div className="flex items-center space-x-4 flex-1">
-                        <div className={`p-4 rounded-2xl bg-gray-50 flex items-center justify-center ${rankColor} shadow-inner`}>
-                            <RankIcon className="w-10 h-10" />
-                        </div>
-                        <div>
-                            <p className="text-sm font-medium text-gray-500 uppercase tracking-wide">Rank Atual</p>
-                            <h3 className={`text-2xl font-black ${rankColor}`}>{rankLabel}</h3>
-                            <p className="text-gray-600 font-medium">{points.toLocaleString()} Pontos XP</p>
-                        </div>
+        <div className="space-y-3">
+            {/* ── Main rank card ─────────────────────────────────────── */}
+            <PremiumCard className="p-4">
+                <div className="flex items-center gap-4">
+                    {/* Rank Icon */}
+                    <div className={`flex-shrink-0 w-14 h-14 rounded-2xl bg-gradient-to-br ${rankGradient} flex items-center justify-center shadow-sm`}>
+                        <RankIcon className={`w-7 h-7 ${rankIconColor}`} />
                     </div>
 
-                    {/* Stats Bar */}
-                    <div className="flex items-center justify-center gap-4 bg-gray-50 p-4 rounded-xl border border-gray-100 w-full md:w-auto">
-                        <div className="flex flex-col items-center px-4">
-                            <span className="text-xs text-gray-500 font-medium uppercase mb-1">Score Global</span>
-                            <span className="text-xl font-bold text-indigo-700">{Math.floor(score).toLocaleString()}</span>
-                        </div>
-                        <div className="w-px h-10 bg-gray-200"></div>
-                        <div className="flex flex-col items-center px-4">
-                            <span className="text-xs text-gray-500 font-medium uppercase mb-1 flex items-center">
-                                <Flame className="w-3 h-3 mr-1 text-orange-500" /> Dias Seguidos
+                    {/* Rank Info */}
+                    <div className="flex-1 min-w-0">
+                        <p className="text-[10px] font-semibold text-text-secondary uppercase tracking-widest mb-0.5">Rank Atual</p>
+                        <div className="flex items-center gap-2 flex-wrap">
+                            <h3 className={`text-lg font-black leading-none ${rankIconColor}`}>{rankLabel}</h3>
+                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${rankBadgeClass}`}>
+                                {points.toLocaleString('pt-BR')} XP
                             </span>
-                            <span className="text-xl font-bold text-orange-600">{streak}</span>
                         </div>
+                        <p className="text-xs text-text-secondary mt-1">Score: {Math.floor(score).toLocaleString('pt-BR')}</p>
+                    </div>
+
+                    {/* Streak */}
+                    <div className="flex-shrink-0 flex flex-col items-center gap-0.5">
+                        <div className="flex items-center gap-1">
+                            <Flame className="w-4 h-4 text-orange-500" />
+                            <span className="text-xl font-black text-orange-500 leading-none">{streak}</span>
+                        </div>
+                        <span className="text-[9px] font-semibold text-text-secondary uppercase tracking-wide">Streak</span>
                     </div>
                 </div>
+            </PremiumCard>
 
-                {/* Conquistas Recentes */}
-                {myAchievements.length > 0 && (
-                    <div className="mt-8 pt-6 border-t border-gray-100">
-                        <div className="flex items-center justify-between mb-4">
-                            <h4 className="text-sm font-bold text-gray-800 uppercase tracking-wide flex items-center">
-                                <Award className="w-4 h-4 mr-2 text-amber-500" />
-                                Minhas Conquistas ({myAchievements.length})
-                            </h4>
-                        </div>
-                        <div className="flex flex-wrap gap-3">
-                            {myAchievements.slice(0, 5).map((userAch) => (
-                                <div
-                                    key={userAch.id}
-                                    className="group relative flex items-center px-3 py-2 bg-gradient-to-br from-amber-50 to-amber-100/30 border border-amber-200 rounded-lg hover:shadow-md transition-all cursor-default"
-                                >
-                                    <Star className="w-4 h-4 text-amber-500 mr-2" />
-                                    <span className="text-sm font-semibold text-gray-800">{userAch.achievements?.title || 'Conquista'}</span>
-
-                                    {/* Tooltip */}
-                                    <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 w-48 p-2 bg-gray-900 rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-10 text-center pointer-events-none">
-                                        <p className="text-xs text-white pb-1">{userAch.achievements?.description}</p>
-                                        <p className="text-[10px] text-gray-400 border-t border-gray-700 pt-1 mt-1">
-                                            Desbloqueado em: {new Date(userAch.unlocked_at).toLocaleDateString()}
-                                        </p>
-                                        {/* Arrow for Tooltip */}
-                                        <div className="absolute top-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-t-gray-900"></div>
-                                    </div>
-                                </div>
-                            ))}
-                            {myAchievements.length > 5 && (
-                                <div className="flex items-center justify-center px-3 py-2 bg-gray-100 border border-gray-200 rounded-lg text-sm font-medium text-gray-600">
-                                    +{myAchievements.length - 5}
-                                </div>
-                            )}
-                        </div>
+            {/* ── Achievements ───────────────────────────────────────── */}
+            {myAchievements.length > 0 && (
+                <PremiumCard className="p-4">
+                    <div className="flex items-center gap-2 mb-3">
+                        <Award className="w-4 h-4 text-gold-500" />
+                        <h4 className="text-xs font-bold text-text-primary uppercase tracking-wide">
+                            Conquistas ({myAchievements.length})
+                        </h4>
                     </div>
-                )}
-            </div>
+                    <div className="flex flex-wrap gap-2">
+                        {myAchievements.slice(0, 5).map((userAch) => (
+                            <div
+                                key={userAch.id}
+                                title={userAch.achievements?.description}
+                                className="group relative flex items-center gap-1.5 px-2.5 py-1.5 bg-gold-50 dark:bg-gold-900/10 border border-gold-200 dark:border-gold-800 rounded-xl text-xs font-semibold text-gold-700 dark:text-gold-400 hover:bg-gold-100 transition-colors cursor-default"
+                            >
+                                <Star className="w-3 h-3 text-gold-500" />
+                                {userAch.achievements?.title || 'Conquista'}
+                            </div>
+                        ))}
+                        {myAchievements.length > 5 && (
+                            <div className="flex items-center justify-center px-2.5 py-1.5 bg-surface-100 border border-surface-200 rounded-xl text-xs font-semibold text-text-secondary">
+                                <Zap className="w-3 h-3 mr-1" />+{myAchievements.length - 5}
+                            </div>
+                        )}
+                    </div>
+                </PremiumCard>
+            )}
         </div>
     );
 }
