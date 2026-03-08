@@ -389,22 +389,34 @@ export default function Dashboard() {
       {(isManager || isCoordinator) && (
         <>
           <div className="grid grid-cols-2 gap-4">
-            <PremiumCard className="flex flex-col items-center gap-1">
+            <PremiumCard
+              className="flex flex-col items-center gap-1 cursor-pointer hover:border-gold-300 transition-colors"
+              onClick={() => navigate('/clients')}
+            >
               <Users size={22} className="text-gold-500" />
               <h3 className="text-2xl font-bold text-text-primary">{totalClients}</h3>
               <p className="text-xs text-text-secondary">Clientes da Equipe</p>
             </PremiumCard>
-            <PremiumCard className="flex flex-col items-center gap-1">
+            <PremiumCard
+              className="flex flex-col items-center gap-1 cursor-pointer hover:border-gold-300 transition-colors"
+              onClick={() => navigate('/clients', { state: { initialStage: 'Concluído' } })}
+            >
               <TrendingUp size={22} className="text-green-500" />
               <h3 className="text-2xl font-bold text-text-primary">{totalSales}</h3>
               <p className="text-xs text-text-secondary">Vendas Concluídas</p>
             </PremiumCard>
-            <PremiumCard className="flex flex-col items-center gap-1">
+            <PremiumCard
+              className="flex flex-col items-center gap-1 cursor-pointer hover:border-gold-300 transition-colors"
+              onClick={() => navigate('/clients', { state: { initialStage: 'Em Análise' } })}
+            >
               <Target size={22} className="text-blue-500" />
               <h3 className="text-2xl font-bold text-text-primary">{emAnalise}</h3>
               <p className="text-xs text-text-secondary">Em Análise</p>
             </PremiumCard>
-            <PremiumCard className="flex flex-col items-center gap-1 cursor-pointer" onClick={() => navigate('/schedule')}>
+            <PremiumCard
+              className="flex flex-col items-center gap-1 cursor-pointer hover:border-gold-300 transition-colors"
+              onClick={() => navigate('/schedule')}
+            >
               <Calendar size={22} className="text-purple-500" />
               <h3 className="text-2xl font-bold text-text-primary">{upcomingAppointments.length}</h3>
               <p className="text-xs text-text-secondary">Agendamentos</p>
