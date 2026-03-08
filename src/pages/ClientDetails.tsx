@@ -254,21 +254,26 @@ export default function ClientDetails() {
                 exit={{ opacity: 0, height: 0 }}
                 className="grid grid-cols-2 gap-2 overflow-hidden"
               >
-                {CLIENT_STAGES
-                  .filter(stage => canConcluir || stage !== 'Concluído')
-                  .map((stage) => (
+                {CLIENT_STAGES.map((stage) => {
+                  const isRestricted = stage === 'Concluído' && !canConcluir;
+                  return (
                     <button
                       key={stage}
-                      onClick={() => handleStageChange(stage)}
+                      onClick={() => !isRestricted && handleStageChange(stage)}
+                      disabled={isRestricted}
+                      title={isRestricted ? 'Apenas ADMIN, Diretor ou Gerente podem concluir' : undefined}
                       className={`p-3 rounded-xl text-sm font-medium border transition-all text-left flex items-center justify-between ${client.stage === stage
-                        ? 'bg-gold-50 dark:bg-gold-900/20 border-gold-400 text-gold-700 dark:text-gold-400'
-                        : 'bg-card-bg border-surface-200 text-text-secondary hover:border-gold-300'
+                          ? 'bg-gold-50 dark:bg-gold-900/20 border-gold-400 text-gold-700 dark:text-gold-400'
+                          : isRestricted
+                            ? 'bg-surface-50 border-surface-200 text-text-secondary opacity-50 cursor-not-allowed'
+                            : 'bg-card-bg border-surface-200 text-text-secondary hover:border-gold-300'
                         }`}
                     >
                       {stage}
-                      {client.stage === stage && <Check size={16} />}
+                      {client.stage === stage ? <Check size={16} /> : isRestricted ? <span className="text-[10px]">🔒</span> : null}
                     </button>
-                  ))}
+                  );
+                })}
               </motion.div>
             ) : (
               <PremiumCard className="flex items-center justify-between py-4 cursor-pointer" onClick={() => setIsEditingStage(true)}>
