@@ -263,14 +263,7 @@ export default function Login() {
             )}
 
             {isLogin && (
-              <div className="flex justify-between items-center px-1">
-                <button
-                  type="button"
-                  onClick={handleDemoLogin}
-                  className="text-xs font-medium text-blue-600 hover:text-blue-500 transition-colors"
-                >
-                  Preencher Demo Diretor
-                </button>
+              <div className="flex justify-end items-center px-1">
                 <button type="button" className="text-xs font-medium text-gold-600 hover:text-gold-500 transition-colors">
                   Esqueceu a senha?
                 </button>
