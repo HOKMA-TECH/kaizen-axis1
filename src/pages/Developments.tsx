@@ -32,9 +32,7 @@ export default function Developments() {
   const [bookUploadError, setBookUploadError] = useState<string | null>(null);
   const [bookInputMode, setBookInputMode] = useState<'upload' | 'link'>('upload');
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
-
-  const MAX_PDF_BYTES = 45 * 1024 * 1024; // 45 MB (margem de segurança do limite Free 50 MB)
-
+  const MAX_PDF_BYTES = 100 * 1024 * 1024; // 100 MB
   const sanitizePath = (path: string) =>
     path.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9.\-_/]/g, '_');
 
@@ -82,7 +80,7 @@ export default function Developments() {
           resolve({ url: data.publicUrl, error: null });
         } else {
           let msg = `Erro ${xhr.status}`;
-          try { msg = JSON.parse(xhr.responseText)?.message || msg; } catch {}
+          try { msg = JSON.parse(xhr.responseText)?.message || msg; } catch { }
           console.error('Book upload failed:', xhr.status, xhr.responseText);
           resolve({ url: null, error: msg });
         }
@@ -137,7 +135,7 @@ export default function Developments() {
     if (file.size > MAX_PDF_BYTES) {
       setBookUploadError(
         `Arquivo muito grande (${(file.size / 1024 / 1024).toFixed(1)} MB). ` +
-        'O limite no plano atual é 45 MB. Use "Link externo" para PDFs maiores.'
+        'O limite atual é 100 MB. Use "Link externo" para PDFs maiores.'
       );
       setBookInputMode('link');
       e.target.value = '';
@@ -416,7 +414,7 @@ export default function Developments() {
                         </p>
                       </div>
                     )}
-                    <p className="text-[11px] text-text-secondary">Máx. 45 MB. Para PDFs maiores use "Link externo".</p>
+                    <p className="text-[11px] text-text-secondary">Máx. 100 MB. Para PDFs maiores use "Link externo".</p>
                   </>
                 ) : (
                   <>
