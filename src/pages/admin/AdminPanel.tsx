@@ -253,7 +253,7 @@ export default function AdminPanel() {
   const openGoalModal = (goal?: Goal, missionMode = false) => {
     setIsMission(missionMode);
     if (goal) { setEditingGoal(goal); setGoalForm({ ...goal }); }
-    else { setEditingGoal(null); setGoalForm({ title: '', description: '', target: 0, start_date: '', deadline: '', type: missionMode ? 'Missão' : 'Mensal', assignee_type: 'All', points: missionMode ? 100 : 0, measure_type: 'currency' }); }
+    else { setEditingGoal(null); setGoalForm({ title: '', description: '', target: 0, start_date: '', deadline: '', type: missionMode ? 'Missão' : 'Mensal', assignee_type: 'All', points: missionMode ? 100 : 0, measure_type: 'currency', objective_type: 'sales' }); }
     setIsGoalModalOpen(true);
   };
   const handleSaveGoal = async () => {
@@ -1008,10 +1008,11 @@ export default function AdminPanel() {
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-text-secondary mb-1">Tipo</label>
-              <select value={goalForm.type} onChange={e => setGoalForm(p => ({ ...p, type: e.target.value }))}
+              <label className="block text-sm font-medium text-text-secondary mb-1">Objetivo</label>
+              <select value={goalForm.objective_type || 'sales'} onChange={e => setGoalForm(p => ({ ...p, objective_type: e.target.value as 'sales' | 'approved_clients' }))}
                 className="w-full p-3 bg-surface-50 rounded-xl border-none focus:ring-2 focus:ring-gold-200 text-text-primary">
-                {isMission ? <option>Missão</option> : <><option>Semanal</option><option>Mensal</option><option>Personalizada</option></>}
+                <option value="sales">🏆 Vendas Concluídas</option>
+                <option value="approved_clients">✅ Fichas Aprovadas</option>
               </select>
             </div>
             <div>

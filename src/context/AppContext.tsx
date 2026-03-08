@@ -103,6 +103,7 @@ export interface Goal {
   status?: 'active' | 'achieved' | 'failed';
   closed_at?: string;
   property_id?: string;
+  objective_type?: 'sales' | 'approved_clients';
 }
 
 export interface Portal {

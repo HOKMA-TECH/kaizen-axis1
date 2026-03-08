@@ -38,6 +38,7 @@ export interface Goal {
   status?: 'active' | 'achieved' | 'failed';
   closedAt?: string;
   propertyId?: string;
+  objective_type?: 'sales' | 'approved_clients';
 }
 
 export interface Announcement {
