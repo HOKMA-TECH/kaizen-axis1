@@ -779,8 +779,8 @@ export default function AdminPanel() {
 
             <div className="grid gap-3">
               {pendingUsers.map(u => (
-                <PremiumCard key={u.id} className="p-3 sm:p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 border-amber-200/50 dark:border-amber-700/30 overflow-hidden">
-                  <div className="flex items-center gap-3 min-w-0 flex-1">
+                <PremiumCard key={u.id} className="p-3 sm:p-4 flex flex-col md:flex-row md:items-center md:flex-wrap justify-between gap-4 border-amber-200/50 dark:border-amber-700/30 overflow-hidden">
+                  <div className="flex items-center gap-3 min-w-0 flex-1 basis-auto">
                     <div className="w-10 h-10 shrink-0 rounded-full bg-surface-200 dark:bg-surface-800 flex items-center justify-center text-text-primary font-bold text-lg">
                       {(u.name || '?').charAt(0).toUpperCase()}
                     </div>
@@ -791,11 +791,11 @@ export default function AdminPanel() {
                       </p>
                     </div>
                   </div>
-                  <div className="flex gap-2 w-full md:w-auto shrink-0 mt-1 md:mt-0 relative z-20 bg-white dark:bg-surface-100">
-                    <RoundedButton onClick={() => handleRejectUser(u.id)} variant="outline" className="flex-1 md:flex-none justify-center text-red-500 border-red-200 hover:bg-red-50 dark:hover:bg-red-900/20 text-xs px-3 py-1.5 w-full md:w-[130px]">
+                  <div className="flex gap-2 w-full sm:w-auto shrink-0 mt-2 md:mt-0 relative z-20">
+                    <RoundedButton onClick={() => handleRejectUser(u.id)} variant="outline" className="flex-1 sm:flex-none justify-center text-red-500 border-red-200 hover:bg-red-50 dark:hover:bg-red-900/20 text-xs px-3 py-1.5 w-full sm:w-[130px]">
                       Recusar
                     </RoundedButton>
-                    <RoundedButton onClick={() => handleOpenApprovalModal(u.id)} className="flex-1 md:flex-none justify-center bg-green-500 hover:bg-green-600 text-white border-0 shadow-sm shadow-green-500/20 text-xs px-3 py-1.5 w-full md:w-[130px] whitespace-nowrap">
+                    <RoundedButton onClick={() => handleOpenApprovalModal(u.id)} className="flex-1 sm:flex-none justify-center bg-green-500 hover:bg-green-600 text-white border-0 shadow-sm shadow-green-500/20 text-xs px-3 py-1.5 w-full sm:w-[130px] whitespace-nowrap">
                       Aceitar Acesso
                     </RoundedButton>
                   </div>
