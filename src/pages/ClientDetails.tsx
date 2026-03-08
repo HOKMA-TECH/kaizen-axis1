@@ -6,11 +6,16 @@ import { Client, CLIENT_STAGES, ClientStage } from '@/data/clients';
 import { motion, AnimatePresence } from 'motion/react';
 import { Modal } from '@/components/ui/Modal';
 import { useApp } from '@/context/AppContext';
+import { useAuthorization } from '@/hooks/useAuthorization';
 
 export default function ClientDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { getClient, updateClient, deleteClient, userName, getDownloadUrl, uploadFile, addDocumentToClient, deleteDocumentFromClient, clients } = useApp();
+  const { role } = useAuthorization();
+
+  // Roles that can set 'Concluído'
+  const canConcluir = ['ADMIN', 'DIRETOR', 'GERENTE'].includes(role ?? '');
 
   const [client, setClient] = useState<Client | null>(null);
   const [isEditingStage, setIsEditingStage] = useState(false);
@@ -32,6 +37,13 @@ export default function ClientDetails() {
 
   const handleStageChange = async (newStage: ClientStage) => {
     if (!client || !id) return;
+
+    // Block CORRETOR from setting 'Concluído'
+    if (newStage === 'Concluído' && !canConcluir) {
+      alert('⛔ Apenas ADMIN, Diretor ou Gerente podem mover uma ficha para "Concluído".');
+      setIsEditingStage(false);
+      return;
+    }
 
     if (newStage === 'Concluído' && (!client.development?.trim() || !client.intendedValue?.trim())) {
       alert('⚠️ Para mover o cliente para a etapa "Concluído", é obrigatório preencher os campos "Empreendimento" e "Valor".');
@@ -242,19 +254,21 @@ export default function ClientDetails() {
                 exit={{ opacity: 0, height: 0 }}
                 className="grid grid-cols-2 gap-2 overflow-hidden"
               >
-                {CLIENT_STAGES.map((stage) => (
-                  <button
-                    key={stage}
-                    onClick={() => handleStageChange(stage)}
-                    className={`p-3 rounded-xl text-sm font-medium border transition-all text-left flex items-center justify-between ${client.stage === stage
-                      ? 'bg-gold-50 dark:bg-gold-900/20 border-gold-400 text-gold-700 dark:text-gold-400'
-                      : 'bg-card-bg border-surface-200 text-text-secondary hover:border-gold-300'
-                      }`}
-                  >
-                    {stage}
-                    {client.stage === stage && <Check size={16} />}
-                  </button>
-                ))}
+                {CLIENT_STAGES
+                  .filter(stage => canConcluir || stage !== 'Concluído')
+                  .map((stage) => (
+                    <button
+                      key={stage}
+                      onClick={() => handleStageChange(stage)}
+                      className={`p-3 rounded-xl text-sm font-medium border transition-all text-left flex items-center justify-between ${client.stage === stage
+                        ? 'bg-gold-50 dark:bg-gold-900/20 border-gold-400 text-gold-700 dark:text-gold-400'
+                        : 'bg-card-bg border-surface-200 text-text-secondary hover:border-gold-300'
+                        }`}
+                    >
+                      {stage}
+                      {client.stage === stage && <Check size={16} />}
+                    </button>
+                  ))}
               </motion.div>
             ) : (
               <PremiumCard className="flex items-center justify-between py-4 cursor-pointer" onClick={() => setIsEditingStage(true)}>
