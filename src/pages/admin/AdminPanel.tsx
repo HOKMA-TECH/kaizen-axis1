@@ -1056,6 +1056,22 @@ export default function AdminPanel() {
                 className="w-full p-3 bg-surface-50 rounded-xl border-none focus:ring-2 focus:ring-gold-200 text-text-primary" />
             </div>
           </div>
+          <div>
+            <label className="block text-sm font-medium text-text-secondary mb-1">
+              ⚡ Recompensa XP ao concluir
+            </label>
+            <input
+              type="number"
+              min={0}
+              placeholder={isMission ? '500 (padrão para Missão)' : '300 (padrão para Meta)'}
+              value={goalForm.points || ''}
+              onChange={e => setGoalForm(p => ({ ...p, points: e.target.value ? Number(e.target.value) : undefined }))}
+              className="w-full p-3 bg-surface-50 rounded-xl border-none focus:ring-2 focus:ring-gold-200 text-text-primary"
+            />
+            <p className="text-[11px] text-text-secondary mt-1 opacity-75">
+              Deixe em branco para usar o padrão ({isMission ? '500' : '300'} XP)
+            </p>
+          </div>
           <RoundedButton fullWidth onClick={handleSaveGoal} disabled={isSavingGoal}>
             {isSavingGoal ? <><Loader2 size={16} className="animate-spin" /> Salvando...</> : 'Salvar'}
           </RoundedButton>
