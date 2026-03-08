@@ -4,7 +4,7 @@ import { FunnelChart } from '@/components/ui/FunnelChart';
 import { useNavigate } from 'react-router-dom';
 
 import { AnnouncementCard } from '@/components/admin/AnnouncementCard';
-import { useApp } from '@/context/AppContext';
+import { useApp, Goal } from '@/context/AppContext';
 import { useAuthorization } from '@/hooks/useAuthorization';
 import { NotificationBell } from '@/components/ui/NotificationBell';
 
@@ -330,6 +330,10 @@ export default function Dashboard() {
               {(() => {
                 const teamMetas = goals.filter(g => g.type !== 'Missão');
                 const teamMissoes = goals.filter(g => g.type === 'Missão');
+                const formatGoalVal = (g: Goal, val: number) =>
+                  g.measure_type === 'quantity'
+                    ? val.toString()
+                    : new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
 
                 return (
                   <>
@@ -354,7 +358,7 @@ export default function Dashboard() {
                                   <div className={`h-full rounded-full transition-all duration-700 ${pct >= 100 ? 'bg-green-500' : 'bg-gold-400'}`} style={{ width: `${pct}%` }} />
                                 </div>
                                 <div className="flex justify-between text-[10px] text-text-secondary mt-1">
-                                  <span>Progresso: {goal.current_progress || 0} de {goal.target || 0}</span>
+                                  <span>Progresso: {formatGoalVal(goal, goal.current_progress || 0)} de {formatGoalVal(goal, goal.target || 0)}</span>
                                   {goal.deadline && <span>Até {new Date(goal.deadline).toLocaleDateString('pt-BR')}</span>}
                                 </div>
                               </PremiumCard>
@@ -386,7 +390,7 @@ export default function Dashboard() {
                                   <div className={`h-full rounded-full transition-all duration-700 ${pct >= 100 ? 'bg-green-500' : 'bg-gold-400'}`} style={{ width: `${pct}%` }} />
                                 </div>
                                 <div className="flex justify-between text-[10px] text-text-secondary mt-1">
-                                  <span>Progresso: {goal.current_progress || 0} de {goal.target || 0}</span>
+                                  <span>Progresso: {formatGoalVal(goal, goal.current_progress || 0)} de {formatGoalVal(goal, goal.target || 0)}</span>
                                   {goal.deadline && <span>Até {new Date(goal.deadline).toLocaleDateString('pt-BR')}</span>}
                                 </div>
                               </PremiumCard>

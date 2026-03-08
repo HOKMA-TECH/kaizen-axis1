@@ -98,6 +98,7 @@ export interface Goal {
   assignee_type?: string;
   assignee_id?: string;
   points?: number;
+  measure_type?: string;
 }
 
 export interface Portal {

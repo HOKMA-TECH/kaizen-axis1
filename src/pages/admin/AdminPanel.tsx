@@ -251,7 +251,7 @@ export default function AdminPanel() {
   const openGoalModal = (goal?: Goal, missionMode = false) => {
     setIsMission(missionMode);
     if (goal) { setEditingGoal(goal); setGoalForm({ ...goal }); }
-    else { setEditingGoal(null); setGoalForm({ title: '', description: '', target: 0, start_date: '', deadline: '', type: missionMode ? 'Missão' : 'Mensal', assignee_type: 'All', points: missionMode ? 100 : 0 }); }
+    else { setEditingGoal(null); setGoalForm({ title: '', description: '', target: 0, start_date: '', deadline: '', type: missionMode ? 'Missão' : 'Mensal', assignee_type: 'All', points: missionMode ? 100 : 0, measure_type: 'currency' }); }
     setIsGoalModalOpen(true);
   };
   const handleSaveGoal = async () => {
@@ -376,6 +376,11 @@ export default function AdminPanel() {
               goals.length === 0 ? <p className="text-center text-text-secondary py-8">Nenhuma meta cadastrada.</p> :
                 goals.map(goal => {
                   const progress = goal.target ? ((goal.current_progress || 0) / goal.target) * 100 : 0;
+                  const formatGoalVal = (val: number) =>
+                    goal.measure_type === 'quantity'
+                      ? val.toString()
+                      : new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
+
                   return (
                     <PremiumCard key={goal.id} className="p-4">
                       <div className="flex items-start justify-between">
@@ -387,7 +392,7 @@ export default function AdminPanel() {
                           {goal.description && <p className="text-xs text-text-secondary mt-1">{goal.description}</p>}
                           <div className="mt-3">
                             <div className="flex justify-between text-xs text-text-secondary mb-1">
-                              <span>Progresso</span><span>{goal.current_progress || 0} / {goal.target || 0}</span>
+                              <span>Progresso</span><span>{formatGoalVal(goal.current_progress || 0)} / {formatGoalVal(goal.target || 0)}</span>
                             </div>
                             <div className="h-2 bg-surface-100 rounded-full overflow-hidden">
                               <div className="h-full bg-gold-500 rounded-full transition-all" style={{ width: `${Math.min(progress, 100)}%` }} />
@@ -930,10 +935,20 @@ export default function AdminPanel() {
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-text-secondary mb-1">{isMission ? 'Pontos' : 'Alvo'}</label>
-              <input type="number" value={isMission ? goalForm.points : goalForm.target} onChange={e => setGoalForm(p => ({ ...p, [isMission ? 'points' : 'target']: Number(e.target.value) }))}
+              <label className="block text-sm font-medium text-text-secondary mb-1">Medição</label>
+              <select value={goalForm.measure_type || 'currency'} onChange={e => setGoalForm(p => ({ ...p, measure_type: e.target.value }))}
+                className="w-full p-3 bg-surface-50 rounded-xl border-none focus:ring-2 focus:ring-gold-200 text-text-primary">
+                <option value="currency">Soma de Valores (R$)</option>
+                <option value="quantity">Quantidade de Contratos</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-text-secondary mb-1">Alvo</label>
+              <input type="number" value={goalForm.target || ''} onChange={e => setGoalForm(p => ({ ...p, target: Number(e.target.value) }))}
                 className="w-full p-3 bg-surface-50 rounded-xl border-none focus:ring-2 focus:ring-gold-200 text-text-primary" />
             </div>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-text-secondary mb-1">Tipo</label>
               <select value={goalForm.type} onChange={e => setGoalForm(p => ({ ...p, type: e.target.value }))}
@@ -941,6 +956,8 @@ export default function AdminPanel() {
                 {isMission ? <option>Missão</option> : <><option>Mensal</option><option>Trimestral</option><option>Personalizada</option></>}
               </select>
             </div>
+            {/* Espaço para alinhar caso necessário, ou pode remover */}
+            <div></div>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
