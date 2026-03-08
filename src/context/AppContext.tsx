@@ -678,7 +678,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       }]);
       if (error) throw error;
       await refreshTeams();
-    } catch (e) { console.error('Erro ao adicionar equipe:', e); }
+    } catch (e) {
+      console.error('Erro ao adicionar equipe:', e);
+      throw e; // propagate up to UI
+    }
   }, [refreshTeams]);
 
   const updateTeam = useCallback(async (id: string, data: Partial<Team>) => {
@@ -788,12 +791,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     } catch (e) { console.error('Erro ao carregar diretorias:', e); }
   }, []);
 
-  const addDirectorate = useCallback(async (data: Omit<Directorate, 'id' | 'created_at'>) => {
+  const addDirectorate = useCallback(async (data: Omit<Directorate, 'id'>) => {
     try {
-      const { error } = await supabase.from('directorates').insert(data);
+      const { error } = await supabase.from('directorates').insert([data]);
       if (error) throw error;
       await refreshDirectorates();
-    } catch (e) { console.error('Erro ao criar diretoria:', e); }
+    } catch (e) {
+      console.error('Erro ao adicionar diretoria:', e);
+      throw e;
+    }
   }, [refreshDirectorates]);
 
   const updateDirectorate = useCallback(async (id: string, data: Partial<Directorate>) => {
@@ -801,7 +807,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const { error } = await supabase.from('directorates').update(data).eq('id', id);
       if (error) throw error;
       await refreshDirectorates();
-    } catch (e) { console.error('Erro ao atualizar diretoria:', e); }
+    } catch (e) {
+      console.error('Erro ao atualizar diretoria:', e);
+      throw e;
+    }
   }, [refreshDirectorates]);
 
   const deleteDirectorate = useCallback(async (id: string) => {

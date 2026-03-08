@@ -212,13 +212,24 @@ export default function AdminPanel() {
     setIsTeamModalOpen(true);
   };
   const handleSaveTeam = async () => {
-    if (!teamForm.name) return;
+    if (!teamForm.name) {
+      alert("O nome da equipe é obrigatório.");
+      return;
+    }
     setIsSavingTeam(true);
+
     try {
-      if (editingTeam) await updateTeam(editingTeam.id, teamForm);
-      else await addTeam({ ...teamForm, members: [] } as Omit<Team, 'id'>);
+      if (editingTeam) {
+        await updateTeam(editingTeam.id, teamForm);
+      } else {
+        await addTeam({ ...teamForm, members: [] } as Omit<Team, 'id'>);
+      }
       setIsTeamModalOpen(false);
-    } finally { setIsSavingTeam(false); }
+    } catch (e: any) {
+      alert("Erro ao salvar equipe: " + (e.message || "Tente novamente."));
+    } finally {
+      setIsSavingTeam(false);
+    }
   };
 
   const handleToggleMember = async (teamId: string, userId: string) => {
