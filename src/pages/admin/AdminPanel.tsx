@@ -468,11 +468,7 @@ export default function AdminPanel() {
                             <div className="h-2 bg-surface-100 rounded-full overflow-hidden">
                               <div className={`h-full ${progressColor} rounded-full transition-all`} style={{ width: `${Math.min(progress, 100)}%` }} />
                             </div>
-                            {progress < 100 && remainingToNextTier > 0 && goal.status !== 'failed' && (
-                              <p className="text-[10px] text-text-secondary mt-1 text-right">
-                                Falta {formatGoalVal(remainingToNextTier)} para o próximo nível
-                              </p>
-                            )}
+
                           </div>
                         </div>
                         <div className="flex gap-2 ml-3 flex-shrink-0">

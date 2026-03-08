@@ -302,9 +302,7 @@ export default function Dashboard() {
                                 <div className="flex justify-between items-end mt-1">
                                   <div className="flex flex-col text-[10px] text-text-secondary">
                                     <span>{tierText}: {formatGoalVal(goal, goal.current_progress || 0)} de {formatGoalVal(goal, goal.target || 0)}</span>
-                                    {pct < 100 && remainingToNextTier > 0 && goal.status !== 'failed' && (
-                                      <span className="opacity-75">Falta {formatGoalVal(goal, remainingToNextTier)} para {pct >= 67 ? 'Atingir' : pct >= 34 ? 'Prata' : 'Bronze'}</span>
-                                    )}
+
                                   </div>
                                   {goal.deadline && <span className="text-[10px] text-text-secondary">Até {new Date(goal.deadline).toLocaleDateString('pt-BR')}</span>}
                                 </div>
@@ -369,9 +367,7 @@ export default function Dashboard() {
                                 <div className="flex justify-between items-end mt-1">
                                   <div className="flex flex-col text-[10px] text-text-secondary">
                                     <span>{tierText}: {formatGoalVal(goal, goal.current_progress || 0)} de {formatGoalVal(goal, goal.target || 0)}</span>
-                                    {pct < 100 && remainingToNextTier > 0 && goal.status !== 'failed' && (
-                                      <span className="opacity-75">Falta {formatGoalVal(goal, remainingToNextTier)} para {pct >= 67 ? 'Atingir' : pct >= 34 ? 'Prata' : 'Bronze'}</span>
-                                    )}
+
                                   </div>
                                   {goal.deadline && <span className="text-[10px] text-text-secondary">Até {new Date(goal.deadline).toLocaleDateString('pt-BR')}</span>}
                                 </div>
