@@ -3,6 +3,7 @@ import { Client } from '@/data/clients';
 import { AutomationLead } from '@/data/leads';
 import { supabase } from '@/lib/supabase';
 import { Session, User } from '@supabase/supabase-js';
+import confetti from 'canvas-confetti';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -99,6 +100,9 @@ export interface Goal {
   assignee_id?: string;
   points?: number;
   measure_type?: string;
+  status?: 'active' | 'achieved' | 'failed';
+  closed_at?: string;
+  property_id?: string;
 }
 
 export interface Portal {
@@ -266,6 +270,36 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const userName = profile?.name || user?.email || 'Usuário';
   const userRole = profile?.role || 'Corretor';
+
+  // ─── Confetti Logic ───────────────────────────────────────────────────────
+  const previousGoalsRef = React.useRef<Goal[]>([]);
+
+  React.useEffect(() => {
+    if (goals.length > 0 && previousGoalsRef.current.length > 0) {
+      // Check if any previously unachieved active goal just became achieved
+      const newlyAchievedGoals = goals.filter((currentGoal) => {
+        const previousGoal = previousGoalsRef.current.find((g) => g.id === currentGoal.id);
+        if (!previousGoal) return false;
+
+        const wasAchieved = (previousGoal.current_progress || 0) >= (previousGoal.target || 1);
+        const isNowAchieved = (currentGoal.current_progress || 0) >= (currentGoal.target || 1);
+
+        // Only celebrate active/ongoing goals that crossed the line
+        return !wasAchieved && isNowAchieved && currentGoal.status !== 'failed';
+      });
+
+      if (newlyAchievedGoals.length > 0) {
+        confetti({
+          particleCount: 150,
+          spread: 70,
+          origin: { y: 0.6 },
+          colors: ['#D4AF37', '#FFDF00', '#FFFFFF', '#10B981'] // Gold, Silver, Emerald
+        });
+      }
+    }
+    // Update ref for next render cycle
+    previousGoalsRef.current = goals;
+  }, [goals]);
 
   // ─── Auth ─────────────────────────────────────────────────────────────────
 

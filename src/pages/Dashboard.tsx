@@ -342,12 +342,38 @@ export default function Dashboard() {
                         <SectionHeader title="Metas da Equipe" subtitle="Acompanhe o progresso das metas" />
                         <div className="space-y-3">
                           {teamMetas.slice(0, 5).map((goal) => {
-                            const pct = Math.min(100, Math.round(((goal.current_progress || 0) / (goal.target || 1)) * 100));
+                            const progress = goal.target ? ((goal.current_progress || 0) / goal.target) * 100 : 0;
+                            const pct = Math.min(100, Math.round(progress));
+
+                            let progressColor = 'bg-blue-500';
+                            let tierText = '';
+                            let remainingToNextTier = 0;
+
+                            if (pct >= 100) {
+                              progressColor = 'bg-green-500';
+                              tierText = '🎉 Batida!';
+                            } else if (pct >= 67) {
+                              progressColor = 'bg-green-500';
+                              tierText = 'Prata';
+                              remainingToNextTier = (goal.target || 0) - (goal.current_progress || 0);
+                            } else if (pct >= 34) {
+                              progressColor = 'bg-orange-400';
+                              tierText = 'Bronze';
+                              remainingToNextTier = ((goal.target || 0) * 0.67) - (goal.current_progress || 0);
+                            } else {
+                              progressColor = 'bg-blue-500';
+                              tierText = 'Em Andamento';
+                              remainingToNextTier = ((goal.target || 0) * 0.34) - (goal.current_progress || 0);
+                            }
+
                             return (
                               <PremiumCard key={goal.id}>
                                 <div className="flex justify-between items-start mb-2">
                                   <div className="flex-1 min-w-0">
-                                    <span className="font-semibold text-text-primary text-sm">{goal.title}</span>
+                                    <span className="font-semibold text-text-primary text-sm flex items-center gap-2">
+                                      {goal.title}
+                                      {goal.status === 'achieved' && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-green-100 text-green-700">Atingida</span>}
+                                    </span>
                                     {goal.description && <p className="text-[11px] text-text-secondary mt-0.5 line-clamp-1">{goal.description}</p>}
                                   </div>
                                   <div className="flex items-center gap-2 ml-2 flex-shrink-0">
@@ -355,30 +381,59 @@ export default function Dashboard() {
                                   </div>
                                 </div>
                                 <div className="h-2 w-full bg-surface-200 rounded-full overflow-hidden">
-                                  <div className={`h-full rounded-full transition-all duration-700 ${pct >= 100 ? 'bg-green-500' : 'bg-gold-400'}`} style={{ width: `${pct}%` }} />
+                                  <div className={`h-full rounded-full transition-all duration-700 ${progressColor}`} style={{ width: `${pct}%` }} />
                                 </div>
-                                <div className="flex justify-between text-[10px] text-text-secondary mt-1">
-                                  <span>Progresso: {formatGoalVal(goal, goal.current_progress || 0)} de {formatGoalVal(goal, goal.target || 0)}</span>
-                                  {goal.deadline && <span>Até {new Date(goal.deadline).toLocaleDateString('pt-BR')}</span>}
+                                <div className="flex justify-between items-end mt-1">
+                                  <div className="flex flex-col text-[10px] text-text-secondary">
+                                    <span>{tierText}: {formatGoalVal(goal, goal.current_progress || 0)} de {formatGoalVal(goal, goal.target || 0)}</span>
+                                    {pct < 100 && remainingToNextTier > 0 && goal.status !== 'failed' && (
+                                      <span className="opacity-75">Falta {formatGoalVal(goal, remainingToNextTier)} para {pct >= 67 ? 'Atingir' : pct >= 34 ? 'Prata' : 'Bronze'}</span>
+                                    )}
+                                  </div>
+                                  {goal.deadline && <span className="text-[10px] text-text-secondary">Até {new Date(goal.deadline).toLocaleDateString('pt-BR')}</span>}
                                 </div>
                               </PremiumCard>
                             );
                           })}
                         </div>
                       </div>
-                    )}
-
-                    {teamMissoes.length > 0 && (
+                    )}                    {teamMissoes.length > 0 && (
                       <div>
                         <SectionHeader title="Missões da Equipe" subtitle="Acompanhe as missões globais" />
                         <div className="space-y-3">
                           {teamMissoes.slice(0, 5).map((goal) => {
-                            const pct = Math.min(100, Math.round(((goal.current_progress || 0) / (goal.target || 1)) * 100));
+                            const progress = goal.target ? ((goal.current_progress || 0) / goal.target) * 100 : 0;
+                            const pct = Math.min(100, Math.round(progress));
+
+                            let progressColor = 'bg-blue-500';
+                            let tierText = '';
+                            let remainingToNextTier = 0;
+
+                            if (pct >= 100) {
+                              progressColor = 'bg-green-500';
+                              tierText = '🎉 Batida!';
+                            } else if (pct >= 67) {
+                              progressColor = 'bg-green-500';
+                              tierText = 'Prata';
+                              remainingToNextTier = (goal.target || 0) - (goal.current_progress || 0);
+                            } else if (pct >= 34) {
+                              progressColor = 'bg-orange-400';
+                              tierText = 'Bronze';
+                              remainingToNextTier = ((goal.target || 0) * 0.67) - (goal.current_progress || 0);
+                            } else {
+                              progressColor = 'bg-blue-500';
+                              tierText = 'Em Andamento';
+                              remainingToNextTier = ((goal.target || 0) * 0.34) - (goal.current_progress || 0);
+                            }
+
                             return (
                               <PremiumCard key={goal.id}>
                                 <div className="flex justify-between items-start mb-2">
                                   <div className="flex-1 min-w-0">
-                                    <span className="font-semibold text-text-primary text-sm">{goal.title}</span>
+                                    <span className="font-semibold text-text-primary text-sm flex items-center gap-2">
+                                      {goal.title}
+                                      {goal.status === 'achieved' && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-green-100 text-green-700">Atingida</span>}
+                                    </span>
                                     {goal.description && <p className="text-[11px] text-text-secondary mt-0.5 line-clamp-1">{goal.description}</p>}
                                   </div>
                                   <div className="flex items-center gap-2 ml-2 flex-shrink-0">
@@ -387,11 +442,16 @@ export default function Dashboard() {
                                   </div>
                                 </div>
                                 <div className="h-2 w-full bg-surface-200 rounded-full overflow-hidden">
-                                  <div className={`h-full rounded-full transition-all duration-700 ${pct >= 100 ? 'bg-green-500' : 'bg-gold-400'}`} style={{ width: `${pct}%` }} />
+                                  <div className={`h-full rounded-full transition-all duration-700 ${progressColor}`} style={{ width: `${pct}%` }} />
                                 </div>
-                                <div className="flex justify-between text-[10px] text-text-secondary mt-1">
-                                  <span>Progresso: {formatGoalVal(goal, goal.current_progress || 0)} de {formatGoalVal(goal, goal.target || 0)}</span>
-                                  {goal.deadline && <span>Até {new Date(goal.deadline).toLocaleDateString('pt-BR')}</span>}
+                                <div className="flex justify-between items-end mt-1">
+                                  <div className="flex flex-col text-[10px] text-text-secondary">
+                                    <span>{tierText}: {formatGoalVal(goal, goal.current_progress || 0)} de {formatGoalVal(goal, goal.target || 0)}</span>
+                                    {pct < 100 && remainingToNextTier > 0 && goal.status !== 'failed' && (
+                                      <span className="opacity-75">Falta {formatGoalVal(goal, remainingToNextTier)} para {pct >= 67 ? 'Atingir' : pct >= 34 ? 'Prata' : 'Bronze'}</span>
+                                    )}
+                                  </div>
+                                  {goal.deadline && <span className="text-[10px] text-text-secondary">Até {new Date(goal.deadline).toLocaleDateString('pt-BR')}</span>}
                                 </div>
                               </PremiumCard>
                             );

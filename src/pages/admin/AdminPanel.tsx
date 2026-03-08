@@ -22,10 +22,12 @@ export default function AdminPanel() {
     announcements, addAnnouncement, updateAnnouncement, deleteAnnouncement,
     directorates, addDirectorate, updateDirectorate, deleteDirectorate,
     clients, appointments,
+    developments,
     loading, user
   } = useApp();
 
   const [activeTab, setActiveTab] = useState<Tab>('users');
+  const [activeGoalTab, setActiveGoalTab] = useState<'active' | 'ended'>('active');
   const [searchTerm, setSearchTerm] = useState('');
 
   // Team modal
@@ -365,21 +367,63 @@ export default function AdminPanel() {
           </div>
         );
 
-      case 'goals':
+      case 'goals': {
+        const activeGoals = goals.filter(g => g.status !== 'achieved' && g.status !== 'failed');
+        const endedGoals = goals.filter(g => g.status === 'achieved' || g.status === 'failed');
+        const displayedGoals = activeGoalTab === 'active' ? activeGoals : endedGoals;
+
         return (
           <div className="space-y-4">
-            <div className="flex justify-end gap-2">
-              <RoundedButton size="sm" variant="outline" onClick={() => openGoalModal(undefined, true)}><Trophy size={16} className="mr-1" /> Missão</RoundedButton>
-              <RoundedButton size="sm" onClick={() => openGoalModal()}><Plus size={16} className="mr-1" /> Nova Meta</RoundedButton>
+            <div className="flex justify-between items-center bg-surface-50 p-1 rounded-xl">
+              <div className="flex w-full max-w-sm">
+                <button
+                  onClick={() => setActiveGoalTab('active')}
+                  className={`flex-1 py-1.5 text-sm font-medium rounded-lg transition-colors ${activeGoalTab === 'active' ? 'bg-white text-gold-600 shadow-sm' : 'text-text-secondary hover:text-text-primary'}`}
+                >
+                  Em Andamento
+                </button>
+                <button
+                  onClick={() => setActiveGoalTab('ended')}
+                  className={`flex-1 py-1.5 text-sm font-medium rounded-lg transition-colors ${activeGoalTab === 'ended' ? 'bg-white text-gold-600 shadow-sm' : 'text-text-secondary hover:text-text-primary'}`}
+                >
+                  Encerradas
+                </button>
+              </div>
+              <div className="flex justify-end gap-2">
+                <RoundedButton size="sm" variant="outline" onClick={() => openGoalModal(undefined, true)}><Trophy size={16} className="mr-1" /> Missão</RoundedButton>
+                <RoundedButton size="sm" onClick={() => openGoalModal()}><Plus size={16} className="mr-1" /> Nova Meta</RoundedButton>
+              </div>
             </div>
+
             {loading ? <Loader2 size={24} className="animate-spin mx-auto text-gold-400 py-4" /> :
-              goals.length === 0 ? <p className="text-center text-text-secondary py-8">Nenhuma meta cadastrada.</p> :
-                goals.map(goal => {
+              displayedGoals.length === 0 ? <p className="text-center text-text-secondary py-8">{activeGoalTab === 'active' ? 'Nenhuma meta em andamento.' : 'Nenhuma meta encerrada ainda.'}</p> :
+                displayedGoals.map(goal => {
                   const progress = goal.target ? ((goal.current_progress || 0) / goal.target) * 100 : 0;
                   const formatGoalVal = (val: number) =>
                     goal.measure_type === 'quantity'
                       ? val.toString()
                       : new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
+
+                  let progressColor = 'bg-blue-500';
+                  let tierText = '';
+                  let remainingToNextTier = 0;
+
+                  if (progress >= 100) {
+                    progressColor = 'bg-green-500';
+                    tierText = '🎉 Meta Batida!';
+                  } else if (progress >= 67) {
+                    progressColor = 'bg-green-500';
+                    tierText = 'Prata';
+                    remainingToNextTier = (goal.target || 0) - (goal.current_progress || 0); // Ouro
+                  } else if (progress >= 34) {
+                    progressColor = 'bg-orange-400';
+                    tierText = 'Bronze';
+                    remainingToNextTier = ((goal.target || 0) * 0.67) - (goal.current_progress || 0); // Prata
+                  } else {
+                    progressColor = 'bg-blue-500';
+                    tierText = 'Em Andamento';
+                    remainingToNextTier = ((goal.target || 0) * 0.34) - (goal.current_progress || 0); // Bronze
+                  }
 
                   return (
                     <PremiumCard key={goal.id} className="p-4">
@@ -388,15 +432,28 @@ export default function AdminPanel() {
                           <div className="flex items-center gap-2">
                             {goal.type === 'Missão' && <Trophy size={14} className="text-gold-500 flex-shrink-0" />}
                             <h4 className="font-bold text-text-primary truncate">{goal.title}</h4>
+                            {goal.status === 'achieved' && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-green-100 text-green-700">Atingida</span>}
+                            {goal.status === 'failed' && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-100 text-red-700">Falhou</span>}
                           </div>
                           {goal.description && <p className="text-xs text-text-secondary mt-1">{goal.description}</p>}
+                          {goal.property_id && (
+                            <p className="text-xs text-gold-600 mt-1 flex items-center gap-1">
+                              <Building2 size={12} /> {developments?.find(d => d.id === goal.property_id)?.name || 'Empreendimento'}
+                            </p>
+                          )}
                           <div className="mt-3">
                             <div className="flex justify-between text-xs text-text-secondary mb-1">
-                              <span>Progresso</span><span>{formatGoalVal(goal.current_progress || 0)} / {formatGoalVal(goal.target || 0)}</span>
+                              <span>Progresso: {tierText}</span>
+                              <span>{formatGoalVal(goal.current_progress || 0)} / {formatGoalVal(goal.target || 0)}</span>
                             </div>
                             <div className="h-2 bg-surface-100 rounded-full overflow-hidden">
-                              <div className="h-full bg-gold-500 rounded-full transition-all" style={{ width: `${Math.min(progress, 100)}%` }} />
+                              <div className={`h-full ${progressColor} rounded-full transition-all`} style={{ width: `${Math.min(progress, 100)}%` }} />
                             </div>
+                            {progress < 100 && remainingToNextTier > 0 && goal.status !== 'failed' && (
+                              <p className="text-[10px] text-text-secondary mt-1 text-right">
+                                Falta {formatGoalVal(remainingToNextTier)} para o próximo nível
+                              </p>
+                            )}
                           </div>
                         </div>
                         <div className="flex gap-2 ml-3 flex-shrink-0">
@@ -409,6 +466,7 @@ export default function AdminPanel() {
                 })}
           </div>
         );
+      }
 
       case 'announcements':
         return (
@@ -956,8 +1014,14 @@ export default function AdminPanel() {
                 {isMission ? <option>Missão</option> : <><option>Semanal</option><option>Mensal</option><option>Personalizada</option></>}
               </select>
             </div>
-            {/* Espaço para alinhar caso necessário, ou pode remover */}
-            <div></div>
+            <div>
+              <label className="block text-sm font-medium text-text-secondary mb-1">Empreendimento (Filtro)</label>
+              <select value={goalForm.property_id || ''} onChange={e => setGoalForm(p => ({ ...p, property_id: e.target.value || undefined }))}
+                className="w-full p-3 bg-surface-50 rounded-xl border-none focus:ring-2 focus:ring-gold-200 text-text-primary">
+                <option value="">Todos os Empreendimentos</option>
+                {developments?.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+              </select>
+            </div>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>

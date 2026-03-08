@@ -35,6 +35,9 @@ export interface Goal {
   assigneeId: string; // Team ID or User ID
   assigneeType: 'Team' | 'User' | 'All';
   points?: number; // For gamification
+  status?: 'active' | 'achieved' | 'failed';
+  closedAt?: string;
+  propertyId?: string;
 }
 
 export interface Announcement {
