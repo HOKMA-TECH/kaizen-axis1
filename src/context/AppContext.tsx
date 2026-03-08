@@ -163,6 +163,7 @@ interface AppContextValue {
   // Storage
   uploadFile: (file: File, path: string, bucket?: string) => Promise<string | null>;
   addDocumentToClient: (clientId: string, name: string, path: string) => Promise<{ success: boolean; error?: string }>;
+  deleteDocumentFromClient: (docId: string, filePath?: string) => Promise<{ success: boolean; error?: string }>;
   getDownloadUrl: (path: string, bucket?: string) => Promise<string | null>;
 
   // Appointments
@@ -508,6 +509,27 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       return { success: true };
     } catch (e: any) {
       console.error('Erro ao adicionar documento:', e);
+      return { success: false, error: e.message || 'Erro desconhecido' };
+    }
+  };
+
+  const deleteDocumentFromClient = async (docId: string, filePath?: string): Promise<{ success: boolean; error?: string }> => {
+    try {
+      // First delete from storage if a file path is provided
+      if (filePath) {
+        // Strip out the leading folder name if the storage API expects only the file name or bucket logic varies,
+        // but typically path includes folder/filename.
+        await supabase.storage.from('documents').remove([filePath]);
+      }
+
+      // Then delete from database
+      const { error } = await supabase.from('client_documents').delete().eq('id', docId);
+      if (error) return { success: false, error: error.message };
+
+      await refreshClients();
+      return { success: true };
+    } catch (e: any) {
+      console.error('Erro ao deletar documento:', e);
       return { success: false, error: e.message || 'Erro desconhecido' };
     }
   };
@@ -929,7 +951,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       signOut, refreshProfiles, updateProfile,
       clients, loading, addClient, updateClient, deleteClient, getClient, refreshClients,
       leads, refreshLeads, updateLead, convertLeadToClient,
-      uploadFile, addDocumentToClient, getDownloadUrl,
+      uploadFile,
+      addDocumentToClient,
+      deleteDocumentFromClient,
+      getDownloadUrl,
       appointments, refreshAppointments, addAppointment, updateAppointment, deleteAppointment,
       tasks, refreshTasks, addTask, updateTask, deleteTask,
       developments, refreshDevelopments, addDevelopment, updateDevelopment, deleteDevelopment,

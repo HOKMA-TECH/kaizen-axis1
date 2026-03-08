@@ -32,6 +32,7 @@ export interface ClientDocument {
   name: string;
   type: string;
   url?: string;
+  file_path?: string;
   uploadDate: string;
 }
 

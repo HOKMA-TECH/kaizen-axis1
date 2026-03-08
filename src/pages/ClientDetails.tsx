@@ -10,7 +10,7 @@ import { useApp } from '@/context/AppContext';
 export default function ClientDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { getClient, updateClient, deleteClient, userName, getDownloadUrl, uploadFile, addDocumentToClient, clients } = useApp();
+  const { getClient, updateClient, deleteClient, userName, getDownloadUrl, uploadFile, addDocumentToClient, deleteDocumentFromClient, clients } = useApp();
 
   const [client, setClient] = useState<Client | null>(null);
   const [isEditingStage, setIsEditingStage] = useState(false);
@@ -119,23 +119,38 @@ export default function ClientDetails() {
     setDocumentToDelete(docId);
   };
 
-  const confirmDeleteDocument = () => {
+  const confirmDeleteDocument = async () => {
     if (!client || !documentToDelete || !id) return;
 
-    const updatedDocs = client.documents.filter(d => d.id !== documentToDelete);
-    const newHistory = [
-      {
-        id: Date.now().toString(),
-        date: new Date().toLocaleDateString('pt-BR'),
-        action: 'Documento excluído',
-        user: userName,
-      },
-      ...client.history,
-    ];
+    const docTarget = client.documents.find(d => d.id === documentToDelete);
+    if (!docTarget) {
+      setDocumentToDelete(null);
+      return;
+    }
 
-    const updated: Client = { ...client, documents: updatedDocs, history: newHistory };
-    setClient(updated);
-    updateClient(id, { documents: updatedDocs, history: newHistory });
+    const { success, error } = await deleteDocumentFromClient(docTarget.id, docTarget.file_path);
+
+    if (success) {
+      const newHistory = [
+        {
+          id: Date.now().toString(),
+          date: new Date().toLocaleDateString('pt-BR'),
+          action: 'Documento excluído',
+          user: userName,
+        },
+        ...client.history,
+      ];
+
+      const updatedDocs = client.documents.filter(d => d.id !== documentToDelete);
+      const updated: Client = { ...client, documents: updatedDocs, history: newHistory };
+
+      setClient(updated);
+      updateClient(id, { history: newHistory }); // The rest of the `documents` sync happens via context refresh
+      alert('Documento excluído com sucesso!');
+    } else {
+      alert(`Erro ao excluir documento: ${error}`);
+    }
+
     setDocumentToDelete(null);
   };
 
