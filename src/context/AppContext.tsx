@@ -271,10 +271,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const fetchProfile = async (userId: string) => {
     try {
       const { data } = await supabase.from('profiles').select('*').eq('id', userId).single();
-      if (data) setProfile(data);
+      if (data) {
+        setProfile(data);
+        return data as Profile;
+      }
     } catch (e) {
       console.error('Erro ao buscar perfil:', e);
     }
+    return null;
   };
 
   const refreshProfiles = useCallback(async () => {
@@ -900,7 +904,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   // ─── Init ─────────────────────────────────────────────────────────────────
 
-  const loadAllData = useCallback(async () => {
+  const loadAllData = useCallback(async (forcedProfile?: Profile) => {
+    if (forcedProfile) {
+      profileRef.current = forcedProfile;
+      userRoleRef.current = forcedProfile.role || 'Corretor';
+    }
     await Promise.all([
       refreshClients(),
       refreshLeads(),
@@ -923,8 +931,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
-        fetchProfile(session.user.id);
-        loadAllData();
+        fetchProfile(session.user.id).then(profileData => {
+          loadAllData(profileData || undefined);
+        });
       } else {
         setLoading(false);
       }
@@ -939,8 +948,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       if (event === 'TOKEN_REFRESHED') return;
 
       if (session?.user) {
-        fetchProfile(session.user.id);
-        loadAllData();
+        fetchProfile(session.user.id).then(profileData => {
+          loadAllData(profileData || undefined);
+        });
       } else {
         setProfile(null); setClients([]); setLeads([]);
         setAppointments([]); setTasks([]); setDevelopments([]);
