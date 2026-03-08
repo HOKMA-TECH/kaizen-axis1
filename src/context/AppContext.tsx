@@ -552,11 +552,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const addAppointment = useCallback(async (data: Omit<Appointment, 'id' | 'created_at'>) => {
     try {
-      const { error } = await supabase.from('appointments').insert([{
+      const { data: newRow, error } = await supabase.from('appointments').insert([{
         ...data,
         owner_id: user?.id,
         directorate_id: profile?.directorate_id || null
-      }]);
+      }]).select().single();
       if (error) throw error;
       await refreshAppointments();
     } catch (e: any) {
