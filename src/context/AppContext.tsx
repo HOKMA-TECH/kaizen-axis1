@@ -313,16 +313,17 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       // Silently skip if DB error (e.g. column not yet migrated)
       if (error) { console.warn('refreshLeads skipped:', error.message); return; }
 
-      const role = profileRef.current?.role || userRoleRef.current;
+      const rawRole = profileRef.current?.role || userRoleRef.current || 'CORRETOR';
+      const role = String(rawRole).toUpperCase();
       const uid = userRef.current?.id;
 
       const filtered = (data || []).filter((lead: any) => {
         // Hide converted leads (client-side, only if column exists)
         if (lead.stage && lead.stage !== 'novo_lead') return false;
         // RBAC filter client-side
-        if (role === 'Admin') return true;
-        if (role === 'Corretor') return !lead.assigned_to || lead.assigned_to === uid;
-        if ((role === 'Gerente' || role === 'Coordenador' || role === 'Diretor') && profileRef.current?.directorate_id) {
+        if (role === 'ADMIN') return true;
+        if (role === 'CORRETOR') return !lead.assigned_to || lead.assigned_to === uid;
+        if ((role === 'GERENTE' || role === 'COORDENADOR' || role === 'DIRETOR') && profileRef.current?.directorate_id) {
           return !lead.directorate_id || lead.directorate_id === profileRef.current.directorate_id;
         }
         return true;
