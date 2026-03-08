@@ -308,18 +308,18 @@ export default function AdminPanel() {
                         <div className="w-10 h-10 rounded-full bg-surface-200 flex items-center justify-center text-text-primary font-bold text-sm">{(u.name || '?').charAt(0)}</div>
                         <div><p className="font-semibold text-text-primary">{u.name}</p><p className="text-xs text-text-secondary">{u.role}</p></div>
                       </div>
-                      <div className="flex flex-col gap-1 items-end">
+                      <div className="flex flex-col gap-1.5 items-end">
                         <select value={u.role} onChange={e => handleRoleChange(u.id, e.target.value)}
-                          className="text-xs bg-surface-50 border border-surface-200 rounded-lg p-1 focus:outline-none focus:border-gold-400">
+                          className="w-44 text-xs bg-surface-50 border border-surface-200 rounded-lg p-1.5 focus:outline-none focus:border-gold-400 truncate">
                           {['CORRETOR', 'COORDENADOR', 'GERENTE', 'DIRETOR', 'ADMIN'].map(r => <option key={r} value={r}>{r}</option>)}
                         </select>
                         <select value={(u as any).directorate_id ?? ''} onChange={e => handleDirectorateChange(u.id, e.target.value || null)}
-                          className="text-xs bg-surface-50 border border-surface-200 rounded-lg p-1 focus:outline-none focus:border-gold-400">
+                          className="w-44 text-xs bg-surface-50 border border-surface-200 rounded-lg p-1.5 focus:outline-none focus:border-gold-400 truncate">
                           <option value="">Sem Diretoria</option>
                           {directorates.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
                         </select>
                         <select value={(u as any).manager_id ?? ''} onChange={e => handleManagerChange(u.id, e.target.value || null)}
-                          className="text-xs bg-surface-50 border border-surface-200 rounded-lg p-1 focus:outline-none focus:border-gold-400">
+                          className="w-44 text-xs bg-surface-50 border border-surface-200 rounded-lg p-1.5 focus:outline-none focus:border-gold-400 truncate">
                           <option value="">Sem Gestor</option>
                           {allProfiles.filter(p => p.id !== u.id).map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                         </select>
