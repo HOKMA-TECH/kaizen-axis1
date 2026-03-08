@@ -464,15 +464,11 @@ export default function Reports() {
       {/* ── Export Modal ── */}
       <Modal isOpen={isExportModalOpen} onClose={() => setIsExportModalOpen(false)} title="Exportar Relatório">
         <div className="space-y-4">
-          <p className="text-sm text-text-secondary text-center">Selecione o formato para os dados de ({period}).</p>
-          <div className="grid grid-cols-2 gap-4">
-            <button onClick={() => handleExport('pdf')} className="flex flex-col items-center justify-center p-6 bg-surface-50 hover:bg-surface-100 rounded-xl transition-all">
+          <p className="text-sm text-text-secondary text-center">Exportar relatório em PDF ({period}).</p>
+          <div className="flex justify-center">
+            <button onClick={() => handleExport('pdf')} className="flex flex-col items-center justify-center p-6 w-full max-w-xs bg-surface-50 hover:bg-surface-100 rounded-xl transition-all">
               <FileText size={24} className="text-red-600 mb-2" />
-              <span className="text-sm font-medium">PDF</span>
-            </button>
-            <button onClick={() => handleExport('excel')} className="flex flex-col items-center justify-center p-6 bg-surface-50 hover:bg-surface-100 rounded-xl transition-all">
-              <FileSpreadsheet size={24} className="text-green-600 mb-2" />
-              <span className="text-sm font-medium">Excel</span>
+              <span className="text-sm font-medium">Baixar PDF</span>
             </button>
           </div>
         </div>
