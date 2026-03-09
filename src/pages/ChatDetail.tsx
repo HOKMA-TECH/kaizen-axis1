@@ -1,10 +1,11 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import {
   ChevronLeft, Send, Mic, Image as ImageIcon,
   FileText, Camera, X, MoreVertical, Phone, Plus, Loader2,
   Download, SwitchCamera, Circle, Square, Bot, Play, Pause,
-  Maximize, Volume2, VolumeX, PictureInPicture, Lock, Eye, EyeOff
+  Maximize, Volume2, VolumeX, PictureInPicture, Lock, Eye, EyeOff,
+  Search as SearchIcon, CornerUpLeft, CheckCheck, Check, Smile, Trash2, Copy
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { sendMessageToKai } from '@/services/kaiAgent';
@@ -26,6 +27,10 @@ interface ChatMessage {
   isLocked?: boolean;
   viewedAt?: string | null;
   mediaPath?: string;
+  // New features
+  reply_to_id?: string | null;
+  reactions?: Record<string, string[]>;
+  deliveryStatus?: 'sending' | 'sent';
 }
 
 interface ChatUser {
@@ -397,6 +402,7 @@ const AudioMessage = ({ url, isMe }: { url: string; isMe: boolean }) => {
 export default function ChatDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const { user, allProfiles, profile } = useApp();
 
   const [chatUser, setChatUser] = useState<ChatUser | null>(null);
@@ -409,6 +415,27 @@ export default function ChatDetail() {
   const [isRecording, setIsRecording] = useState(false);
   const [isViewOnce, setIsViewOnce] = useState(false);
   const [viewOnceModalMsgId, setViewOnceModalMsgId] = useState<string | null>(null);
+
+  // Pagination
+  const [hasMore, setHasMore] = useState(false);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+
+  // Context menu
+  const [ctxMenu, setCtxMenu] = useState<{ msg: ChatMessage; x: number; y: number } | null>(null);
+  const pressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Reply/Quote
+  const [replyingTo, setReplyingTo] = useState<ChatMessage | null>(null);
+
+  // Search
+  const [showSearch, setShowSearch] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  // KAI client context
+  const [clientContext, setClientContext] = useState<{ name: string; phone?: string; status?: string } | null>(null);
+
+  // Presence: is other user online
+  const [isOtherOnline, setIsOtherOnline] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
@@ -480,28 +507,52 @@ export default function ChatDetail() {
   };
 
   // ─── Load history ─────────────────────────────────────────────────────────
+  const PAGE_SIZE = 50;
+
+  const mapMsg = useCallback((m: any): ChatMessage => ({
+    id: m.id,
+    senderId: m.sender_id,
+    text: m.content,
+    type: m.type as ChatMessage['type'],
+    mediaUrl: m.media_url,
+    fileName: m.file_name,
+    timestamp: new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    isMe: m.sender_id === myId,
+    viewOnce: m.view_once ?? false,
+    isLocked: m.is_locked ?? false,
+    viewedAt: m.viewed_at ?? null,
+    mediaPath: m.media_path ?? null,
+    reply_to_id: m.reply_to_id ?? null,
+    reactions: m.reactions ?? {},
+    deliveryStatus: 'sent',
+  }), [myId]);
+
   const loadMessages = useCallback(async () => {
     if (isKAI || !myId) return;
     const { data, error } = await supabase
       .from('chat_messages')
       .select('*').eq('conversation_id', conversationId)
-      .order('created_at', { ascending: true });
+      .order('created_at', { ascending: false })
+      .range(0, PAGE_SIZE - 1);
     if (error) return;
-    setMessages((data ?? []).map(m => ({
-      id: m.id,
-      senderId: m.sender_id,
-      text: m.content,
-      type: m.type as ChatMessage['type'],
-      mediaUrl: m.media_url,
-      fileName: m.file_name,
-      timestamp: new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      isMe: m.sender_id === myId,
-      viewOnce: m.view_once ?? false,
-      isLocked: m.is_locked ?? false,
-      viewedAt: m.viewed_at ?? null,
-      mediaPath: m.media_path ?? null,
-    })));
-  }, [conversationId, isKAI, myId]);
+    setMessages((data ?? []).map(mapMsg).reverse());
+    setHasMore((data ?? []).length === PAGE_SIZE);
+  }, [conversationId, isKAI, myId, mapMsg]);
+
+  const loadMoreMessages = useCallback(async () => {
+    if (isLoadingMore || !hasMore || !myId) return;
+    setIsLoadingMore(true);
+    const { data } = await supabase
+      .from('chat_messages')
+      .select('*')
+      .eq('conversation_id', conversationId)
+      .order('created_at', { ascending: false })
+      .range(messages.length, messages.length + PAGE_SIZE - 1);
+    const older = (data ?? []).map(mapMsg).reverse();
+    setMessages(prev => [...older, ...prev]);
+    setHasMore((data ?? []).length === PAGE_SIZE);
+    setIsLoadingMore(false);
+  }, [conversationId, hasMore, isLoadingMore, mapMsg, messages.length, myId]);
 
   // ─── Realtime: postgres_changes (messages) + presence (typing) ────────────
   useEffect(() => {
@@ -522,8 +573,17 @@ export default function ChatDetail() {
       },
       (payload) => {
         const m = payload.new as any;
+        // Push notification when app is in background
+        if (document.hidden && m.sender_id !== myId && 'serviceWorker' in navigator) {
+          navigator.serviceWorker.ready.then(sw => {
+            sw.showNotification(chatUser?.name ?? 'Nova mensagem', {
+              body: m.content || (m.type === 'image' ? '📷 Imagem' : m.type === 'audio' ? '🎤 Áudio' : '📎 Arquivo'),
+              icon: '/pwa-192x192.svg',
+              tag: conversationId,
+            } as NotificationOptions);
+          }).catch(() => {});
+        }
         setMessages(prev => {
-          // Skip if this is our own optimistically-added message (same content + type within 3s)
           if (m.sender_id === myId) return prev;
           if (prev.find(x => x.id === m.id)) return prev;
           return [...prev, {
@@ -539,12 +599,31 @@ export default function ChatDetail() {
             isLocked: m.is_locked ?? false,
             viewedAt: m.viewed_at ?? null,
             mediaPath: m.media_path ?? null,
+            reply_to_id: m.reply_to_id ?? null,
+            reactions: m.reactions ?? {},
           }];
         });
       }
     );
 
-    // Presence for typing indicator
+    // Listen for UPDATE (reactions)
+    channel.on(
+      'postgres_changes',
+      {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'chat_messages',
+        filter: `conversation_id=eq.${conversationId}`,
+      },
+      (payload) => {
+        const m = payload.new as any;
+        setMessages(prev => prev.map(msg =>
+          msg.id === m.id ? { ...msg, reactions: m.reactions ?? {} } : msg
+        ));
+      }
+    );
+
+    // Presence for typing indicator + online status
     channel.on('presence', { event: 'sync' }, () => {
       const state = channel.presenceState<{ name: string; isTyping: boolean }>();
       const others = Object.values(state)
@@ -552,6 +631,7 @@ export default function ChatDetail() {
         .filter((p: any) => p.userId !== myId);
       const typing = others.find((p: any) => p.isTyping);
       setTypingUser(typing ? (typing as any).name : null);
+      setIsOtherOnline(others.length > 0);
     });
 
     channel.subscribe(async (status) => {
@@ -568,6 +648,45 @@ export default function ChatDetail() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isKaiTyping, typingUser]);
 
+  // Mark conversation as read on mount
+  useEffect(() => {
+    if (!myId) return;
+    try { localStorage.setItem(`last-read-${myId}-${conversationId}`, String(Date.now())); } catch {}
+  }, [myId, conversationId]);
+
+  // Load KAI history from localStorage
+  useEffect(() => {
+    if (!isKAI || !myId) return;
+    try {
+      const saved = localStorage.getItem(`kai-history-${myId}`);
+      if (saved) setMessages(JSON.parse(saved));
+    } catch {}
+  }, [isKAI, myId]);
+
+  // Load client context for KAI when coming from client page
+  useEffect(() => {
+    const clientId = (location.state as any)?.clientId;
+    if (!clientId || !isKAI) return;
+    supabase.from('clients').select('name, phone, status').eq('id', clientId).single().then(({ data }) => {
+      if (data) setClientContext({ name: data.name, phone: data.phone ?? undefined, status: data.status ?? undefined });
+    });
+  }, [location.state, isKAI]);
+
+  // Request push notification permission
+  useEffect(() => {
+    if (!isKAI && 'Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission().catch(() => {});
+    }
+  }, [isKAI]);
+
+  // Close context menu on outside click
+  useEffect(() => {
+    if (!ctxMenu) return;
+    const close = () => setCtxMenu(null);
+    document.addEventListener('click', close);
+    return () => document.removeEventListener('click', close);
+  }, [ctxMenu]);
+
   // Cleanup on unmount
   useEffect(() => {
     return () => {
@@ -576,6 +695,7 @@ export default function ChatDetail() {
       if (mediaRecorderRef.current?.state === 'recording') mediaRecorderRef.current.stop();
       stopCamera();
       if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+      if (pressTimer.current) clearTimeout(pressTimer.current);
     };
   }, []);
 
@@ -672,29 +792,43 @@ export default function ChatDetail() {
       fileName: fileName || file?.name,
       timestamp,
       isMe: true,
+      deliveryStatus: 'sending',
+      reply_to_id: replyingTo?.id ?? null,
+      reactions: {},
     }]);
 
-    // KAI Agent (not persisted)
+    // KAI Agent (not persisted to DB)
     if (isKAI && type === 'text' && text) {
       setIsKaiTyping(true);
       const history = messages.map(m => ({
         role: m.isMe ? 'user' : 'assistant' as 'user' | 'assistant',
         content: m.text || '',
       }));
-      const responseText = await sendMessageToKai(text, history);
+      // Inject client context on first message
+      const contextualText = clientContext && messages.filter(m => m.isMe).length === 0
+        ? `[Contexto do cliente: ${clientContext.name}${clientContext.status ? `, Status: ${clientContext.status}` : ''}${clientContext.phone ? `, Tel: ${clientContext.phone}` : ''}]\n\n${text}`
+        : text;
+      const responseText = await sendMessageToKai(contextualText, history);
       setIsKaiTyping(false);
-      setMessages(prev => [...prev, {
-        id: `kai_${Date.now()}`, senderId: 'kai-agent',
-        text: responseText, type: 'text',
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        isMe: false,
-      }]);
+      setMessages(prev => {
+        const updated = [...prev, {
+          id: `kai_${Date.now()}`, senderId: 'kai-agent',
+          text: responseText, type: 'text' as const,
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          isMe: false,
+        }];
+        // Persist history to localStorage (last 100 messages)
+        try {
+          localStorage.setItem(`kai-history-${myId}`, JSON.stringify(updated.slice(-100)));
+        } catch {}
+        return updated;
+      });
       return;
     }
     if (isKAI) return;
 
     // Persist to Supabase (postgres_changes will notify receiver)
-    const { error } = await supabase.from('chat_messages').insert({
+    const { data: inserted, error } = await supabase.from('chat_messages').insert({
       sender_id: myId,
       receiver_id: id,
       conversation_id: conversationId,
@@ -704,9 +838,19 @@ export default function ChatDetail() {
       file_name: fileName || file?.name || null,
       view_once: useViewOnce,
       media_path: mediaPath || null,
-    });
+      reply_to_id: replyingTo?.id || null,
+    }).select().single();
 
     if (error) console.error('Insert error:', error);
+
+    // Update temp message to confirmed with real ID + mark sent
+    if (inserted) {
+      setMessages(prev => prev.map(m =>
+        m.id === tempId ? { ...m, id: inserted.id, deliveryStatus: 'sent' } : m
+      ));
+    }
+
+    setReplyingTo(null);
 
     // Stop typing indicator
     const allChannels = supabase.getChannels();
@@ -717,6 +861,12 @@ export default function ChatDetail() {
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>, type: ChatMessage['type']) => {
     const file = e.target.files?.[0];
     if (file) {
+      const MAX_SIZE = 50 * 1024 * 1024; // 50MB
+      if (file.size > MAX_SIZE) {
+        alert('Arquivo muito grande. Limite máximo: 50MB.');
+        e.target.value = '';
+        return;
+      }
       setShowAttachments(false);
       setMediaPreview({ url: URL.createObjectURL(file), type, file });
       e.target.value = '';
@@ -914,6 +1064,45 @@ export default function ChatDetail() {
     document.body.appendChild(a); a.click(); document.body.removeChild(a);
   };
 
+  // ─── Emoji reactions ──────────────────────────────────────────────────────
+  const EMOJI_LIST = ['👍', '❤️', '😂', '😮', '😢', '🔥'];
+
+  const handleReaction = async (msgId: string, emoji: string) => {
+    const msg = messages.find(m => m.id === msgId);
+    if (!msg || !myId || isKAI) return;
+    const current = msg.reactions ?? {};
+    const users: string[] = current[emoji] ?? [];
+    const updated = users.includes(myId)
+      ? users.filter(u => u !== myId)
+      : [...users, myId];
+    const newReactions = { ...current, [emoji]: updated };
+    setMessages(prev => prev.map(m => m.id === msgId ? { ...m, reactions: newReactions } : m));
+    await supabase.from('chat_messages').update({ reactions: newReactions }).eq('id', msgId);
+    setCtxMenu(null);
+  };
+
+  // ─── Delete message ───────────────────────────────────────────────────────
+  const handleDeleteMessage = async (msgId: string) => {
+    setMessages(prev => prev.filter(m => m.id !== msgId));
+    setCtxMenu(null);
+    await supabase.from('chat_messages').delete().eq('id', msgId);
+  };
+
+  // ─── Long press / right-click for context menu ────────────────────────────
+  const handleMsgTouchStart = (e: React.TouchEvent, msg: ChatMessage) => {
+    const touch = e.touches[0];
+    pressTimer.current = setTimeout(() => {
+      setCtxMenu({ msg, x: touch.clientX, y: touch.clientY });
+    }, 500);
+  };
+  const handleMsgTouchEnd = () => {
+    if (pressTimer.current) clearTimeout(pressTimer.current);
+  };
+  const handleMsgRightClick = (e: React.MouseEvent, msg: ChatMessage) => {
+    e.preventDefault();
+    setCtxMenu({ msg, x: e.clientX, y: e.clientY });
+  };
+
   if (!chatUser) return (
     <div className="flex items-center justify-center h-screen">
       <Loader2 className="animate-spin text-gold-500" size={32} />
@@ -962,13 +1151,53 @@ export default function ChatDetail() {
           </div>
         </div>
         <div className="flex gap-4 text-gold-600 dark:text-gold-400">
+          <button onClick={() => { setShowSearch(s => !s); setSearchQuery(''); }}>
+            <SearchIcon size={20} />
+          </button>
           {!isKAI && <Phone size={20} />}
           <MoreVertical size={20} />
         </div>
       </div>
 
+      {/* Search bar */}
+      {showSearch && (
+        <div className="bg-card-bg px-4 pb-2">
+          <input
+            autoFocus
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            placeholder="Buscar na conversa..."
+            className="w-full bg-surface-50 dark:bg-surface-200 rounded-xl px-4 py-2 text-sm text-text-primary placeholder:text-text-secondary outline-none"
+          />
+        </div>
+      )}
+
+      {/* KAI client context banner */}
+      {isKAI && clientContext && (
+        <div className="bg-gold-500/10 border-b border-gold-500/20 px-4 py-1.5 flex items-center gap-2">
+          <Bot size={12} className="text-gold-600 flex-shrink-0" />
+          <span className="text-xs text-gold-700 dark:text-gold-400 truncate">
+            KAI no contexto de <strong>{clientContext.name}</strong>
+          </span>
+        </div>
+      )}
+
       {/* Messages */}
       <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-[#ECE5DD] dark:bg-[#0b141a]">
+        {/* Load more button */}
+        {hasMore && (
+          <div className="flex justify-center">
+            <button
+              onClick={loadMoreMessages}
+              disabled={isLoadingMore}
+              className="text-xs text-gold-600 dark:text-gold-400 bg-white/80 dark:bg-black/30 px-4 py-1.5 rounded-full shadow-sm flex items-center gap-1.5 disabled:opacity-50"
+            >
+              {isLoadingMore ? <Loader2 size={12} className="animate-spin" /> : null}
+              Carregar mensagens anteriores
+            </button>
+          </div>
+        )}
+
         {messages.length === 0 && (
           <div className="flex flex-col items-center justify-center py-16 text-center">
             {isKAI ? (
@@ -985,19 +1214,44 @@ export default function ChatDetail() {
           </div>
         )}
 
-        {messages.map(msg => {
+        {(searchQuery
+          ? messages.filter(m => m.text?.toLowerCase().includes(searchQuery.toLowerCase()))
+          : messages
+        ).map(msg => {
           const isMediaOnly = ['image', 'video'].includes(msg.type) && !msg.text && !msg.viewOnce;
           // View once states
           const isViewOnceMsg = msg.viewOnce;
           const isViewOnceViewed = isViewOnceMsg && (msg.isLocked || msg.viewedAt);
           const isViewOncePending = isViewOnceMsg && !msg.isMe && !isViewOnceViewed;
+          // Reply parent
+          const parentMsg = msg.reply_to_id ? messages.find(m => m.id === msg.reply_to_id) : null;
+          // Reactions
+          const reactionEntries = Object.entries(msg.reactions ?? {}).filter(([, users]) => users.length > 0);
 
           return (
             <div key={msg.id} className={`flex ${msg.isMe ? 'justify-end' : 'justify-start'}`}>
-              <div className={`max-w-[85%] relative shadow-sm ${msg.isMe
-                ? 'bg-[#D9FDD3] dark:bg-[#005c4b] text-gray-900 dark:text-white rounded-2xl rounded-tr-none'
-                : 'bg-white dark:bg-[#202c33] text-gray-900 dark:text-white rounded-2xl rounded-tl-none'
-                } ${isMediaOnly ? 'p-1 pb-6' : 'p-3'}`}>
+              <div
+                className={`max-w-[85%] relative shadow-sm ${msg.isMe
+                  ? 'bg-[#D9FDD3] dark:bg-[#005c4b] text-gray-900 dark:text-white rounded-2xl rounded-tr-none'
+                  : 'bg-white dark:bg-[#202c33] text-gray-900 dark:text-white rounded-2xl rounded-tl-none'
+                } ${isMediaOnly ? 'p-1 pb-6' : 'p-3'}`}
+                onTouchStart={e => handleMsgTouchStart(e, msg)}
+                onTouchEnd={handleMsgTouchEnd}
+                onTouchMove={handleMsgTouchEnd}
+                onContextMenu={e => handleMsgRightClick(e, msg)}
+              >
+
+                {/* ── REPLY QUOTE ── */}
+                {parentMsg && (
+                  <div className="border-l-2 border-gold-500 pl-2 bg-black/5 dark:bg-white/5 rounded-r-lg p-1.5 mb-2">
+                    <span className="text-[11px] font-semibold block text-gold-600 dark:text-gold-400">
+                      {parentMsg.isMe ? 'Você' : chatUser?.name}
+                    </span>
+                    <span className="text-xs text-text-secondary truncate block">
+                      {parentMsg.text || (parentMsg.type === 'image' ? '📷 Imagem' : parentMsg.type === 'audio' ? '🎤 Áudio' : '📎 Arquivo')}
+                    </span>
+                  </div>
+                )}
 
                 {/* ── VIEW ONCE badge for sender ── */}
                 {isViewOnceMsg && msg.isMe && (
@@ -1069,12 +1323,37 @@ export default function ChatDetail() {
                       : msg.text}
                   </div>
                 )}
-                <span className={`text-[10px] block text-right mt-1 ${isMediaOnly
+                <div className={`flex items-center justify-end gap-1 text-[10px] mt-1 ${isMediaOnly
                   ? 'absolute bottom-1.5 right-2 text-white/95 drop-shadow-md bg-black/40 px-2 py-0.5 rounded-full backdrop-blur-sm'
                   : msg.isMe ? 'text-green-800/80 dark:text-white/60' : 'text-gray-500 dark:text-gray-400'
                   }`}>
-                  {msg.timestamp}
-                </span>
+                  <span>{msg.timestamp}</span>
+                  {msg.isMe && !isKAI && (
+                    msg.deliveryStatus === 'sending'
+                      ? <Check size={11} className="opacity-50 flex-shrink-0" />
+                      : isOtherOnline
+                        ? <CheckCheck size={11} className="text-blue-500 dark:text-blue-400 flex-shrink-0" />
+                        : <CheckCheck size={11} className="opacity-50 flex-shrink-0" />
+                  )}
+                </div>
+                {/* Reaction row */}
+                {reactionEntries.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mt-1.5">
+                    {reactionEntries.map(([emoji, users]) => (
+                      <button
+                        key={emoji}
+                        onClick={e => { e.stopPropagation(); handleReaction(msg.id, emoji); }}
+                        className={`flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-xs border transition-colors ${
+                          users.includes(myId)
+                            ? 'bg-gold-500/20 border-gold-500/40 text-gold-700 dark:text-gold-400'
+                            : 'bg-black/5 dark:bg-white/10 border-black/10 dark:border-white/10 text-text-secondary'
+                        }`}
+                      >
+                        {emoji}{users.length > 1 && <span className="ml-0.5">{users.length}</span>}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           );
@@ -1103,6 +1382,24 @@ export default function ChatDetail() {
 
         <div ref={messagesEndRef} />
       </div>
+
+      {/* Reply preview banner */}
+      {replyingTo && (
+        <div className="bg-card-bg border-t border-surface-100 px-4 py-2 flex items-center gap-2">
+          <CornerUpLeft size={14} className="text-gold-500 flex-shrink-0" />
+          <div className="flex-1 min-w-0">
+            <p className="text-[11px] font-semibold text-gold-600 dark:text-gold-400">
+              {replyingTo.isMe ? 'Você' : chatUser?.name}
+            </p>
+            <p className="text-xs text-text-secondary truncate">
+              {replyingTo.text || (replyingTo.type === 'image' ? '📷 Imagem' : '🎤 Áudio')}
+            </p>
+          </div>
+          <button onClick={() => setReplyingTo(null)} className="p-1 text-text-secondary">
+            <X size={16} />
+          </button>
+        </div>
+      )}
 
       {/* Input */}
       <div className="bg-card-bg p-2 flex items-end gap-2 sticky bottom-0 z-20 pb-safe relative">
@@ -1166,14 +1463,24 @@ export default function ChatDetail() {
           </div>
         ) : (
           <div className="flex-1 bg-surface-50 dark:bg-surface-200 rounded-2xl px-4 py-2 flex items-center">
-            <input
+            <textarea
+              rows={1}
               value={inputValue}
               onChange={e => handleInputChange(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && !e.shiftKey && handleSendMessage()}
+              onInput={e => {
+                const el = e.currentTarget;
+                el.style.height = 'auto';
+                el.style.height = `${el.scrollHeight}px`;
+              }}
+              onKeyDown={e => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  handleSendMessage();
+                }
+              }}
               placeholder="Mensagem"
-              className="flex-1 bg-transparent border-none outline-none text-text-primary placeholder:text-text-secondary"
+              className="flex-1 bg-transparent border-none outline-none text-text-primary placeholder:text-text-secondary resize-none min-h-[24px] max-h-[120px] overflow-y-auto leading-6"
             />
-
           </div>
         )}
 
@@ -1279,6 +1586,51 @@ export default function ChatDetail() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Context Menu */}
+      {ctxMenu && (
+        <div
+          className="fixed z-[400] bg-card-bg rounded-2xl shadow-2xl border border-surface-100 overflow-hidden min-w-[180px]"
+          style={{ top: Math.min(ctxMenu.y, window.innerHeight - 260), left: Math.min(ctxMenu.x, window.innerWidth - 200) }}
+          onClick={e => e.stopPropagation()}
+        >
+          {/* Emoji reactions */}
+          <div className="flex justify-around px-3 py-3 border-b border-surface-100">
+            {EMOJI_LIST.map(emoji => (
+              <button
+                key={emoji}
+                onClick={() => handleReaction(ctxMenu.msg.id, emoji)}
+                className="text-xl hover:scale-125 transition-transform active:scale-110"
+              >
+                {emoji}
+              </button>
+            ))}
+          </div>
+          {/* Actions */}
+          <button
+            onClick={() => { setReplyingTo(ctxMenu.msg); setCtxMenu(null); }}
+            className="flex items-center gap-3 w-full px-4 py-3 text-sm text-text-primary hover:bg-surface-50 transition-colors"
+          >
+            <CornerUpLeft size={16} className="text-text-secondary" /> Responder
+          </button>
+          {ctxMenu.msg.text && (
+            <button
+              onClick={() => { navigator.clipboard.writeText(ctxMenu.msg.text!); setCtxMenu(null); }}
+              className="flex items-center gap-3 w-full px-4 py-3 text-sm text-text-primary hover:bg-surface-50 transition-colors"
+            >
+              <Copy size={16} className="text-text-secondary" /> Copiar texto
+            </button>
+          )}
+          {ctxMenu.msg.isMe && (
+            <button
+              onClick={() => handleDeleteMessage(ctxMenu.msg.id)}
+              className="flex items-center gap-3 w-full px-4 py-3 text-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+            >
+              <Trash2 size={16} /> Apagar mensagem
+            </button>
+          )}
+        </div>
+      )}
 
       {/* View Once Modal */}
       {viewOnceModalMsgId && (() => {

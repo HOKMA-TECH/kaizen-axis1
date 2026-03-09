@@ -96,6 +96,18 @@ function GreenDot({ position = 'list' }: { position?: 'strip' | 'list' }) {
 
 // ─── Chat ─────────────────────────────────────────────────────────────────────
 
+// ── Unread badge helpers ──────────────────────────────────────────────────────
+
+function getLastRead(userId: string, convId: string): number {
+  try {
+    return parseInt(localStorage.getItem(`last-read-${userId}-${convId}`) ?? '0', 10);
+  } catch { return 0; }
+}
+
+export function markConversationRead(userId: string, convId: string) {
+  try { localStorage.setItem(`last-read-${userId}-${convId}`, String(Date.now())); } catch {}
+}
+
 export default function Chat() {
   const navigate = useNavigate();
   const { allProfiles, user } = useApp();
@@ -172,14 +184,16 @@ export default function Chat() {
     return sorted.slice(0, 4);
   }, [members, conversations]);
 
-  // Conversations enriched with profile info (all, unfiltered)
+  // Conversations enriched with profile info + unread status
   const enrichedConvos = useMemo(() =>
     conversations.map(c => {
-      if (c.isKAI) return { ...c, name: 'KAI', role: 'Assistente IA', avatarUrl: null as string | null | undefined };
+      const lastRead = myId ? getLastRead(myId, c.conversationId) : 0;
+      const isUnread = !c.senderIsMe && new Date(c.lastAt).getTime() > lastRead;
+      if (c.isKAI) return { ...c, name: 'KAI', role: 'Assistente IA', avatarUrl: null as string | null | undefined, isUnread };
       const p = allProfiles?.find(pr => pr.id === c.otherId);
-      return { ...c, name: p?.name || 'Usuário', role: p?.role || '', avatarUrl: p?.avatar_url };
+      return { ...c, name: p?.name || 'Usuário', role: p?.role || '', avatarUrl: p?.avatar_url, isUnread };
     }),
-  [conversations, allProfiles]);
+  [conversations, allProfiles, myId]);
 
   // Filtered conversations (by search)
   const enriched = useMemo(() => {
@@ -411,18 +425,25 @@ export default function Chat() {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between mb-0.5">
                     <div className="flex items-center gap-1.5 min-w-0">
-                      <h3 className="font-semibold text-text-primary text-sm truncate">
+                      <h3 className={cn('text-sm truncate', c.isUnread ? 'font-bold text-text-primary' : 'font-semibold text-text-primary')}>
                         {c.name}
                       </h3>
                       {c.isKAI && (
                         <span className="text-[10px] font-semibold text-gold-500 bg-gold-400/10 px-1.5 py-0.5 rounded flex-shrink-0">IA</span>
                       )}
                     </div>
-                    <span className="text-[11px] text-text-secondary flex-shrink-0 ml-2">
-                      {formatTime(c.lastAt)}
-                    </span>
+                    <div className="flex items-center gap-1.5 flex-shrink-0 ml-2">
+                      <span className={cn('text-[11px]', c.isUnread ? 'text-gold-600 dark:text-gold-400 font-semibold' : 'text-text-secondary')}>
+                        {formatTime(c.lastAt)}
+                      </span>
+                      {c.isUnread && (
+                        <span className="w-5 h-5 rounded-full bg-gold-500 text-white text-[10px] font-bold flex items-center justify-center flex-shrink-0">
+                          N
+                        </span>
+                      )}
+                    </div>
                   </div>
-                  <p className="text-xs text-text-secondary truncate">
+                  <p className={cn('text-xs truncate', c.isUnread ? 'text-text-primary font-medium' : 'text-text-secondary')}>
                     {formatPreview(c.lastType, c.lastContent, c.senderIsMe)}
                   </p>
                 </div>
