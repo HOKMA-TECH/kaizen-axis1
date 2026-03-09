@@ -320,6 +320,15 @@ export default function Training() {
     if (viewingItem && viewingItem.type === 'Vídeo' && viewingItem.progress !== 100) {
       const isYT = viewingItem.url.includes('youtube.com') || viewingItem.url.includes('youtu.be');
       if (isYT) {
+        // Load YT API if missing
+        if (!(window as any).YT) {
+          if (!document.querySelector('script[src*="youtube.com/iframe_api"]')) {
+            const s = document.createElement('script');
+            s.src = 'https://www.youtube.com/iframe_api';
+            document.head.appendChild(s);
+          }
+        }
+
         // Need to wait for iframe to render
         const checkIframe = setInterval(() => {
           const iframe = document.getElementById(`yt-player-${viewingItem.id}`) as HTMLIFrameElement;
