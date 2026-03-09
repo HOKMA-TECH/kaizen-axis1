@@ -14,8 +14,7 @@ export default function Login() {
     name: '',
     email: '',
     password: '',
-    confirmPassword: '',
-    team: ''
+    confirmPassword: ''
   });
 
   // Estado MFA
@@ -53,8 +52,7 @@ export default function Login() {
           password: formData.password,
           options: {
             data: {
-              name: formData.name,
-              team: formData.team
+              name: formData.name
             }
           }
         });
@@ -202,21 +200,6 @@ export default function Login() {
                     onChange={handleChange}
                     className="w-full pl-10 pr-4 py-3 bg-surface-50 rounded-xl border-none focus:ring-2 focus:ring-gold-500 text-text-primary"
                   />
-                </div>
-                <div className="relative">
-                  <Users className="absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary" size={20} />
-                  <select
-                    name="team"
-                    required
-                    value={formData.team}
-                    onChange={handleChange}
-                    className="w-full pl-10 pr-4 py-3 bg-surface-50 rounded-xl border-none focus:ring-2 focus:ring-gold-500 text-text-primary appearance-none"
-                  >
-                    <option value="" disabled>Selecione sua equipe</option>
-                    <option value="alpha">Equipe Alpha</option>
-                    <option value="beta">Equipe Beta</option>
-                    <option value="gamma">Equipe Gamma</option>
-                  </select>
                 </div>
               </div>
             )}
