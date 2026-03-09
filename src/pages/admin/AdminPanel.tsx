@@ -8,7 +8,7 @@ import { Navigate, useNavigate } from 'react-router-dom';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, Legend } from 'recharts';
 import { supabase } from '@/lib/supabase';
 
-type Tab = 'users' | 'teams' | 'goals' | 'announcements' | 'reports' | 'directorates' | 'achievements';
+type Tab = 'users' | 'teams' | 'goals' | 'announcements' | 'reports' | 'directorates' | 'achievements' | 'xp';
 
 export default function AdminPanel() {
   // ── Hard role guard: only ADMIN can access this page ────────────────────────
@@ -67,6 +67,15 @@ export default function AdminPanel() {
   const [reportData, setReportData] = useState<any>(null);
   const [reportLoading, setReportLoading] = useState(false);
   const [isGeneratingCSV, setIsGeneratingCSV] = useState(false);
+
+  // XP Report
+  const [xpDateRange, setXpDateRange] = useState({
+    start: new Date(new Date().setDate(new Date().getDate() - 30)).toISOString().slice(0, 10),
+    end: new Date().toISOString().slice(0, 10)
+  });
+  const [xpReportData, setXpReportData] = useState<any[]>([]);
+  const [xpReportLoading, setXpReportLoading] = useState(false);
+
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -139,6 +148,28 @@ export default function AdminPanel() {
   const [selectedPendingUserId, setSelectedPendingUserId] = useState<string | null>(null);
   const [approvalForm, setApprovalForm] = useState({ role: 'CORRETOR', directorate_id: '', team_id: '' });
   const [isSavingApproval, setIsSavingApproval] = useState(false);
+
+  useEffect(() => {
+    if (activeTab === 'xp' && xpDateRange.start && xpDateRange.end) {
+      fetchXpReportData();
+    }
+  }, [activeTab, xpDateRange]);
+
+  const fetchXpReportData = async () => {
+    setXpReportLoading(true);
+    try {
+      const { data, error } = await supabase.rpc('get_xp_report', {
+        start_date: xpDateRange.start,
+        end_date: xpDateRange.end
+      });
+      if (error) throw error;
+      setXpReportData(data || []);
+    } catch (e) {
+      console.error('Erro ao buscar relatórios de XP:', e);
+    } finally {
+      setXpReportLoading(false);
+    }
+  };
 
   useEffect(() => {
     refreshProfiles();
@@ -817,6 +848,74 @@ export default function AdminPanel() {
         );
       case 'achievements':
         return renderAchievementsTab();
+
+      case 'xp':
+        return (
+          <div className="space-y-4">
+            <PremiumCard className="p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+              <div>
+                <h3 className="font-bold text-text-primary flex items-center gap-2">
+                  <Zap className="text-gold-500" size={18} /> Pontos Recebidos (XP)
+                </h3>
+                <p className="text-xs text-text-secondary mt-1">Exibindo o total de moedas e XP gerado no período selecionado.</p>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="flex items-center gap-2 bg-surface-50 p-1.5 rounded-lg border border-surface-200">
+                  <input type="date" value={xpDateRange.start} onChange={e => setXpDateRange(p => ({ ...p, start: e.target.value }))} className="bg-transparent text-xs text-text-secondary outline-none rounded p-1" />
+                  <span className="text-text-secondary text-xs">até</span>
+                  <input type="date" value={xpDateRange.end} onChange={e => setXpDateRange(p => ({ ...p, end: e.target.value }))} className="bg-transparent text-xs text-text-secondary outline-none rounded p-1" />
+                </div>
+              </div>
+            </PremiumCard>
+
+            <PremiumCard className="p-0 overflow-hidden">
+              {xpReportLoading ? (
+                <div className="p-12 text-center text-text-secondary">
+                  <Loader2 size={32} className="animate-spin mx-auto text-gold-400 mb-4" />
+                  Carregando pontuações...
+                </div>
+              ) : (
+                <div className="overflow-x-auto no-scrollbar">
+                  <table className="w-full text-left border-collapse min-w-[600px]">
+                    <thead>
+                      <tr className="bg-surface-50 text-text-secondary text-[10px] uppercase tracking-wider border-b border-surface-100">
+                        <th className="p-4 font-bold">Usuário / Corretor</th>
+                        <th className="p-4 font-bold text-center">🏆 Vendas</th>
+                        <th className="p-4 font-bold text-center">🎯 Missões/Metas</th>
+                        <th className="p-4 font-bold text-center">📚 Treinamentos</th>
+                        <th className="p-4 font-bold text-right">XP Total no Período</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {xpReportData.map((row: any, i: number) => (
+                        <tr key={row.user_id} className="border-b border-surface-50 last:border-0 hover:bg-surface-50/50 transition-colors">
+                          <td className="p-4 text-sm font-bold text-text-primary flex items-center gap-3">
+                            {i < 3 ? (
+                              <span className={`w-6 h-6 flex items-center justify-center rounded-full text-[10px] font-bold shadow-sm shrink-0 ${i === 0 ? 'bg-gradient-to-br from-yellow-300 to-yellow-500 text-white' : i === 1 ? 'bg-gradient-to-br from-gray-200 to-gray-400 text-white' : 'bg-gradient-to-br from-orange-300 to-orange-500 text-white'}`}>{i + 1}</span>
+                            ) : (
+                              <span className="w-6 h-6 flex items-center justify-center rounded-full text-[10px] font-bold bg-surface-100 text-text-secondary shrink-0">{i + 1}</span>
+                            )}
+                            {row.user_name}
+                          </td>
+                          <td className="p-4 text-xs font-semibold text-center text-blue-600">{row.sales_xp} XP</td>
+                          <td className="p-4 text-xs font-semibold text-center text-green-600">{row.missions_xp} XP</td>
+                          <td className="p-4 text-xs font-semibold text-center text-purple-600">{row.training_xp} XP</td>
+                          <td className="p-4 text-sm font-black text-right text-gold-600">
+                            {row.total_xp.toLocaleString('pt-BR')} XP
+                          </td>
+                        </tr>
+                      ))}
+                      {xpReportData.length === 0 && (
+                        <tr><td colSpan={5} className="p-8 text-center text-text-secondary">Nenhum ponto recebido nesse período.</td></tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </PremiumCard>
+          </div>
+        );
+
     }
   }; // end renderContent
 
@@ -938,6 +1037,7 @@ export default function AdminPanel() {
           { id: 'goals', label: 'Metas', icon: Target },
           { id: 'announcements', label: 'Anúncios', icon: Megaphone },
           { id: 'reports', label: 'Relatórios', icon: BarChart3 },
+          { id: 'xp', label: 'Pontos (XP)', icon: Zap },
           { id: 'directorates', label: 'Diretorias', icon: Building2 },
           { id: 'achievements', label: 'Conquistas', icon: Award },
         ].map((tab) => (
