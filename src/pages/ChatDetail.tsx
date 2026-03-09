@@ -1342,10 +1342,6 @@ export default function ChatDetail() {
                       : msg.text}
                   </div>
                 )}
-                {/* View Once text: show content only for sender (receiver uses modal) */}
-                {msg.text && isViewOnceMsg && msg.isMe && (
-                  <p className="text-sm leading-relaxed text-text-secondary italic">{msg.text}</p>
-                )}
                 <div className={`flex items-center justify-end gap-1 text-[10px] mt-1 ${isMediaOnly
                   ? 'absolute bottom-1.5 right-2 text-white/95 drop-shadow-md bg-black/40 px-2 py-0.5 rounded-full backdrop-blur-sm'
                   : msg.isMe ? 'text-green-800/80 dark:text-white/60' : 'text-gray-500 dark:text-gray-400'
