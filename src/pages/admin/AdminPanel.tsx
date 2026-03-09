@@ -1077,7 +1077,7 @@ export default function AdminPanel() {
 
       <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
         {/* GLOBAL PENDING APPROVALS ALERT */}
-        {pendingUsers.length > 0 && (
+        {activeTab === 'users' && pendingUsers.length > 0 && (
           <section className="mb-8 print:hidden">
             <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700/50 rounded-2xl p-4 mb-4 shadow-sm flex items-start gap-4">
               <div className="w-10 h-10 rounded-full bg-amber-100 dark:bg-amber-800/50 flex items-center justify-center shrink-0">
