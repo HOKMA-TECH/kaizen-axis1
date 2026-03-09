@@ -217,7 +217,7 @@ const AudioMessage = ({ url, isMe }: { url: string; isMe: boolean }) => {
   }, []);
 
   // Pseudo-random waveform that looks like a real voice recording
-  const WAVE = [4,9,14,7,18,11,5,20,8,15,6,22,13,9,4,12,19,8,14,7,21,10,5,16,11,8,17,6,13,9];
+  const WAVE = [4, 9, 14, 7, 18, 11, 5, 20, 8, 15, 6, 22, 13, 9, 4, 12, 19, 8, 14, 7, 21, 10, 5, 16, 11, 8, 17, 6, 13, 9];
 
   const drawStatic = () => {
     const canvas = canvasRef.current;
@@ -344,7 +344,7 @@ const AudioMessage = ({ url, isMe }: { url: string; isMe: boolean }) => {
       >
         {isPlaying
           ? <Pause size={15} fill="currentColor" />
-          : <Play  size={15} fill="currentColor" className="ml-0.5" />}
+          : <Play size={15} fill="currentColor" className="ml-0.5" />}
       </button>
 
       {/* Waveform + meta */}
@@ -734,7 +734,14 @@ export default function ChatDetail() {
   const startCamera = async (facingMode = cameraFacingMode) => {
     try {
       streamRef.current?.getTracks().forEach(t => t.stop());
-      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode }, audio: true });
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode },
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: false,
+          autoGainControl: false,
+        }
+      });
       streamRef.current = stream;
       setCameraStream(stream); // state update → triggers useEffect → assigns srcObject after render
       setIsCameraOpen(true);
@@ -827,7 +834,13 @@ export default function ChatDetail() {
   // ─── Audio ────────────────────────────────────────────────────────────────
   const startRecording = async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: false,
+          autoGainControl: false,
+        }
+      });
       const mimeType = (() => {
         try {
           if (MediaRecorder.isTypeSupported('audio/mp4')) return 'audio/mp4';
