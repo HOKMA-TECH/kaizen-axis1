@@ -859,11 +859,10 @@ export default function AdminPanel() {
                 <button
                   key={s.id}
                   onClick={() => setActiveGamifSection(s.id as 'xp' | 'conquistas')}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap transition-all ${
-                    activeGamifSection === s.id
+                  className={`flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap transition-all ${activeGamifSection === s.id
                       ? 'bg-gold-500 text-white shadow-md shadow-gold-500/20'
                       : 'bg-white dark:bg-surface-100 text-text-secondary border border-surface-200'
-                  }`}
+                    }`}
                 >
                   <s.icon size={14} /> {s.label}
                 </button>
@@ -923,41 +922,80 @@ export default function AdminPanel() {
                       Carregando pontuações...
                     </div>
                   ) : (
-                    <div className="overflow-x-auto no-scrollbar">
-                      <table className="w-full text-left border-collapse min-w-[600px]">
-                        <thead>
-                          <tr className="bg-surface-50 text-text-secondary text-[10px] uppercase tracking-wider border-b border-surface-100">
-                            <th className="p-4 font-bold">Usuário / Corretor</th>
-                            <th className="p-4 font-bold text-center">🏆 Vendas</th>
-                            <th className="p-4 font-bold text-center">🎯 Missões/Metas</th>
-                            <th className="p-4 font-bold text-center">📚 Treinamentos</th>
-                            <th className="p-4 font-bold text-right">XP Total no Período</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {xpReportData.map((row: any, i: number) => (
-                            <tr key={row.user_id} className="border-b border-surface-50 last:border-0 hover:bg-surface-50/50 transition-colors">
-                              <td className="p-4 text-sm font-bold text-text-primary flex items-center gap-3">
-                                {i < 3 ? (
-                                  <span className={`w-6 h-6 flex items-center justify-center rounded-full text-[10px] font-bold shadow-sm shrink-0 ${i === 0 ? 'bg-gradient-to-br from-yellow-300 to-yellow-500 text-white' : i === 1 ? 'bg-gradient-to-br from-gray-200 to-gray-400 text-white' : 'bg-gradient-to-br from-orange-300 to-orange-500 text-white'}`}>{i + 1}</span>
-                                ) : (
-                                  <span className="w-6 h-6 flex items-center justify-center rounded-full text-[10px] font-bold bg-surface-100 text-text-secondary shrink-0">{i + 1}</span>
-                                )}
-                                {row.user_name}
-                              </td>
-                              <td className="p-4 text-xs font-semibold text-center text-blue-600">{row.sales_xp} XP</td>
-                              <td className="p-4 text-xs font-semibold text-center text-green-600">{row.missions_xp} XP</td>
-                              <td className="p-4 text-xs font-semibold text-center text-purple-600">{row.training_xp} XP</td>
-                              <td className="p-4 text-sm font-black text-right text-gold-600">
-                                {row.total_xp.toLocaleString('pt-BR')} XP
-                              </td>
+                    <div className="flex flex-col">
+                      {/* Desktop Table View */}
+                      <div className="hidden md:block overflow-x-auto no-scrollbar">
+                        <table className="w-full text-left border-collapse">
+                          <thead>
+                            <tr className="bg-surface-50 text-text-secondary text-[10px] uppercase tracking-wider border-b border-surface-100">
+                              <th className="p-4 font-bold">Usuário / Corretor</th>
+                              <th className="p-4 font-bold text-center">🏆 Vendas</th>
+                              <th className="p-4 font-bold text-center">🎯 Missões/Metas</th>
+                              <th className="p-4 font-bold text-center">📚 Treinamentos</th>
+                              <th className="p-4 font-bold text-right">XP Total no Período</th>
                             </tr>
-                          ))}
-                          {xpReportData.length === 0 && (
-                            <tr><td colSpan={5} className="p-8 text-center text-text-secondary">Nenhum ponto recebido nesse período.</td></tr>
-                          )}
-                        </tbody>
-                      </table>
+                          </thead>
+                          <tbody>
+                            {xpReportData.map((row: any, i: number) => (
+                              <tr key={row.user_id} className="border-b border-surface-50 last:border-0 hover:bg-surface-50/50 transition-colors">
+                                <td className="p-4 text-sm font-bold text-text-primary flex items-center gap-3">
+                                  {i < 3 ? (
+                                    <span className={`w-6 h-6 flex items-center justify-center rounded-full text-[10px] font-bold shadow-sm shrink-0 ${i === 0 ? 'bg-gradient-to-br from-yellow-300 to-yellow-500 text-white' : i === 1 ? 'bg-gradient-to-br from-gray-200 to-gray-400 text-white' : 'bg-gradient-to-br from-orange-300 to-orange-500 text-white'}`}>{i + 1}</span>
+                                  ) : (
+                                    <span className="w-6 h-6 flex items-center justify-center rounded-full text-[10px] font-bold bg-surface-100 text-text-secondary shrink-0">{i + 1}</span>
+                                  )}
+                                  {row.user_name}
+                                </td>
+                                <td className="p-4 text-xs font-semibold text-center text-blue-600">{row.sales_xp} XP</td>
+                                <td className="p-4 text-xs font-semibold text-center text-green-600">{row.missions_xp} XP</td>
+                                <td className="p-4 text-xs font-semibold text-center text-purple-600">{row.training_xp} XP</td>
+                                <td className="p-4 text-sm font-black text-right text-gold-600">
+                                  {row.total_xp.toLocaleString('pt-BR')} XP
+                                </td>
+                              </tr>
+                            ))}
+                            {xpReportData.length === 0 && (
+                              <tr><td colSpan={5} className="p-8 text-center text-text-secondary">Nenhum ponto recebido nesse período.</td></tr>
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+
+                      {/* Mobile Card View */}
+                      <div className="md:hidden flex flex-col divide-y divide-surface-100">
+                        {xpReportData.map((row: any, i: number) => (
+                          <div key={row.user_id} className="p-4 flex flex-col gap-3 hover:bg-surface-50 transition-colors">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-3">
+                                {i < 3 ? (
+                                  <span className={`w-8 h-8 flex items-center justify-center rounded-full text-[11px] font-bold shadow-sm shrink-0 ${i === 0 ? 'bg-gradient-to-br from-yellow-300 to-yellow-500 text-white' : i === 1 ? 'bg-gradient-to-br from-gray-200 to-gray-400 text-white' : 'bg-gradient-to-br from-orange-300 to-orange-500 text-white'}`}>{i + 1}</span>
+                                ) : (
+                                  <span className="w-8 h-8 flex items-center justify-center rounded-full text-[11px] font-bold bg-surface-100 text-text-secondary shrink-0">{i + 1}</span>
+                                )}
+                                <span className="text-sm font-bold text-text-primary truncate">{row.user_name}</span>
+                              </div>
+                              <span className="text-base font-black text-gold-600 shrink-0">{row.total_xp.toLocaleString('pt-BR')} XP</span>
+                            </div>
+                            <div className="grid grid-cols-3 gap-1 bg-surface-50 p-2.5 rounded-lg border border-surface-100">
+                              <div className="flex flex-col items-center text-center">
+                                <span className="text-[9px] font-bold text-text-secondary uppercase mb-0.5">Vendas</span>
+                                <span className="text-xs font-bold text-blue-600">{row.sales_xp}</span>
+                              </div>
+                              <div className="flex flex-col items-center text-center border-l border-r border-surface-200">
+                                <span className="text-[9px] font-bold text-text-secondary uppercase mb-0.5">Missões</span>
+                                <span className="text-xs font-bold text-green-600">{row.missions_xp}</span>
+                              </div>
+                              <div className="flex flex-col items-center text-center">
+                                <span className="text-[9px] font-bold text-text-secondary uppercase mb-0.5">Treinos</span>
+                                <span className="text-xs font-bold text-purple-600">{row.training_xp}</span>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                        {xpReportData.length === 0 && (
+                          <div className="p-8 text-center text-text-secondary">Nenhum ponto recebido nesse período.</div>
+                        )}
+                      </div>
                     </div>
                   )}
                 </PremiumCard>
