@@ -632,7 +632,7 @@ export default function AdminPanel() {
                   {[
                     { label: 'Leads', value: reportData.resumo_geral.L, cmp: reportData.comparativo_mes_atual.crescimento_leads, icon: <Users size={14} />, color: 'text-surface-800', bg: 'bg-surface-50 text-surface-600', route: '/clients', state: { tab: 'documentacao' } },
                     { label: 'Clientes', value: reportData.resumo_geral.C, cmp: null, icon: <Users size={14} />, color: 'text-gold-700', bg: 'bg-gold-50 text-gold-600', route: '/clients', state: undefined },
-                    { label: 'Aprovados', value: reportData.pipeline.find((p: any) => p.etapa === 'Aprovados')?.quantidade || 0, cmp: null, icon: <Shield size={14} />, color: 'text-green-700', bg: 'bg-green-50 text-green-600', route: '/clients', state: { initialStage: 'Aprovado' } },
+                    { label: 'Aprovados', value: reportData.pipeline.find((p: any) => p.etapa === 'Aprovado')?.quantidade || 0, cmp: null, icon: <Shield size={14} />, color: 'text-green-700', bg: 'bg-green-50 text-green-600', route: '/clients', state: { initialStage: 'Aprovado' } },
                     { label: 'Agenda', value: reportData.resumo_geral.A, cmp: null, icon: <Calendar size={14} />, color: 'text-blue-700', bg: 'bg-blue-50 text-blue-600', route: '/schedule', state: undefined },
                   ].map((stat, i) => (
                     <PremiumCard key={i} className={`p-3 relative flex flex-col justify-between h-24 shadow-[0_2px_10px_rgba(0,0,0,0.02)] border-surface-100 ${stat.route ? 'cursor-pointer hover:border-gold-300 hover:shadow-md transition-all' : ''}`} onClick={() => stat.route && navigate(stat.route, { state: stat.state })}>
