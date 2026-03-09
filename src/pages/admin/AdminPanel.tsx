@@ -852,8 +852,8 @@ export default function AdminPanel() {
       case 'xp':
         return (
           <div className="space-y-6 print:space-y-4">
-            <PremiumCard className="p-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-6 border-surface-200">
-              <div className="flex-1">
+            <PremiumCard className="p-4 flex flex-wrap justify-between items-center gap-6 border-surface-200">
+              <div className="flex-1 min-w-[250px]">
                 <h3 className="font-bold text-text-primary flex items-center gap-2 text-lg">
                   <Zap className="text-gold-500" size={20} /> Pontos Recebidos (XP)
                 </h3>
@@ -862,29 +862,30 @@ export default function AdminPanel() {
                 </p>
               </div>
 
-              <div className="bg-white dark:bg-surface-800 p-3 rounded-xl border border-surface-200 shadow-sm w-full md:w-auto shrink-0">
-                <div className="flex items-center gap-2 text-gold-600 font-semibold mb-2">
+              <div className="bg-white dark:bg-surface-800 p-3 rounded-xl border border-surface-200 shadow-sm w-full sm:w-auto shrink-0">
+                <div className="flex items-center gap-2 text-gold-600 font-semibold mb-3">
                   <Calendar size={14} />
-                  <span className="text-xs text-text-primary uppercase tracking-wider font-bold">Período</span>
+                  <span className="text-xs text-text-primary uppercase tracking-wider font-bold">Período Selecionado</span>
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="grid grid-cols-2 gap-3 items-center">
                   <div className="flex flex-col">
+                    <span className="text-[10px] font-bold text-text-secondary uppercase mb-1">Início</span>
                     <input
                       type="date"
                       value={xpDateRange.start}
                       onChange={e => setXpDateRange(p => ({ ...p, start: e.target.value }))}
-                      className="w-full px-2 py-1.5 border border-surface-200 rounded-lg text-xs bg-surface-50 focus:border-gold-400 focus:ring-1 focus:ring-gold-400 outline-none transition-all font-medium text-text-primary"
+                      className="w-full px-2 py-2 border border-surface-200 rounded-lg text-xs bg-surface-50 focus:border-gold-400 focus:ring-1 focus:ring-gold-400 outline-none transition-all font-medium text-text-primary"
                       max={xpDateRange.end}
                     />
                   </div>
-                  <span className="text-text-secondary text-xs font-bold uppercase">até</span>
                   <div className="flex flex-col">
+                    <span className="text-[10px] font-bold text-text-secondary uppercase mb-1">Fim</span>
                     <input
                       type="date"
                       value={xpDateRange.end}
                       onChange={e => setXpDateRange(p => ({ ...p, end: e.target.value }))}
-                      className="w-full px-2 py-1.5 border border-surface-200 rounded-lg text-xs bg-surface-50 focus:border-gold-400 focus:ring-1 focus:ring-gold-400 outline-none transition-all font-medium text-text-primary"
+                      className="w-full px-2 py-2 border border-surface-200 rounded-lg text-xs bg-surface-50 focus:border-gold-400 focus:ring-1 focus:ring-gold-400 outline-none transition-all font-medium text-text-primary"
                       min={xpDateRange.start}
                     />
                   </div>
