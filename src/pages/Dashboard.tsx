@@ -31,7 +31,8 @@ export default function Dashboard() {
   const totalClients = scopedClients.length;
 
   // Upcoming appointments for this user's scope
-  const upcomingAppointments = appointments.slice(0, 3);
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const upcomingAppointments = appointments.filter(a => a.date >= todayStr).slice(0, 5);
 
   // Role label for header
   const roleLabel: Record<string, string> = {
@@ -201,20 +202,13 @@ export default function Dashboard() {
                 }
               />
               <div className="space-y-3">
-                {(() => {
-                  const todayStr = new Date().toISOString().slice(0, 10);
-                  const upcomingAppointments = appointments.filter(a => a.date >= todayStr).slice(0, 5);
-
-                  if (upcomingAppointments.length === 0) {
-                    return (
-                      <PremiumCard className="text-center py-6">
-                        <Calendar className="mx-auto mb-2 text-surface-300 dark:text-surface-700" size={32} />
-                        <p className="text-text-secondary text-sm">Sua agenda está livre na semana.</p>
-                      </PremiumCard>
-                    );
-                  }
-
-                  return upcomingAppointments.map((app) => (
+                {upcomingAppointments.length === 0 ? (
+                  <PremiumCard className="text-center py-6">
+                    <Calendar className="mx-auto mb-2 text-surface-300 dark:text-surface-700" size={32} />
+                    <p className="text-text-secondary text-sm">Sua agenda está livre na semana.</p>
+                  </PremiumCard>
+                ) : (
+                  upcomingAppointments.map((app) => (
                     <PremiumCard key={app.id} className="cursor-pointer hover:bg-surface-50 transition-colors"
                       onClick={() => navigate('/schedule')}>
                       <div className="flex justify-between items-center">
@@ -232,8 +226,8 @@ export default function Dashboard() {
                         </div>
                       </div>
                     </PremiumCard>
-                  ));
-                })()}
+                  ))
+                )}
               </div>
             </section>
 
