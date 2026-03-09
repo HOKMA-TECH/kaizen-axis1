@@ -63,6 +63,9 @@ export default function Schedule() {
         await addAppointment(formData as Omit<Appointment, 'id' | 'created_at'>);
       }
       setIsModalOpen(false);
+      setSelectedDate(parseISO(formData.date));
+      // Pequeno timeout para garantir que o usuário veja a mudança de aba antes do alert
+      setTimeout(() => alert(editingAppointment ? 'Agendamento atualizado!' : 'Agendamento criado com sucesso!'), 100);
     } catch (e: any) {
       alert(`Erro ao salvar: ${e.message || 'Erro desconhecido'}`);
     } finally {
@@ -112,6 +115,9 @@ export default function Schedule() {
           {calendarDays.map((date) => {
             const isSelected = isSameDay(date, selectedDate);
             const isToday = isSameDay(date, today);
+            const dateStr = format(date, 'yyyy-MM-dd');
+            const hasAppt = appointments.some(a => a.date === dateStr);
+
             return (
               <button
                 key={date.toString()}
@@ -122,7 +128,10 @@ export default function Schedule() {
               >
                 <span className="text-[10px] font-medium uppercase">{format(date, 'EEE', { locale: ptBR })}</span>
                 <span className="text-lg font-bold">{format(date, 'd')}</span>
-                {isToday && !isSelected && <div className="w-1 h-1 bg-gold-400 rounded-full mt-1" />}
+                <div className="flex gap-1 mt-1 h-1 items-center justify-center">
+                  {isToday && !isSelected && <div className="w-1 h-1 bg-gold-400 rounded-full" />}
+                  {hasAppt && <div className={`w-1 h-1 rounded-full ${isSelected ? 'bg-white' : 'bg-blue-500'}`} />}
+                </div>
               </button>
             );
           })}

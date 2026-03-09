@@ -201,13 +201,20 @@ export default function Dashboard() {
                 }
               />
               <div className="space-y-3">
-                {appointments.length === 0 ? (
-                  <PremiumCard className="text-center py-6">
-                    <Calendar className="mx-auto mb-2 text-surface-300 dark:text-surface-700" size={32} />
-                    <p className="text-text-secondary text-sm">Sua agenda está livre na semana.</p>
-                  </PremiumCard>
-                ) : (
-                  appointments.slice(0, 5).map((app) => (
+                {(() => {
+                  const todayStr = new Date().toISOString().slice(0, 10);
+                  const upcomingAppointments = appointments.filter(a => a.date >= todayStr).slice(0, 5);
+
+                  if (upcomingAppointments.length === 0) {
+                    return (
+                      <PremiumCard className="text-center py-6">
+                        <Calendar className="mx-auto mb-2 text-surface-300 dark:text-surface-700" size={32} />
+                        <p className="text-text-secondary text-sm">Sua agenda está livre na semana.</p>
+                      </PremiumCard>
+                    );
+                  }
+
+                  return upcomingAppointments.map((app) => (
                     <PremiumCard key={app.id} className="cursor-pointer hover:bg-surface-50 transition-colors"
                       onClick={() => navigate('/schedule')}>
                       <div className="flex justify-between items-center">
@@ -217,14 +224,16 @@ export default function Dashboard() {
                           </div>
                           <div>
                             <p className="font-semibold text-text-primary">{app.title}</p>
-                            <p className="text-xs text-text-secondary mt-1">{app.date} • {app.type}</p>
+                            <p className="text-xs text-text-secondary mt-1">
+                              {new Date(app.date).toLocaleDateString('pt-BR')} • {app.type}
+                            </p>
                             {app.client_name && <p className="text-xs text-gold-600 font-medium mt-1">{app.client_name}</p>}
                           </div>
                         </div>
                       </div>
                     </PremiumCard>
-                  ))
-                )}
+                  ));
+                })()}
               </div>
             </section>
 
