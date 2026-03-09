@@ -852,30 +852,24 @@ export default function AdminPanel() {
       case 'xp':
         return (
           <div className="space-y-6 print:space-y-4">
-            <PremiumCard className="p-4 flex flex-wrap justify-between items-center gap-6 border-surface-200">
-              <div className="flex-1 min-w-[250px]">
-                <h3 className="font-bold text-text-primary flex items-center gap-2 text-lg">
-                  <Zap className="text-gold-500" size={20} /> Pontos Recebidos (XP)
-                </h3>
-                <p className="text-sm text-text-secondary mt-1">
-                  Exibindo o total de moedas e XP gerado no período selecionado.
-                </p>
-              </div>
-
-              <div className="bg-white dark:bg-surface-800 p-3 rounded-xl border border-surface-200 shadow-sm w-full sm:w-auto shrink-0">
-                <div className="flex items-center gap-2 text-gold-600 font-semibold mb-3">
-                  <Calendar size={14} />
-                  <span className="text-xs text-text-primary uppercase tracking-wider font-bold">Período Selecionado</span>
+            <div className="flex flex-col gap-4 print:hidden">
+              <div className="bg-white p-4 rounded-xl border border-surface-200 shadow-sm space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-gold-600 font-semibold mb-2">
+                    <Zap size={18} />
+                    <span className="text-sm text-text-primary">Pontos Recebidos (XP)</span>
+                  </div>
+                  <p className="text-xs text-text-secondary hidden sm:block">Exibindo o total de moedas e XP gerado no período selecionado.</p>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3 items-center">
+                <div className="grid grid-cols-2 gap-3">
                   <div className="flex flex-col">
                     <span className="text-[10px] font-bold text-text-secondary uppercase mb-1">Início</span>
                     <input
                       type="date"
                       value={xpDateRange.start}
                       onChange={e => setXpDateRange(p => ({ ...p, start: e.target.value }))}
-                      className="w-full px-2 py-2 border border-surface-200 rounded-lg text-xs bg-surface-50 focus:border-gold-400 focus:ring-1 focus:ring-gold-400 outline-none transition-all font-medium text-text-primary"
+                      className="w-full px-2 py-2 border border-surface-200 rounded-lg text-sm bg-surface-50 focus:border-gold-400 focus:ring-1 focus:ring-gold-400 outline-none transition-all"
                       max={xpDateRange.end}
                     />
                   </div>
@@ -885,13 +879,21 @@ export default function AdminPanel() {
                       type="date"
                       value={xpDateRange.end}
                       onChange={e => setXpDateRange(p => ({ ...p, end: e.target.value }))}
-                      className="w-full px-2 py-2 border border-surface-200 rounded-lg text-xs bg-surface-50 focus:border-gold-400 focus:ring-1 focus:ring-gold-400 outline-none transition-all font-medium text-text-primary"
+                      className="w-full px-2 py-2 border border-surface-200 rounded-lg text-sm bg-surface-50 focus:border-gold-400 focus:ring-1 focus:ring-gold-400 outline-none transition-all"
                       min={xpDateRange.start}
                     />
                   </div>
                 </div>
+
+                <div className="flex justify-between items-center pt-2 gap-2 border-t border-surface-100 mt-2">
+                  <p className="text-[11px] text-text-secondary sm:hidden">Exibindo moedas/XP no período.</p>
+                  <div className="flex gap-2">
+                    <button onClick={() => setXpDateRange({ start: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().slice(0, 10), end: new Date().toISOString().slice(0, 10) })} className="px-3 py-1.5 bg-surface-100 text-[11px] font-semibold text-text-secondary rounded-lg hover:bg-gold-50 hover:text-gold-700 transition-colors">Este Mês</button>
+                    <button onClick={() => { const today = new Date(); const m30 = new Date(); m30.setDate(today.getDate() - 30); setXpDateRange({ start: m30.toISOString().slice(0, 10), end: today.toISOString().slice(0, 10) }) }} className="px-3 py-1.5 bg-surface-100 text-[11px] font-semibold text-text-secondary rounded-lg hover:bg-gold-50 hover:text-gold-700 transition-colors">30 Dias</button>
+                  </div>
+                </div>
               </div>
-            </PremiumCard>
+            </div>
 
             <PremiumCard className="p-0 overflow-hidden">
               {xpReportLoading ? (
