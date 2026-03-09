@@ -1,21 +1,158 @@
-self.addEventListener('install', () => {
-    self.skipWaiting();
+// ─── Kaizen Axis — Service Worker v2 ────────────────────────────────────────
+// Estratégia cirúrgica:
+//   • Nunca intercepta POST/PUT/DELETE/PATCH  →  uploads de arquivo seguros
+//   • Nunca intercepta domínios Supabase      →  real-time e auth seguros
+//   • Network-First para HTML                 →  usuário sempre recebe código novo
+//   • Cache-First para assets com hash        →  JS/CSS/imagens carregam rápido
+//   • Limpa caches de versões antigas         →  sem conflito entre deploys
+// ─────────────────────────────────────────────────────────────────────────────
+
+const CACHE_VERSION = 'v2';
+const CACHE_NAME = `kaizen-axis-${CACHE_VERSION}`;
+const MAX_CACHE_ENTRIES = 60;
+
+// ── Regras de bypass: requisições que NUNCA devem ser interceptadas ──────────
+function shouldBypass(request) {
+  // 1. Apenas GET passa pelo cache — POST/PUT/DELETE/PATCH vão direto ao servidor
+  if (request.method !== 'GET') return true;
+
+  let url;
+  try {
+    url = new URL(request.url);
+  } catch {
+    return true;
+  }
+
+  // 2. Apenas http/https — ignora chrome-extension://, data:, etc.
+  if (!url.protocol.startsWith('http')) return true;
+
+  // 3. Supabase: API, Auth, Storage, Realtime — tudo direto ao servidor
+  if (
+    url.hostname.includes('supabase.co') ||
+    url.hostname.includes('supabase.io') ||
+    url.hostname.includes('supabase.in')
+  ) return true;
+
+  // 4. Vite HMR e endpoints de dev
+  if (
+    url.pathname.startsWith('/@') ||
+    url.pathname.startsWith('/__vite') ||
+    url.pathname.startsWith('/node_modules')
+  ) return true;
+
+  // 5. Source maps
+  if (url.pathname.endsWith('.map')) return true;
+
+  return false;
+}
+
+// ── Detecta asset estático com hash no nome (build Vite) ────────────────────
+// Ex: /assets/index-CxYdFN0d.js, /assets/index-CS_YJXj7.css
+function isHashedAsset(url) {
+  return (
+    url.pathname.startsWith('/assets/') &&
+    /\.[a-z0-9]{8,}\.(js|css|woff2?|ttf|otf|eot|png|jpg|jpeg|webp|svg|ico)$/.test(url.pathname)
+  );
+}
+
+// ── Remove entradas mais antigas quando o cache fica grande ─────────────────
+async function trimCache(cacheName, maxEntries) {
+  const cache = await caches.open(cacheName);
+  const keys = await cache.keys();
+  if (keys.length > maxEntries) {
+    await Promise.all(keys.slice(0, keys.length - maxEntries).map(k => cache.delete(k)));
+  }
+}
+
+// ─── INSTALL ─────────────────────────────────────────────────────────────────
+self.addEventListener('install', (event) => {
+  event.waitUntil(self.skipWaiting());
 });
 
-self.addEventListener('activate', (e) => {
-    e.waitUntil(
-        caches.keys().then((cacheNames) => {
-            return Promise.all(
-                cacheNames.map((cacheName) => {
-                    return caches.delete(cacheName);
-                })
-            );
-        }).then(() => {
-            self.clients.claim();
-            return self.registration.unregister();
-        })
+// ─── ACTIVATE ────────────────────────────────────────────────────────────────
+self.addEventListener('activate', (event) => {
+  event.waitUntil(
+    (async () => {
+      // Limpa caches de versões anteriores
+      const cacheNames = await caches.keys();
+      await Promise.all(
+        cacheNames
+          .filter(name => name.startsWith('kaizen-axis-') && name !== CACHE_NAME)
+          .map(name => caches.delete(name))
+      );
+      // Assume controle de todas as abas abertas imediatamente
+      await self.clients.claim();
+    })()
+  );
+});
+
+// ─── FETCH ───────────────────────────────────────────────────────────────────
+self.addEventListener('fetch', (event) => {
+  const { request } = event;
+
+  if (shouldBypass(request)) return;
+
+  let url;
+  try {
+    url = new URL(request.url);
+  } catch {
+    return;
+  }
+
+  // ── Assets com hash (JS/CSS do build Vite): Cache-First ─────────────────
+  if (isHashedAsset(url)) {
+    event.respondWith(
+      caches.open(CACHE_NAME).then(async (cache) => {
+        const cached = await cache.match(request);
+        if (cached) return cached;
+
+        const response = await fetch(request);
+        if (response.ok) {
+          cache.put(request, response.clone());
+          trimCache(CACHE_NAME, MAX_CACHE_ENTRIES);
+        }
+        return response;
+      })
     );
-});
+    return;
+  }
 
-// No fetch listener. We want the browser to handle all requests natively
-// to avoid stalling file uploads (POSTs with stream bodies).
+  // ── Documentos HTML (navegação): Network-First ──────────────────────────
+  if (request.destination === 'document' || request.mode === 'navigate') {
+    event.respondWith(
+      fetch(request)
+        .then((response) => {
+          if (response.ok) {
+            const clone = response.clone();
+            caches.open(CACHE_NAME).then((cache) => {
+              cache.put(request, clone);
+              trimCache(CACHE_NAME, MAX_CACHE_ENTRIES);
+            });
+          }
+          return response;
+        })
+        .catch(() =>
+          caches.match(request).then(cached => cached || caches.match('/'))
+        )
+    );
+    return;
+  }
+
+  // ── Outros GETs (fontes, ícones públicos): Stale-While-Revalidate ───────
+  event.respondWith(
+    caches.open(CACHE_NAME).then(async (cache) => {
+      const cached = await cache.match(request);
+      const networkFetch = fetch(request)
+        .then((response) => {
+          if (response.ok) {
+            cache.put(request, response.clone());
+            trimCache(CACHE_NAME, MAX_CACHE_ENTRIES);
+          }
+          return response;
+        })
+        .catch(() => null);
+
+      return cached || networkFetch;
+    })
+  );
+});

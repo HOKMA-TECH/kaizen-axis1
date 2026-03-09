@@ -5,20 +5,16 @@ import App from './App.tsx'
 import { AppProvider } from './context/AppContext.tsx'
 import { NotificationProvider } from './context/NotificationContext.tsx'
 
-// ⚠️ FORCE CLEAR: Unregister any PWA service workers and delete ALL caches
-// to ensure the browser always loads fresh JS from the server.
-(async () => {
-  if ('serviceWorker' in navigator) {
-    const registrations = await navigator.serviceWorker.getRegistrations();
-    for (const reg of registrations) {
-      await reg.unregister();
-    }
-  }
-  if ('caches' in window) {
-    const keys = await caches.keys();
-    await Promise.all(keys.map(k => caches.delete(k)));
-  }
-})();
+// ── PWA: registra o Service Worker em produção ───────────────────────────────
+// O SW usa estratégia cirúrgica: nunca intercepta Supabase nem métodos não-GET,
+// portanto uploads de arquivos e real-time continuam funcionando normalmente.
+if ('serviceWorker' in navigator && import.meta.env.PROD) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch((err) => {
+      console.warn('[PWA] Falha ao registrar Service Worker:', err);
+    });
+  });
+}
 
 import { Component, ReactNode } from 'react';
 

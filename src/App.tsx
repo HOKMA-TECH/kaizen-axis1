@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Layout } from '@/components/Layout';
 import { useAuthorization, UserRole } from '@/hooks/useAuthorization';
 import { useApp } from '@/context/AppContext';
+import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 
 import Dashboard from '@/pages/Dashboard';
 import Clients from '@/pages/Clients';
@@ -87,9 +88,20 @@ function RoleRoute({
   return <Layout>{children}</Layout>;
 }
 
+function OfflineBanner() {
+  const isOnline = useOnlineStatus();
+  if (isOnline) return null;
+  return (
+    <div className="fixed top-0 inset-x-0 z-[9999] bg-red-500 text-white text-xs font-bold text-center py-2 shadow-lg">
+      Sem conexão — verifique sua internet
+    </div>
+  );
+}
+
 export default function App() {
   return (
     <BrowserRouter>
+      <OfflineBanner />
       <Routes>
         {/* Public */}
         <Route path="/login" element={<Login />} />
