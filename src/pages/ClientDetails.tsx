@@ -107,7 +107,7 @@ export default function ClientDetails() {
     setIsUploading(true);
     try {
       const filePath = `${id}/${Date.now()}-${file.name}`;
-      const uploadedPath = await uploadFile(file, filePath);
+      const uploadedPath = await uploadFile(file, filePath, 'client-documents');
 
       if (uploadedPath) {
         const dbResult = await addDocumentToClient(id, file.name, uploadedPath);
@@ -263,10 +263,10 @@ export default function ClientDetails() {
                       disabled={isRestricted}
                       title={isRestricted ? 'Apenas ADMIN, Diretor ou Gerente podem concluir' : undefined}
                       className={`p-3 rounded-xl text-sm font-medium border transition-all text-left flex items-center justify-between ${client.stage === stage
-                          ? 'bg-gold-50 dark:bg-gold-900/20 border-gold-400 text-gold-700 dark:text-gold-400'
-                          : isRestricted
-                            ? 'bg-surface-50 border-surface-200 text-text-secondary opacity-50 cursor-not-allowed'
-                            : 'bg-card-bg border-surface-200 text-text-secondary hover:border-gold-300'
+                        ? 'bg-gold-50 dark:bg-gold-900/20 border-gold-400 text-gold-700 dark:text-gold-400'
+                        : isRestricted
+                          ? 'bg-surface-50 border-surface-200 text-text-secondary opacity-50 cursor-not-allowed'
+                          : 'bg-card-bg border-surface-200 text-text-secondary hover:border-gold-300'
                         }`}
                     >
                       {stage}

@@ -603,7 +603,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       if (filePath) {
         // Strip out the leading folder name if the storage API expects only the file name or bucket logic varies,
         // but typically path includes folder/filename.
-        await supabase.storage.from('documents').remove([filePath]);
+        await supabase.storage.from('client-documents').remove([filePath]);
       }
 
       // Then delete from database
