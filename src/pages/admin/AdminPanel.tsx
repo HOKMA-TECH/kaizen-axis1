@@ -860,8 +860,8 @@ export default function AdminPanel() {
                   key={s.id}
                   onClick={() => setActiveGamifSection(s.id as 'xp' | 'conquistas')}
                   className={`flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap transition-all ${activeGamifSection === s.id
-                      ? 'bg-gold-500 text-white shadow-md shadow-gold-500/20'
-                      : 'bg-white dark:bg-surface-100 text-text-secondary border border-surface-200'
+                    ? 'bg-gold-500 text-white shadow-md shadow-gold-500/20'
+                    : 'bg-white dark:bg-surface-100 text-text-secondary border border-surface-200'
                     }`}
                 >
                   <s.icon size={14} /> {s.label}
@@ -1308,10 +1308,32 @@ export default function AdminPanel() {
           </div>
           <div>
             <label className="block text-sm font-medium text-text-secondary mb-1">Atribuir para</label>
-            <select value={goalForm.assignee_id || 'All'} onChange={e => setGoalForm(p => ({ ...p, assignee_id: e.target.value === 'All' ? undefined : e.target.value, assignee_type: e.target.value === 'All' ? 'All' : 'User' }))}
+            <select
+              value={goalForm.assignee_type === 'All' ? 'All' : goalForm.assignee_type === 'Team' ? `team_${goalForm.assignee_id}` : goalForm.assignee_type === 'Directorate' ? `dir_${goalForm.assignee_id}` : goalForm.assignee_id}
+              onChange={e => {
+                const val = e.target.value;
+                if (val === 'All') setGoalForm(p => ({ ...p, assignee_id: undefined, assignee_type: 'All' }));
+                else if (val.startsWith('dir_')) setGoalForm(p => ({ ...p, assignee_id: val.replace('dir_', ''), assignee_type: 'Directorate' }));
+                else if (val.startsWith('team_')) setGoalForm(p => ({ ...p, assignee_id: val.replace('team_', ''), assignee_type: 'Team' }));
+                else setGoalForm(p => ({ ...p, assignee_id: val, assignee_type: 'User' }));
+              }}
               className="w-full p-3 bg-surface-50 rounded-xl border-none focus:ring-2 focus:ring-gold-200 text-text-primary">
-              <option value="All">Todos (Global)</option>
-              {allProfiles.map(p => <option key={p.id} value={p.id}>{p.name} ({p.role})</option>)}
+              <optgroup label="Geral">
+                <option value="All">Todos (Global)</option>
+              </optgroup>
+              {directorates.length > 0 && (
+                <optgroup label="Diretorias">
+                  {directorates.map(d => <option key={d.id} value={`dir_${d.id}`}>{d.name}</option>)}
+                </optgroup>
+              )}
+              {teams.length > 0 && (
+                <optgroup label="Equipes">
+                  {teams.map(t => <option key={t.id} value={`team_${t.id}`}>{t.name}</option>)}
+                </optgroup>
+              )}
+              <optgroup label="Usuários (Individuais)">
+                {allProfiles.map(p => <option key={p.id} value={p.id}>{p.name} ({p.role})</option>)}
+              </optgroup>
             </select>
           </div>
           <div className="grid grid-cols-2 gap-4">
