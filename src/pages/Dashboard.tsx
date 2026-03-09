@@ -196,7 +196,7 @@ export default function Dashboard() {
                 title="Agendamentos da Semana"
                 subtitle="Todos os seus compromissos"
                 action={
-                  <button onClick={() => navigate('/schedule')} className="text-xs text-gold-600 dark:text-gold-400 font-medium hover:underline">
+                  <button onClick={() => navigate('/schedule', { state: { showAll: true } })} className="text-xs text-gold-600 dark:text-gold-400 font-medium hover:underline">
                     Ver todos
                   </button>
                 }
@@ -210,7 +210,7 @@ export default function Dashboard() {
                 ) : (
                   upcomingAppointments.map((app) => (
                     <PremiumCard key={app.id} className="cursor-pointer hover:bg-surface-50 transition-colors"
-                      onClick={() => navigate('/schedule')}>
+                      onClick={() => navigate('/schedule', { state: { date: app.date } })}>
                       <div className="flex justify-between items-center">
                         <div className="flex items-center gap-4">
                           <div className="flex-col flex items-center justify-center w-12 h-12 bg-surface-100 dark:bg-surface-800 rounded-xl text-center">
@@ -586,14 +586,14 @@ export default function Dashboard() {
           <SectionHeader
             title="Próximos Agendamentos"
             action={
-              <button onClick={() => navigate('/schedule')} className="text-xs text-gold-600 dark:text-gold-400 font-medium hover:underline">
+              <button onClick={() => navigate('/schedule', { state: { showAll: true } })} className="text-xs text-gold-600 dark:text-gold-400 font-medium hover:underline">
                 Ver todos
               </button>
             }
           />
           <div className="space-y-3">
             {upcomingAppointments.map(item => (
-              <PremiumCard key={item.id} className="p-4 flex items-center gap-4 cursor-pointer" onClick={() => navigate('/schedule')}>
+              <PremiumCard key={item.id} className="p-4 flex items-center gap-4 cursor-pointer" onClick={() => navigate('/schedule', { state: { date: item.date } })}>
                 <div className="flex-col flex items-center justify-center w-12 h-12 bg-surface-100 rounded-xl text-center">
                   <span className="text-xs font-bold text-text-secondary">{item.time}</span>
                 </div>

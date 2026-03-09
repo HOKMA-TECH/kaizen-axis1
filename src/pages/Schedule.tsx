@@ -29,7 +29,15 @@ export default function Schedule() {
   useEffect(() => {
     if (location.state) {
       if (location.state.showAll) setViewMode('all');
-      else if (location.state.highlightId) { setViewMode('single'); setHighlightId(String(location.state.highlightId)); }
+      else if (location.state.highlightId) {
+        setViewMode('single');
+        setHighlightId(String(location.state.highlightId));
+      }
+      else if (location.state.date) {
+        setSelectedDate(parseISO(String(location.state.date)));
+        setViewMode('day');
+        setHighlightId(null);
+      }
     }
   }, [location.state]);
 
