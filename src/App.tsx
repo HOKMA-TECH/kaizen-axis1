@@ -25,7 +25,6 @@ import Reports from '@/pages/Reports';
 import PotentialClients from '@/pages/PotentialClients';
 import AdminPanel from '@/pages/admin/AdminPanel';
 import PresenceReport from '@/pages/admin/PresenceReport';
-import Onboarding from '@/pages/Onboarding';
 import PdfTools from '@/pages/PdfTools';
 import Portals from '@/pages/Portals';
 import Login from '@/pages/Login';
@@ -36,7 +35,6 @@ import CheckInDisplay from '@/pages/CheckInDisplay';
 // ─── Auth guard (all authenticated users) ───────────────────────────────────
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const isAuthenticated = localStorage.getItem('isAuthenticated');
-  const hasCompletedOnboarding = localStorage.getItem('hasCompletedOnboarding');
   const { profile, loading } = useApp();
 
   // Show a blank loading screen (or simple spinner) while Auth context initializes
@@ -54,8 +52,6 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
     return <Navigate to="/pending" replace />;
   }
 
-  if (!hasCompletedOnboarding) return <Navigate to="/onboarding" replace />;
-
   return <Layout>{children}</Layout>;
 }
 
@@ -70,7 +66,6 @@ function RoleRoute({
   allowed: UserRole[];
 }) {
   const isAuthenticated = localStorage.getItem('isAuthenticated');
-  const hasCompletedOnboarding = localStorage.getItem('hasCompletedOnboarding');
   const { role } = useAuthorization();
   const { profile, loading } = useApp();
 
@@ -87,8 +82,6 @@ function RoleRoute({
   if (profile && (profile.status === 'Pendente' || profile.status === 'pending')) {
     return <Navigate to="/pending" replace />;
   }
-
-  if (!hasCompletedOnboarding) return <Navigate to="/onboarding" replace />;
   if (!allowed.includes(role)) return <Navigate to="/" replace />;
 
   return <Layout>{children}</Layout>;
@@ -100,7 +93,6 @@ export default function App() {
       <Routes>
         {/* Public */}
         <Route path="/login" element={<Login />} />
-        <Route path="/onboarding" element={<Onboarding />} />
         <Route path="/pending" element={<PendingApproval />} />
 
         {/* ── All authenticated roles ───────────────────────────────────── */}
