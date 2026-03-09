@@ -8,7 +8,7 @@ import { Navigate, useNavigate } from 'react-router-dom';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, Legend } from 'recharts';
 import { supabase } from '@/lib/supabase';
 
-type Tab = 'users' | 'teams' | 'goals' | 'announcements' | 'reports' | 'directorates' | 'achievements' | 'xp';
+type Tab = 'users' | 'teams' | 'goals' | 'announcements' | 'reports' | 'directorates' | 'gamification';
 
 export default function AdminPanel() {
   // ── Hard role guard: only ADMIN can access this page ────────────────────────
@@ -28,6 +28,7 @@ export default function AdminPanel() {
 
   const [activeTab, setActiveTab] = useState<Tab>('users');
   const [activeGoalTab, setActiveGoalTab] = useState<'active' | 'ended'>('active');
+  const [activeGamifSection, setActiveGamifSection] = useState<'xp' | 'conquistas'>('xp');
   const [searchTerm, setSearchTerm] = useState('');
 
   // Team modal
@@ -150,7 +151,7 @@ export default function AdminPanel() {
   const [isSavingApproval, setIsSavingApproval] = useState(false);
 
   useEffect(() => {
-    if (activeTab === 'xp' && xpDateRange.start && xpDateRange.end) {
+    if (activeTab === 'gamification' && xpDateRange.start && xpDateRange.end) {
       fetchXpReportData();
     }
   }, [activeTab, xpDateRange]);
@@ -846,100 +847,134 @@ export default function AdminPanel() {
             }
           </div>
         );
-      case 'achievements':
-        return renderAchievementsTab();
-
-      case 'xp':
+      case 'gamification':
         return (
-          <div className="space-y-6 print:space-y-4">
-            <div className="flex flex-col gap-4 print:hidden">
-              <div className="bg-white p-4 rounded-xl border border-surface-200 shadow-sm space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-gold-600 font-semibold mb-2">
-                    <Zap size={18} />
-                    <span className="text-sm text-text-primary">Pontos Recebidos (XP)</span>
-                  </div>
-                  <p className="text-xs text-text-secondary hidden sm:block">Exibindo o total de moedas e XP gerado no período selecionado.</p>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="flex flex-col">
-                    <span className="text-[10px] font-bold text-text-secondary uppercase mb-1">Início</span>
-                    <input
-                      type="date"
-                      value={xpDateRange.start}
-                      onChange={e => setXpDateRange(p => ({ ...p, start: e.target.value }))}
-                      className="w-full px-2 py-2 border border-surface-200 rounded-lg text-sm bg-surface-50 focus:border-gold-400 focus:ring-1 focus:ring-gold-400 outline-none transition-all"
-                      max={xpDateRange.end}
-                    />
-                  </div>
-                  <div className="flex flex-col">
-                    <span className="text-[10px] font-bold text-text-secondary uppercase mb-1">Fim</span>
-                    <input
-                      type="date"
-                      value={xpDateRange.end}
-                      onChange={e => setXpDateRange(p => ({ ...p, end: e.target.value }))}
-                      className="w-full px-2 py-2 border border-surface-200 rounded-lg text-sm bg-surface-50 focus:border-gold-400 focus:ring-1 focus:ring-gold-400 outline-none transition-all"
-                      min={xpDateRange.start}
-                    />
-                  </div>
-                </div>
-
-                <div className="flex justify-between items-center pt-2 gap-2 border-t border-surface-100 mt-2">
-                  <p className="text-[11px] text-text-secondary sm:hidden">Exibindo moedas/XP no período.</p>
-                  <div className="flex gap-2">
-                    <button onClick={() => setXpDateRange({ start: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().slice(0, 10), end: new Date().toISOString().slice(0, 10) })} className="px-3 py-1.5 bg-surface-100 text-[11px] font-semibold text-text-secondary rounded-lg hover:bg-gold-50 hover:text-gold-700 transition-colors">Este Mês</button>
-                    <button onClick={() => { const today = new Date(); const m30 = new Date(); m30.setDate(today.getDate() - 30); setXpDateRange({ start: m30.toISOString().slice(0, 10), end: today.toISOString().slice(0, 10) }) }} className="px-3 py-1.5 bg-surface-100 text-[11px] font-semibold text-text-secondary rounded-lg hover:bg-gold-50 hover:text-gold-700 transition-colors">30 Dias</button>
-                  </div>
-                </div>
-              </div>
+          <div className="space-y-4 print:space-y-6">
+            {/* Internal sub-tab navigation */}
+            <div className="flex gap-2 print:hidden">
+              {[
+                { id: 'xp', label: 'Pontos (XP)', icon: Zap },
+                { id: 'conquistas', label: 'Conquistas', icon: Award },
+              ].map((s) => (
+                <button
+                  key={s.id}
+                  onClick={() => setActiveGamifSection(s.id as 'xp' | 'conquistas')}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap transition-all ${
+                    activeGamifSection === s.id
+                      ? 'bg-gold-500 text-white shadow-md shadow-gold-500/20'
+                      : 'bg-white dark:bg-surface-100 text-text-secondary border border-surface-200'
+                  }`}
+                >
+                  <s.icon size={14} /> {s.label}
+                </button>
+              ))}
             </div>
 
-            <PremiumCard className="p-0 overflow-hidden">
-              {xpReportLoading ? (
-                <div className="p-12 text-center text-text-secondary">
-                  <Loader2 size={32} className="animate-spin mx-auto text-gold-400 mb-4" />
-                  Carregando pontuações...
+            {/* Pontos (XP) section */}
+            {activeGamifSection === 'xp' && (
+              <section>
+                <div className="flex flex-col gap-4 print:hidden">
+                  <div className="bg-white p-4 rounded-xl border border-surface-200 shadow-sm space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-gold-600 font-semibold mb-2">
+                        <Zap size={18} />
+                        <span className="text-sm text-text-primary">Pontos Recebidos (XP)</span>
+                      </div>
+                      <p className="text-xs text-text-secondary hidden sm:block">Exibindo o total de moedas e XP gerado no período selecionado.</p>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="flex flex-col">
+                        <span className="text-[10px] font-bold text-text-secondary uppercase mb-1">Início</span>
+                        <input
+                          type="date"
+                          value={xpDateRange.start}
+                          onChange={e => setXpDateRange(p => ({ ...p, start: e.target.value }))}
+                          className="w-full px-2 py-2 border border-surface-200 rounded-lg text-sm bg-surface-50 focus:border-gold-400 focus:ring-1 focus:ring-gold-400 outline-none transition-all"
+                          max={xpDateRange.end}
+                        />
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="text-[10px] font-bold text-text-secondary uppercase mb-1">Fim</span>
+                        <input
+                          type="date"
+                          value={xpDateRange.end}
+                          onChange={e => setXpDateRange(p => ({ ...p, end: e.target.value }))}
+                          className="w-full px-2 py-2 border border-surface-200 rounded-lg text-sm bg-surface-50 focus:border-gold-400 focus:ring-1 focus:ring-gold-400 outline-none transition-all"
+                          min={xpDateRange.start}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex justify-between items-center pt-2 gap-2 border-t border-surface-100 mt-2">
+                      <p className="text-[11px] text-text-secondary sm:hidden">Exibindo moedas/XP no período.</p>
+                      <div className="flex gap-2">
+                        <button onClick={() => setXpDateRange({ start: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().slice(0, 10), end: new Date().toISOString().slice(0, 10) })} className="px-3 py-1.5 bg-surface-100 text-[11px] font-semibold text-text-secondary rounded-lg hover:bg-gold-50 hover:text-gold-700 transition-colors">Este Mês</button>
+                        <button onClick={() => { const today = new Date(); const m30 = new Date(); m30.setDate(today.getDate() - 30); setXpDateRange({ start: m30.toISOString().slice(0, 10), end: today.toISOString().slice(0, 10) }) }} className="px-3 py-1.5 bg-surface-100 text-[11px] font-semibold text-text-secondary rounded-lg hover:bg-gold-50 hover:text-gold-700 transition-colors">30 Dias</button>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-              ) : (
-                <div className="overflow-x-auto no-scrollbar">
-                  <table className="w-full text-left border-collapse min-w-[600px]">
-                    <thead>
-                      <tr className="bg-surface-50 text-text-secondary text-[10px] uppercase tracking-wider border-b border-surface-100">
-                        <th className="p-4 font-bold">Usuário / Corretor</th>
-                        <th className="p-4 font-bold text-center">🏆 Vendas</th>
-                        <th className="p-4 font-bold text-center">🎯 Missões/Metas</th>
-                        <th className="p-4 font-bold text-center">📚 Treinamentos</th>
-                        <th className="p-4 font-bold text-right">XP Total no Período</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {xpReportData.map((row: any, i: number) => (
-                        <tr key={row.user_id} className="border-b border-surface-50 last:border-0 hover:bg-surface-50/50 transition-colors">
-                          <td className="p-4 text-sm font-bold text-text-primary flex items-center gap-3">
-                            {i < 3 ? (
-                              <span className={`w-6 h-6 flex items-center justify-center rounded-full text-[10px] font-bold shadow-sm shrink-0 ${i === 0 ? 'bg-gradient-to-br from-yellow-300 to-yellow-500 text-white' : i === 1 ? 'bg-gradient-to-br from-gray-200 to-gray-400 text-white' : 'bg-gradient-to-br from-orange-300 to-orange-500 text-white'}`}>{i + 1}</span>
-                            ) : (
-                              <span className="w-6 h-6 flex items-center justify-center rounded-full text-[10px] font-bold bg-surface-100 text-text-secondary shrink-0">{i + 1}</span>
-                            )}
-                            {row.user_name}
-                          </td>
-                          <td className="p-4 text-xs font-semibold text-center text-blue-600">{row.sales_xp} XP</td>
-                          <td className="p-4 text-xs font-semibold text-center text-green-600">{row.missions_xp} XP</td>
-                          <td className="p-4 text-xs font-semibold text-center text-purple-600">{row.training_xp} XP</td>
-                          <td className="p-4 text-sm font-black text-right text-gold-600">
-                            {row.total_xp.toLocaleString('pt-BR')} XP
-                          </td>
-                        </tr>
-                      ))}
-                      {xpReportData.length === 0 && (
-                        <tr><td colSpan={5} className="p-8 text-center text-text-secondary">Nenhum ponto recebido nesse período.</td></tr>
-                      )}
-                    </tbody>
-                  </table>
+
+                <PremiumCard className="p-0 overflow-hidden">
+                  {xpReportLoading ? (
+                    <div className="p-12 text-center text-text-secondary">
+                      <Loader2 size={32} className="animate-spin mx-auto text-gold-400 mb-4" />
+                      Carregando pontuações...
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto no-scrollbar">
+                      <table className="w-full text-left border-collapse min-w-[600px]">
+                        <thead>
+                          <tr className="bg-surface-50 text-text-secondary text-[10px] uppercase tracking-wider border-b border-surface-100">
+                            <th className="p-4 font-bold">Usuário / Corretor</th>
+                            <th className="p-4 font-bold text-center">🏆 Vendas</th>
+                            <th className="p-4 font-bold text-center">🎯 Missões/Metas</th>
+                            <th className="p-4 font-bold text-center">📚 Treinamentos</th>
+                            <th className="p-4 font-bold text-right">XP Total no Período</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {xpReportData.map((row: any, i: number) => (
+                            <tr key={row.user_id} className="border-b border-surface-50 last:border-0 hover:bg-surface-50/50 transition-colors">
+                              <td className="p-4 text-sm font-bold text-text-primary flex items-center gap-3">
+                                {i < 3 ? (
+                                  <span className={`w-6 h-6 flex items-center justify-center rounded-full text-[10px] font-bold shadow-sm shrink-0 ${i === 0 ? 'bg-gradient-to-br from-yellow-300 to-yellow-500 text-white' : i === 1 ? 'bg-gradient-to-br from-gray-200 to-gray-400 text-white' : 'bg-gradient-to-br from-orange-300 to-orange-500 text-white'}`}>{i + 1}</span>
+                                ) : (
+                                  <span className="w-6 h-6 flex items-center justify-center rounded-full text-[10px] font-bold bg-surface-100 text-text-secondary shrink-0">{i + 1}</span>
+                                )}
+                                {row.user_name}
+                              </td>
+                              <td className="p-4 text-xs font-semibold text-center text-blue-600">{row.sales_xp} XP</td>
+                              <td className="p-4 text-xs font-semibold text-center text-green-600">{row.missions_xp} XP</td>
+                              <td className="p-4 text-xs font-semibold text-center text-purple-600">{row.training_xp} XP</td>
+                              <td className="p-4 text-sm font-black text-right text-gold-600">
+                                {row.total_xp.toLocaleString('pt-BR')} XP
+                              </td>
+                            </tr>
+                          ))}
+                          {xpReportData.length === 0 && (
+                            <tr><td colSpan={5} className="p-8 text-center text-text-secondary">Nenhum ponto recebido nesse período.</td></tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </PremiumCard>
+              </section>
+            )}
+
+            {/* Conquistas section */}
+            {activeGamifSection === 'conquistas' && (
+              <section>
+                <div className="flex justify-between items-center mb-4">
+                  <h2 className="text-xl font-bold text-text-primary flex items-center gap-2">
+                    <Award className="text-gold-500" size={24} /> Sistema de Conquistas
+                  </h2>
                 </div>
-              )}
-            </PremiumCard>
+                {renderAchievementsTab()}
+              </section>
+            )}
           </div>
         );
 
@@ -965,7 +1000,7 @@ export default function AdminPanel() {
   const ICON_OPTIONS = ['Award', 'Trophy', 'Star', 'Zap', 'Flame', 'Shield', 'Target', 'TrendingUp'];
 
   useEffect(() => {
-    if (activeTab === 'achievements') {
+    if (activeTab === 'gamification') {
       supabase.from('achievements').select('*').order('condition_type').order('condition_value')
         .then(({ data }) => setAchievements(data || []));
     }
@@ -1064,9 +1099,8 @@ export default function AdminPanel() {
           { id: 'goals', label: 'Metas', icon: Target },
           { id: 'announcements', label: 'Anúncios', icon: Megaphone },
           { id: 'reports', label: 'Relatórios', icon: BarChart3 },
-          { id: 'xp', label: 'Pontos (XP)', icon: Zap },
           { id: 'directorates', label: 'Diretorias', icon: Building2 },
-          { id: 'achievements', label: 'Conquistas', icon: Award },
+          { id: 'gamification', label: 'Gamificação', icon: Zap },
         ].map((tab) => (
           <button key={tab.id} onClick={() => setActiveTab(tab.id as Tab)}
             className={`flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap transition-all ${activeTab === tab.id ? 'bg-gold-500 text-white shadow-md shadow-gold-500/20' : 'bg-white dark:bg-surface-100 text-text-secondary border border-surface-200'}`}>
