@@ -460,6 +460,7 @@ export default function ChatDetail() {
   const streamRef = useRef<MediaStream | null>(null);
   const videoRecorderRef = useRef<MediaRecorder | null>(null);
   const videoChunksRef = useRef<Blob[]>([]);
+  const chatChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
 
   const [fullscreenMedia, setFullscreenMedia] = useState<{ url: string; type: string; name?: string } | null>(null);
   const [mediaPreview, setMediaPreview] = useState<{ url: string; type: ChatMessage['type']; file: File } | null>(null);
@@ -559,8 +560,11 @@ export default function ChatDetail() {
     if (isKAI || !myId || !id) return;
     loadMessages();
 
-    // Single channel handles BOTH postgres_changes AND presence
-    const channel = supabase.channel(`chat:${conversationId}`);
+    // Single channel handles postgres_changes, broadcast AND presence
+    const channel = supabase.channel(`chat:${conversationId}`, {
+      config: { broadcast: { self: false } },
+    });
+    chatChannelRef.current = channel;
 
     // Listen for NEW rows in chat_messages for this conversation
     channel.on(
@@ -606,22 +610,13 @@ export default function ChatDetail() {
       }
     );
 
-    // Listen for UPDATE (reactions)
-    channel.on(
-      'postgres_changes',
-      {
-        event: 'UPDATE',
-        schema: 'public',
-        table: 'chat_messages',
-        filter: `conversation_id=eq.${conversationId}`,
-      },
-      (payload) => {
-        const m = payload.new as any;
-        setMessages(prev => prev.map(msg =>
-          msg.id === m.id ? { ...msg, reactions: m.reactions ?? {} } : msg
-        ));
-      }
-    );
+    // Broadcast: reaction updates (bypasses postgres_changes UPDATE limitations)
+    channel.on('broadcast', { event: 'reaction-update' }, ({ payload }) => {
+      const { msgId, reactions } = payload as { msgId: string; reactions: Record<string, string[]> };
+      setMessages(prev => prev.map(msg =>
+        msg.id === msgId ? { ...msg, reactions } : msg
+      ));
+    });
 
     // Presence for typing indicator + online status
     channel.on('presence', { event: 'sync' }, () => {
@@ -641,7 +636,10 @@ export default function ChatDetail() {
       }
     });
 
-    return () => { supabase.removeChannel(channel); };
+    return () => {
+      chatChannelRef.current = null;
+      supabase.removeChannel(channel);
+    };
   }, [conversationId, isKAI, myId, id, loadMessages, myName]);
 
   useEffect(() => {
@@ -1076,9 +1074,17 @@ export default function ChatDetail() {
       ? users.filter(u => u !== myId)
       : [...users, myId];
     const newReactions = { ...current, [emoji]: updated };
+    // Optimistic local update
     setMessages(prev => prev.map(m => m.id === msgId ? { ...m, reactions: newReactions } : m));
-    await supabase.from('chat_messages').update({ reactions: newReactions }).eq('id', msgId);
     setCtxMenu(null);
+    // Broadcast to other user instantly (no REPLICA IDENTITY dependency)
+    chatChannelRef.current?.send({
+      type: 'broadcast',
+      event: 'reaction-update',
+      payload: { msgId, reactions: newReactions },
+    });
+    // Persist to DB (so reactions survive page reload)
+    await supabase.from('chat_messages').update({ reactions: newReactions }).eq('id', msgId);
   };
 
   // ─── Delete message ───────────────────────────────────────────────────────
