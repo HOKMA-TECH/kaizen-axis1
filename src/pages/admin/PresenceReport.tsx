@@ -12,6 +12,7 @@ import { PremiumCard, SectionHeader, RoundedButton } from '@/components/ui/Premi
 import { useApp } from '@/context/AppContext';
 import { useAuthorization } from '@/hooks/useAuthorization';
 import { supabase } from '@/lib/supabase';
+import { X } from 'lucide-react';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -111,6 +112,7 @@ export default function PresenceReport() {
   const [filterDir, setFilterDir] = useState('');
   const [filterTeam, setFilterTeam] = useState('');
   const [filterUser, setFilterUser] = useState('');
+  const [activeModal, setActiveModal] = useState<'ativos' | 'inativos' | null>(null);
 
   // ── Data ────────────────────────────────────────────────────────────────────
   const [data, setData] = useState<ReportData | null>(null);
@@ -318,6 +320,24 @@ export default function PresenceReport() {
     doc.save(`presenca_${start}_${end}.pdf`);
   };
 
+  // ── Modal logic ────────────────────────────────────────────────────────
+  const getModalUsers = () => {
+    if (!data || !activeModal) return [];
+
+    // We use a simpler 7-day cutoff for Ativos/Inativos
+    // It's the same logic use in the RPC but done in JS for the modal 
+    const isAtivo = (ultimo_checkin: string | null) => {
+      if (!ultimo_checkin) return false;
+      const ciDate = new Date(ultimo_checkin).getTime();
+      const cutoff = new Date().getTime() - 7 * 24 * 60 * 60 * 1000;
+      return ciDate >= cutoff;
+    };
+
+    return data.ranking.filter(r =>
+      activeModal === 'ativos' ? isAtivo(r.ultimo_checkin) : !isAtivo(r.ultimo_checkin)
+    );
+  };
+
   // ─── Render ────────────────────────────────────────────────────────────────
   return (
     <div className="p-4 pb-28 min-h-screen bg-surface-50">
@@ -476,12 +496,14 @@ export default function PresenceReport() {
               label="Ativos (7 dias)"
               value={data.metrics.usuarios_ativos.toString()}
               bg="bg-green-50 dark:bg-green-900/20"
+              onClick={() => setActiveModal('ativos')}
             />
             <MetricBlock
               icon={<TrendingDown size={18} className="text-red-500" />}
               label="Inativos"
               value={data.metrics.usuarios_inativos.toString()}
               bg="bg-red-50 dark:bg-red-900/20"
+              onClick={() => setActiveModal('inativos')}
             />
             <MetricBlock
               icon={<BarChart2 size={18} className="text-blue-500" />}
@@ -703,6 +725,37 @@ export default function PresenceReport() {
               <p className="text-sm text-text-secondary">Ajuste os filtros ou aguarde que os corretores realizem check-in.</p>
             </PremiumCard>
           )}
+          {/* ── Modal de Ativos / Inativos ────────────────────────────────── */}
+          {activeModal && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200">
+              <PremiumCard className="w-full max-w-md max-h-[80vh] flex flex-col p-0">
+                <div className="flex items-center justify-between p-4 border-b border-surface-200">
+                  <h3 className="font-bold text-text-primary">
+                    Usuários {activeModal === 'ativos' ? 'Ativos (Últimos 7 dias)' : 'Inativos'}
+                  </h3>
+                  <button onClick={() => setActiveModal(null)} className="p-2 text-text-secondary hover:bg-surface-100 rounded-full transition-colors">
+                    <X size={20} />
+                  </button>
+                </div>
+                <div className="p-4 overflow-y-auto space-y-2">
+                  {getModalUsers().map(u => (
+                    <div key={u.id} className="flex flex-col p-3 rounded-xl border border-surface-200 bg-surface-50">
+                      <div className="flex justify-between items-center">
+                        <span className="font-bold text-sm text-text-primary">{u.name}</span>
+                        <span className="text-[10px] text-text-secondary uppercase">{u.team ? teamName(u.team) : 'Sem Equipe'}</span>
+                      </div>
+                      <div className="text-xs text-text-secondary mt-1">
+                        Último Check-in: <span className="font-medium">{fmtDate(u.ultimo_checkin)}</span>
+                      </div>
+                    </div>
+                  ))}
+                  {getModalUsers().length === 0 && (
+                    <div className="text-center text-text-secondary py-8">Nenhum usuário encontrado.</div>
+                  )}
+                </div>
+              </PremiumCard>
+            </div>
+          )}
         </>
       )}
     </div>
@@ -712,15 +765,19 @@ export default function PresenceReport() {
 // ─── MetricBlock (local card) ─────────────────────────────────────────────────
 
 function MetricBlock({
-  icon, label, value, bg,
+  icon, label, value, bg, onClick
 }: {
   icon: React.ReactNode;
   label: string;
   value: string;
   bg: string;
+  onClick?: () => void;
 }) {
   return (
-    <PremiumCard className="p-4 flex flex-col gap-2">
+    <PremiumCard
+      className={`p-4 flex flex-col gap-2 ${onClick ? 'cursor-pointer hover:border-gold-400 transition-colors' : ''}`}
+      onClick={onClick}
+    >
       <div className={`w-8 h-8 rounded-xl ${bg} flex items-center justify-center`}>
         {icon}
       </div>
