@@ -124,6 +124,7 @@ export interface TrainingItem {
   thumbnail?: string;
   duration?: string;
   description?: string;
+  xp_reward?: number;
   progress?: number;
   created_by?: string;
   created_at?: string;
@@ -235,6 +236,7 @@ interface AppContextValue {
   addTraining: (data: Omit<TrainingItem, 'id' | 'created_at'>) => Promise<void>;
   updateTraining: (id: string, data: Partial<TrainingItem>) => Promise<void>;
   deleteTraining: (id: string) => Promise<void>;
+  completeTraining: (id: string) => Promise<void>;
 }
 
 // ─── Context ─────────────────────────────────────────────────────────────────
@@ -962,9 +964,28 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     try {
       const { data, error } = await supabase.from('trainings').select('*').order('created_at', { ascending: false });
       if (error) throw error;
-      setTrainings(data || []);
+
+      let completionsMap: Record<string, boolean> = {};
+      if (user) {
+        const { data: compData, error: compError } = await supabase
+          .from('training_completions')
+          .select('training_id')
+          .eq('user_id', user.id);
+
+        if (!compError && compData) {
+          compData.forEach(c => {
+            completionsMap[c.training_id] = true;
+          });
+        }
+      }
+
+      const transformed = (data || []).map(t => ({
+        ...t,
+        progress: completionsMap[t.id] ? 100 : 0
+      }));
+      setTrainings(transformed);
     } catch (e) { console.error('Erro ao buscar treinamentos:', e); }
-  }, []);
+  }, [user]);
 
   const addTraining = useCallback(async (data: Omit<TrainingItem, 'id' | 'created_at'>) => {
     try {
@@ -989,6 +1010,26 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       await refreshTrainings();
     } catch (e) { console.error('Erro ao deletar treinamento:', e); }
   }, [refreshTrainings]);
+
+  const completeTraining = useCallback(async (id: string) => {
+    try {
+      if (!user) return;
+      // We do a direct insert. If it fails due to UNIQUE constraint, it just means they already completed it.
+      const { error } = await supabase.from('training_completions').insert({
+        user_id: user.id,
+        training_id: id
+      });
+      // We don't throw error if it's a conflict (23505) because the user already completed it
+      if (error && error.code !== '23505') {
+        console.error('Erro ao concluir treinamento:', error);
+      } else {
+        // Refresh to reflect the 100% completion status
+        await refreshTrainings();
+      }
+    } catch (e) {
+      console.error('Erro ao registrar conclusão do treinamento:', e);
+    }
+  }, [user, refreshTrainings]);
 
   // ─── Init ─────────────────────────────────────────────────────────────────
 
@@ -1094,6 +1135,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       addTraining,
       updateTraining,
       deleteTraining,
+      completeTraining,
     }}>
       {children}
     </AppContext.Provider>

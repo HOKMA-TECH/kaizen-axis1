@@ -167,7 +167,7 @@ function getYouTubeDuration(videoId: string): Promise<string | null> {
 
 export default function Training() {
   const { isBroker, canCreateStrategicResources } = useAuthorization();
-  const { trainings, addTraining, updateTraining, deleteTraining, getDownloadUrl } = useApp();
+  const { trainings, addTraining, updateTraining, deleteTraining, getDownloadUrl, completeTraining } = useApp();
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [viewingItem, setViewingItem] = useState<TrainingItem | null>(null);
   const [viewingUrl, setViewingUrl] = useState<string | null>(null);
@@ -186,7 +186,8 @@ export default function Training() {
     type: 'Vídeo',
     url: '',
     duration: '',
-    description: ''
+    description: '',
+    xp_reward: 0
   });
 
   const resetAutoMeta = () => {
@@ -204,11 +205,12 @@ export default function Training() {
         url: item.url,
         duration: item.duration,
         description: item.description,
+        xp_reward: item.xp_reward || 0
       });
       setPreviewThumb(item.thumbnail || '');
     } else {
       setEditingItemId(null);
-      setFormData({ title: '', type: 'Vídeo', url: '', duration: '', description: '' });
+      setFormData({ title: '', type: 'Vídeo', url: '', duration: '', description: '', xp_reward: 0 });
       resetAutoMeta();
     }
     setSelectedFile(null);
@@ -298,6 +300,48 @@ export default function Training() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [viewingItem]);
 
+  // --- Tracking Completion ---
+  const pdfTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Timer for PDF completion
+  useEffect(() => {
+    if (viewingItem && viewingItem.type === 'PDF' && viewingItem.progress !== 100) {
+      pdfTimerRef.current = setTimeout(() => {
+        completeTraining(viewingItem.id);
+      }, 120000); // 2 minutes
+    }
+
+    return () => {
+      if (pdfTimerRef.current) clearTimeout(pdfTimerRef.current);
+    };
+  }, [viewingItem, completeTraining]);
+
+  useEffect(() => {
+    if (viewingItem && viewingItem.type === 'Vídeo' && viewingItem.progress !== 100) {
+      const isYT = viewingItem.url.includes('youtube.com') || viewingItem.url.includes('youtu.be');
+      if (isYT) {
+        // Need to wait for iframe to render
+        const checkIframe = setInterval(() => {
+          const iframe = document.getElementById(`yt-player-${viewingItem.id}`) as HTMLIFrameElement;
+          if (iframe && (window as any).YT && (window as any).YT.Player) {
+            clearInterval(checkIframe);
+            new (window as any).YT.Player(`yt-player-${viewingItem.id}`, {
+              events: {
+                'onStateChange': (event: any) => {
+                  // YT.PlayerState.ENDED == 0
+                  if (event.data === 0) {
+                    completeTraining(viewingItem.id);
+                  }
+                }
+              }
+            });
+          }
+        }, 500);
+        return () => clearInterval(checkIframe);
+      }
+    }
+  }, [viewingItem, completeTraining]);
+
   const handleSave = async () => {
     if (!formData.title || (!formData.url && !selectedFile)) return;
     setIsSaving(true);
@@ -353,6 +397,7 @@ export default function Training() {
         url: finalUrl,
         duration: formData.duration || 'N/A',
         description: formData.description || '',
+        xp_reward: formData.xp_reward || 0,
       };
 
       if (editingItemId) {
@@ -362,7 +407,7 @@ export default function Training() {
       }
 
       setIsAddModalOpen(false);
-      setFormData({ title: '', type: 'Vídeo', url: '', duration: '', description: '' });
+      setFormData({ title: '', type: 'Vídeo', url: '', duration: '', description: '', xp_reward: 0 });
       setSelectedFile(null);
       resetAutoMeta();
     } finally {
@@ -431,7 +476,14 @@ export default function Training() {
             <div className="flex-1 flex flex-col justify-between py-1">
               <div>
                 <h4 className="font-semibold text-text-primary line-clamp-2 leading-tight">{item.title}</h4>
-                <p className="text-xs text-text-secondary mt-1">{item.type} • {item.duration}</p>
+                <p className="text-xs text-text-secondary mt-1 flex items-center gap-1">
+                  <span>{item.type} • {item.duration}</span>
+                  {item.xp_reward && item.xp_reward > 0 && (
+                    <span className="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 px-1.5 py-0.5 rounded text-[10px] font-bold">
+                      +{item.xp_reward} XP
+                    </span>
+                  )}
+                </p>
               </div>
 
               <div className="mt-2">
@@ -538,14 +590,28 @@ export default function Training() {
             </div>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-text-secondary mb-1">Duração / Páginas</label>
-            <input
-              value={formData.duration}
-              onChange={(e) => setFormData(prev => ({ ...prev, duration: e.target.value }))}
-              className="w-full p-3 bg-surface-50 rounded-xl border-none focus:ring-2 focus:ring-gold-200 dark:focus:ring-gold-800 text-text-primary"
-              placeholder="Ex: 30 min, 10 pág"
-            />
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-text-secondary mb-1">Duração / Páginas</label>
+              <input
+                value={formData.duration}
+                onChange={(e) => setFormData(prev => ({ ...prev, duration: e.target.value }))}
+                className="w-full p-3 bg-surface-50 rounded-xl border-none focus:ring-2 focus:ring-gold-200 dark:focus:ring-gold-800 text-text-primary"
+                placeholder="Ex: 30 min, 10 pág"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-text-secondary mb-1">Recompensa (XP)</label>
+              <input
+                type="number"
+                min="0"
+                value={formData.xp_reward}
+                onChange={(e) => setFormData(prev => ({ ...prev, xp_reward: parseInt(e.target.value) || 0 }))}
+                className="w-full p-3 bg-surface-50 rounded-xl border-none focus:ring-2 focus:ring-gold-200 dark:focus:ring-gold-800 text-text-primary"
+                placeholder="Ex: 50"
+              />
+            </div>
           </div>
 
           <div>
@@ -612,13 +678,15 @@ export default function Training() {
                             videoId = u.searchParams.get('v') ||
                               u.pathname.replace('/shorts/', '').replace('/embed/', '').slice(1);
                           }
-                          return `https://www.youtube.com/embed/${videoId}`;
+                          // Enable JS API for tracking completion
+                          return `https://www.youtube.com/embed/${videoId}?enablejsapi=1`;
                         } catch {
                           return url;
                         }
                       };
                       return (
                         <iframe
+                          id={`yt-player-${viewingItem.id}`}
                           src={toEmbedUrl(viewingUrl)}
                           className="w-full aspect-video"
                           title={viewingItem.title}
@@ -634,6 +702,11 @@ export default function Training() {
                         controls
                         className="w-full aspect-video outline-none"
                         title={viewingItem.title}
+                        onEnded={() => {
+                          if (viewingItem.progress !== 100) {
+                            completeTraining(viewingItem.id);
+                          }
+                        }}
                       />
                     );
                   })()}
