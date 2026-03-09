@@ -36,7 +36,7 @@ import CheckInDisplay from '@/pages/CheckInDisplay';
 // ─── Auth guard (all authenticated users) ───────────────────────────────────
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const isAuthenticated = localStorage.getItem('isAuthenticated');
-  const { profile, loading } = useApp();
+  const { profile, loading, session } = useApp();
 
   // Show a blank loading screen (or simple spinner) while Auth context initializes
   if (loading) {
@@ -47,7 +47,12 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
     );
   }
 
-  if (!isAuthenticated) return <Navigate to="/login" replace />;
+  if (!isAuthenticated || !session) {
+    if (isAuthenticated) {
+      localStorage.removeItem('isAuthenticated');
+    }
+    return <Navigate to="/login" replace />;
+  }
 
   if (profile && (profile.status === 'Pendente' || profile.status === 'pending')) {
     return <Navigate to="/pending" replace />;
@@ -68,7 +73,7 @@ function RoleRoute({
 }) {
   const isAuthenticated = localStorage.getItem('isAuthenticated');
   const { role } = useAuthorization();
-  const { profile, loading } = useApp();
+  const { profile, loading, session } = useApp();
 
   if (loading) {
     return (
@@ -78,7 +83,12 @@ function RoleRoute({
     );
   }
 
-  if (!isAuthenticated) return <Navigate to="/login" replace />;
+  if (!isAuthenticated || !session) {
+    if (isAuthenticated) {
+      localStorage.removeItem('isAuthenticated');
+    }
+    return <Navigate to="/login" replace />;
+  }
 
   if (profile && (profile.status === 'Pendente' || profile.status === 'pending')) {
     return <Navigate to="/pending" replace />;
