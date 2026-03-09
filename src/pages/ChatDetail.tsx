@@ -69,11 +69,15 @@ const ViewOnceCard = (
     <div className="w-9 h-9 rounded-full bg-black/10 dark:bg-white/10 flex items-center justify-center flex-shrink-0">
       {msg.type === 'video'
         ? <Play size={16} className="text-text-primary fill-current ml-0.5" />
-        : <ImageIcon size={16} className="text-text-primary" />}
+        : msg.type === 'text'
+          ? <Eye size={16} className="text-text-primary" />
+          : <ImageIcon size={16} className="text-text-primary" />}
     </div>
     <div className="flex flex-col items-start min-w-0">
       <span className="text-sm font-medium text-text-primary leading-tight">Visualização única</span>
-      <span className="text-[11px] text-text-secondary">Toque para abrir</span>
+      <span className="text-[11px] text-text-secondary">
+        {msg.type === 'text' ? 'Toque para ler' : 'Toque para abrir'}
+      </span>
     </div>
     <Lock size={12} className="text-text-secondary ml-auto flex-shrink-0 opacity-60" />
   </button>
@@ -415,6 +419,7 @@ export default function ChatDetail() {
   const [isRecording, setIsRecording] = useState(false);
   const [isViewOnce, setIsViewOnce] = useState(false);
   const [viewOnceModalMsgId, setViewOnceModalMsgId] = useState<string | null>(null);
+  const [viewOnceTextMsgId, setViewOnceTextMsgId] = useState<string | null>(null);
 
   // Pagination
   const [hasMore, setHasMore] = useState(false);
@@ -753,7 +758,9 @@ export default function ChatDetail() {
     // Upload media to storage
     let mediaUrl = existingUrl;
     let mediaPath: string | undefined;
-    const useViewOnce = viewOnceFlag ?? false;
+    // For text-only messages, use the isViewOnce toggle state when no explicit flag is passed
+    const useViewOnce = viewOnceFlag !== undefined ? viewOnceFlag : (type === 'text' && !file ? isViewOnce : false);
+    if (type === 'text' && !file) setIsViewOnce(false); // reset toggle after text send
 
     if (file) {
       setIsUploading(true);
@@ -1277,7 +1284,13 @@ export default function ChatDetail() {
 
                 {/* ── VIEW ONCE: pending tap to open ── */}
                 {isViewOncePending && (
-                  <ViewOnceCard msg={msg} onOpen={() => setViewOnceModalMsgId(msg.id)} />
+                  <ViewOnceCard
+                    msg={msg}
+                    onOpen={() => msg.type === 'text'
+                      ? setViewOnceTextMsgId(msg.id)
+                      : setViewOnceModalMsgId(msg.id)
+                    }
+                  />
                 )}
 
                 {/* ── Regular media (non view-once) ── */}
@@ -1322,12 +1335,16 @@ export default function ChatDetail() {
                     <span className="text-sm truncate max-w-[150px] font-medium">{msg.fileName || 'Documento'}</span>
                   </div>
                 )}
-                {msg.text && (
-                  <div className={`text-sm leading-relaxed ${['image', 'video'].includes(msg.type) && !isViewOnceMsg ? 'px-1 pt-1' : ''}`}>
+                {msg.text && !isViewOnceMsg && (
+                  <div className={`text-sm leading-relaxed ${['image', 'video'].includes(msg.type) ? 'px-1 pt-1' : ''}`}>
                     {msg.senderId === 'kai-agent'
                       ? <ReactMarkdown>{msg.text}</ReactMarkdown>
                       : msg.text}
                   </div>
+                )}
+                {/* View Once text: show content only for sender (receiver uses modal) */}
+                {msg.text && isViewOnceMsg && msg.isMe && (
+                  <p className="text-sm leading-relaxed text-text-secondary italic">{msg.text}</p>
                 )}
                 <div className={`flex items-center justify-end gap-1 text-[10px] mt-1 ${isMediaOnly
                   ? 'absolute bottom-1.5 right-2 text-white/95 drop-shadow-md bg-black/40 px-2 py-0.5 rounded-full backdrop-blur-sm'
@@ -1468,7 +1485,10 @@ export default function ChatDetail() {
             </button>
           </div>
         ) : (
-          <div className="flex-1 bg-surface-50 dark:bg-surface-200 rounded-2xl px-4 py-2 flex items-center">
+          <div className={`flex-1 bg-surface-50 dark:bg-surface-200 rounded-2xl px-4 py-2 flex items-center gap-2 ${isViewOnce ? 'ring-1 ring-gold-500/40' : ''}`}>
+            {isViewOnce && (
+              <Lock size={14} className="text-gold-500 flex-shrink-0" />
+            )}
             <textarea
               rows={1}
               value={inputValue}
@@ -1484,9 +1504,18 @@ export default function ChatDetail() {
                   handleSendMessage();
                 }
               }}
-              placeholder="Mensagem"
+              placeholder={isViewOnce ? 'Mensagem de visualização única...' : 'Mensagem'}
               className="flex-1 bg-transparent border-none outline-none text-text-primary placeholder:text-text-secondary resize-none min-h-[24px] max-h-[120px] overflow-y-auto leading-6"
             />
+            {!isKAI && (
+              <button
+                onClick={() => setIsViewOnce(v => !v)}
+                className={`p-1 rounded-full transition-colors flex-shrink-0 ${isViewOnce ? 'text-gold-500' : 'text-text-secondary opacity-40 hover:opacity-80'}`}
+                title={isViewOnce ? 'Desativar Visualização Única' : 'Ativar Visualização Única'}
+              >
+                <Eye size={16} />
+              </button>
+            )}
           </div>
         )}
 
@@ -1580,9 +1609,8 @@ export default function ChatDetail() {
               <div className="flex items-center gap-2">
                 <input value={inputValue} onChange={e => setInputValue(e.target.value)}
                   onKeyDown={e => e.key === 'Enter' && confirmSendMedia()}
-                  placeholder={isViewOnce ? 'Sem legenda (Visualização Única)' : 'Adicionar legenda...'}
-                  disabled={isViewOnce}
-                  className="flex-1 bg-white/10 text-white placeholder:text-white/50 border-none outline-none rounded-full px-4 py-3 disabled:opacity-50" />
+                  placeholder="Adicionar legenda..."
+                  className="flex-1 bg-white/10 text-white placeholder:text-white/50 border-none outline-none rounded-full px-4 py-3" />
                 <button onClick={confirmSendMedia}
                   className="bg-gold-500 text-white p-3 rounded-full flex items-center justify-center">
                   <Send size={20} />
@@ -1637,6 +1665,48 @@ export default function ChatDetail() {
           )}
         </div>
       )}
+
+      {/* View Once Text Modal */}
+      {viewOnceTextMsgId && (() => {
+        const msg = messages.find(m => m.id === viewOnceTextMsgId);
+        if (!msg) return null;
+        const closeTextModal = () => {
+          setViewOnceTextMsgId(null);
+          setMessages(prev => prev.map(m =>
+            m.id === viewOnceTextMsgId ? { ...m, isLocked: true, viewedAt: new Date().toISOString() } : m
+          ));
+          supabase.from('chat_messages')
+            .update({ is_locked: true, viewed_at: new Date().toISOString() })
+            .eq('id', viewOnceTextMsgId);
+        };
+        return (
+          <div
+            className="fixed inset-0 z-[300] bg-black/90 flex flex-col"
+            onClick={closeTextModal}
+          >
+            <div className="flex items-center justify-between p-4 text-white">
+              <button onClick={closeTextModal} className="p-2 hover:bg-white/10 rounded-full">
+                <X size={24} />
+              </button>
+              <span className="text-sm font-medium flex items-center gap-1.5">
+                <Eye size={14} /> Visualização Única
+              </span>
+              <div className="w-10" />
+            </div>
+            <div
+              className="flex-1 flex items-center justify-center p-8"
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="bg-white dark:bg-[#202c33] rounded-2xl p-6 max-w-sm w-full shadow-2xl">
+                <p className="text-text-primary text-base leading-relaxed">{msg.text}</p>
+              </div>
+            </div>
+            <div className="p-4 text-center">
+              <p className="text-white/50 text-xs">Toque fora para fechar — a mensagem desaparecerá</p>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* View Once Modal */}
       {viewOnceModalMsgId && (() => {
