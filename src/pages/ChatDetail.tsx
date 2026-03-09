@@ -737,7 +737,7 @@ export default function ChatDetail() {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode },
         audio: {
-          echoCancellation: true,
+          echoCancellation: false,
           noiseSuppression: false,
           autoGainControl: false,
         }
@@ -836,7 +836,7 @@ export default function ChatDetail() {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: {
-          echoCancellation: true,
+          echoCancellation: false,
           noiseSuppression: false,
           autoGainControl: false,
         }
