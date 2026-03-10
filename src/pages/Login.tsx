@@ -138,11 +138,14 @@ export default function Login() {
 
       {/* ── Fullscreen Background Art ── */}
       <div className="absolute inset-0 z-0 overflow-hidden bg-surface-50">
-        <img
-          src="/bg-login.png"
-          alt="Kaizen Axis"
-          className="absolute inset-0 w-full h-full object-cover"
-        />
+        <picture>
+          <source media="(max-width: 768px)" srcSet="/bg-login-mobile.png?v=3" />
+          <img
+            src="/bg-login-desktop.png?v=3"
+            alt="Kaizen Axis"
+            className="absolute inset-0 w-full h-full object-cover"
+          />
+        </picture>
         {/* Subtle overlay to ensure the login card stands out regardless of the image's brightness */}
         <div className="absolute inset-0 bg-white/20 dark:bg-black/40 backdrop-blur-sm mix-blend-overlay" />
       </div>
