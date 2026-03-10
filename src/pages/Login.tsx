@@ -140,9 +140,9 @@ export default function Login() {
       <div className="hidden lg:flex relative w-1/2 overflow-hidden bg-black items-end p-16 xl:p-24">
         {/* Placeholder High-End Real Estate Image (Unsplash) */}
         <img
-          src="https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?q=80&w=2075&auto=format&fit=crop"
-          alt="Luxury Real Estate"
-          className="absolute inset-0 w-full h-full object-cover opacity-70 transition-transform duration-10000 hover:scale-105"
+          src="/pwa-512x512.png"
+          alt="Kaizen Axis"
+          className="absolute inset-0 w-full h-full object-contain p-20 opacity-30 transition-transform duration-10000 hover:scale-[1.02]"
         />
         {/* Elegant Gradient Overlay */}
         <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/40 to-transparent" />
@@ -168,9 +168,9 @@ export default function Login() {
         {/* Mobile Background (Blurred) */}
         <div className="absolute inset-0 lg:hidden z-0 overflow-hidden bg-black">
           <img
-            src="https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?q=80&w=2075&auto=format&fit=crop"
-            alt="Premium Real Estate Background"
-            className="absolute inset-0 w-full h-full object-cover opacity-40"
+            src="/pwa-512x512.png"
+            alt="Kaizen Axis"
+            className="absolute inset-0 w-full h-full object-cover opacity-30 blur-2xl top-[-20%] scale-150"
           />
           <div className="absolute inset-0 bg-surface-50/80 dark:bg-surface-900/80 backdrop-blur-xl" />
         </div>
