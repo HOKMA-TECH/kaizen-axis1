@@ -134,144 +134,189 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen bg-surface-50 flex flex-col justify-center items-center p-6">
-      <div className="w-full max-w-md bg-white dark:bg-surface-100 rounded-3xl shadow-xl p-8 animate-in fade-in zoom-in-95 duration-500 relative overflow-hidden">
+    <div className="min-h-screen w-full flex bg-surface-50 dark:bg-surface-900 font-sans selection:bg-gold-500/30">
 
-        <div className="flex flex-col items-center mb-8 relative z-10">
-          <div className="w-16 h-16 bg-gold-500 rounded-2xl flex items-center justify-center text-white mb-4 shadow-lg shadow-gold-500/30">
-            {showMfaInput ? <ShieldCheck size={32} /> : <Building2 size={32} />}
+      {/* ── Left Side: Premium Background Art (Desktop) ── */}
+      <div className="hidden lg:flex relative w-1/2 overflow-hidden bg-black items-end p-16 xl:p-24">
+        {/* Placeholder High-End Real Estate Image (Unsplash) */}
+        <img
+          src="https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?q=80&w=2075&auto=format&fit=crop"
+          alt="Luxury Real Estate"
+          className="absolute inset-0 w-full h-full object-cover opacity-70 transition-transform duration-10000 hover:scale-105"
+        />
+        {/* Elegant Gradient Overlay */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/40 to-transparent" />
+        <div className="absolute inset-0 bg-gold-900/10 mix-blend-overlay" />
+
+        {/* Brand Content */}
+        <div className="relative z-10 text-white max-w-xl mb-4 animate-in fade-in slide-in-from-bottom-10 duration-1000">
+          <div className="w-16 h-16 bg-gradient-to-br from-gold-400 to-gold-600 rounded-2xl flex items-center justify-center text-white mb-8 shadow-xl shadow-gold-500/20">
+            <Building2 size={32} />
           </div>
-          <h1 className="text-2xl font-bold text-text-primary">Kaizen Axis</h1>
-          <p className="text-sm text-text-secondary mt-1 text-center">
-            {showMfaInput
-              ? 'Autenticação em Dois Fatores'
-              : isLogin ? 'Bem-vindo de volta' : 'Crie sua conta'}
+          <h1 className="text-5xl lg:text-6xl font-bold mb-6 tracking-tight text-white drop-shadow-sm">
+            Kaizen Axis
+          </h1>
+          <p className="text-lg lg:text-xl text-white/80 leading-relaxed font-light drop-shadow">
+            O hub definitivo de gestão inteligente para profissionais que operam no mercado imobiliário de alto padrão.
           </p>
         </div>
+      </div>
 
-        {/* ── Tela MFA ──────────────────────────────────────────────────────── */}
-        {showMfaInput ? (
-          <form onSubmit={handleMfaSubmit} className="space-y-6 animate-in slide-in-from-right-8 duration-300 relative z-10">
-            <div className="text-center text-sm text-text-secondary mb-2">
-              Abra seu Google Authenticator ou Authy e digite o código de 6 dígitos para o Kaizen Axis.
+      {/* ── Right Side: Login Form ── */}
+      <div className="flex-1 flex flex-col justify-center items-center p-6 relative">
+
+        {/* Mobile Background (Blurred) */}
+        <div className="absolute inset-0 lg:hidden z-0 overflow-hidden bg-black">
+          <img
+            src="https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?q=80&w=2075&auto=format&fit=crop"
+            alt="Premium Real Estate Background"
+            className="absolute inset-0 w-full h-full object-cover opacity-40"
+          />
+          <div className="absolute inset-0 bg-surface-50/80 dark:bg-surface-900/80 backdrop-blur-xl" />
+        </div>
+
+        {/* Glassmorphism Card */}
+        <div className="w-full max-w-md bg-white/95 dark:bg-surface-100/95 backdrop-blur-md rounded-[2rem] shadow-2xl shadow-black/5 p-8 lg:p-10 animate-in fade-in zoom-in-95 duration-500 relative z-10 border border-white/50 dark:border-surface-700/50">
+
+          <div className="flex flex-col items-center mb-10 text-center">
+            {/* Mobile Logo */}
+            <div className="lg:hidden w-16 h-16 bg-gradient-to-br from-gold-400 to-gold-600 rounded-2xl flex items-center justify-center text-white mb-6 shadow-lg shadow-gold-500/30">
+              {showMfaInput ? <ShieldCheck size={32} /> : <Building2 size={32} />}
             </div>
 
-            <div>
-              <input
-                type="text"
-                inputMode="numeric"
-                maxLength={6}
-                value={mfaCode}
-                onChange={e => setMfaCode(e.target.value.replace(/\D/g, ''))}
-                className="w-full py-4 text-center tracking-[0.5em] text-2xl font-mono bg-surface-50 rounded-xl border-none focus:ring-2 focus:ring-gold-500 text-text-primary placeholder:tracking-normal"
-                placeholder="000000"
-                autoFocus
-                required
-              />
-            </div>
-
-            <RoundedButton type="submit" fullWidth className="py-4 text-base" disabled={loading || mfaCode.length !== 6}>
-              {loading ? <Loader2 size={20} className="animate-spin" /> : 'Verificar e Entrar'}
-            </RoundedButton>
-
-            <button
-              type="button"
-              onClick={() => { setShowMfaInput(false); setMfaCode(''); }}
-              className="flex items-center justify-center gap-2 text-sm text-text-secondary hover:text-text-primary w-full mt-4 transition-colors p-2"
-              disabled={loading}
-            >
-              <ArrowLeft size={16} /> Voltar ao Login
-            </button>
-          </form>
-
-        ) : (
-          /* ── Tela Login/Cadastro Padrão ───────────────────────────────────── */
-          <form onSubmit={handleSubmit} className="space-y-4 relative z-10">
-            {!isLogin && (
-              <div className="animate-in slide-in-from-top-4 duration-300 space-y-4">
-                <div className="relative">
-                  <User className="absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary" size={20} />
-                  <input
-                    type="text"
-                    name="name"
-                    placeholder="Nome completo"
-                    required
-                    value={formData.name}
-                    onChange={handleChange}
-                    className="w-full pl-10 pr-4 py-3 bg-surface-50 rounded-xl border-none focus:ring-2 focus:ring-gold-500 text-text-primary"
-                  />
-                </div>
-              </div>
-            )}
-
-            <div className="relative">
-              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary" size={20} />
-              <input
-                type="email"
-                name="email"
-                placeholder="E-mail"
-                required
-                value={formData.email}
-                onChange={handleChange}
-                className="w-full pl-10 pr-4 py-3 bg-surface-50 rounded-xl border-none focus:ring-2 focus:ring-gold-500 text-text-primary"
-              />
-            </div>
-
-            <div className="relative">
-              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary" size={20} />
-              <input
-                type="password"
-                name="password"
-                placeholder="Senha"
-                required
-                value={formData.password}
-                onChange={handleChange}
-                className="w-full pl-10 pr-4 py-3 bg-surface-50 rounded-xl border-none focus:ring-2 focus:ring-gold-500 text-text-primary"
-              />
-            </div>
-
-            {!isLogin && (
-              <div className="relative animate-in slide-in-from-top-4 duration-300">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary" size={20} />
-                <input
-                  type="password"
-                  name="confirmPassword"
-                  placeholder="Confirme a senha"
-                  required
-                  value={formData.confirmPassword}
-                  onChange={handleChange}
-                  className="w-full pl-10 pr-4 py-3 bg-surface-50 rounded-xl border-none focus:ring-2 focus:ring-gold-500 text-text-primary"
-                />
-              </div>
-            )}
-
-            {isLogin && (
-              <div className="flex justify-end items-center px-1">
-                <button type="button" className="text-xs font-medium text-gold-600 hover:text-gold-500 transition-colors">
-                  Esqueceu a senha?
-                </button>
-              </div>
-            )}
-
-            <RoundedButton type="submit" fullWidth className="mt-6 py-4 text-base" disabled={loading}>
-              {loading ? <Loader2 size={20} className="animate-spin" /> : (isLogin ? 'Entrar' : 'Cadastrar')}
-            </RoundedButton>
-          </form>
-        )}
-
-        {!showMfaInput && (
-          <div className="mt-8 text-center relative z-10">
-            <p className="text-sm text-text-secondary">
-              {isLogin ? 'Ainda não tem uma conta?' : 'Já possui uma conta?'}
-              <button
-                onClick={() => setIsLogin(!isLogin)}
-                className="ml-1 font-bold text-gold-600 hover:text-gold-500 transition-colors"
-              >
-                {isLogin ? 'Cadastre-se' : 'Faça login'}
-              </button>
+            <h2 className="text-2xl font-bold text-text-primary tracking-tight">
+              {showMfaInput ? 'Autenticação' : (isLogin ? 'Bem-vindo de volta' : 'Criar Nova Conta')}
+            </h2>
+            <p className="text-sm text-text-secondary mt-2">
+              {showMfaInput
+                ? 'Proteção em Dois Fatores'
+                : 'Insira suas credenciais para acessar a plataforma'}
             </p>
           </div>
-        )}
+
+          {/* ── Tela MFA ──────────────────────────────────────────────────────── */}
+          {showMfaInput ? (
+            <form onSubmit={handleMfaSubmit} className="space-y-6 animate-in slide-in-from-right-8 duration-300">
+              <div className="text-center text-sm text-text-secondary bg-surface-50 dark:bg-surface-800 p-4 rounded-xl">
+                Abra seu Google Authenticator ou Authy e digite o código de 6 dígitos para o Kaizen Axis.
+              </div>
+
+              <div>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={6}
+                  value={mfaCode}
+                  onChange={e => setMfaCode(e.target.value.replace(/\D/g, ''))}
+                  className="w-full py-4 text-center tracking-[0.75em] text-3xl font-mono bg-surface-50 dark:bg-surface-800/50 rounded-xl border border-surface-200 dark:border-surface-700 focus:ring-2 focus:ring-gold-500 focus:border-gold-500 transition-all text-text-primary placeholder:tracking-normal placeholder:text-lg focus:outline-none"
+                  placeholder="000000"
+                  autoFocus
+                  required
+                />
+              </div>
+
+              <RoundedButton type="submit" fullWidth className="py-4 text-base font-semibold shadow-gold-500/20 shadow-lg" disabled={loading || mfaCode.length !== 6}>
+                {loading ? <Loader2 size={20} className="animate-spin" /> : 'Verificar e Entrar'}
+              </RoundedButton>
+
+              <button
+                type="button"
+                onClick={() => { setShowMfaInput(false); setMfaCode(''); }}
+                className="flex items-center justify-center gap-2 text-sm font-medium text-text-secondary hover:text-text-primary w-full mt-2 transition-colors py-2"
+                disabled={loading}
+              >
+                <ArrowLeft size={16} /> Voltar ao Login
+              </button>
+            </form>
+          ) : (
+            /* ── Tela Login/Cadastro Padrão ───────────────────────────────────── */
+            <form onSubmit={handleSubmit} className="space-y-5">
+              {!isLogin && (
+                <div className="animate-in slide-in-from-top-4 duration-300">
+                  <div className="relative group">
+                    <User className="absolute left-4 top-1/2 -translate-y-1/2 text-text-secondary group-focus-within:text-gold-500 transition-colors" size={20} />
+                    <input
+                      type="text"
+                      name="name"
+                      placeholder="Nome completo"
+                      required
+                      value={formData.name}
+                      onChange={handleChange}
+                      className="w-full pl-12 pr-4 py-3.5 bg-surface-50 dark:bg-surface-800/50 rounded-xl border border-surface-200 dark:border-surface-700 focus:ring-2 focus:ring-gold-500 focus:border-gold-500 transition-all text-sm text-text-primary focus:outline-none"
+                    />
+                  </div>
+                </div>
+              )}
+
+              <div className="relative group">
+                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-text-secondary group-focus-within:text-gold-500 transition-colors" size={20} />
+                <input
+                  type="email"
+                  name="email"
+                  placeholder="E-mail profissional"
+                  required
+                  value={formData.email}
+                  onChange={handleChange}
+                  className="w-full pl-12 pr-4 py-3.5 bg-surface-50 dark:bg-surface-800/50 rounded-xl border border-surface-200 dark:border-surface-700 focus:ring-2 focus:ring-gold-500 focus:border-gold-500 transition-all text-sm text-text-primary focus:outline-none"
+                />
+              </div>
+
+              <div className="relative group">
+                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-text-secondary group-focus-within:text-gold-500 transition-colors" size={20} />
+                <input
+                  type="password"
+                  name="password"
+                  placeholder="Senha"
+                  required
+                  value={formData.password}
+                  onChange={handleChange}
+                  className="w-full pl-12 pr-4 py-3.5 bg-surface-50 dark:bg-surface-800/50 rounded-xl border border-surface-200 dark:border-surface-700 focus:ring-2 focus:ring-gold-500 focus:border-gold-500 transition-all text-sm text-text-primary focus:outline-none"
+                />
+              </div>
+
+              {!isLogin && (
+                <div className="relative animate-in slide-in-from-top-4 duration-300 group">
+                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-text-secondary group-focus-within:text-gold-500 transition-colors" size={20} />
+                  <input
+                    type="password"
+                    name="confirmPassword"
+                    placeholder="Confirme a senha"
+                    required
+                    value={formData.confirmPassword}
+                    onChange={handleChange}
+                    className="w-full pl-12 pr-4 py-3.5 bg-surface-50 dark:bg-surface-800/50 rounded-xl border border-surface-200 dark:border-surface-700 focus:ring-2 focus:ring-gold-500 focus:border-gold-500 transition-all text-sm text-text-primary focus:outline-none"
+                  />
+                </div>
+              )}
+
+              {isLogin && (
+                <div className="flex justify-end items-center px-1">
+                  <button type="button" className="text-xs font-semibold text-gold-600 hover:text-gold-500 transition-colors">
+                    Esqueceu a senha?
+                  </button>
+                </div>
+              )}
+
+              <RoundedButton type="submit" fullWidth className="mt-8 py-4 text-base font-semibold shadow-gold-500/20 shadow-lg" disabled={loading}>
+                {loading ? <Loader2 size={20} className="animate-spin" /> : (isLogin ? 'Entrar na Plataforma' : 'Cadastrar Conta')}
+              </RoundedButton>
+            </form>
+          )}
+
+          {!showMfaInput && (
+            <div className="mt-8 text-center border-t border-surface-100 dark:border-surface-800 pt-6">
+              <p className="text-sm text-text-secondary">
+                {isLogin ? 'Novo por aqui?' : 'Já faz parte da equipe?'}
+                <button
+                  onClick={() => setIsLogin(!isLogin)}
+                  className="ml-1.5 font-bold text-gold-600 hover:text-gold-500 transition-colors"
+                >
+                  {isLogin ? 'Solicite acesso' : 'Faça login'}
+                </button>
+              </p>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
