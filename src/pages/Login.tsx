@@ -137,42 +137,20 @@ export default function Login() {
     <div className="min-h-screen w-full flex bg-surface-50 dark:bg-surface-900 font-sans selection:bg-gold-500/30">
 
       {/* ── Left Side: Premium Background Art (Desktop) ── */}
-      <div className="hidden lg:flex relative w-1/2 overflow-hidden bg-black items-end p-16 xl:p-24">
-        {/* Placeholder High-End Real Estate Image (Unsplash) */}
+      <div className="hidden lg:flex relative w-1/2 overflow-hidden bg-surface-50 items-center justify-center">
         <img
-          src="/pwa-512x512.png"
+          src="/bg-login.png"
           alt="Kaizen Axis"
-          className="absolute inset-0 w-full h-full object-contain p-20 opacity-30 transition-transform duration-10000 hover:scale-[1.02]"
+          className="absolute inset-0 w-full h-full object-cover"
         />
-        {/* Elegant Gradient Overlay */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/40 to-transparent" />
-        <div className="absolute inset-0 bg-gold-900/10 mix-blend-overlay" />
-
-        {/* Brand Content */}
-        <div className="relative z-10 text-white max-w-xl mb-4 animate-in fade-in slide-in-from-bottom-10 duration-1000">
-          <div className="w-16 h-16 bg-gradient-to-br from-gold-400 to-gold-600 rounded-2xl flex items-center justify-center text-white mb-8 shadow-xl shadow-gold-500/20">
-            <Building2 size={32} />
-          </div>
-          <h1 className="text-5xl lg:text-6xl font-bold mb-6 tracking-tight text-white drop-shadow-sm">
-            Kaizen Axis
-          </h1>
-          <p className="text-lg lg:text-xl text-white/80 leading-relaxed font-light drop-shadow">
-            O hub definitivo de gestão inteligente para profissionais que operam no mercado imobiliário de alto padrão.
-          </p>
-        </div>
       </div>
 
       {/* ── Right Side: Login Form ── */}
       <div className="flex-1 flex flex-col justify-center items-center p-6 relative">
 
-        {/* Mobile Background (Blurred) */}
-        <div className="absolute inset-0 lg:hidden z-0 overflow-hidden bg-black">
-          <img
-            src="/pwa-512x512.png"
-            alt="Kaizen Axis"
-            className="absolute inset-0 w-full h-full object-cover opacity-30 blur-2xl top-[-20%] scale-150"
-          />
-          <div className="absolute inset-0 bg-surface-50/80 dark:bg-surface-900/80 backdrop-blur-xl" />
+        {/* Mobile Background */}
+        <div className="absolute inset-0 lg:hidden z-0 overflow-hidden bg-surface-50 dark:bg-surface-900">
+          <div className="absolute inset-0 bg-surface-50/90 dark:bg-surface-900/90 backdrop-blur-xl" />
         </div>
 
         {/* Glassmorphism Card */}
