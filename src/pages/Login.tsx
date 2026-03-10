@@ -134,22 +134,10 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen w-full flex items-center justify-center p-6 relative font-sans selection:bg-gold-500/30">
+    <div className="min-h-screen bg-surface-50 dark:bg-surface-900 flex items-center justify-center p-6">
 
-      {/* ── Fullscreen Background Art ── */}
-      <div className="absolute inset-0 z-0 overflow-hidden bg-surface-50">
-        <picture>
-          <source media="(max-width: 768px)" srcSet="/bg-login-mobile.png?v=3" />
-          <img
-            src="/bg-login-desktop.png?v=3"
-            alt="Kaizen Axis"
-            className="absolute inset-0 w-full h-full object-cover"
-          />
-        </picture>
-      </div>
-
-      {/* ── Centered Login Card ── */}
-      <div className="w-full max-w-md bg-white/95 dark:bg-surface-100/95 backdrop-blur-xl rounded-[2rem] shadow-2xl shadow-black/10 p-8 lg:p-10 animate-in fade-in zoom-in-95 duration-500 relative z-10 border border-white/50 dark:border-surface-700/50">
+      {/* ── Login Card ── */}
+      <div className="w-full max-w-md bg-white dark:bg-surface-100 rounded-3xl shadow-xl p-8 animate-in fade-in zoom-in-95 duration-500">
 
         <div className="flex flex-col items-center mb-10 text-center">
           <h2 className="text-2xl font-bold text-text-primary tracking-tight">
