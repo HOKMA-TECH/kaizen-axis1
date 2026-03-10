@@ -146,8 +146,6 @@ export default function Login() {
             className="absolute inset-0 w-full h-full object-cover"
           />
         </picture>
-        {/* Subtle overlay to ensure the login card stands out regardless of the image's brightness */}
-        <div className="absolute inset-0 bg-white/20 dark:bg-black/40 backdrop-blur-sm mix-blend-overlay" />
       </div>
 
       {/* ── Centered Login Card ── */}
