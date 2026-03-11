@@ -3,7 +3,7 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   QrCode, MapPin, CheckCircle, AlertCircle,
-  Loader2, Clock, Users, Trophy, ScanLine,
+  Loader2, Clock, Users, Trophy, ScanLine, Sparkles,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useApp } from '@/context/AppContext';
@@ -25,6 +25,7 @@ interface CheckinResult {
   position?: number;
   message: string;
   distance?: number;
+  xp_earned?: number;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -181,7 +182,12 @@ export default function CheckIn() {
 
       // Sucesso 200
       setStep('success');
-      setResult({ position: data.position, message: data.message, distance: data.distance });
+      setResult({
+        position: data.position,
+        message: data.message,
+        distance: data.distance,
+        xp_earned: data.xp_earned
+      });
       fetchQueue();
     } catch (err: unknown) {
       clearTimeout(timeoutId);
@@ -351,6 +357,19 @@ export default function CheckIn() {
                       ? `${result.distance}m da imobiliária (máximo: 100m)`
                       : `${result.distance}m da imobiliária`}
                   </p>
+                )}
+                {result?.xp_earned !== undefined && alreadyDone && (
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ delay: 0.2 }}
+                    className="mt-3 flex items-center justify-center gap-2 bg-gold-400/20 dark:bg-gold-400/10 rounded-full px-4 py-2"
+                  >
+                    <Sparkles size={14} className="text-gold-600 dark:text-gold-400" />
+                    <span className="text-xs font-bold text-gold-700 dark:text-gold-400">
+                      +{result.xp_earned} XP
+                    </span>
+                  </motion.div>
                 )}
               </motion.div>
             )}
