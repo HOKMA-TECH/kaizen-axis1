@@ -343,8 +343,9 @@ const MESES_EXTENSO_API: Record<string, string> = {
 // ─── NEON BANK: formato específico ───────────────────────────────────────────
 // Formato: "DESCRIÇÃO   DD/MM/YYYY   HH:MM   [±]R$ VALOR   R$ SALDO   -"
 // O campo DESCRIÇÃO vem antes da data, ao contrário de todos os outros bancos.
-// Grupos: [1] descrição [2] data [3] hora [4] valor
-const NEON_LINHA_RE = /^(.{5,100?}?)\s{1,}(\d{2}\/\d{2}\/\d{4})\s+\d{2}:\d{2}\s+(-?R?\$?\s*\d[\d.]*,\d{2})/;
+// Grupos: [1] descrição [2] data [3] caracteres antes do valor [4] valor
+// A hora agora é `\d{2}.?\d{2}` porque `:` muitas vezes vira `\u0000` ou é omitido.
+const NEON_LINHA_RE = /^(.{5,100?}?)\s{1,}(\d{2}\/\d{2}\/\d{4})\s+\d{2}.?\d{2}([^\d]*)(\d[\d.]*,\d{2})/;
 
 function isNeonBank(texto: string): boolean {
     // Tenta detectar pelo cabeçalho ou nome da instituição
@@ -360,26 +361,20 @@ function extrairNeon(texto: string): Array<{ dataRaw: string; descricaoRaw: stri
     const todos: Array<{ dataRaw: string; descricaoRaw: string; valorRaw: string }> = [];
 
     for (const linha of linhas) {
-        // Tenta match do padrão Neon: descrição + DD/MM/YYYY + HH:MM + valor
-        // Formato real esperado: "PIX recebido de FULANO  22/07/2025  17:45  R$ 50,00  ..."
         const m = linha.match(NEON_LINHA_RE);
-        if (!m) {
-            // Tenta alternativa sem "R$" antes do valor
-            const m2 = linha.match(/^(.{5,100?}?)\s{1,}(\d{2}\/\d{2}\/\d{4})\s+\d{2}:\d{2}\s+(-?\d[\d.]*,\d{2})/);
-            if (!m2) continue;
-            const desc = m2[1].trim();
-            const dataRaw = m2[2];
-            let valorRaw = m2[3].replace(/^R\$\s*/i, '');
-            const chave = `${dataRaw}|${desc}|${valorRaw}`;
-            if (desc.length >= 3 && !vistas.has(chave)) {
-                vistas.add(chave);
-                todos.push({ dataRaw, descricaoRaw: desc, valorRaw });
-            }
-            continue;
-        }
-        const desc = m[1].trim();
+        if (!m) continue;
+        
+        // Remove \u0000 e caracteres invisíveis da descrição
+        const desc = m[1].replace(/\u0000/g, ' ').trim();
         const dataRaw = m[2];
-        let valorRaw = m[3].replace(/^R\$\s*/i, '').replace(/\s+/g, '');
+        const preValor = m[3];
+        let valorRaw = m[4];
+
+        // O PDF parser muitas vezes transforma o sinal negativo em \u0000 antes do valor
+        if (preValor.includes('-') || preValor.includes('\u0000')) {
+            valorRaw = '-' + valorRaw;
+        }
+
         const chave = `${dataRaw}|${desc}|${valorRaw}`;
         if (desc.length >= 3 && !vistas.has(chave)) {
             vistas.add(chave);
