@@ -65,9 +65,13 @@ body {
   min-height: 100dvh;
 }
 
-/* iOS Safari: prevent auto-zoom on input focus (requires font-size >= 16px) */
-input, select, textarea {
-  font-size: max(16px, 1em);
+/* iOS Safari: prevent auto-zoom on input focus.
+   Tailwind text-sm (14px) triggers zoom — força 16px mínimo com !important
+   para sobrescrever qualquer classe utilitária. */
+@supports (-webkit-touch-callout: none) {
+  input, select, textarea {
+    font-size: 16px !important;
+  }
 }
 
 /* Hide scrollbar for horizontal scrolling areas */
