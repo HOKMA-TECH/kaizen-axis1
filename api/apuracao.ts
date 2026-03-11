@@ -422,7 +422,14 @@ function extrair(texto: string): Array<{ dataRaw: string; descricaoRaw: string; 
         );
 
     const limpo = normalizado.trim();
-    const linhas = limpo.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+    
+    // Revolut Bank e alguns outros bancos exóticos tem suas linhas de tabela separadas por pipe (|) no pdf-parse em vez de \n.
+    // Para nã quebrar extratos como Bradesco (que usa | dentro da mesma linha as vezes), ativamos o split duplo apenas no Revolut
+    const isRevolut = /revolut/i.test(limpo.substring(0, 1500));
+    const linhas = isRevolut 
+        ? limpo.split(/[\n|]/).map(l => l.trim()).filter(l => l.length > 0)
+        : limpo.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+
     const vistas = new Set<string>();
     const todos: Array<{ dataRaw: string; descricaoRaw: string; valorRaw: string }> = [];
 
