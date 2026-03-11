@@ -219,8 +219,17 @@ function normalizarData(dataRaw: string): { data: string; mes: string } {
         } else {
             mes = MESES[mesStr] || MESES[mesStr.substring(0, 3)] || '01';
         }
-        let anoRaw = parts[2] || String(new Date().getFullYear());
-        const ano = anoRaw.length === 2 ? `20${anoRaw}` : anoRaw;
+        let anoRaw = parts[2] || '';
+        let ano = anoRaw.length === 2 ? `20${anoRaw}` : anoRaw;
+
+        // Validação de sanidade: extratos bancários são 2020–2030.
+        // Protege contra C6 Bank (duas colunas de data: "31/05 02/06"
+        // onde "02" seria tratado como year=2002 sem esta validação).
+        const anoNum = parseInt(ano, 10);
+        if (!ano || isNaN(anoNum) || anoNum < 2020 || anoNum > 2030) {
+            ano = String(new Date().getFullYear());
+        }
+
         return { data: `${ano}-${mes}-${dia}`, mes: `${ano}-${mes}` };
     }
 
@@ -319,7 +328,9 @@ function detectarWashTrading(transacoes: Transacao[]): Transacao[] {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 const VALOR_RE = /([+-]?\s*(?:R\$\s*)?\d{1,3}(?:\.\d{3})*,\d{2})\s*([CD]|\(\+\)|\(-\)|\+|-)?(?=\s|$|\|)/i;
-const DATA_RE = /^(\d{2}[\/\-\.\s]\d{2}(?:[\/\-\.\s]\d{2,4})?|\d{2}[\/\-\.\s]+(?:JAN|FEV|MAR|ABR|MAI|JUN|JUL|AGO|SET|OUT|NOV|DEZ)[\/\-\.\s]?(?:\d{2,4})?)/i;
+// DATA_RE: ano numérico exige exatamente 4 dígitos para evitar que o DIA
+// da coluna seguinte (formato C6 Bank: "24/05 26/05") seja confundido com ano.
+const DATA_RE = /^(\d{2}[\/\-\.\s]\d{2}(?:[\/\-\.\s]\d{4})?|\d{2}[\/\-\.\s]+(?:JAN|FEV|MAR|ABR|MAI|JUN|JUL|AGO|SET|OUT|NOV|DEZ)[\/\-\.\s]?(?:\d{2,4})?)/i;
 
 const MESES_EXTENSO_API: Record<string, string> = {
     janeiro: 'JAN', fevereiro: 'FEV', marco: 'MAR', abril: 'ABR',
@@ -391,6 +402,9 @@ function extrair(texto: string): Array<{ dataRaw: string; descricaoRaw: string; 
     let dataContextual = '';
     const mAnoInicial = limpo.match(/\b(20\d{2})\b/);
     let anoContextual = mAnoInicial ? mAnoInicial[1] : String(new Date().getFullYear());
+
+    // Regex para detectar cabeçalho de mês do C6 Bank: "Maio 2025", "Agosto 2025"
+    const C6_MES_RE = /^(janeiro|fevereiro|mar[çc]o|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro)\s+(20\d{2})/i;
     let descAcumulada = ''; // Buffer para acumular descrições multi-linha (ex: Bradesco)
 
     // Regex para ignorar cabeçalhos de página sem zerar o buffer (apenas pula a linha)
@@ -423,7 +437,16 @@ function extrair(texto: string): Array<{ dataRaw: string; descricaoRaw: string; 
         // Se estivermos dentro de uma sessão ignorada (como Comprovantes de Pix), pulamos o processamento da linha
         if (isIgnoredSection) continue;
 
-        const mData = linha.match(DATA_RE);
+        // C6 Bank: cabeçalho de mês ("Maio 2025", "Agosto 2025") — atualiza anoContextual
+        const mC6Mes = linha.match(C6_MES_RE);
+        if (mC6Mes) { anoContextual = mC6Mes[2]; continue; }
+
+        // C6 Bank: skip linha com duas datas DD/MM consecutivas sem hora (coluna Data Contábil)
+        // Exemplo: "24/05 26/05 Entrada PIX" — descarta a 2ª data antes de processar
+        const mDuplaDatas = linha.match(/^(\d{2}\/\d{2})\s+(\d{2}\/\d{2})\s+(.+)/);
+        const linhaProcessada = mDuplaDatas ? `${mDuplaDatas[1]} ${mDuplaDatas[3]}` : linha;
+
+        const mData = linhaProcessada.match(DATA_RE);
 
         if (mData) {
             let dataCandidata = mData[1];
