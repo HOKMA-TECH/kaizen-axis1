@@ -356,27 +356,36 @@ function isNeonBank(texto: string): boolean {
 }
 
 function extrairNeon(texto: string): Array<{ dataRaw: string; descricaoRaw: string; valorRaw: string }> {
-    const linhas = texto.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+    // O texto bruto do PDF usa "|" como separador de linhas da tabela
+    const linhasBrutas = texto.replace(/\n/g, ' ').split('|');
+    const linhas = linhasBrutas.map(l => l.trim()).filter(l => l.length > 0);
+    
     const vistas = new Set<string>();
     const todos: Array<{ dataRaw: string; descricaoRaw: string; valorRaw: string }> = [];
 
     for (const linha of linhas) {
-        const m = linha.match(NEON_LINHA_RE);
+        // Regex super permissiva pro Neon Bank 
+        // Exemplo da linha: "PIX recebido de FULANO 22/07/2025 17\u000045 R$ 50,00 R$ 50,00 -"
+        // As vezes tem "\u0000" antes do R$ se for negativo.
+        const m = linha.match(/(.+?)\s+(\d{2}\/\d{2}\/\d{4})\s+\d{2}.?\d{2}([^\d]*?)(\d[\d.]*,\d{2})/i);
         if (!m) continue;
         
-        // Remove \u0000 e caracteres invisíveis da descrição
-        const desc = m[1].replace(/\u0000/g, ' ').trim();
+        let desc = m[1].replace(/\u0000/g, '').trim();
         const dataRaw = m[2];
-        const preValor = m[3];
+        const preValor = m[3] || '';
         let valorRaw = m[4];
 
-        // O PDF parser muitas vezes transforma o sinal negativo em \u0000 antes do valor
-        if (preValor.includes('-') || preValor.includes('\u0000')) {
+        // Se tiver "PIX" no final da string mas a regex quebrou errado, limpa
+        if (desc.length < 3) continue;
+
+        // Recuperando sinal de débito (o pdf-parse as vezes esconde como \u0000 antes do valor)
+        // Neon também as vezes coloca "\u0000 R$" para negativo ou apenas omite se for enviado
+        if (preValor.includes('-') || preValor.includes('\u0000') || desc.toUpperCase().includes('ENVIADO')) {
             valorRaw = '-' + valorRaw;
         }
 
         const chave = `${dataRaw}|${desc}|${valorRaw}`;
-        if (desc.length >= 3 && !vistas.has(chave)) {
+        if (!vistas.has(chave)) {
             vistas.add(chave);
             todos.push({ dataRaw, descricaoRaw: desc, valorRaw });
         }
