@@ -1,13 +1,27 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { LayoutDashboard, Users, Calendar, MessageSquare, Menu } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { motion } from 'motion/react';
 import { useAuthorization } from '@/hooks/useAuthorization';
 
+/** Detecta se o teclado virtual está aberto no iOS via visualViewport */
+function useKeyboardOpen() {
+  const [open, setOpen] = useState(false);
+  useEffect(() => {
+    const vv = window.visualViewport;
+    if (!vv) return;
+    const onResize = () => setOpen(vv.height < window.innerHeight * 0.75);
+    vv.addEventListener('resize', onResize);
+    return () => vv.removeEventListener('resize', onResize);
+  }, []);
+  return open;
+}
+
 export const BottomNav = () => {
   const location = useLocation();
   const { isBroker, isManager, isCoordinator, canAccessAdmin } = useAuthorization();
+  const keyboardOpen = useKeyboardOpen();
 
   // Build nav items based on role
   const navItems = [
@@ -19,7 +33,7 @@ export const BottomNav = () => {
   ];
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 bg-card-bg border-t border-surface-200 pb-safe pt-2 px-4 shadow-[0_-4px_20px_rgba(0,0,0,0.05)] z-50 print:hidden">
+    <div className={cn("fixed bottom-0 left-0 right-0 bg-card-bg border-t border-surface-200 pb-safe pt-2 px-4 shadow-[0_-4px_20px_rgba(0,0,0,0.05)] z-50 print:hidden", keyboardOpen && "hidden")}>
       <div className="flex justify-between items-center max-w-md mx-auto">
         {navItems.map((item) => {
           const isActive = item.path === '/'
