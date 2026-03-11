@@ -132,6 +132,7 @@ function calcularMatch(nome: string, descricao: string, cpf?: string): Resultado
 // ── Keywords de crédito (whitelist) ──────────────────────────────────────────
 const KEYWORDS_CREDITO = [
     'PIX RECEBIDO', 'RECEBIMENTO PIX', 'RECEBIMENTO DE PIX', 'TRANSFERENCIA PIX RECEBIDA',
+    'PIX RECEBIDO DE', 'PIXRECEBIDO', 'PIX', 'TRANSFERENCIA PIX', 'TRANSF', 'TRANSF SALDO',
     'PIXRECEBIDO', 'PIX', 'TRANSFERENCIA PIX', 'TRANSF', 'TRANSF SALDO',
     'CRED PIX', 'CR PIX', 'REM', 'REM.', 'REM:', 'DES:',
     'TED RECEBIDA', 'TED CREDITO', 'DOC RECEBIDO', 'DOC CREDITO', 'TEV RECEBIDA',
@@ -337,6 +338,53 @@ const MESES_EXTENSO_API: Record<string, string> = {
     maio: 'MAI', junho: 'JUN', julho: 'JUL', agosto: 'AGO',
     setembro: 'SET', outubro: 'OUT', novembro: 'NOV', dezembro: 'DEZ',
 };
+
+
+// ─── NEON BANK: formato específico ───────────────────────────────────────────
+// Formato: "DESCRIÇÃO   DD/MM/YYYY   HH:MM   [±]R$ VALOR   R$ SALDO   -"
+// O campo DESCRIÇÃO vem antes da data, ao contrário de todos os outros bancos.
+// Grupos: [1] descrição [2] data [3] hora [4] valor
+const NEON_LINHA_RE = /^(.{5,100?}?)\s{2,}(\d{2}\/\d{2}\/\d{4})\s+\d{2}:\d{2}\s+(-?R?\$?\s*\d[\d.]*,\d{2})/;
+
+function isNeonBank(texto: string): boolean {
+    // Neon usa "Extrato por período" + "Neon Pagamentos" na capa
+    return /neon\s+pagamentos/i.test(texto) || /extrato\s+por\s+per[íi]odo/i.test(texto);
+}
+
+function extrairNeon(texto: string): Array<{ dataRaw: string; descricaoRaw: string; valorRaw: string }> {
+    const linhas = texto.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+    const vistas = new Set<string>();
+    const todos: Array<{ dataRaw: string; descricaoRaw: string; valorRaw: string }> = [];
+
+    for (const linha of linhas) {
+        // Tenta match do padrão Neon: descrição + DD/MM/YYYY + HH:MM + valor
+        // Formato real esperado: "PIX recebido de FULANO  22/07/2025  17:45  R$ 50,00  ..."
+        const m = linha.match(NEON_LINHA_RE);
+        if (!m) {
+            // Tenta alternativa sem "R$" antes do valor
+            const m2 = linha.match(/^(.{5,100?}?)\s{1,}(\d{2}\/\d{2}\/\d{4})\s+\d{2}:\d{2}\s+(-?\d[\d.]*,\d{2})/);
+            if (!m2) continue;
+            const desc = m2[1].trim();
+            const dataRaw = m2[2];
+            let valorRaw = m2[3].replace(/^R\$\s*/i, '');
+            const chave = `${dataRaw}|${desc}|${valorRaw}`;
+            if (desc.length >= 3 && !vistas.has(chave)) {
+                vistas.add(chave);
+                todos.push({ dataRaw, descricaoRaw: desc, valorRaw });
+            }
+            continue;
+        }
+        const desc = m[1].trim();
+        const dataRaw = m[2];
+        let valorRaw = m[3].replace(/^R\$\s*/i, '').replace(/\s+/g, '');
+        const chave = `${dataRaw}|${desc}|${valorRaw}`;
+        if (desc.length >= 3 && !vistas.has(chave)) {
+            vistas.add(chave);
+            todos.push({ dataRaw, descricaoRaw: desc, valorRaw });
+        }
+    }
+    return todos;
+}
 
 function extrair(texto: string): Array<{ dataRaw: string; descricaoRaw: string; valorRaw: string }> {
     const normalizado = texto
@@ -625,10 +673,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         };
 
         // ── Parsear e classificar ──────────────────────────────────────────────
-        const brutas = extrair(textoExtrato);
+        const ehNeon = isNeonBank(textoExtrato);
+        const brutas = ehNeon ? extrairNeon(textoExtrato) : extrair(textoExtrato);
+
         if (brutas.length === 0) {
             const amostra = textoExtrato.slice(0, 2500).replace(/\n+/g, ' | ');
-            res.status(422).json({ erro: 'Nenhuma transação reconhecida.', debug_texto_extraido: amostra });
+            res.status(422).json({ erro: 'Nenhuma transação reconhecida.', debug_texto_extraido: amostra, debug_eh_neon: ehNeon });
             return;
         }
 
