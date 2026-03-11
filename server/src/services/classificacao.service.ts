@@ -69,15 +69,18 @@ export function normalizarData(dataRaw: string): { data: string; mes: string } {
             mes = MESES[mesStr.substring(0, 3)] ?? MESES[mesStr] ?? '01';
         }
 
-        let ano = parts[2] ?? String(new Date().getFullYear());
-        // Converte YY para 20YY (ex: "24" → "2024")
+        let ano = parts[2] ?? '';
+
+        // Converte YY para 20YY (ex: "24" → "2024", "25" → "2025")
         if (ano.length === 2) ano = `20${ano}`;
 
-        // Validação de sanidade: ano deve estar entre 2018 e 2035
-        // Protege contra parsings errados (ex: C6 Bank com 2 colunas de data)
+        // Validação de sanidade: extrato bancário deve ser 2020–2030
+        // Protege contra parsings errados (ex: C6 Bank com 2 colunas de data
+        // onde "31/05 02/06" gera year="02" → 2002)
         const anoNum = parseInt(ano, 10);
-        if (isNaN(anoNum) || anoNum < 2018 || anoNum > 2035) {
-            ano = String(new Date().getFullYear());
+        const anoAtual = new Date().getFullYear();
+        if (!ano || isNaN(anoNum) || anoNum < 2020 || anoNum > 2030) {
+            ano = String(anoAtual);
         }
 
         return {

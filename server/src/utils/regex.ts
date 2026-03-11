@@ -34,9 +34,12 @@ export const REGEX_VALOR_FLEX = /([+-]?\s*(?:R\$\s*)?\d{1,3}(?:\.\d{3})*,\d{2})/
  *   DD/MM        DD/MM/YYYY    DD-MM-YYYY
  *   DD MMM YYYY  (ex: 04 FEV 2025 — Nubank)
  *   DD/MMM       (ex: 04/FEV — extratos antigos)
+ *
+ * IMPORTANTE: o ano numérico exige exatamente 4 dígitos (\d{4}) para evitar que
+ * o DIA da data seguinte (formato C6 Bank: "24/05 26/05") seja confundido com ano.
  */
 export const REGEX_DATA_FLEX =
-    /^(\d{2}[\/\-\s]\d{2}(?:[\/\-\s]\d{2,4})?|\d{2}[\/\-\s]+(?:JAN|FEV|MAR|ABR|MAI|JUN|JUL|AGO|SET|OUT|NOV|DEZ)[\/\-\s]?(?:\d{2,4})?)/i;
+    /^(\d{2}[\/\-\s]\d{2}(?:[\/\-\s]\d{4})?|\d{2}[\/\-\s]+(?:JAN|FEV|MAR|ABR|MAI|JUN|JUL|AGO|SET|OUT|NOV|DEZ)[\/\-\s]?(?:\d{2,4})?)/i;
 
 /**
  * Linha que contém apenas um valor monetário (formato Nubank/Inter/Mercado Pago).
@@ -76,6 +79,7 @@ export const KEYWORDS_CREDITO = [
     'RECEBIMENTO DE PIX',
     'TRANSFERENCIA PIX RECEBIDA',
     'PIXRECEBIDO',              // Santander / C6 / alguns bancos sem espaço
+    'ENTRADA PIX',              // C6 Bank: tipo de transação de crédito via PIX
 
     // TED / DOC
     'TED RECEBIDA',
@@ -153,6 +157,7 @@ export const KEYWORDS_IGNORAR = [
     // PIX enviado (saída — nunca é renda)
     'PIXENVIADO',
     'PIX ENVIADO',
+    'SAIDA PIX',               // C6 Bank: tipo de transação de saída
 
     // Correção monetária (reajuste de poupança — não é renda de trabalho)
     'CORRECAO MONETARIA',
