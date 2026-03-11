@@ -366,11 +366,18 @@ function extrairNeon(texto: string): Array<{ dataRaw: string; descricaoRaw: stri
     for (const linha of linhas) {
         // Regex super permissiva pro Neon Bank 
         // Exemplo da linha: "PIX recebido de FULANO 22/07/2025 17\u000045 R$ 50,00 R$ 50,00 -"
-        // As vezes tem "\u0000" antes do R$ se for negativo.
-        const m = linha.match(/(.+?)\s+(\d{2}\/\d{2}\/\d{4})\s+\d{2}.?\d{2}([^\d]*?)(\d[\d.]*,\d{2})/i);
+        // Usando (.{5,120}?) em vez de (.+?) para impedir que o cabeçalho inteiro seja sugado como se fosse a primeira descrição
+        const m = linha.match(/(.{5,120}?)\s+(\d{2}\/\d{2}\/\d{4})\s+\d{2}.?\d{2}([^\d]*?)(\d[\d.]*,\d{2})/i);
         if (!m) continue;
         
         let desc = m[1].replace(/\u0000/g, '').trim();
+        // Se a descrição puxou lixo do cabeçalho antes (ex: "Extrato por período... PIX recebido")
+        // Vamos forçar um corte pra pegar apenas a última parte relevante (as keywords de banco)
+        if (desc.length > 50 && desc.toUpperCase().includes('PIX')) {
+            desc = desc.substring(desc.toUpperCase().lastIndexOf('PIX')).trim();
+        } else if (desc.length > 50 && desc.toUpperCase().includes('RECARGA')) {
+            desc = desc.substring(desc.toUpperCase().lastIndexOf('RECARGA')).trim();
+        }
         const dataRaw = m[2];
         const preValor = m[3] || '';
         let valorRaw = m[4];
