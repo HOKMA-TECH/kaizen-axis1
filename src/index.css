@@ -61,6 +61,13 @@ body {
   background-color: var(--bg-app);
   color: var(--text-primary);
   -webkit-font-smoothing: antialiased;
+  /* iOS PWA: full viewport height */
+  min-height: 100dvh;
+}
+
+/* iOS Safari: prevent auto-zoom on input focus (requires font-size >= 16px) */
+input, select, textarea {
+  font-size: max(16px, 1em);
 }
 
 /* Hide scrollbar for horizontal scrolling areas */

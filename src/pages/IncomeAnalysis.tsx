@@ -1,4 +1,5 @@
-import { useState, useRef, useMemo, useCallback } from 'react';
+import { useState, useRef, useMemo, useCallback, useEffect } from 'react';
+import { useIncomeAnalysisPersistence, type IncomeSessionData } from '@/hooks/useIncomeAnalysisPersistence';
 import { PremiumCard, RoundedButton, SectionHeader } from '@/components/ui/PremiumComponents';
 import {
   UploadCloud, CheckCircle2, AlertTriangle, FileText,
@@ -318,6 +319,29 @@ export default function IncomeAnalysis() {
   const [bubbleInput, setBubbleInput] = useState('');
   const [userOverrides, setUserOverrides] = useState<Record<string, boolean>>({});
 
+  // ── Sessão persistente (IndexedDB) ─────────────────────────────────────────
+  const [restoreModal, setRestoreModal] = useState<{ data: IncomeSessionData } | null>(null);
+
+  const applyRestore = useCallback((data: IncomeSessionData) => {
+    setNomeCliente(data.nomeCliente);
+    setCpf(data.cpf);
+    setClienteVinculado(data.clienteVinculado);
+    setStep(data.step);
+    setResultado(data.resultado as ResultadoApuracao | null);
+    setExclusionBubbles(data.exclusionBubbles);
+    setUserOverrides(data.userOverrides);
+  }, []);
+
+  const { save: persistSave, clear: persistClear } = useIncomeAnalysisPersistence({
+    onRestore: applyRestore,
+    onRestoreConfirmNeeded: (data) => setRestoreModal({ data }),
+  });
+
+  // Auto-save whenever key state changes
+  useEffect(() => {
+    persistSave({ nomeCliente, cpf, clienteVinculado, step, resultado, exclusionBubbles, userOverrides });
+  }, [nomeCliente, cpf, clienteVinculado, step, resultado, exclusionBubbles, userOverrides, persistSave]);
+
   const validadas = useMemo(() => {
     if (!resultado) return new Set<string>();
     const ativas = new Set<string>();
@@ -476,6 +500,7 @@ export default function IncomeAnalysis() {
     setStep(1); setResultado(null); setErro(null);
     setArquivos([]); setUserOverrides({}); setExclusionBubbles([]);
     if (fileRef.current) fileRef.current.value = '';
+    persistClear();
   };
 
   const handleFinalizar = async () => {
@@ -680,6 +705,36 @@ export default function IncomeAnalysis() {
 
   return (
     <div className="p-6 pb-28 min-h-screen bg-surface-50">
+
+      {/* ─── Modal de restauração de sessão (>2h) ─── */}
+      <Modal
+        isOpen={!!restoreModal}
+        onClose={() => setRestoreModal(null)}
+        title="Sessão anterior encontrada"
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-text-secondary">
+            Encontramos uma apuração em andamento de{' '}
+            <span className="font-medium text-text-primary">{restoreModal?.data.nomeCliente || 'cliente não identificado'}</span>,
+            salva {restoreModal ? Math.round((Date.now() - new Date(restoreModal.data.savedAt).getTime()) / 60000) : 0} minutos atrás.
+            Deseja continuar de onde parou?
+          </p>
+          <div className="flex gap-3">
+            <RoundedButton
+              fullWidth
+              onClick={() => { if (restoreModal) applyRestore(restoreModal.data); setRestoreModal(null); }}
+            >
+              Continuar sessão
+            </RoundedButton>
+            <button
+              className="flex-1 py-2 px-4 rounded-xl text-sm font-medium text-text-secondary bg-surface-100 hover:bg-surface-200 transition-colors"
+              onClick={() => { persistClear(); setRestoreModal(null); }}
+            >
+              Descartar
+            </button>
+          </div>
+        </div>
+      </Modal>
       <SectionHeader title="Apuração de Renda" subtitle="Motor determinístico v3 · Interactive Review" />
 
       <AnimatePresence mode="wait">
