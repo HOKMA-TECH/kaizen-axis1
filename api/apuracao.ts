@@ -356,8 +356,9 @@ function isNeonBank(texto: string): boolean {
 }
 
 function extrairNeon(texto: string): Array<{ dataRaw: string; descricaoRaw: string; valorRaw: string }> {
-    // O texto bruto do PDF usa "|" como separador de linhas da tabela
-    const linhasBrutas = texto.replace(/\n/g, ' ').split('|');
+    // A primeira página quebra as linhas da tabela via "|" dependendo do PDF parser
+    // As demais páginas quebram via "\n". Então vamos separar por qualquer um dos dois.
+    const linhasBrutas = texto.split(/[\n|]/);
     const linhas = linhasBrutas.map(l => l.trim()).filter(l => l.length > 0);
     
     const vistas = new Set<string>();
