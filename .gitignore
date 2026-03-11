@@ -1,0 +1,7 @@
+nul
+kaizen-axis1/
+node_modules/
+.env
+.env.local
+dist/
+.DS_Store

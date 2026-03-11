@@ -1,0 +1,26 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//c/Users/hokma/Desktop/**)",
+      "Read(//c/Users/hokma/AppData/**)",
+      "Read(//c/Users/hokma/**)",
+      "Bash(cat \"/c/Users/hokma/AppData/Local/Packages/Claude_pzs8sxrjxfjjc/LocalCache/Roaming/Claude/ant-did\")",
+      "SlashCommand(/n8n-mcp-tools-expert)",
+      "Bash(npx -y n8n-mcp n8n_list_workflows)",
+      "Bash(echo $N8N_API_URL)",
+      "Bash(curl -s -H \"X-N8N-API-KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI1MTI1M2FkYy1jMWQ5LTRiMDYtOGUzMi01NTE5MGZhYzg4NGMiLCJpc3MiOiJuOG4iLCJhdWQiOiJwdWJsaWMtYXBpIiwianRpIjoiZDgyMzAzNmYtNWE5OS00M2NmLTkxYzctMjIzMzRkODFjNmE5IiwiaWF0IjoxNzczMjU0NTYwfQ.jLBqVHyMG7SfjyWyIdQI8gKNzbCDrqDwNr86KK7qJSo\" \"https://kaizen-axis-n8n-n8n.2ut0z1.easypanel.host/api/v1/workflows\")",
+      "Bash(curl -s -H \"X-N8N-API-KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI1MTI1M2FkYy1jMWQ5LTRiMDYtOGUzMi01NTE5MGZhYzg4NGMiLCJpc3MiOiJuOG4iLCJhdWQiOiJwdWJsaWMtYXBpIiwianRpIjoiZDgyMzAzNmYtNWE5OS00M2NmLTkxYzctMjIzMzRkODFjNmE5IiwiaWF0IjoxNzczMjU0NTYwfQ.jLBqVHyMG7SfjyWyIdQI8gKNzbCDrqDwNr86KK7qJSo\" \"https://kaizen-axis-n8n-n8n.2ut0z1.easypanel.host/api/v1/executions?workflowId=DRi4d9wHIoi6Jhfr&limit=20\")",
+      "Bash(curl -s -H \"X-N8N-API-KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI1MTI1M2FkYy1jMWQ5LTRiMDYtOGUzMi01NTE5MGZhYzg4NGMiLCJpc3MiOiJuOG4iLCJhdWQiOiJwdWJsaWMtYXBpIiwianRpIjoiZDgyMzAzNmYtNWE5OS00M2NmLTkxYzctMjIzMzRkODFjNmE5IiwiaWF0IjoxNzczMjU0NTYwfQ.jLBqVHyMG7SfjyWyIdQI8gKNzbCDrqDwNr86KK7qJSo\" \"https://kaizen-axis-n8n-n8n.2ut0z1.easypanel.host/api/v1/executions/1904\")",
+      "Bash(curl -s -X PATCH -H \"X-N8N-API-KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI1MTI1M2FkYy1jMWQ5LTRiMDYtOGUzMi01NTE5MGZhYzg4NGMiLCJpc3MiOiJuOG4iLCJhdWQiOiJwdWJsaWMtYXBpIiwianRpIjoiZDgyMzAzNmYtNWE5OS00M2NmLTkxYzctMjIzMzRkODFjNmE5IiwiaWF0IjoxNzczMjU0NTYwfQ.jLBqVHyMG7SfjyWyIdQI8gKNzbCDrqDwNr86KK7qJSo\" -H \"Content-Type: application/json\" -d @/tmp/update-payload.json \"https://kaizen-axis-n8n-n8n.2ut0z1.easypanel.host/api/v1/workflows/DRi4d9wHIoi6Jhfr\")",
+      "Bash(curl -s -X PATCH -H 'X-N8N-API-KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI1MTI1M2FkYy1jMWQ5LTRiMDYtOGUzMi01NTE5MGZhYzg4NGMiLCJpc3MiOiJuOG4iLCJhdWQiOiJwdWJsaWMtYXBpIiwianRpIjoiZDgyMzAzNmYtNWE5OS00M2NmLTkxYzctMjIzMzRkODFjNmE5IiwiaWF0IjoxNzczMjU0NTYwfQ.jLBqVHyMG7SfjyWyIdQI8gKNzbCDrqDwNr86KK7qJSo' -H 'Content-Type: application/json' -d @/tmp/update-payload.json 'https://kaizen-axis-n8n-n8n.2ut0z1.easypanel.host/api/v1/workflows/DRi4d9wHIoi6Jhfr')",
+      "Bash(curl -s -H \"X-N8N-API-KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI1MTI1M2FkYy1jMWQ5LTRiMDYtOGUzMi01NTE5MGZhYzg4NGMiLCJpc3MiOiJuOG4iLCJhdWQiOiJwdWJsaWMtYXBpIiwianRpIjoiZDgyMzAzNmYtNWE5OS00M2NmLTkxYzctMjIzMzRkODFjNmE5IiwiaWF0IjoxNzczMjU0NTYwfQ.jLBqVHyMG7SfjyWyIdQI8gKNzbCDrqDwNr86KK7qJSo\" \"https://kaizen-axis-n8n-n8n.2ut0z1.easypanel.host/api/v1/executions?workflowId=DRi4d9wHIoi6Jhfr&limit=30&status=error\")",
+      "Bash(curl -s -H \"X-N8N-API-KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI1MTI1M2FkYy1jMWQ5LTRiMDYtOGUzMi01NTE5MGZhYzg4NGMiLCJpc3MiOiJuOG4iLCJhdWQiOiJwdWJsaWMtYXBpIiwianRpIjoiZDgyMzAzNmYtNWE5OS00M2NmLTkxYzctMjIzMzRkODFjNmE5IiwiaWF0IjoxNzczMjU0NTYwfQ.jLBqVHyMG7SfjyWyIdQI8gKNzbCDrqDwNr86KK7qJSo\" \"https://kaizen-axis-n8n-n8n.2ut0z1.easypanel.host/api/v1/executions/1904?includeData=true\")",
+      "Bash(npx supabase db push)",
+      "Bash(cat .env.local)",
+      "Bash(cat supabase/config.toml)",
+      "Bash(cat package.json)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
