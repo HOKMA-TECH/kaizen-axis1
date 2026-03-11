@@ -73,6 +73,13 @@ export function normalizarData(dataRaw: string): { data: string; mes: string } {
         // Converte YY para 20YY (ex: "24" → "2024")
         if (ano.length === 2) ano = `20${ano}`;
 
+        // Validação de sanidade: ano deve estar entre 2018 e 2035
+        // Protege contra parsings errados (ex: C6 Bank com 2 colunas de data)
+        const anoNum = parseInt(ano, 10);
+        if (isNaN(anoNum) || anoNum < 2018 || anoNum > 2035) {
+            ano = String(new Date().getFullYear());
+        }
+
         return {
             data: `${ano}-${mes}-${dia}`,
             mes: `${ano}-${mes}`,

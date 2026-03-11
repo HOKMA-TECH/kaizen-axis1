@@ -92,11 +92,27 @@ export class C6BankParser implements BaseParser {
 
     /**
      * Verifica se o texto do PDF parece ser do C6 Bank.
-     * Critério: presença de "C6BANK" ou "C6 BANK" no texto.
+     * Usa múltiplos critérios pois o logo pode ser imagem (sem texto).
      */
     static detectar(texto: string): boolean {
         const upper = texto.toUpperCase();
-        return upper.includes('C6BANK') || upper.includes('C6 BANK');
+
+        // 1. Logo como texto (nem sempre presente — C6 pode usar imagem)
+        if (upper.includes('C6BANK') || upper.includes('C6 BANK')) return true;
+
+        // 2. Campo "Agência:" presente no cabeçalho do extrato C6
+        if (upper.includes('AGÊNCIA:') || upper.includes('AGENCIA:')) return true;
+
+        // 3. Padrão mais forte: duas datas DD/MM consecutivas seguidas de tipo de transação
+        // Isso é ÚNICO do C6 Bank (coluna Data lançamento + Data contábil)
+        if (/\d{2}\/\d{2}\s+\d{2}\/\d{2}\s+(Entrada|Sa[íi]da|D[eé]bito|Pagamento|Outros|Transfer[eê]ncia|Saque|Cr[eé]dito|PIX)/i.test(texto)) {
+            return true;
+        }
+
+        // 4. Padrão do cabeçalho do extrato C6: "Conta: XXXXXX"
+        if (/Conta:\s*\d{6,}/.test(texto)) return true;
+
+        return false;
     }
 }
 

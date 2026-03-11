@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import multer from 'multer';
+import pdfParse from 'pdf-parse';
 import { handleApuracao } from './controllers/apuracao.controller';
 
 const app = express();
@@ -45,6 +46,25 @@ app.get('/health', (_req, res) => {
  *   nomeMae     (string) — nome da mãe (opcional)
  */
 app.post('/apuracao', upload.single('pdf'), handleApuracao);
+
+/**
+ * POST /debug-pdf
+ * Retorna o texto bruto extraído do PDF para diagnóstico.
+ * Útil para entender o formato de cada banco.
+ */
+app.post('/debug-pdf', upload.single('pdf'), async (req, res) => {
+    if (!req.file) { res.status(400).json({ erro: 'PDF não enviado' }); return; }
+    try {
+        const parsed = await pdfParse(req.file.buffer);
+        res.json({
+            totalChars: parsed.text.length,
+            primeiros3000: parsed.text.substring(0, 3000),
+            ultimos1000: parsed.text.substring(Math.max(0, parsed.text.length - 1000)),
+        });
+    } catch (e) {
+        res.status(500).json({ erro: String(e) });
+    }
+});
 
 // ── Tratamento de erros do Multer ─────────────────────────────────────────────
 app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
