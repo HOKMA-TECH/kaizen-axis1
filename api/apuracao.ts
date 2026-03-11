@@ -344,11 +344,14 @@ const MESES_EXTENSO_API: Record<string, string> = {
 // Formato: "DESCRIÇÃO   DD/MM/YYYY   HH:MM   [±]R$ VALOR   R$ SALDO   -"
 // O campo DESCRIÇÃO vem antes da data, ao contrário de todos os outros bancos.
 // Grupos: [1] descrição [2] data [3] hora [4] valor
-const NEON_LINHA_RE = /^(.{5,100?}?)\s{2,}(\d{2}\/\d{2}\/\d{4})\s+\d{2}:\d{2}\s+(-?R?\$?\s*\d[\d.]*,\d{2})/;
+const NEON_LINHA_RE = /^(.{5,100?}?)\s{1,}(\d{2}\/\d{2}\/\d{4})\s+\d{2}:\d{2}\s+(-?R?\$?\s*\d[\d.]*,\d{2})/;
 
 function isNeonBank(texto: string): boolean {
-    // Neon usa "Extrato por período" + "Neon Pagamentos" na capa
-    return /neon\s+pagamentos/i.test(texto) || /extrato\s+por\s+per[íi]odo/i.test(texto);
+    // Tenta detectar pelo cabeçalho ou nome da instituição
+    const txt = texto.toLowerCase();
+    return txt.includes('neon pagamentos') || 
+           txt.includes('timeneon') || 
+           (txt.includes('extrato por') && txt.includes('período') && txt.includes('conta digital'));
 }
 
 function extrairNeon(texto: string): Array<{ dataRaw: string; descricaoRaw: string; valorRaw: string }> {
