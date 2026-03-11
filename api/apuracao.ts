@@ -405,17 +405,19 @@ function extrair(texto: string): Array<{ dataRaw: string; descricaoRaw: string; 
     const normalizado = texto
         .replace(/\r\n/g, '\n').replace(/\r/g, '\n')
         .replace(
-            /(\d{1,2})\s+de\s+(janeiro|fevereiro|mar(?:ç|c)o|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro)\s+de\s+(\d{4})/gi,
+            /(\d{1,2})\s+de\s+(janeiro|jan\.?|fevereiro|fev\.?|mar(?:ç|c)o|mar\.?|abril|abr\.?|maio|mai\.?|junho|jun\.?|julho|jul\.?|agosto|ago\.?|setembro|set\.?|outubro|out\.?|novembro|nov\.?|dezembro|dez\.?)\s+de\s+(\d{4})/gi,
             (_, d, m, a) => {
-                const key = m.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
-                return `${d.padStart(2, '0')}/${MESES_EXTENSO_API[key] ?? 'JAN'}/${a}`;
+                const cleanM = m.replace('.', '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+                const key = Object.keys(MESES_EXTENSO_API).find(k => k.startsWith(cleanM)) || 'janeiro';
+                return `${d.padStart(2, '0')}/${MESES_EXTENSO_API[key]}/${a}`;
             }
         )
         .replace(
-            /\b(janeiro|fevereiro|mar(?:ç|c)o|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro)[\s\/]+(?:de\s+)?(\d{4})\b/gi,
+            /\b(janeiro|jan\.?|fevereiro|fev\.?|mar(?:ç|c)o|mar\.?|abril|abr\.?|maio|mai\.?|junho|jun\.?|julho|jul\.?|agosto|ago\.?|setembro|set\.?|outubro|out\.?|novembro|nov\.?|dezembro|dez\.?)[\s\/]+(?:de\s+)?(\d{4})\b/gi,
             (_, m, a) => {
-                const key = m.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
-                return `01/${MESES_EXTENSO_API[key] ?? 'JAN'}/${a}`;
+                const cleanM = m.replace('.', '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+                const key = Object.keys(MESES_EXTENSO_API).find(k => k.startsWith(cleanM)) || 'janeiro';
+                return `01/${MESES_EXTENSO_API[key]}/${a}`;
             }
         );
 
@@ -527,8 +529,9 @@ function extrair(texto: string): Array<{ dataRaw: string; descricaoRaw: string; 
                 continue;
             }
 
-            // Capturar todos os números no final da string para identificar Valor e Saldo (Bradesco, BB)
-            const valoresLine = Array.from(descSemData.matchAll(/([+-]?\s*(?:R\$\s*)?\d{1,3}(?:\.\d{3})*,\d{2})(?:\s*([CD]|\(\+\)|\(-\)|\+|-))?(?=\s|$|\||[A-Z])/ig));
+            // Capturar todos os números no final da string para identificar Valor e Saldo 
+            // Suporta formatação BR (1.000,00) e US/Revolut (1,000.00)
+            const valoresLine = Array.from(descSemData.matchAll(/([+-]?\s*(?:[A-Z]{0,3}\$?\s*)?\d{1,3}(?:[.,]\d{3})*[.,]\d{2})(?:\s*([CD]|\(\+\)|\(-\)|\+|-))?(?=\s|$|\||[A-Z])/ig));
 
             if (valoresLine.length > 0) {
                 // Remove o bloco de números do final para sobrar a descrição
@@ -575,7 +578,7 @@ function extrair(texto: string): Array<{ dataRaw: string; descricaoRaw: string; 
 
             // Tratamento Fallback (descrição em uma linha, valor na próxima)
             const proxLinha = i + 1 < linhas.length ? linhas[i + 1] : '';
-            const mValorProximo = proxLinha.match(/^(?:R\$\s*)?([+-]?\s*\d{1,3}(?:\.\d{3})*,\d{2})\s*([CD]|\(\+\)|\(-\)|\+|-)?$/i);
+            const mValorProximo = proxLinha.match(/^(?:[A-Z]{0,3}\$?\s*)?([+-]?\s*\d{1,3}(?:[.,]\d{3})*[.,]\d{2})\s*([CD]|\(\+\)|\(-\)|\+|-)?$/i);
             if (mValorProximo && descSemData.length > 0 && !/^saldo\s+/i.test(descSemData)) {
                 const dc = mValorProximo[2]?.trim() ?? '';
                 let descPura = `${descAcumulada} ${descSemData}`.trim();
