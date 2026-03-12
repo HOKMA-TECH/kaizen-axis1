@@ -417,9 +417,8 @@ function extrairNeon(texto: string): Array<{ dataRaw: string; descricaoRaw: stri
 
 function extrair(texto: string): Array<{ dataRaw: string; descricaoRaw: string; valorRaw: string }> {
     const normalizado = texto
-        .replace(/\r\n/g, '\n').replace(/\r/g, '\n')
         .replace(
-            /(\d{1,2})\s+de\s+(janeiro|jan\.?|fevereiro|fev\.?|mar(?:ç|c)o|mar\.?|abril|abr\.?|maio|mai\.?|junho|jun\.?|julho|jul\.?|agosto|ago\.?|setembro|set\.?|outubro|out\.?|novembro|nov\.?|dezembro|dez\.?)\s+de\s+(\d{4})/gi,
+            /(\d{1,2})\s+(?:de\s+)?(janeiro|jan\.?|fevereiro|fev\.?|mar(?:ç|c)o|mar\.?|abril|abr\.?|maio|mai\.?|junho|jun\.?|julho|jul\.?|agosto|ago\.?|setembro|set\.?|outubro|out\.?|novembro|nov\.?|dezembro|dez\.?)\s+(?:de\s+)?(\d{4})/gi,
             (_, d, m, a) => {
                 const cleanM = m.replace('.', '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
                 const key = Object.keys(MESES_EXTENSO_API).find(k => k.startsWith(cleanM)) || 'janeiro';
@@ -505,7 +504,7 @@ function extrair(texto: string): Array<{ dataRaw: string; descricaoRaw: string; 
 
     const SECTIONS_IGNORE = /^(comprovantes? de|pacote de servi[çc]os|[íi]ndices econ[óo]micos|resumo consolidado|demonstrativo de|posi[çc][ãa]o de|investimentos|t[íi]tulos? de capitaliza[çc][ãa]o|fundos? de investimento|cr[ée]dito pessoal|poupan[çc]a|cart[ãa]o de cr[ée]dito|seguros|prote[çc][ãa]o)/i;
     // Remove the ^ anchor for CONTA CORRENTE because it can be indented or have dashes attached 
-    const SECTIONS_VALID = /(conta corrente|movimenta[çc][ãa]o|lan[çc]amentos|hist[óo]rico(?! de)|transa[çc][ão][ãe]es da conta|extrato de transa)/i;
+    const SECTIONS_VALID = /(conta corrente|movimenta[çc][ãa]o|lan[çc]amentos|hist[óo]rico(?! de)|transa[çc][ão][ãe]es da conta|extrato( de( conta| transa))?)/i;
 
     for (let i = 0; i < linhas.length; i++) {
         const linha = linhas[i];
