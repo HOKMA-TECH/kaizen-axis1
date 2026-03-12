@@ -413,7 +413,8 @@ function extrair(texto: string): Array<{ dataRaw: string; descricaoRaw: string; 
             }
         )
         .replace(
-            /\b(janeiro|jan\.?|fevereiro|fev\.?|mar(?:ç|c)o|mar\.?|abril|abr\.?|maio|mai\.?|junho|jun\.?|julho|jul\.?|agosto|ago\.?|setembro|set\.?|outubro|out\.?|novembro|nov\.?|dezembro|dez\.?)[\s\/]+(?:de\s+)?(\d{4})\b/gi,
+            // Negative lookbehind: não capturar mês que já é parte de DD/MES/AAAA (resultado da primeira regex)
+            /(?<![\/\d])(janeiro|jan\.?|fevereiro|fev\.?|mar(?:ç|c)o|mar\.?|abril|abr\.?|maio|mai\.?|junho|jun\.?|julho|jul\.?|agosto|ago\.?|setembro|set\.?|outubro|out\.?|novembro|nov\.?|dezembro|dez\.?)[\s\/]+(?:de\s+)?(\d{4})\b/gi,
             (_, m, a) => {
                 const cleanM = m.replace('.', '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
                 const key = Object.keys(MESES_EXTENSO_API).find(k => k.startsWith(cleanM)) || 'janeiro';
@@ -703,7 +704,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         if (brutas.length === 0) {
             const amostra = textoExtrato.slice(0, 2500).replace(/\n+/g, ' | ');
-            res.status(422).json({ erro: 'Nenhuma transação reconhecida.', debug_texto_extraido: amostra, debug_eh_neon: ehNeon });
+            // DEBUG: also check what the normalizado text looks like after date replacement
+            const normTest = textoExtrato
+                .replace(/\r\n/g, '\n').replace(/\r/g, '\n')
+                .replace(
+                    /(\d{1,2})\s+de\s+(janeiro|jan\.?|fevereiro|fev\.?|mar(?:ç|c)o|mar\.?|abril|abr\.?|maio|mai\.?|junho|jun\.?|julho|jul\.?|agosto|ago\.?|setembro|set\.?|outubro|out\.?|novembro|nov\.?|dezembro|dez\.?)\s+de\s+(\d{4})/gi,
+                    (_, d, m, a) => `${d.padStart(2,'0')}/XXX/${a}`
+                );
+            const isRev = /revolut/i.test(normTest.substring(0, 1500));
+            const lns = (isRev ? normTest.split(/[\n|]/) : normTest.split('\n')).map(l=>l.trim()).filter(l=>l.length>0);
+            const DATA_RE_T = /^(\d{2}[\/\-\.\s]\d{2}(?:[\/\-\.\s]\d{4})?|\d{2}[\/\-\.\s]+(?:JAN|FEV|MAR|ABR|MAI|JUN|JUL|AGO|SET|OUT|NOV|DEZ|XXX)[\/\-\.\s]?(?:\d{2,4})?)/i;
+            const lnComData = lns.filter(l => DATA_RE_T.test(l));
+            res.status(422).json({ erro: 'Nenhuma transação reconhecida.', debug_texto_extraido: amostra, debug_eh_neon: ehNeon, debug_is_revolut: isRev, debug_linhas: lns.length, debug_linhas_com_data: lnComData.length, debug_sample_date_lines: lnComData.slice(0,5) });
             return;
         }
 
