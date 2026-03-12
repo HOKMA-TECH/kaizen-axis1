@@ -60,6 +60,9 @@ export default function CheckIn() {
   // const isOpen = brtHour >= 8 && brtHour < 14;
   const isOpen = true; // Sempre aberto para testes
 
+  // Debug: Log para verificar se o código atualizado está carregando
+  console.log('[CheckIn] isOpen =', isOpen, '| brtHour =', brtHour, '| BLOQUEIO REMOVIDO PARA TESTES');
+
   // ── Fila do dia ───────────────────────────────────────────────────────────
   const fetchQueue = useCallback(async () => {
     const today = new Date().toISOString().slice(0, 10);
