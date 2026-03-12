@@ -489,9 +489,9 @@ function extrair(texto: string): Array<{ dataRaw: string; descricaoRaw: string; 
     const isSantander = /santander/i.test(limpo.substring(0, 1500));
     let isIgnoredSection = isSantander;
 
-    const SECTIONS_IGNORE = /^(comprovantes? de|pacote de servi[çc]os|[íi]ndices econ[óo]micos|resumo (do|de|consolidado)|demonstrativo de|posi[çc][ãa]o de|investimentos|t[íi]tulos? de capitaliza[çc][ãa]o|fundos? de investimento|cr[ée]dito pessoal|poupan[çc]a|cart[ãa]o de cr[ée]dito|seguros|prote[çc][ãa]o)/i;
+    const SECTIONS_IGNORE = /^(comprovantes? de|pacote de servi[çc]os|[íi]ndices econ[óo]micos|resumo consolidado|demonstrativo de|posi[çc][ãa]o de|investimentos|t[íi]tulos? de capitaliza[çc][ãa]o|fundos? de investimento|cr[ée]dito pessoal|poupan[çc]a|cart[ãa]o de cr[ée]dito|seguros|prote[çc][ãa]o)/i;
     // Remove the ^ anchor for CONTA CORRENTE because it can be indented or have dashes attached 
-    const SECTIONS_VALID = /(conta corrente|movimenta[çc][ãa]o|lan[çc]amentos|hist[óo]rico(?! de))/i;
+    const SECTIONS_VALID = /(conta corrente|movimenta[çc][ãa]o|lan[çc]amentos|hist[óo]rico(?! de)|transa[çc][ão][ãe]es da conta|extrato de transa)/i;
 
     for (let i = 0; i < linhas.length; i++) {
         const linha = linhas[i];
@@ -704,18 +704,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         if (brutas.length === 0) {
             const amostra = textoExtrato.slice(0, 2500).replace(/\n+/g, ' | ');
-            // DEBUG: also check what the normalizado text looks like after date replacement
-            const normTest = textoExtrato
-                .replace(/\r\n/g, '\n').replace(/\r/g, '\n')
-                .replace(
-                    /(\d{1,2})\s+de\s+(janeiro|jan\.?|fevereiro|fev\.?|mar(?:ç|c)o|mar\.?|abril|abr\.?|maio|mai\.?|junho|jun\.?|julho|jul\.?|agosto|ago\.?|setembro|set\.?|outubro|out\.?|novembro|nov\.?|dezembro|dez\.?)\s+de\s+(\d{4})/gi,
-                    (_, d, m, a) => `${d.padStart(2,'0')}/XXX/${a}`
-                );
-            const isRev = /revolut/i.test(normTest.substring(0, 1500));
-            const lns = (isRev ? normTest.split(/[\n|]/) : normTest.split('\n')).map(l=>l.trim()).filter(l=>l.length>0);
-            const DATA_RE_T = /^(\d{2}[\/\-\.\s]\d{2}(?:[\/\-\.\s]\d{4})?|\d{2}[\/\-\.\s]+(?:JAN|FEV|MAR|ABR|MAI|JUN|JUL|AGO|SET|OUT|NOV|DEZ|XXX)[\/\-\.\s]?(?:\d{2,4})?)/i;
-            const lnComData = lns.filter(l => DATA_RE_T.test(l));
-            res.status(422).json({ erro: 'Nenhuma transação reconhecida.', debug_texto_extraido: amostra, debug_eh_neon: ehNeon, debug_is_revolut: isRev, debug_linhas: lns.length, debug_linhas_com_data: lnComData.length, debug_sample_date_lines: lnComData.slice(0,5) });
+            res.status(422).json({ erro: 'Nenhuma transação reconhecida.', debug_texto_extraido: amostra, debug_eh_neon: ehNeon });
             return;
         }
 
