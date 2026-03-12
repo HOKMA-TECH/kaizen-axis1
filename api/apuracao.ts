@@ -496,7 +496,7 @@ function extrair(texto: string): Array<{ dataRaw: string; descricaoRaw: string; 
     let descAcumulada = ''; // Buffer para acumular descrições multi-linha (ex: Bradesco)
 
     // Regex para ignorar cabeçalhos de página sem zerar o buffer (apenas pula a linha)
-    const CABECALHOS_IGNORE = /^(extrato de|bradesco|banco do brasil|lançamentos|histórico|docto|crédito|débito|saldo|data:|cliente:|agência:|conta:|^[\d/]+$)/i;
+    const CABECALHOS_IGNORE = /^(extrato de|bradesco|banco do brasil|lançamentos|histórico|docto|crédito|débito|saldo|data:|cliente:|agência:|conta:|^[\d/]+$|saldo ao final do dias?[:,]?|documento emitido em|hora\s+tipo|origem.*destino|forma de pagamento)/i;
 
     // Máquina de estados para ignorar sessões inteiras (ex: Santander "Comprovantes de Pagamento")
     // Para o Santander, iniciamos ignorando tudo até achar a seção correta ("Conta Corrente"), 
