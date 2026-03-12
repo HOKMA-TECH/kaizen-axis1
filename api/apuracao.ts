@@ -553,7 +553,7 @@ function extrair(texto: string): Array<{ dataRaw: string; descricaoRaw: string; 
 
             // Capturar todos os números no final da string para identificar Valor e Saldo 
             // Suporta formatação BR (1.000,00) e US/Revolut (1,000.00)
-            const valoresLine = Array.from(descSemData.matchAll(/([+-]?\s*(?:R\$?\s*|[A-Z]{1,3}\$?\s*)?\d{1,3}(?:[.,]\d{3})*[.,]\d{2})(?:\s*([CD]|\(\+\)|\(-\)|\+|-))?(?=\s|$|\||[A-Za-z])/ig));
+            const valoresLine = Array.from(descSemData.matchAll(/([+-]?\s*(?:R\$?\s*|\b(?:USD|EUR|GBP|BRL|CHF|CAD|JPY|AUD|ARS)\$?\s*)?\d{1,3}(?:[.,]\d{3})*[.,]\d{2})(?:\s*([CD]|\(\+\)|\(-\)|\+|-))?(?=\s|$|\||[A-Za-z])/ig));
 
             if (valoresLine.length > 0) {
                 // Remove o bloco de números do final para sobrar a descrição
@@ -633,7 +633,7 @@ function extrair(texto: string): Array<{ dataRaw: string; descricaoRaw: string; 
                 continue;
             }
 
-            const valoresMatches = Array.from(linha.matchAll(/([+-]?\s*(?:R\$?\s*|[A-Z]{1,3}\$?\s*)?\d{1,3}(?:[.,]\d{3})*[.,]\d{2})(?:\s*([CD]|\(\+\)|\(-\)|\+|-))?(?=\s|$|\||[A-Za-z])/ig));
+            const valoresMatches = Array.from(linha.matchAll(/([+-]?\s*(?:R\$?\s*|\b(?:USD|EUR|GBP|BRL|CHF|CAD|JPY|AUD|ARS)\$?\s*)?\d{1,3}(?:[.,]\d{3})*[.,]\d{2})(?:\s*([CD]|\(\+\)|\(-\)|\+|-))?(?=\s|$|\||[A-Za-z])/ig));
             if (valoresMatches.length > 0) {
                 // Assume o penúltimo como o valor se tiver múltiplos (lógica Bradesco) e o último como saldo
                 let targetMatch = valoresMatches[0];
