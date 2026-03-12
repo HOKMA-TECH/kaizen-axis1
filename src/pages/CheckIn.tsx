@@ -56,7 +56,9 @@ export default function CheckIn() {
     return () => clearInterval(t);
   }, []);
 
-  const isOpen = brtHour >= 8 && brtHour < 14;
+  // TEMPORÁRIO: Bloqueio de horário removido para testes
+  // const isOpen = brtHour >= 8 && brtHour < 14;
+  const isOpen = true; // Sempre aberto para testes
 
   // ── Fila do dia ───────────────────────────────────────────────────────────
   const fetchQueue = useCallback(async () => {
