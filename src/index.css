@@ -4,35 +4,65 @@
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
 
-  --color-gold-50: #FBF6E7;
-  --color-gold-100: #F4E8C2;
-  --color-gold-200: #ECD595;
-  --color-gold-300: #E4C366;
-  --color-gold-400: #D9AD34; /* Primary Gold from user image */
-  --color-gold-500: #B79029;
-  --color-gold-600: #937320;
-  --color-gold-700: #715717;
-  --color-gold-800: #513E0F;
-  --color-gold-900: #332608;
+  /* Primary Blue Scale - Nova Identidade Visual */
+  --color-primary-50: #EFF6FF;
+  --color-primary-100: #DBEAFE;
+  --color-primary-200: #BFDBFE;
+  --color-primary-300: #93C5FD;
+  --color-primary-400: #60A5FA;
+  --color-primary-500: #3B82F6; /* Primary Light */
+  --color-primary-600: #1F6FE5; /* Primary Main */
+  --color-primary-700: #0F4FBF; /* Primary Dark */
+  --color-primary-800: #1E40AF;
+  --color-primary-900: #1E3A8A;
+
+  /* Mantém compatibilidade com código antigo (gold → primary) */
+  --color-gold-50: var(--color-primary-50);
+  --color-gold-100: var(--color-primary-100);
+  --color-gold-200: var(--color-primary-200);
+  --color-gold-300: var(--color-primary-300);
+  --color-gold-400: var(--color-primary-600); /* Era o principal dourado */
+  --color-gold-500: var(--color-primary-700);
+  --color-gold-600: var(--color-primary-800);
+  --color-gold-700: var(--color-primary-900);
+  --color-gold-800: var(--color-primary-900);
+  --color-gold-900: var(--color-primary-900);
 
   --color-surface-50: var(--bg-app);
   --color-surface-100: var(--bg-subtle);
   --color-surface-200: var(--border-subtle);
   --color-surface-300: var(--border-strong);
-  
+
   --color-text-primary: var(--text-primary);
   --color-text-secondary: var(--text-secondary);
   --color-card-bg: var(--bg-card);
 }
 
 :root {
+  /* Background Colors */
   --bg-app: #FAFAFA;
   --bg-card: #FFFFFF;
   --bg-subtle: #F3F4F6;
+
+  /* Border Colors */
   --border-subtle: #E5E7EB;
   --border-strong: #D1D5DB;
-  --text-primary: #1A1A1A;
+
+  /* Text Colors */
+  --text-primary: #1F2937;
   --text-secondary: #6B7280;
+
+  /* Primary Theme Colors - Blue */
+  --color-primary: #1F6FE5;
+  --color-primary-dark: #0F4FBF;
+  --color-primary-light: #3B82F6;
+  --color-primary-hover: #1E5FCF;
+
+  /* Status Colors */
+  --color-success: #16A34A;
+  --color-warning: #F59E0B;
+  --color-error: #DC2626;
+  --color-info: #3B82F6;
 }
 
 :root.dark {
@@ -43,6 +73,12 @@
   --border-strong: #404040;
   --text-primary: #F9FAFB;
   --text-secondary: #9CA3AF;
+
+  /* Primary Theme Colors - Dark Mode */
+  --color-primary: #3B82F6;
+  --color-primary-dark: #1F6FE5;
+  --color-primary-light: #60A5FA;
+  --color-primary-hover: #4B92FF;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -54,6 +90,12 @@
     --border-strong: #404040;
     --text-primary: #F9FAFB;
     --text-secondary: #9CA3AF;
+
+    /* Primary Theme Colors - Dark Mode */
+    --color-primary: #3B82F6;
+    --color-primary-dark: #1F6FE5;
+    --color-primary-light: #60A5FA;
+    --color-primary-hover: #4B92FF;
   }
 }
 

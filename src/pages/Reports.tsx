@@ -409,8 +409,8 @@ export default function Reports() {
               <AreaChart data={weightedPipeline}>
                 <defs>
                   <linearGradient id="colorWeighted" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#D9AD34" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="#D9AD34" stopOpacity={0} />
+                    <stop offset="5%" stopColor="#1F6FE5" stopOpacity={0.3} />
+                    <stop offset="95%" stopColor="#1F6FE5" stopOpacity={0} />
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
@@ -423,7 +423,7 @@ export default function Reports() {
                     name === 'weighted' ? 'Pipeline Ponderado' : 'Confirmado',
                   ]}
                 />
-                <Area type="monotone" dataKey="weighted" stroke="#D9AD34" strokeWidth={3} fillOpacity={1} fill="url(#colorWeighted)" />
+                <Area type="monotone" dataKey="weighted" stroke="#1F6FE5" strokeWidth={3} fillOpacity={1} fill="url(#colorWeighted)" />
                 <Area type="monotone" dataKey="confirmed" stroke="#10B981" strokeWidth={2} strokeDasharray="5 5" fill="transparent" />
               </AreaChart>
             </ResponsiveContainer>
