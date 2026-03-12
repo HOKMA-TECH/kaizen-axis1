@@ -417,6 +417,8 @@ function extrairNeon(texto: string): Array<{ dataRaw: string; descricaoRaw: stri
 
 function extrair(texto: string): Array<{ dataRaw: string; descricaoRaw: string; valorRaw: string }> {
     const normalizado = texto
+        .replace(/\r\n/g, '\n').replace(/\r/g, '\n')
+        .replace(/[–—−]/g, '-') // Normaliza en-dash, em-dash, e sinal de menos matemático para hífen simples
         .replace(
             /(\d{1,2})\s+(?:de\s+)?(janeiro|jan\.?|fevereiro|fev\.?|mar(?:ç|c)o|mar\.?|abril|abr\.?|maio|mai\.?|junho|jun\.?|julho|jul\.?|agosto|ago\.?|setembro|set\.?|outubro|out\.?|novembro|nov\.?|dezembro|dez\.?)\s+(?:de\s+)?(\d{4})/gi,
             (_, d, m, a) => {
