@@ -170,13 +170,23 @@ const KEYWORDS_IGNORAR = [
 ];
 
 // ── v3: Keywords de apostas/jogos (nova regra 2a) ────────────────────────────
-const KEYWORDS_APOSTAS = [
-    'BET', 'BETNACIONAL', 'BETANO', 'SPORTINGBET', 'BRAZINO', 'PIXBET',
-    'ESPORTE DA SORTE', 'SUPERBET', 'NOVIBET',
-    'CASINO', 'CASSINO', 'APOSTA', 'APOSTAS', 'LOTERIA', 'LOTERICA',
-    'JOGO', 'JOGOS', 'SLOTS', 'ROLETA', 'POKER',
-    'BLAZE', 'FORTUNE TIGER', 'FORTUNE', 'TIGRINHO',
+// Keywords específicas (marcas longas) — verificadas com includes() simples
+const KEYWORDS_APOSTAS_EXATAS = [
+    'BETNACIONAL', 'BETANO', 'SPORTINGBET', 'BRAZINO', 'PIXBET',
+    'ESPORTE DA SORTE', 'SUPERBET', 'NOVIBET', 'BLAZE',
+    'FORTUNE TIGER', 'TIGRINHO',
 ];
+// Keywords curtas/ambíguas — verificadas com word-boundary para não pegar substrings de nomes
+// Ex: "BET" não deve casar com "Elizabete", "JOGO" não deve casar com "Jogo de cintura"
+const KEYWORDS_APOSTAS_PALAVRA = [
+    'BET', 'CASINO', 'CASSINO', 'APOSTA', 'APOSTAS', 'LOTERIA', 'LOTERICA',
+    'JOGO', 'JOGOS', 'SLOTS', 'ROLETA', 'POKER', 'FORTUNE',
+];
+// \b (word boundary) garante que "BET" não case dentro de "ELIZABETE" ou "ROBERTA"
+const APOSTAS_PALAVRA_RE = new RegExp(
+    '\\b(' + KEYWORDS_APOSTAS_PALAVRA.join('|') + ')\\b',
+    'i'
+);
 
 // ── v3: Renda laboral — pula verificação de autotransferência ────────────────
 const INCOME_KEYWORDS_NOMES = new Set([
@@ -259,7 +269,11 @@ function classificar(
     if (valor <= 0) return { ...base, classificacao: 'debito', is_validated: false, custom_tag: null };
 
     // 2a. v3: Apostas / jogos (NOVA — verificada antes da blacklist geral)
-    if (KEYWORDS_APOSTAS.some(k => descNorm.includes(k))) {
+    // Usa dois critérios: marcas longas com includes(), e palavras curtas com word-boundary regex
+    const temAposta =
+        KEYWORDS_APOSTAS_EXATAS.some(k => descNorm.includes(k)) ||
+        APOSTAS_PALAVRA_RE.test(descNorm);
+    if (temAposta) {
         return { ...base, classificacao: 'ignorar_aposta', motivoExclusao: 'Aposta/jogo', is_validated: false, custom_tag: 'aposta' };
     }
 
