@@ -164,9 +164,15 @@ const KEYWORDS_IGNORAR = [
     'CORRECAO MONETARIA', 'CORR MONETARIA',
     'EMPRESTIMO', 'ANTECIPACAO', 'CREDITO CONSIGNADO', 'LIBERACAO EMPRESTIMO',
     'SALDO', 'SALDO ANTERIOR', 'TARIFA', 'TAXA', 'JUROS', 'MULTA', 'COBRANCA', 'ANUIDADE',
-    // SUMMARIES: Linhas de soma do banco (ex: Santander)
+    // SUMMARIES: Linhas de soma do banco (ex: Santander, Itaú mensal)
     'TOTAL DE CREDITOS', 'TOTAL DE DEBITOS', 'DEPOSITOS / TRANSFERENCIAS', 'SAQUES / TRANSFERENCIAS', 'SOMA', 'SUBTOTAL',
     'OUTROS CREDITOS', 'PAGAMENTOS / TRANSFERENCIAS',
+    // Itaú "Movimentação Bancária" — sumários da capa que não são transações reais
+    'TOTAL ENTRADAS', 'TOTAL SAIDAS', 'TOTAL ENTRADAS TOTAL SAIDAS',
+    'TRANSFERENCIAS DOCS E TEDS', 'TRANSFERENCIAS DOCS TEDS',
+    'DEPOSITOS E RECEBIMENTOS', 'OUTRAS ENTRADAS', 'OUTRAS SAIDAS',
+    'APLIC AUT MAIS', 'APLIC MAIS', 'SALDO APLIC', 'RES APLIC AUT', 'SALDO APLIC AUT MAIS',
+    'MINHA CONTA', 'MINHA AGENCIA',
 ];
 
 // ── v3: Keywords de apostas/jogos (nova regra 2a) ────────────────────────────
