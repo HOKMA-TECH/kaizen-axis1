@@ -421,9 +421,10 @@ export default function IncomeAnalysis() {
       // Garantir estritamente entradas no Accordion (valor > 0)
       if (t.valor <= 0) continue;
 
-      // Oculta apenas as entradas genéricas brutas e sem keyword do Accordion, 
-      // mas mostra TODO o resto (Apostas, Autotransferências, etc.) para controle do usuário.
+      // Oculta entradas genéricas, duplicadas, de lixo bancário e estornos do Accordion.
+      // Mantemos apenas: credito_valido, possivel_vinculo_familiar, ignorar_aposta, ignorar_autotransferencia
       if (t.classificacao === 'ignorar_sem_keyword') continue;
+      if (t.classificacao === 'ignorar_estorno') continue;
       if (!grupos[t.mes]) grupos[t.mes] = [];
       grupos[t.mes].push(t);
     }
