@@ -496,7 +496,7 @@ function extrair(texto: string): Array<{ dataRaw: string; descricaoRaw: string; 
     let descAcumulada = ''; // Buffer para acumular descrições multi-linha (ex: Bradesco)
 
     // Regex para ignorar cabeçalhos de página sem zerar o buffer (apenas pula a linha)
-    const CABECALHOS_IGNORE = /^(extrato de|bradesco|banco do brasil|lançamentos|histórico|docto|crédito|débito|saldo|data:|cliente:|agência:|conta:|^[\d/]+$|saldo ao final do dias?[:,]?|documento emitido em|hora\s+tipo|origem.*destino|forma de pagamento)/i;
+    const CABECALHOS_IGNORE = /^(extrato de|bradesco|banco do brasil|lançamentos|histórico|docto|crédito|débito|saldo|data:|cliente:|agência:|conta:|^[\d/]+$|saldo ao final do dias?[:,]?|documento emitido em|hora\s+tipo|origem.*destino|forma de pagamento|entradas\s*(\(cr[eé]ditos?\))?$|sa[ií]das\s*(\(d[eé]bitos?\))?$|outras entradas|dep[oó]sitos e recebimentos|este material est[aá] dispon|res aplic aut mais|saldo aplic aut mais)/i;
 
     // Máquina de estados para ignorar sessões inteiras (ex: Santander "Comprovantes de Pagamento")
     // Para o Santander, iniciamos ignorando tudo até achar a seção correta ("Conta Corrente"), 
@@ -504,9 +504,14 @@ function extrair(texto: string): Array<{ dataRaw: string; descricaoRaw: string; 
     const isSantander = /santander/i.test(limpo.substring(0, 1500));
     let isIgnoredSection = isSantander;
 
+    // Itaú Movimentação Bancária — seção de resumo de entradas/saídas no início do extrato.
+    // O cabeçalho "01. Conta Corrente e Aplicações Automáticas" desliga esse modo quando encontrado na listagem detalhada.
+    const isItauMensal = /ita[uú]/i.test(limpo.substring(0, 500)) && /entradas.*cr[eé]ditos/i.test(limpo.substring(0, 3000));
+    if (isItauMensal) isIgnoredSection = true; // Começa ignorando até a seção de transações
+
     const SECTIONS_IGNORE = /^(comprovantes? de|pacote de servi[çc]os|[íi]ndices econ[óo]micos|resumo consolidado|demonstrativo de|posi[çc][ãa]o de|investimentos|t[íi]tulos? de capitaliza[çc][ãa]o|fundos? de investimento|cr[ée]dito pessoal|poupan[çc]a|cart[ãa]o de cr[ée]dito|seguros|prote[çc][ãa]o)/i;
     // Remove the ^ anchor for CONTA CORRENTE because it can be indented or have dashes attached 
-    const SECTIONS_VALID = /(conta corrente|movimenta[çc][ãa]o|lan[çc]amentos|hist[óo]rico(?! de)|transa[çc][ão][ãe]es da conta|extrato( de( conta| transa))?)/i;
+    const SECTIONS_VALID = /(conta corrente|movimenta[çc][ãa]o|lan[çc]amentos|hist[óo]rico(?! de)|transa[çc][ão][ãe]es da conta|extrato( de( conta| transa))?|data\s+descri[çc][ãa]o)/i;
 
     for (let i = 0; i < linhas.length; i++) {
         const linha = linhas[i];
