@@ -51,8 +51,9 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
                 const { data, error } = await supabase
                     .from('notifications')
                     .select('*')
+                    .eq('is_read', false)
                     .order('created_at', { ascending: false })
-                    .limit(50); // Get latest 50 to avoid bloat
+                    .limit(50);
 
                 if (error) throw error;
 
@@ -149,8 +150,13 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
 
     const deleteNotification = async (id: string) => {
         try {
+            // Optimistic UI update
             setNotifications((prev) => prev.filter((n) => n.id !== id));
-            const { error } = await supabase.from('notifications').delete().eq('id', id);
+            // Mark as read so it won't come back on next fetch (is_read filter)
+            const { error } = await supabase
+                .from('notifications')
+                .update({ is_read: true })
+                .eq('id', id);
             if (error) throw error;
         } catch (error) {
             console.error('Error deleting notification:', error);
@@ -160,17 +166,18 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     const deleteAllNotifications = async () => {
         if (!profile?.id) return;
         try {
-            const idsToDelete = notifications.map((n) => n.id);
-            if (idsToDelete.length === 0) return;
+            if (notifications.length === 0) return;
             // Optimistic UI: clear immediately
             setNotifications([]);
+            // Mark all as read — guaranteed to work via UPDATE RLS
+            // Fetch only shows is_read=false, so they won't return on refresh
             const { error } = await supabase
                 .from('notifications')
-                .delete()
-                .in('id', idsToDelete);
+                .update({ is_read: true })
+                .eq('is_read', false);
             if (error) throw error;
         } catch (error) {
-            console.error('Error deleting all notifications:', error);
+            console.error('Error clearing all notifications:', error);
         }
     };
 
