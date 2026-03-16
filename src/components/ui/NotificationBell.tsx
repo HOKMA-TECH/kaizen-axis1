@@ -120,7 +120,7 @@ const NotificationItem = ({
 };
 
 export const NotificationBell = () => {
-    const { notifications, unreadCount, markAllAsRead, loading } = useNotifications();
+    const { notifications, unreadCount, markAllAsRead, deleteAllNotifications, loading } = useNotifications();
     const [isOpen, setIsOpen] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -174,9 +174,9 @@ export const NotificationBell = () => {
                         {/* Header */}
                         <div className="px-4 py-3 border-b border-surface-100 flex items-center justify-between bg-surface-50/50">
                             <h3 className="text-sm font-bold text-text-primary">Notificações</h3>
-                            {unreadCount > 0 && (
+                            {notifications.length > 0 && (
                                 <button
-                                    onClick={() => markAllAsRead()}
+                                    onClick={() => deleteAllNotifications()}
                                     className="text-[11px] font-semibold text-gold-600 hover:text-gold-700 flex items-center gap-1 transition-colors"
                                 >
                                     <CheckCheck size={14} /> Limpar Todas

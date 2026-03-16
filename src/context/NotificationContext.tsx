@@ -22,6 +22,7 @@ interface NotificationContextType {
     markAsRead: (id: string) => Promise<void>;
     markAllAsRead: () => Promise<void>;
     deleteNotification: (id: string) => Promise<void>;
+    deleteAllNotifications: () => Promise<void>;
     loading: boolean;
 }
 
@@ -156,8 +157,25 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
         }
     };
 
+    const deleteAllNotifications = async () => {
+        if (!profile?.id) return;
+        try {
+            const idsToDelete = notifications.map((n) => n.id);
+            if (idsToDelete.length === 0) return;
+            // Optimistic UI: clear immediately
+            setNotifications([]);
+            const { error } = await supabase
+                .from('notifications')
+                .delete()
+                .in('id', idsToDelete);
+            if (error) throw error;
+        } catch (error) {
+            console.error('Error deleting all notifications:', error);
+        }
+    };
+
     return (
-        <NotificationContext.Provider value={{ notifications, unreadCount, markAsRead, markAllAsRead, deleteNotification, loading }}>
+        <NotificationContext.Provider value={{ notifications, unreadCount, markAsRead, markAllAsRead, deleteNotification, deleteAllNotifications, loading }}>
             {children}
         </NotificationContext.Provider>
     );
