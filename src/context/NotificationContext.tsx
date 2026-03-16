@@ -101,9 +101,14 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
                         }
                     } else if (payload.eventType === 'UPDATE') {
                         const updatedNotif = payload.new as Notification;
-                        setNotifications((prev) =>
-                            prev.map((n) => (n.id === updatedNotif.id ? updatedNotif : n))
-                        );
+                        // If notification became read, remove it from list (fetch only shows unread)
+                        if (updatedNotif.is_read) {
+                            setNotifications((prev) => prev.filter((n) => n.id !== updatedNotif.id));
+                        } else {
+                            setNotifications((prev) =>
+                                prev.map((n) => (n.id === updatedNotif.id ? updatedNotif : n))
+                            );
+                        }
                     } else if (payload.eventType === 'DELETE') {
                         setNotifications((prev) => prev.filter((n) => n.id !== payload.old.id));
                     }
@@ -166,15 +171,21 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     const deleteAllNotifications = async () => {
         if (!profile?.id) return;
         try {
-            if (notifications.length === 0) return;
+            const ids = notifications.map((n) => n.id);
+            if (ids.length === 0) return;
+
             // Optimistic UI: clear immediately
             setNotifications([]);
-            // Mark all as read — guaranteed to work via UPDATE RLS
-            // Fetch only shows is_read=false, so they won't return on refresh
+
+            // Use .in('id', ids) with the exact IDs visible to this user.
+            // These IDs already passed SELECT RLS, so UPDATE with .in() also passes.
+            // Using .eq('is_read', false) without id filter was silently blocked by
+            // RLS for role-targeted notifications (target_user_id = null).
             const { error } = await supabase
                 .from('notifications')
                 .update({ is_read: true })
-                .eq('is_read', false);
+                .in('id', ids);
+
             if (error) throw error;
         } catch (error) {
             console.error('Error clearing all notifications:', error);
