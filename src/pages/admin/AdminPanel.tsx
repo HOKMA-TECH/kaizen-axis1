@@ -11,9 +11,9 @@ import { supabase } from '@/lib/supabase';
 type Tab = 'users' | 'teams' | 'goals' | 'announcements' | 'reports' | 'directorates' | 'gamification';
 
 export default function AdminPanel() {
-  // ── Hard role guard: only ADMIN can access this page ────────────────────────
-  const { isAdmin } = useAuthorization();
-  if (!isAdmin) return <Navigate to="/" replace />;
+  // ── Hard role guard: only ADMIN and DIRETOR can access this page ────────────
+  const { isAdmin, isDirector } = useAuthorization();
+  if (!isAdmin && !isDirector) return <Navigate to="/" replace />;
 
   const {
     allProfiles, updateProfile, refreshProfiles,

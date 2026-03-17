@@ -35,7 +35,6 @@ import CheckInDisplay from '@/pages/CheckInDisplay';
 
 // ─── Auth guard (all authenticated users) ───────────────────────────────────
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const isAuthenticated = localStorage.getItem('isAuthenticated');
   const { profile, loading, session } = useApp();
 
   // Show a blank loading screen (or simple spinner) while Auth context initializes
@@ -47,10 +46,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
     );
   }
 
-  if (!isAuthenticated || !session) {
-    if (isAuthenticated) {
-      localStorage.removeItem('isAuthenticated');
-    }
+  if (!session) {
     return <Navigate to="/login" replace />;
   }
 
@@ -71,7 +67,6 @@ function RoleRoute({
   children: React.ReactNode;
   allowed: UserRole[];
 }) {
-  const isAuthenticated = localStorage.getItem('isAuthenticated');
   const { role } = useAuthorization();
   const { profile, loading, session } = useApp();
 
@@ -83,10 +78,7 @@ function RoleRoute({
     );
   }
 
-  if (!isAuthenticated || !session) {
-    if (isAuthenticated) {
-      localStorage.removeItem('isAuthenticated');
-    }
+  if (!session) {
     return <Navigate to="/login" replace />;
   }
 
@@ -154,9 +146,9 @@ export default function App() {
         {/* Simulator placeholder */}
         <Route path="/simulator" element={<ProtectedRoute><div className="p-6"><h1 className="text-2xl font-bold">Simulador</h1><p>Em breve...</p></div></ProtectedRoute>} />
 
-        {/* ── ADMIN ONLY ───────────────────────────────────────────────── */}
+        {/* ── ADMIN & DIRETOR ──────────────────────────────────────────── */}
         <Route path="/admin" element={
-          <RoleRoute allowed={['ADMIN']}>
+          <RoleRoute allowed={['ADMIN', 'DIRETOR']}>
             <AdminPanel />
           </RoleRoute>
         } />

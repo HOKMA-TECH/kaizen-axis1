@@ -29,7 +29,7 @@ export default function More() {
         <div className="mb-6">
           <h3 className="text-xs font-bold text-text-secondary uppercase mb-2 px-2">Administrativo</h3>
           <div className="space-y-3">
-            {isAdmin && (
+            {(isAdmin || isDirector) && (
               <PremiumCard
                 className="flex items-center gap-4 p-4 bg-gradient-to-r from-gray-900 to-gray-800 text-white border-none cursor-pointer"
                 onClick={() => navigate('/admin')}
