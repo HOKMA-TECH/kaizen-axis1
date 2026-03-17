@@ -143,11 +143,11 @@ export default function Dashboard() {
               </div>
               <div className="h-12 w-12 rounded-full bg-gold-100 dark:bg-gold-900/40 flex items-center justify-center text-gold-600 font-bold text-xl">{totalSales}</div>
             </PremiumCard>
-            <PremiumCard>
+            <PremiumCard className="cursor-pointer" onClick={() => navigate('/clients', { state: { initialStage: 'Em Análise' } })}>
               <p className="text-xs text-text-secondary uppercase">Em Análise</p>
               <h3 className="text-2xl font-bold text-text-primary mt-2">{String(emAnalise).padStart(2, '0')}</h3>
             </PremiumCard>
-            <PremiumCard>
+            <PremiumCard className="cursor-pointer" onClick={() => navigate('/clients', { state: { initialStage: 'Aprovado' } })}>
               <p className="text-xs text-text-secondary uppercase">Aprovados</p>
               <h3 className="text-2xl font-bold text-green-600 mt-2">{String(aprovados).padStart(2, '0')}</h3>
             </PremiumCard>
