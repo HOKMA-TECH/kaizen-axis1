@@ -71,8 +71,8 @@ export default function Dashboard() {
         </section>
       )}
 
-      {/* ── ADMIN & DIRETOR: Global Metrics ────────────────────────────────── */}
-      {(isAdmin || isDirector) && (
+      {/* ── ADMIN ONLY: Global Metrics ─────────────────────────────────────── */}
+      {isAdmin && (
         <>
           <div className="grid grid-cols-2 gap-4">
             <PremiumCard highlight className="col-span-2 flex justify-between items-center cursor-pointer"
