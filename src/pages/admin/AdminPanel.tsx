@@ -1136,10 +1136,10 @@ export default function AdminPanel() {
           { id: 'teams', label: 'Equipes', icon: Shield },
           { id: 'goals', label: 'Metas', icon: Target },
           { id: 'announcements', label: 'Anúncios', icon: Megaphone },
-          { id: 'reports', label: 'Relatórios', icon: BarChart3 },
+          { id: 'reports', label: 'Relatórios', icon: BarChart3, adminOnly: true },
           { id: 'directorates', label: 'Diretorias', icon: Building2 },
           { id: 'gamification', label: 'Gamificação', icon: Zap },
-        ].map((tab) => (
+        ].filter(tab => !tab.adminOnly || isAdmin).map((tab) => (
           <button key={tab.id} onClick={() => setActiveTab(tab.id as Tab)}
             className={`flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap transition-all ${activeTab === tab.id ? 'bg-gold-500 text-white shadow-md shadow-gold-500/20' : 'bg-white dark:bg-surface-100 text-text-secondary border border-surface-200'}`}>
             <tab.icon size={14} /> {tab.label}
