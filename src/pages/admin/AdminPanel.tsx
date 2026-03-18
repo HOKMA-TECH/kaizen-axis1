@@ -190,6 +190,31 @@ export default function AdminPanel() {
     await updateProfile(id, { manager_id: manager_id || null });
   };
 
+
+  const handleDeleteUser = async (userId: string, userName: string) => {
+    const confirmMessage = `⚠️ ATENÇÃO: Esta ação é IRREVERSÍVEL!\n\nVocê está prestes a excluir PERMANENTEMENTE o usuário:\n\n"${userName}"\n\nTODOS os dados relacionados serão deletados:\n- Check-ins\n- Agendamentos\n- Clientes\n- Tarefas\n- Notificações\n- Desenvolvimentos\n- Progressos de treinamento\n\nDigite "CONFIRMAR" para prosseguir:`;
+
+    const userInput = prompt(confirmMessage);
+
+    if (userInput !== 'CONFIRMAR') {
+      alert('Exclusão cancelada.');
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase.rpc('delete_user_permanently', {
+        user_id: userId
+      });
+
+      if (error) throw error;
+
+      alert(`✅ Usuário "${userName}" foi excluído permanentemente com sucesso!`);
+      await refreshProfiles();
+    } catch (error: any) {
+      console.error('Erro ao excluir usuário:', error);
+      alert(`❌ Erro ao excluir usuário: ${error.message}`);
+    }
+  };
   // ── Approval Flow ──────────────────────────────────────────────────────────
   const handleOpenApprovalModal = (userId: string) => {
     setSelectedPendingUserId(userId);
@@ -358,6 +383,13 @@ export default function AdminPanel() {
                           {allProfiles.filter(p => p.id !== u.id).map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                         </select>
                       </div>
+                      <button
+                        onClick={() => handleDeleteUser(u.id, u.name || 'Usuário')}
+                        className="p-2 rounded-lg hover:bg-red-50 text-red-500 transition-colors"
+                        title="Excluir usuário permanentemente"
+                      >
+                        <Trash2 size={16} />
+                      </button>
                     </PremiumCard>
                   ))}
               </div>
