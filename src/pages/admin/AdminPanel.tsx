@@ -78,12 +78,15 @@ export default function AdminPanel() {
     setIsExportingPipeline(true);
     try {
       const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error('Sessão expirada. Faça login novamente.');
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
       const response = await fetch(`${supabaseUrl}/functions/v1/export-pipeline-corretor`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session?.access_token}`,
+          'Authorization': `Bearer ${session.access_token}`,
+          'apikey': supabaseAnonKey,
         },
         body: JSON.stringify({ corretor_id: pipelineCorretor }),
       });
