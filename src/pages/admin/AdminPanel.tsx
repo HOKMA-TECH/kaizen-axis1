@@ -7,6 +7,7 @@ import { useAuthorization } from '@/hooks/useAuthorization';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, Legend } from 'recharts';
 import { supabase } from '@/lib/supabase';
+import PipelinePdfExport from '@/components/admin/PipelinePdfExport';
 
 type Tab = 'users' | 'teams' | 'goals' | 'announcements' | 'reports' | 'directorates' | 'gamification';
 
@@ -68,47 +69,6 @@ export default function AdminPanel() {
   const [reportData, setReportData] = useState<any>(null);
   const [reportLoading, setReportLoading] = useState(false);
   const [isGeneratingCSV, setIsGeneratingCSV] = useState(false);
-
-  // Pipeline PDF Export
-  const [pipelineCorretor, setPipelineCorretor] = useState('');
-  const [isExportingPipeline, setIsExportingPipeline] = useState(false);
-
-  const exportarPipeline = async () => {
-    if (!pipelineCorretor) return;
-    setIsExportingPipeline(true);
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) throw new Error('Sessão expirada. Faça login novamente.');
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-      const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-      const response = await fetch(`${supabaseUrl}/functions/v1/export-pipeline-corretor`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`,
-          'apikey': supabaseAnonKey,
-        },
-        body: JSON.stringify({ corretor_id: pipelineCorretor }),
-      });
-      if (!response.ok) {
-        let errMsg = `HTTP ${response.status}`;
-        try { const err = await response.json(); errMsg = err.error || errMsg; } catch {}
-        throw new Error(errMsg);
-      }
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      const nome = allProfiles.find(p => p.id === pipelineCorretor)?.name || 'corretor';
-      a.download = `pipeline-${nome.replace(/\s+/g, '-')}.pdf`;
-      a.click();
-      window.URL.revokeObjectURL(url);
-    } catch (err: any) {
-      alert(`Erro: ${err.message}`);
-    } finally {
-      setIsExportingPipeline(false);
-    }
-  };
 
   // XP Report
   const [xpDateRange, setXpDateRange] = useState({
@@ -624,42 +584,7 @@ export default function AdminPanel() {
         return (
           <div className="space-y-6 print:space-y-4">
             {/* ── Pipeline PDF Export ── */}
-            <div className="print:hidden bg-white rounded-xl border border-surface-200 shadow-sm p-4 space-y-3">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center shrink-0">
-                  <FileText size={16} className="text-white" />
-                </div>
-                <div>
-                  <p className="text-sm font-semibold text-text-primary">Pipeline por Corretor (PDF)</p>
-                  <p className="text-xs text-text-secondary">Todos os leads ativos de um corretor, excluindo concluídos e cancelados</p>
-                </div>
-              </div>
-              <select
-                value={pipelineCorretor}
-                onChange={e => setPipelineCorretor(e.target.value)}
-                className="w-full px-3 py-2 border border-surface-200 rounded-lg text-sm bg-surface-50 focus:border-gold-400 focus:ring-1 focus:ring-gold-400 outline-none transition-all"
-              >
-                <option value="">Selecione um corretor...</option>
-                {allProfiles
-                  .filter(p => p.role?.toUpperCase() === 'CORRETOR')
-                  .sort((a, b) => a.name.localeCompare(b.name))
-                  .map(p => (
-                    <option key={p.id} value={p.id}>{p.name}</option>
-                  ))
-                }
-              </select>
-              <button
-                onClick={exportarPipeline}
-                disabled={!pipelineCorretor || isExportingPipeline}
-                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                {isExportingPipeline ? (
-                  <><Loader2 size={15} className="animate-spin" /> Gerando PDF...</>
-                ) : (
-                  <><Download size={15} /> Exportar Pipeline (PDF)</>
-                )}
-              </button>
-            </div>
+            <PipelinePdfExport corretores={allProfiles} />
 
             {/* ── Presence Report shortcut ── */}
             <div className="print:hidden">
