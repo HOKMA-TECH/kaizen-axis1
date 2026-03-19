@@ -88,8 +88,9 @@ export default function AdminPanel() {
         body: JSON.stringify({ corretor_id: pipelineCorretor }),
       });
       if (!response.ok) {
-        const err = await response.json();
-        throw new Error(err.error || 'Erro ao gerar PDF');
+        let errMsg = `HTTP ${response.status}`;
+        try { const err = await response.json(); errMsg = err.error || errMsg; } catch {}
+        throw new Error(errMsg);
       }
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);

@@ -1,7 +1,7 @@
 // @ts-nocheck — Deno types are not available in the local TS checker; valid at runtime.
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from 'jsr:@supabase/supabase-js@2';
-import { PDFDocument, rgb, StandardFonts } from 'npm:pdf-lib@1.17.1';
+import { PDFDocument, rgb, StandardFonts } from 'https://esm.sh/pdf-lib@1.17.1';
 
 // ── CORS ──────────────────────────────────────────────────────────────────────
 const corsHeaders = {
