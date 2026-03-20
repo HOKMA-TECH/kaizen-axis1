@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { RoundedButton } from '@/components/ui/PremiumComponents';
 import { Building2, Mail, Lock, User, Users, ShieldCheck, Loader2, ArrowLeft } from 'lucide-react';
@@ -21,6 +21,41 @@ export default function Login() {
   const [showMfaInput, setShowMfaInput] = useState(false);
   const [mfaCode, setMfaCode] = useState('');
   const [mfaFactorId, setMfaFactorId] = useState('');
+
+  // Estado de redefinição de senha (vindo do link do e-mail)
+  const [showResetPassword, setShowResetPassword] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmNewPassword, setConfirmNewPassword] = useState('');
+
+  // Detecta token de recovery na URL ao montar
+  useEffect(() => {
+    const hash = window.location.hash;
+    if (hash.includes('type=recovery')) {
+      setShowResetPassword(true);
+    }
+  }, []);
+
+  const handleResetPasswordSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (newPassword !== confirmNewPassword) {
+      alert('As senhas não coincidem.');
+      return;
+    }
+    if (newPassword.length < 6) {
+      alert('A senha deve ter pelo menos 6 caracteres.');
+      return;
+    }
+    setLoading(true);
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    setLoading(false);
+    if (error) {
+      alert('Erro ao redefinir senha: ' + error.message);
+    } else {
+      alert('Senha redefinida com sucesso! Faça login com sua nova senha.');
+      setShowResetPassword(false);
+      window.history.replaceState(null, '', window.location.pathname);
+    }
+  };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -134,17 +169,49 @@ export default function Login() {
 
         <div className="flex flex-col items-center mb-10 text-center">
           <h2 className="text-2xl font-bold text-text-primary tracking-tight">
-            {showMfaInput ? 'Autenticação' : (isLogin ? 'Bem-vindo de volta' : 'Criar Nova Conta')}
+            {showResetPassword ? 'Nova Senha' : showMfaInput ? 'Autenticação' : (isLogin ? 'Bem-vindo de volta' : 'Criar Nova Conta')}
           </h2>
           <p className="text-sm text-text-secondary mt-2">
-            {showMfaInput
+            {showResetPassword
+              ? 'Digite e confirme sua nova senha'
+              : showMfaInput
               ? 'Proteção em Dois Fatores'
               : 'Insira suas credenciais para acessar a plataforma'}
           </p>
         </div>
 
-        {/* ── Tela MFA ──────────────────────────────────────────────────────── */}
-        {showMfaInput ? (
+        {/* ── Tela Redefinir Senha ───────────────────────────────────────────── */}
+        {showResetPassword ? (
+          <form onSubmit={handleResetPasswordSubmit} className="space-y-5 animate-in fade-in duration-300">
+            <div className="relative group">
+              <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-text-secondary group-focus-within:text-gold-500 transition-colors" size={20} />
+              <input
+                type="password"
+                placeholder="Nova senha"
+                required
+                minLength={6}
+                value={newPassword}
+                onChange={e => setNewPassword(e.target.value)}
+                className="w-full pl-12 pr-4 py-3.5 bg-surface-50 dark:bg-surface-800/50 rounded-xl border border-surface-200 dark:border-surface-700 focus:ring-2 focus:ring-gold-500 focus:border-gold-500 transition-all text-sm text-text-primary focus:outline-none"
+              />
+            </div>
+            <div className="relative group">
+              <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-text-secondary group-focus-within:text-gold-500 transition-colors" size={20} />
+              <input
+                type="password"
+                placeholder="Confirme a nova senha"
+                required
+                minLength={6}
+                value={confirmNewPassword}
+                onChange={e => setConfirmNewPassword(e.target.value)}
+                className="w-full pl-12 pr-4 py-3.5 bg-surface-50 dark:bg-surface-800/50 rounded-xl border border-surface-200 dark:border-surface-700 focus:ring-2 focus:ring-gold-500 focus:border-gold-500 transition-all text-sm text-text-primary focus:outline-none"
+              />
+            </div>
+            <RoundedButton type="submit" fullWidth className="py-4 text-base font-semibold shadow-gold-500/20 shadow-lg" disabled={loading}>
+              {loading ? <Loader2 size={20} className="animate-spin" /> : 'Salvar Nova Senha'}
+            </RoundedButton>
+          </form>
+        ) : showMfaInput ? (
           <form onSubmit={handleMfaSubmit} className="space-y-6 animate-in slide-in-from-right-8 duration-300">
             <div className="text-center text-sm text-text-secondary bg-surface-50 dark:bg-surface-800 p-4 rounded-xl">
               Abra seu Google Authenticator ou Authy e digite o código de 6 dígitos para o Kaizen Axis.
@@ -272,7 +339,7 @@ export default function Login() {
           </form>
         )}
 
-        {!showMfaInput && (
+        {!showMfaInput && !showResetPassword && (
           <div className="mt-8 text-center border-t border-surface-100 dark:border-surface-800 pt-6">
             <p className="text-sm text-text-secondary">
               {isLogin ? 'Novo por aqui?' : 'Já faz parte da equipe?'}
