@@ -27,12 +27,14 @@ export default function Login() {
   const [newPassword, setNewPassword] = useState('');
   const [confirmNewPassword, setConfirmNewPassword] = useState('');
 
-  // Detecta token de recovery na URL ao montar
+  // Detecta evento PASSWORD_RECOVERY do Supabase
   useEffect(() => {
-    const hash = window.location.hash;
-    if (hash.includes('type=recovery')) {
-      setShowResetPassword(true);
-    }
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'PASSWORD_RECOVERY') {
+        setShowResetPassword(true);
+      }
+    });
+    return () => subscription.unsubscribe();
   }, []);
 
   const handleResetPasswordSubmit = async (e: React.FormEvent) => {
