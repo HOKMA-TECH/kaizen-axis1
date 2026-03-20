@@ -139,6 +139,14 @@ function DiretoriaReportView({
         </PremiumCard>
 
         <PremiumCard className="flex flex-col gap-1">
+          <p className="text-[10px] text-text-secondary uppercase tracking-wide">Aprovados</p>
+          <div className="flex items-end gap-2 mt-1">
+            <TrendingUp size={18} className="text-blue-500 mb-0.5" />
+            <h3 className="text-2xl font-bold text-green-600">{resumo.total_aprovados ?? 0}</h3>
+          </div>
+        </PremiumCard>
+
+        <PremiumCard className="flex flex-col gap-1">
           <p className="text-[10px] text-text-secondary uppercase tracking-wide">Taxa de Conversão</p>
           <div className="flex items-end gap-2 mt-1">
             <Target size={18} className="text-blue-500 mb-0.5" />

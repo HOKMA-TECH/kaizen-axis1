@@ -42,9 +42,10 @@ export interface ClientHealthScore {
 export interface DiretoriaResumo {
     total_clientes: number;
     total_vendas: number;
+    total_aprovados: number;
     taxa_conversao: number;
     receita_total: number;
-    ciclo_medio_dias: number;        // NEW: real avg sales cycle in days
+    ciclo_medio_dias: number;
 }
 
 export interface DiretoriaEquipe {
