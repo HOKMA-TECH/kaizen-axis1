@@ -32,7 +32,9 @@ export default function Dashboard() {
 
   // Upcoming appointments for this user's scope
   const todayStr = new Date().toISOString().slice(0, 10);
-  const upcomingAppointments = appointments.filter(a => a.date >= todayStr).slice(0, 5);
+  const allUpcomingAppointments = appointments.filter(a => a.date >= todayStr);
+  const upcomingAppointments = allUpcomingAppointments.slice(0, 5);
+  const upcomingAppointmentsTotal = allUpcomingAppointments.length;
 
   // Role label for header
   const roleLabel: Record<string, string> = {
@@ -421,7 +423,7 @@ export default function Dashboard() {
               onClick={() => navigate('/schedule')}
             >
               <Calendar size={22} className="text-purple-500" />
-              <h3 className="text-2xl font-bold text-text-primary">{upcomingAppointments.length}</h3>
+              <h3 className="text-2xl font-bold text-text-primary">{upcomingAppointmentsTotal}</h3>
               <p className="text-xs text-text-secondary">Agendamentos</p>
             </PremiumCard>
           </div>
