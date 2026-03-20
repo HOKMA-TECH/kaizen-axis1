@@ -29,6 +29,7 @@ import PresenceReport from '@/pages/admin/PresenceReport';
 import PdfTools from '@/pages/PdfTools';
 import Portals from '@/pages/Portals';
 import Login from '@/pages/Login';
+import ResetPassword from '@/pages/ResetPassword';
 import PendingApproval from '@/pages/PendingApproval';
 import CheckIn from '@/pages/CheckIn';
 import CheckInDisplay from '@/pages/CheckInDisplay';
@@ -107,6 +108,7 @@ export default function App() {
       <Routes>
         {/* Public */}
         <Route path="/login" element={<Login />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/pending" element={<PendingApproval />} />
 
         {/* ── All authenticated roles ───────────────────────────────────── */}
