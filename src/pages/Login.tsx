@@ -26,13 +26,7 @@ export default function Login() {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const handleDemoLogin = () => {
-    setFormData({
-      ...formData,
-      email: 'diretor@kaizen.com',
-      password: 'demo'
-    });
-  };
+
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -129,7 +123,6 @@ export default function Login() {
   };
 
   const finishLogin = () => {
-    localStorage.setItem('isAuthenticated', 'true');
     navigate('/');
   };
 
@@ -247,7 +240,27 @@ export default function Login() {
 
             {isLogin && (
               <div className="flex justify-end items-center px-1">
-                <button type="button" className="text-xs font-semibold text-gold-600 hover:text-gold-500 transition-colors">
+                <button
+                  type="button"
+                  className="text-xs font-semibold text-gold-600 hover:text-gold-500 transition-colors"
+                  onClick={async () => {
+                    const email = formData.email.trim();
+                    if (!email) {
+                      alert('Digite seu e-mail no campo acima antes de clicar em "Esqueceu a senha?".');
+                      return;
+                    }
+                    setLoading(true);
+                    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+                      redirectTo: `${window.location.origin}/login`,
+                    });
+                    setLoading(false);
+                    if (error) {
+                      alert('Erro ao enviar e-mail: ' + error.message);
+                    } else {
+                      alert('E-mail de redefinição de senha enviado! Verifique sua caixa de entrada.');
+                    }
+                  }}
+                >
                   Esqueceu a senha?
                 </button>
               </div>
