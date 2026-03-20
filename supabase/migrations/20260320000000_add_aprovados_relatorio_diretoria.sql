@@ -47,7 +47,7 @@ BEGIN
     AND (p_start_date IS NULL OR created_at >= p_start_date)
     AND (p_end_date   IS NULL OR created_at <= p_end_date);
 
-  -- 2. Por equipe
+  -- 2. Por equipe (inclui todos os papéis: CORRETOR, GERENTE, COORDENADOR etc.)
   SELECT COALESCE(jsonb_agg(
     jsonb_build_object(
       'equipe_id',      t.id,
@@ -66,14 +66,13 @@ BEGIN
     FROM public.profiles p
     JOIN public.clients c ON c.owner_id = p.id
     WHERE p.directorate_id = diretoria_uuid
-      AND upper(p.role) = 'CORRETOR'
       AND (p_start_date IS NULL OR c.created_at >= p_start_date)
       AND (p_end_date   IS NULL OR c.created_at <= p_end_date)
     GROUP BY p.team
   ) stats ON stats.team_name = t.name
   WHERE t.directorate_id = diretoria_uuid;
 
-  -- 3. Por corretor
+  -- 3. Por consultor (todos que cadastraram clientes na diretoria)
   SELECT COALESCE(jsonb_agg(
     jsonb_build_object(
       'corretor_id',    p.id,
@@ -96,7 +95,7 @@ BEGIN
     GROUP BY c.owner_id
   ) stats ON stats.owner_id = p.id
   WHERE p.directorate_id = diretoria_uuid
-    AND upper(p.role) = 'CORRETOR';
+    AND upper(p.role) IN ('CORRETOR', 'GERENTE', 'COORDENADOR');
 
   RETURN jsonb_build_object(
     'diretoria_nome', v_dir_name,
