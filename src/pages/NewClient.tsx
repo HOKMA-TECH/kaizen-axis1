@@ -5,28 +5,48 @@ import { ChevronLeft, Save, UploadCloud, FileText, X } from 'lucide-react';
 import { CLIENT_STAGES, ClientStage } from '@/data/clients';
 import { useApp } from '@/context/AppContext';
 
+const DRAFT_KEY = 'new-client-draft';
+
+const defaultFormData = {
+  name: '',
+  cpf: '',
+  email: '',
+  phone: '',
+  address: '',
+  profession: '',
+  grossIncome: '',
+  incomeType: 'Formal' as 'Formal' | 'Informal' | 'Mista',
+  cotista: 'Não',
+  socialFactor: 'Não',
+  regionOfInterest: '',
+  development: '',
+  intendedValue: '',
+  stage: 'Documentação' as ClientStage,
+  observations: '',
+};
+
 export default function NewClient() {
   const navigate = useNavigate();
   const location = useLocation();
   const { addClient, uploadFile, addDocumentToClient } = useApp();
 
-  const [formData, setFormData] = useState({
-    name: '',
-    cpf: '',
-    email: '',
-    phone: '',
-    address: '',
-    profession: '',
-    grossIncome: '',
-    incomeType: 'Formal' as 'Formal' | 'Informal' | 'Mista',
-    cotista: 'Não',
-    socialFactor: 'Não',
-    regionOfInterest: '',
-    development: '',
-    intendedValue: '',
-    stage: 'Documentação' as ClientStage,
-    observations: '',
+  const [formData, setFormData] = useState(() => {
+    // Se vier prefill da navegação, ignora rascunho salvo
+    if (location.state?.prefill) return defaultFormData;
+    try {
+      const saved = localStorage.getItem(DRAFT_KEY);
+      return saved ? { ...defaultFormData, ...JSON.parse(saved) } : defaultFormData;
+    } catch {
+      return defaultFormData;
+    }
   });
+
+  // Salva rascunho automaticamente a cada mudança
+  useEffect(() => {
+    if (!location.state?.prefill) {
+      localStorage.setItem(DRAFT_KEY, JSON.stringify(formData));
+    }
+  }, [formData, location.state]);
 
   useEffect(() => {
     if (location.state?.prefill) {
@@ -94,6 +114,7 @@ export default function NewClient() {
     });
 
     if (newClient) {
+      localStorage.removeItem(DRAFT_KEY);
       // Upload documents if any
       if (documents.length > 0) {
         let hasError = false;
