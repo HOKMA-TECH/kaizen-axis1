@@ -81,18 +81,20 @@ export function SalesProgressCard() {
       </div>
 
       {/* Summary indicators */}
-      <div className="grid grid-cols-3 gap-3 mb-4">
-        <div className="text-center">
-          <p className="text-2xl font-bold text-text-primary">{monthlySales.length}</p>
-          <p className="text-[10px] text-text-secondary uppercase tracking-wide">Vendas</p>
+      <div className="flex items-stretch mb-4 rounded-xl overflow-hidden border border-black/5 dark:border-white/5 bg-black/5 dark:bg-white/5">
+        <div className="flex-1 flex flex-col items-center justify-center py-3 px-2 gap-0.5">
+          <p className="text-[10px] font-semibold text-text-secondary uppercase tracking-wider">Vendas</p>
+          <p className="text-xl font-bold text-text-primary">{monthlySales.length}</p>
         </div>
-        <div className="text-center">
-          <p className="text-lg font-bold text-text-primary leading-tight">{formatBRL(totalVGV)}</p>
-          <p className="text-[10px] text-text-secondary uppercase tracking-wide">VGV Total</p>
+        <div className="w-px bg-black/10 dark:bg-white/10" />
+        <div className="flex-1 flex flex-col items-center justify-center py-3 px-2 gap-0.5">
+          <p className="text-[10px] font-semibold text-text-secondary uppercase tracking-wider">VGV Total</p>
+          <p className="text-sm font-bold text-text-primary">{formatBRL(totalVGV)}</p>
         </div>
-        <div className="text-center">
-          <p className="text-lg font-bold text-green-600 dark:text-green-400 leading-tight">{formatBRL(totalComissao)}</p>
-          <p className="text-[10px] text-text-secondary uppercase tracking-wide">Comissão</p>
+        <div className="w-px bg-black/10 dark:bg-white/10" />
+        <div className="flex-1 flex flex-col items-center justify-center py-3 px-2 gap-0.5">
+          <p className="text-[10px] font-semibold text-text-secondary uppercase tracking-wider">Comissão</p>
+          <p className="text-sm font-bold text-green-600 dark:text-green-400">{formatBRL(totalComissao)}</p>
         </div>
       </div>
 
