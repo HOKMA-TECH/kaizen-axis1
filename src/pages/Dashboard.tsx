@@ -62,7 +62,7 @@ export default function Dashboard() {
           </h1>
           <p className="text-text-secondary text-sm">{roleLabel[role] ?? 'Visão geral'}</p>
         </div>
-        <div className="z-50 relative">
+        <div className="z-50 relative lg:hidden">
           <NotificationBell />
         </div>
       </div>
