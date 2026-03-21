@@ -363,39 +363,37 @@ export default function AdminPanel() {
               <div className="grid gap-3">
                 {loading ? <Loader2 size={24} className="animate-spin mx-auto text-gold-400 py-4" /> :
                   activeUsers.map(u => (
-                    <PremiumCard key={u.id} className="p-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-surface-200 flex items-center justify-center text-text-primary font-bold text-sm flex-shrink-0">
-                          {(u.name || '?').charAt(0)}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="font-semibold text-text-primary truncate">{u.name}</p>
-                          <p className="text-xs text-text-secondary">{u.role}</p>
-                        </div>
-                        <div className="flex items-center gap-2 flex-shrink-0">
-                          <select value={u.role} onChange={e => handleRoleChange(u.id, e.target.value)}
-                            className="text-xs bg-surface-50 border border-surface-200 rounded-lg px-2 py-1.5 focus:outline-none focus:border-gold-400">
-                            {['CORRETOR', 'COORDENADOR', 'GERENTE', 'DIRETOR', 'ADMIN'].map(r => <option key={r} value={r}>{r}</option>)}
-                          </select>
-                          <select value={(u as any).directorate_id ?? ''} onChange={e => handleDirectorateChange(u.id, e.target.value || null)}
-                            className="text-xs bg-surface-50 border border-surface-200 rounded-lg px-2 py-1.5 focus:outline-none focus:border-gold-400">
-                            <option value="">Sem Diretoria</option>
-                            {directorates.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
-                          </select>
-                          <select value={(u as any).manager_id ?? ''} onChange={e => handleManagerChange(u.id, e.target.value || null)}
-                            className="text-xs bg-surface-50 border border-surface-200 rounded-lg px-2 py-1.5 focus:outline-none focus:border-gold-400">
-                            <option value="">Sem Gestor</option>
-                            {allProfiles.filter(p => p.id !== u.id).map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                          </select>
-                          <button
-                            onClick={() => handleDeleteUser(u.id, u.name || 'Usuário')}
-                            className="p-2 rounded-lg hover:bg-red-50 text-red-500 transition-colors flex-shrink-0"
-                            title="Excluir usuário permanentemente"
-                          >
-                            <Trash2 size={16} />
-                          </button>
-                        </div>
+                    <PremiumCard key={u.id} className="p-4 flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-surface-200 flex items-center justify-center text-text-primary font-bold text-sm flex-shrink-0">
+                        {(u.name || '?').charAt(0)}
                       </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-text-primary truncate">{u.name}</p>
+                        <p className="text-xs text-text-secondary">{u.role}</p>
+                      </div>
+                      <div className="flex flex-col gap-1.5 flex-shrink-0">
+                        <select value={u.role} onChange={e => handleRoleChange(u.id, e.target.value)}
+                          className="w-44 text-xs bg-surface-50 border border-surface-200 rounded-lg p-1.5 focus:outline-none focus:border-gold-400">
+                          {['CORRETOR', 'COORDENADOR', 'GERENTE', 'DIRETOR', 'ADMIN'].map(r => <option key={r} value={r}>{r}</option>)}
+                        </select>
+                        <select value={(u as any).directorate_id ?? ''} onChange={e => handleDirectorateChange(u.id, e.target.value || null)}
+                          className="w-44 text-xs bg-surface-50 border border-surface-200 rounded-lg p-1.5 focus:outline-none focus:border-gold-400">
+                          <option value="">Sem Diretoria</option>
+                          {directorates.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                        </select>
+                        <select value={(u as any).manager_id ?? ''} onChange={e => handleManagerChange(u.id, e.target.value || null)}
+                          className="w-44 text-xs bg-surface-50 border border-surface-200 rounded-lg p-1.5 focus:outline-none focus:border-gold-400">
+                          <option value="">Sem Gestor</option>
+                          {allProfiles.filter(p => p.id !== u.id).map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                        </select>
+                      </div>
+                      <button
+                        onClick={() => handleDeleteUser(u.id, u.name || 'Usuário')}
+                        className="p-2 rounded-lg hover:bg-red-50 text-red-500 transition-colors flex-shrink-0"
+                        title="Excluir usuário permanentemente"
+                      >
+                        <Trash2 size={16} />
+                      </button>
                     </PremiumCard>
                   ))}
               </div>
