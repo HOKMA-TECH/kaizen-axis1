@@ -65,9 +65,9 @@ export default function More() {
       <div className="space-y-3">
         {menuItems
           .filter(item => {
-            if (item.path === '/income' && !isAdmin && !isDirector && !isManager && !isCoordinator) {
-              return false;
-            }
+            const leadershipOnly = !isAdmin && !isDirector && !isManager && !isCoordinator;
+            if (item.path === '/income' && leadershipOnly) return false;
+            if (item.path === '/amortization' && leadershipOnly) return false;
             return true;
           })
           .map((item) => (
