@@ -148,7 +148,7 @@ export default function AdminPanel() {
   // Approval Modal
   const [isApprovalModalOpen, setIsApprovalModalOpen] = useState(false);
   const [selectedPendingUserId, setSelectedPendingUserId] = useState<string | null>(null);
-  const [approvalForm, setApprovalForm] = useState({ role: 'CORRETOR', directorate_id: '', team_id: '' });
+  const [approvalForm, setApprovalForm] = useState({ role: 'CORRETOR', directorate_id: '', team_id: '', coordinator_id: '' });
   const [isSavingApproval, setIsSavingApproval] = useState(false);
 
   useEffect(() => {
@@ -190,6 +190,9 @@ export default function AdminPanel() {
   const handleManagerChange = async (id: string, manager_id: string | null) => {
     await updateProfile(id, { manager_id: manager_id || null });
   };
+  const handleCoordinatorChange = async (id: string, coordinator_id: string | null) => {
+    await updateProfile(id, { coordinator_id: coordinator_id || null } as any);
+  };
 
 
   const handleDeleteUser = async (userId: string, userName: string) => {
@@ -219,7 +222,7 @@ export default function AdminPanel() {
   // ── Approval Flow ──────────────────────────────────────────────────────────
   const handleOpenApprovalModal = (userId: string) => {
     setSelectedPendingUserId(userId);
-    setApprovalForm({ role: 'CORRETOR', directorate_id: '', team_id: '' });
+    setApprovalForm({ role: 'CORRETOR', directorate_id: '', team_id: '', coordinator_id: '' });
     setIsApprovalModalOpen(true);
   };
 
@@ -234,7 +237,8 @@ export default function AdminPanel() {
         status: 'Ativo',
         directorate_id: approvalForm.directorate_id || null,
         team: approvalForm.team_id || undefined,
-        manager_id: null
+        manager_id: null,
+        coordinator_id: approvalForm.coordinator_id || null,
       };
 
       // Se escolheu uma equipe, a diretoria e o gestor herdaram dessa equipe
@@ -398,7 +402,12 @@ export default function AdminPanel() {
                           <select value={(u as any).manager_id ?? ''} onChange={e => handleManagerChange(u.id, e.target.value || null)}
                             className="w-full md:w-40 text-xs bg-surface-50 border border-surface-200 rounded-lg p-1.5 focus:outline-none focus:border-gold-400">
                             <option value="">Sem Gestor</option>
-                            {allProfiles.filter(p => p.id !== u.id).map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                            {allProfiles.filter(p => p.id !== u.id && p.role?.toUpperCase() === 'GERENTE').map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                          </select>
+                          <select value={(u as any).coordinator_id ?? ''} onChange={e => handleCoordinatorChange(u.id, e.target.value || null)}
+                            className="w-full md:w-40 text-xs bg-surface-50 border border-surface-200 rounded-lg p-1.5 focus:outline-none focus:border-gold-400">
+                            <option value="">Sem Coordenador</option>
+                            {allProfiles.filter(p => p.id !== u.id && p.role?.toUpperCase() === 'COORDENADOR').map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                           </select>
                         </div>
                         {/* Botão excluir visível só no desktop */}
@@ -1284,6 +1293,16 @@ export default function AdminPanel() {
               <p className="text-xs text-green-600 mt-1">✓ O Gestor e a Diretoria serão herdados desta equipe automaticamente.</p>
             )}
           </div>
+          {approvalForm.role === 'CORRETOR' && (
+            <div>
+              <label className="block text-sm font-medium text-text-secondary mb-1">Coordenador Responsável</label>
+              <select value={approvalForm.coordinator_id} onChange={e => setApprovalForm(p => ({ ...p, coordinator_id: e.target.value }))}
+                className="w-full p-3 bg-surface-50 rounded-xl border-none focus:ring-2 focus:ring-gold-200 text-text-primary">
+                <option value="">Sem Coordenador</option>
+                {allProfiles.filter(p => p.role?.toUpperCase() === 'COORDENADOR').map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+              </select>
+            </div>
+          )}
           <RoundedButton fullWidth onClick={handleConfirmApproval} disabled={isSavingApproval} className="mt-2">
             {isSavingApproval ? <><Loader2 size={16} className="animate-spin" /> Salvando...</> : 'Confirmar Aprovação'}
           </RoundedButton>

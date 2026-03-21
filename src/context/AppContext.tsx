@@ -24,6 +24,7 @@ export interface Profile {
   status?: string;
   directorate_id?: string | null;
   manager_id?: string | null;
+  coordinator_id?: string | null;
   avatar_url?: string | null;
 }
 
@@ -263,13 +264,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [trainings, setTrainings] = useState<TrainingItem[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Refs para evitar loop infinito: refreshLeads lê esses valores sem depender deles
+  // Refs para evitar loop infinito: refreshLeads/refreshClients lê esses valores sem depender deles
   const profileRef = React.useRef(profile);
   const userRef = React.useRef(user);
   const userRoleRef = React.useRef('Corretor');
+  const allProfilesRef = React.useRef<Profile[]>([]);
   React.useEffect(() => { profileRef.current = profile; }, [profile]);
   React.useEffect(() => { userRef.current = user; }, [user]);
   React.useEffect(() => { userRoleRef.current = profile?.role || 'Corretor'; }, [profile]);
+  React.useEffect(() => { allProfilesRef.current = allProfiles; }, [allProfiles]);
 
   const userName = profile?.name || user?.email || 'Usuário';
   const userRole = profile?.role || 'Corretor';
@@ -454,10 +457,30 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const refreshClients = useCallback(async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
+      const rawRole = profileRef.current?.role || userRoleRef.current || 'CORRETOR';
+      const role = String(rawRole).toUpperCase();
+      const uid = userRef.current?.id;
+
+      let query = supabase
         .from('clients')
         .select('*, history:client_history(*), documents:client_documents(*)')
         .order('created_at', { ascending: false });
+
+      if (uid && role === 'CORRETOR') {
+        query = query.eq('owner_id', uid);
+      } else if (uid && (role === 'GERENTE' || role === 'COORDENADOR')) {
+        const filterCol = role === 'COORDENADOR' ? 'coordinator_id' : 'manager_id';
+        const { data: teamMembers } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq(filterCol, uid);
+        const memberIds = (teamMembers || []).map((p: any) => p.id);
+        const ownerIds = memberIds.length > 0 ? [...new Set([...memberIds, uid])] : [uid];
+        query = query.in('owner_id', ownerIds);
+      }
+      // ADMIN / DIRETOR: sem filtro de owner_id — veem tudo
+
+      const { data, error } = await query;
       if (error) throw error;
       const transformed = (data || []).map(client => ({
         ...client,

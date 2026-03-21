@@ -61,5 +61,7 @@ export function useAuthorization() {
         canViewAllClients,
         canAccess,
         directorateId: profile?.directorate_id ?? null,
+        coordinatorId: (profile as any)?.coordinator_id ?? null,
+        managerId: profile?.manager_id ?? null,
     };
 }
