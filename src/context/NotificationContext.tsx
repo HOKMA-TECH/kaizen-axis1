@@ -57,8 +57,17 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
 
                 if (error) throw error;
 
+                const role = profile.role?.toUpperCase();
+                const isLeadership = role === 'ADMIN' || role === 'DIRETOR';
+
+                const filtered = (data as Notification[]).filter(n => {
+                    // ADMIN e DIRETOR não recebem notificações de chat de terceiros
+                    if (isLeadership && n.type === 'chat' && n.target_user_id !== profile.id) return false;
+                    return true;
+                });
+
                 if (isMounted) {
-                    setNotifications(data as Notification[]);
+                    setNotifications(filtered);
                 }
             } catch (error) {
                 console.error('Error fetching notifications:', error);
@@ -91,6 +100,11 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
                         const isForMyRole = newNotif.target_role === profile.role;
                         const isForMyDirectorate = Boolean(newNotif.directorate_id && newNotif.directorate_id === profile.directorate_id);
                         const isAdmin = profile.role === 'ADMIN';
+                        const role = profile.role?.toUpperCase();
+                        const isLeadership = role === 'ADMIN' || role === 'DIRETOR';
+
+                        // ADMIN e DIRETOR não recebem notificações de chat de terceiros
+                        if (isLeadership && newNotif.type === 'chat' && !isForMe) return;
 
                         if (isForMe || isForMyRole || isForMyDirectorate || isAdmin) {
                             setNotifications((prev) => {
