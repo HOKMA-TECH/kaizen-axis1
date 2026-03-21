@@ -1,5 +1,6 @@
 import { PremiumCard, SectionHeader } from '@/components/ui/PremiumComponents';
 import { Loader2, Users, TrendingUp, Target, Calendar, Building2 } from 'lucide-react';
+import { SalesProgressCard } from '@/components/dashboard/SalesProgressCard';
 import { FunnelChart } from '@/components/ui/FunnelChart';
 import { useNavigate } from 'react-router-dom';
 
@@ -180,6 +181,8 @@ export default function Dashboard() {
               <h3 className="text-2xl font-bold text-green-600 dark:text-green-400 mt-2">{String(aprovados).padStart(2, '0')}</h3>
             </PremiumCard>
           </div>
+
+          <SalesProgressCard />
 
           <div className="mt-8 grid grid-cols-1 xl:grid-cols-3 gap-6">
             <div className="xl:col-span-2 flex flex-col gap-6">
@@ -427,6 +430,8 @@ export default function Dashboard() {
               <p className="text-xs text-text-secondary">Agendamentos</p>
             </PremiumCard>
           </div>
+          <SalesProgressCard />
+
           <section><FunnelChart /></section>
 
           {/* Metas and Missions for the team */}
