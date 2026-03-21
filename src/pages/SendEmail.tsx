@@ -32,35 +32,37 @@ export default function SendEmail() {
     const found = getClient(id);
     if (found) {
       setClient(found);
-      setSubject(`KAIZEN - APROVAR SICAQ CLIENTE:${found.name} CPF:${found.cpf || 'Não informado'}`);
-
       const teamId = profile?.team_id;
-      const coordinatorObj = allProfiles.find(p => p.team_id === teamId && p.role === 'Coordenador');
-      const managerObj = allProfiles.find(p => p.team_id === teamId && p.role === 'Gerente');
+      const coordinatorObj = allProfiles.find(p =>
+        p.team_id === teamId && p.role?.toUpperCase() === 'COORDENADOR'
+      );
+      const managerObj = allProfiles.find(p =>
+        p.team_id === teamId && p.role?.toUpperCase() === 'GERENTE'
+      );
 
       const coordinatorName = coordinatorObj ? coordinatorObj.name.toUpperCase() : 'NÃO INFORMADO';
       const managerName = managerObj ? managerObj.name.toUpperCase() : 'NÃO INFORMADO';
+      const empreendimento = (found.development || 'NÃO INFORMADO').toUpperCase();
 
-      const template = `Prezados,
+      setSubject(
+        `KAIZEN IMÓVEIS | SOLICITO ANÁLISE | ${empreendimento} | ${found.name.toUpperCase()} | ${found.cpf || 'SEM CPF'} | GERÊNCIA: ${managerName}`
+      );
 
-Segue documentação para análise de crédito do cliente ${found.name}.
+      const template = `Bom dia time, solicito a análise do cliente em questão.
 
-Dados do Cliente:
-Nome: ${found.name}
+GERENTE: ${managerName}
+COORDENADOR: ${coordinatorName}
+CORRETOR: ${userName.toUpperCase()}
+
+NOME: ${found.name.toUpperCase()}
 CPF: ${found.cpf || 'Não informado'}
-Email: ${found.email}
-Telefone: ${found.phone}
-Endereço: ${found.address || 'Não informado'}
-Profissão: ${found.profession || 'Não informado'}
-Renda: ${found.grossIncome}
-Tipo: ${found.incomeType === 'Formal' ? 'Formal' : 'Informal'}
-Cotista: ${found.cotista ? 'Sim' : 'Não'}
-Fator Social: ${found.socialFactor ? 'Sim' : 'Não'}
-Região de interesse: ${found.regionOfInterest || 'Não informado'}
+E-MAIL: ${found.email || 'Não informado'}
+TELEFONE: ${found.phone || 'Não informado'}
 
-Observação: ${found.observations || 'Nenhuma observação.'}
-
-CORRETORA: ${userName.toUpperCase()} - COORDENADOR: ${coordinatorName} - GERENTE: ${managerName}`;
+COTISTA: ${found.cotista || 'Não informado'}
+FATOR SOCIAL: ${found.socialFactor || 'Não informado'}
+RENDA: ${found.grossIncome || 'Não informado'}
+PROFISSÃO: ${found.profession || 'Não informado'}`;
 
       setBody(template);
 
