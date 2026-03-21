@@ -57,8 +57,9 @@ export default function ClientDetails() {
     try {
       await updateClient(id, { stage: newStage });
       setIsEditingStage(false);
-    } catch (e) {
-      alert('Erro ao atualizar estágio.');
+    } catch (e: any) {
+      const msg = e?.message || 'Erro desconhecido';
+      alert(`Erro ao atualizar estágio:\n${msg}`);
     }
   };
 

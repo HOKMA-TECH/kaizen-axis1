@@ -56,11 +56,15 @@ export default function Developments() {
       const sanitized = sanitizePath(path);
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
       const { data: { session } } = await supabase.auth.getSession();
-      const token = session?.access_token || (import.meta.env.VITE_SUPABASE_ANON_KEY as string);
+
+      if (!session?.access_token) {
+        resolve({ url: null, error: 'Sessão expirada. Faça login novamente para enviar o arquivo.' });
+        return;
+      }
 
       const xhr = new XMLHttpRequest();
       xhr.open('POST', `${supabaseUrl}/storage/v1/object/developments/${sanitized}`);
-      xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+      xhr.setRequestHeader('Authorization', `Bearer ${session.access_token}`);
       xhr.setRequestHeader('apikey', import.meta.env.VITE_SUPABASE_ANON_KEY as string);
       xhr.setRequestHeader('Content-Type', file.type || 'application/octet-stream');
       xhr.setRequestHeader('x-upsert', 'true');

@@ -11,7 +11,7 @@ interface SaveDocumentModalProps {
 }
 
 export function SaveDocumentModal({ isOpen, onClose, fileBlob, fileName }: SaveDocumentModalProps) {
-    const { profile } = useApp();
+    const { profile, refreshClients } = useApp();
     const [clients, setClients] = useState<any[]>([]);
     const [search, setSearch] = useState('');
     const [selectedClient, setSelectedClient] = useState<any>(null);
@@ -115,6 +115,8 @@ export function SaveDocumentModal({ isOpen, onClose, fileBlob, fileName }: SaveD
             if (dbError) {
                 throw new Error(`Erro no Banco: ${dbError.message}`);
             }
+
+            await refreshClients();
 
             setSaveStatus('success');
             setTimeout(() => onClose(), 1500);
