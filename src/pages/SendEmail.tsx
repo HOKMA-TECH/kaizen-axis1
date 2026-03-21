@@ -45,7 +45,7 @@ export default function SendEmail() {
         // The sender IS the manager — coordinator and broker fields stay blank
         managerName = userName.toUpperCase();
         coordinatorName = '';
-        corretorName = '';
+        corretorName = userName.toUpperCase();
       } else if (currentRole === 'COORDENADOR') {
         // The sender IS the coordinator
         coordinatorName = userName.toUpperCase();
