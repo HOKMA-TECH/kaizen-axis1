@@ -32,40 +32,41 @@ export default function SendEmail() {
     const found = getClient(id);
     if (found) {
       setClient(found);
-      const teamId = profile?.team_id;
-      const currentRole = profile?.role?.toUpperCase();
       const empreendimento = (found.development || 'NÃO INFORMADO').toUpperCase();
 
-      // Resolve manager, coordinator and broker names based on who is sending
+      // ── Resolve hierarchy from the CLIENT OWNER, not the logged-in user ──
+      const ownerProfile = allProfiles.find(p => p.id === (found as any).owner_id);
+      const ownerRole = ownerProfile?.role?.toUpperCase();
+      const ownerTeamId = ownerProfile?.team_id;
+
       let managerName: string;
       let coordinatorName: string;
       let corretorName: string;
 
-      if (currentRole === 'GERENTE') {
-        // The sender IS the manager — coordinator and broker fields stay blank
-        managerName = userName.toUpperCase();
+      if (ownerRole === 'GERENTE') {
+        // Owner is the manager — they acted as the broker too
+        managerName = ownerProfile!.name.toUpperCase();
         coordinatorName = '';
-        corretorName = userName.toUpperCase();
-      } else if (currentRole === 'COORDENADOR') {
-        // The sender IS the coordinator
-        coordinatorName = userName.toUpperCase();
+        corretorName = ownerProfile!.name.toUpperCase();
+      } else if (ownerRole === 'COORDENADOR') {
+        // Owner is the coordinator — look up manager from their team
+        coordinatorName = ownerProfile!.name.toUpperCase();
         const managerObj = allProfiles.find(p =>
-          p.team_id === teamId && p.role?.toUpperCase() === 'GERENTE'
+          p.team_id === ownerTeamId && p.role?.toUpperCase() === 'GERENTE'
         );
         managerName = managerObj ? managerObj.name.toUpperCase() : 'NÃO INFORMADO';
-        const ownerObj = allProfiles.find(p => p.id === (found as any).owner_id);
-        corretorName = ownerObj ? ownerObj.name.toUpperCase() : userName.toUpperCase();
+        corretorName = ownerProfile!.name.toUpperCase();
       } else {
-        // CORRETOR, ADMIN or DIRETOR — look up manager and coordinator from team
+        // Owner is CORRETOR (or unknown) — look up full hierarchy from their team
+        corretorName = ownerProfile ? ownerProfile.name.toUpperCase() : userName.toUpperCase();
         const managerObj = allProfiles.find(p =>
-          p.team_id === teamId && p.role?.toUpperCase() === 'GERENTE'
+          p.team_id === ownerTeamId && p.role?.toUpperCase() === 'GERENTE'
         );
         const coordObj = allProfiles.find(p =>
-          p.team_id === teamId && p.role?.toUpperCase() === 'COORDENADOR'
+          p.team_id === ownerTeamId && p.role?.toUpperCase() === 'COORDENADOR'
         );
         managerName = managerObj ? managerObj.name.toUpperCase() : 'NÃO INFORMADO';
         coordinatorName = coordObj ? coordObj.name.toUpperCase() : 'NÃO INFORMADO';
-        corretorName = userName.toUpperCase();
       }
 
       setSubject(
