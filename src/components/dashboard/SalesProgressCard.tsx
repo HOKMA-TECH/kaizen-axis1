@@ -10,10 +10,12 @@ const COMMISSION_RATE: Record<string, number> = {
 };
 const TAX_DEDUCTION = 0.86; // -14%
 
-function parseCurrency(value: string | undefined | null): number {
-  if (!value) return 0;
-  // "R$ 450.000" or "R$ 450.000,00" → 450000
-  const cleaned = value
+function parseCurrency(value: any): number {
+  if (value == null) return 0;
+  // If already a number (DB numeric column), return directly
+  if (typeof value === 'number') return isNaN(value) ? 0 : value;
+  // String like "R$ 450.000" or "R$ 450.000,00" → 450000
+  const cleaned = String(value)
     .replace(/R\$\s*/g, '')
     .replace(/\./g, '')
     .replace(',', '.');
@@ -108,7 +110,15 @@ export function SalesProgressCard() {
           {monthlySales.map(c => {
             const vgv = parseCurrency(c.intendedValue);
             const comissao = vgv * commissionRate * TAX_DEDUCTION;
-            const dataVenda = (c as any).updated_at || c.createdAt;
+            const rawDate = (c as any).updated_at || (c as any).closed_at || c.createdAt;
+            let dateDisplay = '—';
+            try {
+              if (rawDate) {
+                const d = new Date(rawDate);
+                if (!isNaN(d.getTime())) dateDisplay = d.toLocaleDateString('pt-BR');
+              }
+            } catch { /* keep '—' */ }
+
             return (
               <div
                 key={c.id}
@@ -126,9 +136,7 @@ export function SalesProgressCard() {
                 </div>
                 <div className="flex items-center gap-1 mt-1">
                   <DollarSign size={10} className="text-text-secondary" />
-                  <p className="text-[10px] text-text-secondary">
-                    {new Date(dataVenda).toLocaleDateString('pt-BR')}
-                  </p>
+                  <p className="text-[10px] text-text-secondary">{dateDisplay}</p>
                 </div>
               </div>
             );
