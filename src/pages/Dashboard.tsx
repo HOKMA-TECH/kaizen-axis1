@@ -51,8 +51,30 @@ export default function Dashboard() {
     .filter(p => p.role === 'CORRETOR' || p.role === 'Corretor' || p.role === 'corretor')
     .slice(0, 3);
 
+  // ── Monthly sales status — used to color the CORRETOR dashboard ───────────
+  const brokerMonthlySales = isBroker ? (() => {
+    const now = new Date();
+    return clients.filter(c => {
+      if (c.stage !== 'Concluído') return false;
+      const ownerId = (c as any).owner_id;
+      if (ownerId && user?.id && ownerId !== user.id) return false;
+      const raw = (c as any).updated_at || c.createdAt;
+      if (!raw) return false;
+      const d = new Date(raw);
+      return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+    });
+  })() : [];
+  const brokerHasSales = brokerMonthlySales.length > 0;
+
+  // Dashboard background: vivid red/green only for CORRETOR based on monthly sales
+  const dashBg = isBroker
+    ? brokerHasSales
+      ? 'bg-green-200 dark:bg-green-900/40'
+      : 'bg-red-200 dark:bg-red-900/40'
+    : '';
+
   return (
-    <div className="p-6 space-y-8">
+    <div className={`p-6 space-y-8 min-h-screen transition-colors duration-500 ${dashBg}`}>
       {/* Header */}
       <div className="flex justify-between items-center pt-2">
         <div>
