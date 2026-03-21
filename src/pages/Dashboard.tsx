@@ -451,7 +451,8 @@ export default function Dashboard() {
                     const coordSales = coordClients.filter(c => c.stage === 'Concluído').length;
                     const coordAnalise = coordClients.filter(c => c.stage === 'Em Análise').length;
                     return (
-                      <PremiumCard key={coord.id} className="cursor-pointer hover:border-gold-400 hover:shadow-md transition-all">
+                      <PremiumCard key={coord.id} className="cursor-pointer hover:border-gold-400 hover:shadow-md transition-all" onClick={() => navigate(`/clients?coordinator=${coord.id}&coordName=${encodeURIComponent(coord.name)}`)}>
+
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-3">
                             <div className="w-8 h-8 rounded-full bg-gold-100 dark:bg-gold-900/30 flex items-center justify-center text-gold-700 dark:text-gold-400 font-bold text-sm flex-shrink-0">

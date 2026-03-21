@@ -289,6 +289,11 @@ export default function Clients() {
   const [searchTerm, setSearchTerm] = useState('');
   const [convertSuccess, setConvertSuccess] = useState(false);
 
+  // Filtro por coordenador via query param (vindo do Dashboard do Gerente)
+  const urlParams = new URLSearchParams(location.search);
+  const coordFilterId = urlParams.get('coordinator');
+  const coordFilterName = urlParams.get('coordName');
+
   useEffect(() => {
     if (location.state?.initialStage) {
       setActiveStage(location.state.initialStage);
@@ -303,6 +308,14 @@ export default function Clients() {
     const matchesSearch =
       client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (client.development || '').toLowerCase().includes(searchTerm.toLowerCase());
+    // Filtro por coordenador (quando vindo do Dashboard)
+    if (coordFilterId) {
+      const ownerId = (client as any).owner_id;
+      const ownerProfile = ownerId ? allProfiles.find(p => p.id === ownerId) : null;
+      const belongsToCoord =
+        ownerProfile?.coordinator_id === coordFilterId || ownerId === coordFilterId;
+      return matchesStage && matchesSearch && belongsToCoord;
+    }
     return matchesStage && matchesSearch;
   });
 
@@ -416,6 +429,17 @@ export default function Clients() {
           </div>
 
           <div className="flex-1 px-6 py-4 space-y-4 overflow-y-auto pb-24">
+            {/* Banner de filtro por coordenador */}
+            {coordFilterId && coordFilterName && (
+              <div className="flex items-center justify-between bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 rounded-xl px-4 py-2">
+                <p className="text-xs text-purple-700 dark:text-purple-300 font-medium">
+                  📋 Filtrando por coordenação: <span className="font-bold">{decodeURIComponent(coordFilterName)}</span>
+                </p>
+                <button onClick={() => navigate('/clients')} className="text-xs text-purple-500 hover:text-purple-700 font-medium underline ml-2">
+                  Limpar
+                </button>
+              </div>
+            )}
             {loading && (
               <div className="flex justify-center py-10">
                 <Loader2 className="animate-spin text-gold-500" size={32} />
