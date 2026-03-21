@@ -548,13 +548,23 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       if (data.regionOfInterest !== undefined) updatePayload.region_of_interest = data.regionOfInterest;
       if (data.intendedValue !== undefined) updatePayload.intended_value = data.intendedValue;
 
-      const { error } = await supabase.from('clients').update(updatePayload).eq('id', id);
+      const { data: updated, error } = await supabase
+        .from('clients')
+        .update(updatePayload)
+        .eq('id', id)
+        .select('id');
       if (error) throw error;
+      if (!updated || updated.length === 0) {
+        throw new Error('Sem permissão para alterar este cliente. Verifique suas permissões de acesso.');
+      }
       if (data.stage) {
         await supabase.from('client_history').insert([{ client_id: id, action: `Estágio alterado para ${data.stage}`, user_name: userName }]);
       }
       await refreshClients();
-    } catch (e) { console.error('Erro ao atualizar cliente:', e); }
+    } catch (e) {
+      console.error('Erro ao atualizar cliente:', e);
+      throw e; // re-throw so callers can handle/show error
+    }
   }, [userName, refreshClients]);
 
   const deleteClient = useCallback(async (id: string) => {

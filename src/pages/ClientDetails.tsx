@@ -45,7 +45,9 @@ export default function ClientDetails() {
       return;
     }
 
-    if (newStage === 'Concluído' && (!client.development?.trim() || !client.intendedValue?.trim())) {
+    const hasDevelopment = !!String(client.development ?? '').trim();
+    const hasValue = !!String(client.intendedValue ?? '').trim() && String(client.intendedValue) !== '0';
+    if (newStage === 'Concluído' && (!hasDevelopment || !hasValue)) {
       alert('⚠️ Para mover o cliente para a etapa "Concluído", é obrigatório preencher os campos "Empreendimento" e "Valor".');
       setIsEditingStage(false);
       setIsEditingInfo(true);
