@@ -1,6 +1,6 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { Layout } from '@/components/Layout';
+import { ResponsiveLayout } from '@/components/layout/ResponsiveLayout';
 import { useAuthorization, UserRole } from '@/hooks/useAuthorization';
 import { useApp } from '@/context/AppContext';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
@@ -55,7 +55,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
     return <Navigate to="/pending" replace />;
   }
 
-  return <Layout>{children}</Layout>;
+  return <ResponsiveLayout>{children}</ResponsiveLayout>;
 }
 
 // ─── Role-based guard (only for specific restricted routes) ──────────────────
@@ -88,7 +88,7 @@ function RoleRoute({
   }
   if (!allowed.includes(role)) return <Navigate to="/" replace />;
 
-  return <Layout>{children}</Layout>;
+  return <ResponsiveLayout>{children}</ResponsiveLayout>;
 }
 
 function OfflineBanner() {
