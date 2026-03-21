@@ -56,11 +56,11 @@ export function LeaderboardPanel() {
                                 {/* Avatar & Name */}
                                 <div className="ml-2 flex items-center flex-1">
                                     {entry.avatar_url ? (
-                                        <img src={entry.avatar_url} alt={entry.user_name} className="w-10 h-10 rounded-full border-2 border-white shadow-sm object-cover" />
+                                        <img src={entry.avatar_url} alt={entry.user_name || '—'} className="w-10 h-10 rounded-full border-2 border-white shadow-sm object-cover" />
                                     ) : (
                                         <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold shadow-sm ${index === 0 ? 'bg-amber-500' : index === 1 ? 'bg-slate-400' : index === 2 ? 'bg-orange-400' : 'bg-gray-300'
                                             }`}>
-                                            {entry.user_name.charAt(0).toUpperCase()}
+                                            {(entry.user_name || '?').charAt(0).toUpperCase()}
                                         </div>
                                     )}
                                     <div className="ml-3">
@@ -69,9 +69,9 @@ export function LeaderboardPanel() {
                                         </p>
                                         <div className="flex items-center text-xs space-x-3 mt-0.5">
                                             <span className="flex items-center text-emerald-600 font-medium bg-emerald-50 px-1.5 py-0.5 rounded-md">
-                                                {entry.total_points.toLocaleString()} pts
+                                                {(entry.total_points ?? 0).toLocaleString()} pts
                                             </span>
-                                            {entry.current_streak > 1 && (
+                                            {(entry.current_streak ?? 0) > 1 && (
                                                 <span className="flex items-center text-orange-600 font-medium bg-orange-50 px-1.5 py-0.5 rounded-md" title={`Streak de ${entry.current_streak} dias diretos!`}>
                                                     <Flame className="w-3 h-3 mr-1" /> {entry.current_streak} dias
                                                 </span>
