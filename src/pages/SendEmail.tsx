@@ -33,16 +33,45 @@ export default function SendEmail() {
     if (found) {
       setClient(found);
       const teamId = profile?.team_id;
-      const coordinatorObj = allProfiles.find(p =>
-        p.team_id === teamId && p.role?.toUpperCase() === 'COORDENADOR'
-      );
-      const managerObj = allProfiles.find(p =>
-        p.team_id === teamId && p.role?.toUpperCase() === 'GERENTE'
-      );
-
-      const coordinatorName = coordinatorObj ? coordinatorObj.name.toUpperCase() : 'NÃO INFORMADO';
-      const managerName = managerObj ? managerObj.name.toUpperCase() : 'NÃO INFORMADO';
+      const currentRole = profile?.role?.toUpperCase();
       const empreendimento = (found.development || 'NÃO INFORMADO').toUpperCase();
+
+      // Resolve manager, coordinator and broker names based on who is sending
+      let managerName: string;
+      let coordinatorName: string;
+      let corretorName: string;
+
+      if (currentRole === 'GERENTE') {
+        // The sender IS the manager
+        managerName = userName.toUpperCase();
+        const coordObj = allProfiles.find(p =>
+          p.team_id === teamId && p.role?.toUpperCase() === 'COORDENADOR'
+        );
+        coordinatorName = coordObj ? coordObj.name.toUpperCase() : 'NÃO INFORMADO';
+        // Try to resolve the client owner as the broker
+        const ownerObj = allProfiles.find(p => p.id === (found as any).owner_id);
+        corretorName = ownerObj ? ownerObj.name.toUpperCase() : userName.toUpperCase();
+      } else if (currentRole === 'COORDENADOR') {
+        // The sender IS the coordinator
+        coordinatorName = userName.toUpperCase();
+        const managerObj = allProfiles.find(p =>
+          p.team_id === teamId && p.role?.toUpperCase() === 'GERENTE'
+        );
+        managerName = managerObj ? managerObj.name.toUpperCase() : 'NÃO INFORMADO';
+        const ownerObj = allProfiles.find(p => p.id === (found as any).owner_id);
+        corretorName = ownerObj ? ownerObj.name.toUpperCase() : userName.toUpperCase();
+      } else {
+        // CORRETOR, ADMIN or DIRETOR — look up manager and coordinator from team
+        const managerObj = allProfiles.find(p =>
+          p.team_id === teamId && p.role?.toUpperCase() === 'GERENTE'
+        );
+        const coordObj = allProfiles.find(p =>
+          p.team_id === teamId && p.role?.toUpperCase() === 'COORDENADOR'
+        );
+        managerName = managerObj ? managerObj.name.toUpperCase() : 'NÃO INFORMADO';
+        coordinatorName = coordObj ? coordObj.name.toUpperCase() : 'NÃO INFORMADO';
+        corretorName = userName.toUpperCase();
+      }
 
       setSubject(
         `KAIZEN IMÓVEIS | SOLICITO ANÁLISE | ${empreendimento} | ${found.name.toUpperCase()} | ${found.cpf || 'SEM CPF'} | GERÊNCIA: ${managerName}`
@@ -52,7 +81,7 @@ export default function SendEmail() {
 
 GERENTE: ${managerName}
 COORDENADOR: ${coordinatorName}
-CORRETOR: ${userName.toUpperCase()}
+CORRETOR: ${corretorName}
 
 NOME: ${found.name.toUpperCase()}
 CPF: ${found.cpf || 'Não informado'}
