@@ -4,11 +4,13 @@ import { PremiumCard, RoundedButton, SectionHeader, StatusBadge } from '@/compon
 import { ChevronLeft, MapPin, Building2, DollarSign, FileText, PlayCircle, Phone, Share2, Download, MessageCircle, X, ChevronRight } from 'lucide-react';
 import { Modal } from '@/components/ui/Modal';
 import { useApp, Development } from '@/context/AppContext';
+import { useAuthorization } from '@/hooks/useAuthorization';
 
 export default function DevelopmentDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { developments } = useApp();
+  const { isBroker } = useAuthorization();
   const [development, setDevelopment] = useState<Development | null>(null);
   const [activeImage, setActiveImage] = useState(0);
 
@@ -232,8 +234,8 @@ export default function DevelopmentDetails() {
           </PremiumCard>
         </section>
 
-        {/* Contact */}
-        {development.contact && (development.contact.name || development.contact.phone) && (
+        {/* Contact — hidden from CORRETOR */}
+        {!isBroker && development.contact && (development.contact.name || development.contact.phone) && (
           <section className="space-y-4">
             <SectionHeader title="Viabilizador Responsável" />
             <PremiumCard className="flex items-center gap-4">
