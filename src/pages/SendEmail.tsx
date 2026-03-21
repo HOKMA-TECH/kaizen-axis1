@@ -42,15 +42,10 @@ export default function SendEmail() {
       let corretorName: string;
 
       if (currentRole === 'GERENTE') {
-        // The sender IS the manager
+        // The sender IS the manager — coordinator and broker fields stay blank
         managerName = userName.toUpperCase();
-        const coordObj = allProfiles.find(p =>
-          p.team_id === teamId && p.role?.toUpperCase() === 'COORDENADOR'
-        );
-        coordinatorName = coordObj ? coordObj.name.toUpperCase() : 'NÃO INFORMADO';
-        // Try to resolve the client owner as the broker
-        const ownerObj = allProfiles.find(p => p.id === (found as any).owner_id);
-        corretorName = ownerObj ? ownerObj.name.toUpperCase() : userName.toUpperCase();
+        coordinatorName = '';
+        corretorName = '';
       } else if (currentRole === 'COORDENADOR') {
         // The sender IS the coordinator
         coordinatorName = userName.toUpperCase();
