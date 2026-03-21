@@ -85,8 +85,12 @@ export default function Schedule() {
 
   const handleDelete = async (id: string) => {
     if (confirm('Tem certeza que deseja excluir este agendamento?')) {
-      await deleteAppointment(id);
-      if (viewMode === 'single') { setViewMode('day'); setHighlightId(null); }
+      try {
+        await deleteAppointment(id);
+        if (viewMode === 'single') { setViewMode('day'); setHighlightId(null); }
+      } catch (e: any) {
+        alert(`Erro ao excluir agendamento:\n${e?.message || 'Tente novamente.'}`);
+      }
     }
   };
 

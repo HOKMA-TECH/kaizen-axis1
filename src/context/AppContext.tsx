@@ -695,7 +695,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const { error } = await supabase.from('appointments').delete().eq('id', id);
       if (error) throw error;
       await refreshAppointments();
-    } catch (e) { console.error('Erro ao deletar agendamento:', e); }
+    } catch (e: any) {
+      console.error('Erro ao deletar agendamento:', e);
+      throw e;
+    }
   }, [refreshAppointments]);
 
   // ─── Tasks ────────────────────────────────────────────────────────────────
