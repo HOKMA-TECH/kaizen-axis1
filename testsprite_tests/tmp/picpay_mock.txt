@@ -1,0 +1,20 @@
+Extrato de conta
+Período
+1 de agosto de 2025 a 28 de fevereiro de 2026
+
+28 de fevereiro 2026
+Hora Tipo Origem / Destino Forma de pagamento Valor
+14:37 Pagamento realizado Fatura PicPay Card Com saldo -R$ 168,89
+14:36 Pix enviado SHPP BRASIL... Com saldo -R$ 145,40
+14:03 Pix recebido BRUNA LOMBARDI TAVARESMOLITERNO +R$ 185,00
+13:06 Pix recebido Mônica Pereira Ferreira +R$ 70,00
+00:18 Pagamento realizado Fatura PicPay Card Com saldo -R$ 114,41
+
+27 de fevereiro 2026
+Hora Tipo Origem / Destino Forma de pagamento Valor
+19:35 Pix enviado ELIENE AMORIM DE ALMEIDA Com saldo -R$ 600,00
+19:14 Pix recebido IRACILDO BOMFIM DOS SANTOS +R$ 150,00
+15:54 Pix recebido Daniele Oliveira Matos +R$ 600,00
+13:50 Pix enviado PAGUEVELOZ INSTITUICAO DE PAGAMENTO LTDA Com saldo -R$ 239,82
+13:36 Pix recebido MARIA LUISA MACHADO MOLITERNO +R$ 185,00
+08:48 Pix recebido Eliene Amorim de Almeida +R$ 200,00

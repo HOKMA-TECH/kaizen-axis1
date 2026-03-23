@@ -1,0 +1,107 @@
+{
+  "erro": "Nenhum crédito válido identificado. Verifique se o nome do cliente está correto.",
+  "totalTransacoesBrutas": 25,
+  "transacoesIgnoradas": 0,
+  "debug_amostra_transacoes": [
+    {
+      "descricao": "000000 REM BAS",
+      "valor": 0,
+      "classificacao": "debito"
+    },
+    {
+      "descricao": "000000 CRED JU",
+      "valor": 0,
+      "classificacao": "debito"
+    },
+    {
+      "descricao": "031313 CRED",
+      "valor": 0,
+      "classificacao": "debito"
+    },
+    {
+      "descricao": "000000 SALDO",
+      "valor": 0,
+      "classificacao": "debito"
+    },
+    {
+      "descricao": "000000 REM BAS",
+      "valor": 0,
+      "classificacao": "debito"
+    },
+    {
+      "descricao": "000000 CRED JU",
+      "valor": 0,
+      "classificacao": "debito"
+    },
+    {
+      "descricao": "000000 SALDO",
+      "valor": 0,
+      "classificacao": "debito"
+    },
+    {
+      "descricao": "040847 COM",
+      "valor": 0,
+      "classificacao": "debito"
+    },
+    {
+      "descricao": "060744 CRED",
+      "valor": 0,
+      "classificacao": "debito"
+    },
+    {
+      "descricao": "060746 CRED",
+      "valor": 0,
+      "classificacao": "debito"
+    },
+    {
+      "descricao": "000000 SALDO",
+      "valor": 0,
+      "classificacao": "debito"
+    },
+    {
+      "descricao": "071126 ENVIO",
+      "valor": 0,
+      "classificacao": "debito"
+    },
+    {
+      "descricao": "071130 ENVIO",
+      "valor": 0,
+      "classificacao": "debito"
+    },
+    {
+      "descricao": "071132 ENVIO",
+      "valor": 0,
+      "classificacao": "debito"
+    },
+    {
+      "descricao": "072138 COM",
+      "valor": 0,
+      "classificacao": "debito"
+    },
+    {
+      "descricao": "000000 SALDO",
+      "valor": 0,
+      "classificacao": "debito"
+    },
+    {
+      "descricao": "081148 ENVIO",
+      "valor": 0,
+      "classificacao": "debito"
+    },
+    {
+      "descricao": "081149 ENVIO",
+      "valor": 0,
+      "classificacao": "debito"
+    },
+    {
+      "descricao": "081824 CRED",
+      "valor": 0,
+      "classificacao": "debito"
+    },
+    {
+      "descricao": "081829 ENVIO",
+      "valor": 0,
+      "classificacao": "debito"
+    }
+  ]
+}

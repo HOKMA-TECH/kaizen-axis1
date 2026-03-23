@@ -1,0 +1,20 @@
+{
+  "status": "commited",
+  "type": "frontend",
+  "scope": "codebase",
+  "localEndpoint": "http://localhost:3000",
+  "loginUser": "maiconcorretorj@gmail.com",
+  "loginPassword": "Mayckinho96@@@",
+  "executionArgs": {
+    "projectName": "kaizen-axis1",
+    "projectPath": "c:\\Users\\hokma\\Desktop\\KAIZEN-AXIS\\kaizen-axis1",
+    "testIds": [],
+    "additionalInstruction": "Run frontend tests based on testsprite_frontend_test_plan.json",
+    "serverMode": "development",
+    "envs": {
+      "API_KEY": "sk-user-gCxCvgBh4GshMjcuUs52Y6_IAi8oFXT3xgeIDlzPLE30g7ZDtLtkzpofoQQ3OIf1Ibkvp8EEjswl1tgNDqzGcJUU0Hw-L3RwLTji2FnacizcfEt2BhiqhiseP5BBO54u0_I"
+    }
+  },
+  "serverPort": 55840,
+  "proxy": "http://d78f3d8e-15e6-44b3-b2f8-b4adf65562da:g6YLFKQEI0s1Lx4yGnXgfzZY3k6JkmCe@tun.testsprite.com:8080"
+}

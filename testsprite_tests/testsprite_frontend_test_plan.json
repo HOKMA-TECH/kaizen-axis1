@@ -1,0 +1,23 @@
+[
+  {
+    "id": "TC_FE_001",
+    "title": "verify login page renders correctly",
+    "description": "Navigate to the /login page and verify that the 'Entrar' button and email and password inputs are present.",
+    "steps": [
+      "Navigate to /login",
+      "Verify that the text 'Plataforma para corretores' is visible",
+      "Verify that an input field for email is visible",
+      "Verify that an input field for password is visible",
+      "Verify that the 'Entrar' button is visible"
+    ]
+  },
+  {
+    "id": "TC_FE_002",
+    "title": "verify generic missing path redirects",
+    "description": "Navigate to an invalid path and observe the app behavior.",
+    "steps": [
+      "Navigate to /invalid-path-1234",
+      "Verify that the application gracefully handles it (e.g. renders a 404 or redirects to home)"
+    ]
+  }
+]

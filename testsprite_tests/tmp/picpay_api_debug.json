@@ -1,0 +1,259 @@
+{
+  "algoritmoVersao": "3.0.0-interactive",
+  "totalApurado": 59000,
+  "mediaMensalReal": 59000,
+  "divisao6Meses": 9833,
+  "divisao12Meses": 4917,
+  "maiorMes": 59000,
+  "menorMes": 59000,
+  "mesesConsiderados": 1,
+  "totalPorMes": {
+    "2026-02": 59000
+  },
+  "transacoesConsideradas": 4,
+  "transacoesIgnoradas": 1,
+  "transacoesSinalizadas": [],
+  "transacoesDetalhadas": [
+    {
+      "id": "t_1",
+      "data": "2026-02-28",
+      "mes": "2026-02",
+      "descricao": "a 28/FEV/2026 Hora Tipo Origem / Destino Forma de pagamento Valor 14:37 Pagamento realizado Fatura PicPay Card Com saldo",
+      "valor": -16889,
+      "classificacao": "debito",
+      "is_validated": false,
+      "custom_tag": null
+    },
+    {
+      "id": "t_2",
+      "data": "2026-02-28",
+      "mes": "2026-02",
+      "descricao": "14:36 Pix enviado SHPP BRASIL... Com saldo",
+      "valor": -14540,
+      "classificacao": "debito",
+      "is_validated": false,
+      "custom_tag": null
+    },
+    {
+      "id": "t_3",
+      "data": "2026-02-28",
+      "mes": "2026-02",
+      "descricao": "14:03 Pix recebido BRUNA LOMBARDI TAVARESMOLITERNO",
+      "valor": 18500,
+      "classificacao": "credito_valido",
+      "is_validated": true,
+      "custom_tag": null
+    },
+    {
+      "id": "t_4",
+      "data": "2026-02-28",
+      "mes": "2026-02",
+      "descricao": "13:06 Pix recebido Mônica Pereira Ferreira",
+      "valor": 7000,
+      "classificacao": "credito_valido",
+      "is_validated": true,
+      "custom_tag": null
+    },
+    {
+      "id": "t_5",
+      "data": "2026-02-28",
+      "mes": "2026-02",
+      "descricao": "00:18 Pagamento realizado Fatura PicPay Card Com saldo",
+      "valor": -11441,
+      "classificacao": "debito",
+      "is_validated": false,
+      "custom_tag": null
+    },
+    {
+      "id": "t_6",
+      "data": "2026-02-27",
+      "mes": "2026-02",
+      "descricao": "Hora Tipo Origem / Destino Forma de pagamento Valor 19:35 Pix enviado ELIENE AMORIM DE ALMEIDA Com saldo",
+      "valor": -60000,
+      "classificacao": "debito",
+      "is_validated": false,
+      "custom_tag": null
+    },
+    {
+      "id": "t_7",
+      "data": "2026-02-27",
+      "mes": "2026-02",
+      "descricao": "19:14 Pix recebido IRACILDO BOMFIM DOS SANTOS",
+      "valor": 15000,
+      "classificacao": "credito_valido",
+      "is_validated": true,
+      "custom_tag": null
+    },
+    {
+      "id": "t_8",
+      "data": "2026-02-27",
+      "mes": "2026-02",
+      "descricao": "15:54 Pix recebido Daniele Oliveira Matos",
+      "valor": 60000,
+      "classificacao": "possivel_vinculo_familiar",
+      "is_validated": false,
+      "custom_tag": "washtrading",
+      "motivoExclusao": "Wash trading (in-and-out)"
+    },
+    {
+      "id": "t_9",
+      "data": "2026-02-27",
+      "mes": "2026-02",
+      "descricao": "13:50 Pix enviado PAGUEVELOZ INSTITUICAO DE PAGAMENTO LTDA Com saldo",
+      "valor": -23982,
+      "classificacao": "debito",
+      "is_validated": false,
+      "custom_tag": null
+    },
+    {
+      "id": "t_10",
+      "data": "2026-02-27",
+      "mes": "2026-02",
+      "descricao": "13:36 Pix recebido MARIA LUISA MACHADO MOLITERNO",
+      "valor": 18500,
+      "classificacao": "credito_valido",
+      "is_validated": true,
+      "custom_tag": null
+    },
+    {
+      "id": "t_11",
+      "data": "2026-02-27",
+      "mes": "2026-02",
+      "descricao": "08:48 Pix recebido Eliene Amorim de Almeida",
+      "valor": 20000,
+      "classificacao": "ignorar_autotransferencia",
+      "is_validated": false,
+      "custom_tag": null,
+      "motivoExclusao": "Autotransferência"
+    }
+  ],
+  "criteriosAplicados": {
+    "excluiuAutoTransferencia": true,
+    "excluiuApostas": false,
+    "excluiuWashTrading": true,
+    "modoConservadorInteligente": true
+  },
+  "auditoria": {
+    "timestamp": "2026-03-12T22:25:48.028Z",
+    "algoritmoVersao": "3.0.0-interactive",
+    "totalTransacoesBrutas": 11,
+    "transacoesRaw": [
+      {
+        "id": "t_1",
+        "data": "2026-02-28",
+        "mes": "2026-02",
+        "descricao": "a 28/FEV/2026 Hora Tipo Origem / Destino Forma de pagamento Valor 14:37 Pagamento realizado Fatura PicPay Card Com saldo",
+        "valor": -16889,
+        "classificacao": "debito",
+        "is_validated": false,
+        "custom_tag": null
+      },
+      {
+        "id": "t_2",
+        "data": "2026-02-28",
+        "mes": "2026-02",
+        "descricao": "14:36 Pix enviado SHPP BRASIL... Com saldo",
+        "valor": -14540,
+        "classificacao": "debito",
+        "is_validated": false,
+        "custom_tag": null
+      },
+      {
+        "id": "t_3",
+        "data": "2026-02-28",
+        "mes": "2026-02",
+        "descricao": "14:03 Pix recebido BRUNA LOMBARDI TAVARESMOLITERNO",
+        "valor": 18500,
+        "classificacao": "credito_valido",
+        "is_validated": true,
+        "custom_tag": null
+      },
+      {
+        "id": "t_4",
+        "data": "2026-02-28",
+        "mes": "2026-02",
+        "descricao": "13:06 Pix recebido Mônica Pereira Ferreira",
+        "valor": 7000,
+        "classificacao": "credito_valido",
+        "is_validated": true,
+        "custom_tag": null
+      },
+      {
+        "id": "t_5",
+        "data": "2026-02-28",
+        "mes": "2026-02",
+        "descricao": "00:18 Pagamento realizado Fatura PicPay Card Com saldo",
+        "valor": -11441,
+        "classificacao": "debito",
+        "is_validated": false,
+        "custom_tag": null
+      },
+      {
+        "id": "t_6",
+        "data": "2026-02-27",
+        "mes": "2026-02",
+        "descricao": "Hora Tipo Origem / Destino Forma de pagamento Valor 19:35 Pix enviado ELIENE AMORIM DE ALMEIDA Com saldo",
+        "valor": -60000,
+        "classificacao": "debito",
+        "is_validated": false,
+        "custom_tag": null
+      },
+      {
+        "id": "t_7",
+        "data": "2026-02-27",
+        "mes": "2026-02",
+        "descricao": "19:14 Pix recebido IRACILDO BOMFIM DOS SANTOS",
+        "valor": 15000,
+        "classificacao": "credito_valido",
+        "is_validated": true,
+        "custom_tag": null
+      },
+      {
+        "id": "t_8",
+        "data": "2026-02-27",
+        "mes": "2026-02",
+        "descricao": "15:54 Pix recebido Daniele Oliveira Matos",
+        "valor": 60000,
+        "classificacao": "possivel_vinculo_familiar",
+        "is_validated": false,
+        "custom_tag": "washtrading",
+        "motivoExclusao": "Wash trading (in-and-out)"
+      },
+      {
+        "id": "t_9",
+        "data": "2026-02-27",
+        "mes": "2026-02",
+        "descricao": "13:50 Pix enviado PAGUEVELOZ INSTITUICAO DE PAGAMENTO LTDA Com saldo",
+        "valor": -23982,
+        "classificacao": "debito",
+        "is_validated": false,
+        "custom_tag": null
+      },
+      {
+        "id": "t_10",
+        "data": "2026-02-27",
+        "mes": "2026-02",
+        "descricao": "13:36 Pix recebido MARIA LUISA MACHADO MOLITERNO",
+        "valor": 18500,
+        "classificacao": "credito_valido",
+        "is_validated": true,
+        "custom_tag": null
+      },
+      {
+        "id": "t_11",
+        "data": "2026-02-27",
+        "mes": "2026-02",
+        "descricao": "08:48 Pix recebido Eliene Amorim de Almeida",
+        "valor": 20000,
+        "classificacao": "ignorar_autotransferencia",
+        "motivoExclusao": "Autotransferência",
+        "is_validated": false,
+        "custom_tag": null
+      }
+    ]
+  },
+  "avisos": [
+    "Apenas 1 mês(es) com créditos válidos. Resultado pode não ser representativo.",
+    "1 transação(ões) de wash trading (in-and-out) foram sinalizadas para sua revisão e excluídas do cálculo padrão."
+  ]
+}

@@ -109,9 +109,11 @@ function Sidebar() {
       {/* Brand */}
       <div className="px-5 py-5 border-b border-surface-200 dark:border-surface-100/10">
         <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg bg-primary-600 flex items-center justify-center">
-            <span className="text-white font-black text-sm">K</span>
-          </div>
+          <img
+            src="/pwa-192x192.png"
+            alt="Kaizen Logo"
+            className="w-8 h-8 rounded-lg object-contain"
+          />
           <div>
             <h1 className="font-black text-text-primary text-sm leading-none">KAIZEN</h1>
             <p className="text-[10px] text-text-secondary font-medium tracking-widest">AXIS</p>

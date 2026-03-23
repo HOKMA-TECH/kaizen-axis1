@@ -1,0 +1,10 @@
+version: "2"
+type: frontend
+tech_stack:
+  - react
+features:
+  - name: Login Page
+    description: User authentication handled via Supabase
+    files:
+      - src/pages/Login.tsx
+known_limitations: []

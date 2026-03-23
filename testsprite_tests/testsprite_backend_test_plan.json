@@ -1,0 +1,17 @@
+[
+  {
+    "id": "TC001",
+    "title": "post api apuracao valid income analysis",
+    "description": "Test the POST /api/apuracao endpoint with valid bank statement text and client details to verify it returns calculated income metrics including transactions, total income, monthly averages, and warnings with a 200 status."
+  },
+  {
+    "id": "TC002",
+    "title": "post api apuracao no recognized transactions",
+    "description": "Test the POST /api/apuracao endpoint with valid schema but textoExtrato containing no recognizable transactions to verify it returns a 422 Unprocessable Entity error indicating no recognized transactions."
+  },
+  {
+    "id": "TC003",
+    "title": "post api apuracao validation error",
+    "description": "Test the POST /api/apuracao endpoint with missing or invalid fields in the request body to verify it returns a 400 Validation error response."
+  }
+]
