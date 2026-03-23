@@ -173,6 +173,10 @@ const KEYWORDS_IGNORAR = [
     'DEPOSITOS E RECEBIMENTOS', 'OUTRAS ENTRADAS', 'OUTRAS SAIDAS',
     'APLIC AUT MAIS', 'APLIC MAIS', 'SALDO APLIC', 'RES APLIC AUT', 'SALDO APLIC AUT MAIS',
     'MINHA CONTA', 'MINHA AGENCIA',
+    // Nubank — linhas de resumo diário ("01 JAN 2026 Total de saídas - 10,00")
+    'TOTAL DE SAIDAS', 'TOTAL DE ENTRADAS',
+    // Nubank — transações de saída (valor aparece positivo na linha individual)
+    'TRANSFERENCIA ENVIADA', 'ENVIADA PELO PIX',
 ];
 
 // ── v3: Keywords de apostas/jogos (nova regra 2a) ────────────────────────────
@@ -368,10 +372,13 @@ const MESES_EXTENSO_API: Record<string, string> = {
 const NEON_LINHA_RE = /^(.{5,100?}?)\s{1,}(\d{2}\/\d{2}\/\d{4})\s+\d{2}.?\d{2}([^\d]*)(\d[\d.]*,\d{2})/;
 
 function isNeonBank(texto: string): boolean {
-    // Tenta detectar pelo cabeçalho ou nome da instituição
+    // 'neon pagamentos' é checado APENAS no cabeçalho (primeiros 400 chars).
+    // Extratos do Nubank mencionam "NEON PAGAMENTOS S.A." como banco destinatário
+    // em transações, o que causava falso-positivo ao checar o texto completo.
+    const cabecalho = texto.substring(0, 400).toLowerCase();
     const txt = texto.toLowerCase();
-    return txt.includes('neon pagamentos') || 
-           txt.includes('timeneon') || 
+    return cabecalho.includes('neon pagamentos') ||
+           txt.includes('timeneon') ||
            (txt.includes('extrato por') && txt.includes('período') && txt.includes('conta digital'));
 }
 
