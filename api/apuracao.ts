@@ -517,7 +517,7 @@ function extrair(texto: string): Array<{ dataRaw: string; descricaoRaw: string; 
 
     const SECTIONS_IGNORE = /^(comprovantes? de|pacote de servi[çc]os|[íi]ndices econ[óo]micos|resumo consolidado|demonstrativo de|posi[çc][ãa]o de|investimentos|t[íi]tulos? de capitaliza[çc][ãa]o|fundos? de investimento|cr[ée]dito pessoal|poupan[çc]a|cart[ãa]o de cr[ée]dito|seguros|prote[çc][ãa]o)/i;
     // Remove the ^ anchor for CONTA CORRENTE because it can be indented or have dashes attached 
-    const SECTIONS_VALID = /(conta corrente|movimenta[çc][ãa]o|lan[çc]amentos|hist[óo]rico(?! de)|transa[çc][ão][ãe]es da conta|extrato( de( conta| transa))?|data\s+descri[çc][ãa]o)/i;
+    const SECTIONS_VALID = /(conta corrente|movimenta[çc]|lan[çc]amentos|hist[óo]rico(?! de)|transa[çc][ão][ãe]es da conta|extrato( de( conta| transa))?|data\s+descri[çc][ãa]o)/i;
 
     for (let i = 0; i < linhas.length; i++) {
         const linha = linhas[i];

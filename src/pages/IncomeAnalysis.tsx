@@ -470,6 +470,9 @@ export default function IncomeAnalysis() {
 
       setStatusMsg('Analisando transações…');
 
+      // DEBUG — remove após diagnóstico
+      console.log('[apuracao] textoUnificado (primeiros 3000 chars):\n', textoUnificado.substring(0, 3000));
+
       const resp = await fetch(API_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -481,7 +484,12 @@ export default function IncomeAnalysis() {
       });
 
       const json = await resp.json();
-      if (!resp.ok) { setErro(json.erro ?? `Erro ${resp.status}`); return; }
+      if (!resp.ok) {
+        // DEBUG — mostra debug do servidor no console
+        console.error('[apuracao] erro 422 — resposta completa:', json);
+        setErro(json.erro ?? `Erro ${resp.status}`);
+        return;
+      }
 
       const res = json as ResultadoApuracao;
       setResultado(res);
