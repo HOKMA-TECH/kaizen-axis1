@@ -706,7 +706,7 @@ export default function Reports() {
           {healthScores.length === 0
             ? <p className="text-sm text-text-secondary text-center py-8">Dados insuficientes para análise.</p>
             : healthScores.map((client) => (
-              <PremiumCard key={client.id} className="flex items-center justify-between p-4" onClick={() => navigate(`/clients/${client.id}`)}>
+              <PremiumCard key={client.id} className="flex items-center justify-between p-4 cursor-pointer hover:border-blue-400 dark:hover:border-blue-500 hover:shadow-md transition-all" onClick={() => navigate(`/clients/${client.id}`)}>
                 <div className="flex items-center gap-3">
                   <CircularScore score={client.score} />
                   <div>
