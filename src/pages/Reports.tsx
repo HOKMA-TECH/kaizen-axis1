@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
-import { SectionHeader, PremiumCard, RoundedButton } from '@/components/ui/PremiumComponents';
+import { SectionHeader, PremiumCard, RoundedButton, StatusBadge } from '@/components/ui/PremiumComponents';
 import { MetricCard } from '@/components/reports/MetricCard';
 import { CircularScore } from '@/components/reports/CircularScore';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { Download, FileSpreadsheet, FileText, Loader2, Building2, Users, TrendingUp, Target, ArrowLeft, AlertCircle, Timer, Shield } from 'lucide-react';
+import { Download, FileSpreadsheet, FileText, Loader2, Building2, Users, TrendingUp, Target, ArrowLeft, AlertCircle, Timer, Shield, ChevronRight, X } from 'lucide-react';
 import { Modal } from '@/components/ui/Modal';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useApp, Team } from '@/context/AppContext';
@@ -53,6 +53,7 @@ function TeamReportView({
 }: { team: Team; startDate: string; endDate: string }) {
   const navigate = useNavigate();
   const { allProfiles, clients } = useApp();
+  const [selectedBrokerId, setSelectedBrokerId] = useState<string | null>(null);
 
   // Members of this team:
   // - team.members[] is the authoritative list (set by the approval flow)
@@ -210,7 +211,7 @@ function TeamReportView({
 
       {/* Broker ranking */}
       <section>
-        <SectionHeader title="Ranking de Corretores" subtitle="Desempenho individual da equipe" />
+        <SectionHeader title="Ranking de Corretores" subtitle="Clique em um corretor para ver seus clientes" />
         {brokerRanking.length === 0 ? (
           <PremiumCard className="text-center py-8">
             <p className="text-text-secondary text-sm">Nenhum corretor vinculado a esta equipe.</p>
@@ -219,23 +220,62 @@ function TeamReportView({
           <div className="space-y-2">
             {brokerRanking.map((broker, i) => {
               const score = broker.total > 0 ? Math.min(100, Math.round((broker.vendas / broker.total) * 100)) : 0;
+              const isSelected = selectedBrokerId === broker.id;
+              const brokerClients = teamClients.filter(c => (c as any).owner_id === broker.id);
               return (
-                <PremiumCard key={broker.id} className="flex items-center justify-between p-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-7 h-7 rounded-full bg-gold-100 dark:bg-gold-900/40 flex items-center justify-center text-xs font-bold text-gold-700">
-                      {i + 1}
+                <div key={broker.id}>
+                  <PremiumCard
+                    className={`flex items-center justify-between p-4 cursor-pointer transition-all ${isSelected ? 'border-gold-400 dark:border-gold-500 shadow-md' : 'hover:border-gold-300'}`}
+                    onClick={() => setSelectedBrokerId(isSelected ? null : broker.id)}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-7 h-7 rounded-full bg-gold-100 dark:bg-gold-900/40 flex items-center justify-center text-xs font-bold text-gold-700">
+                        {i + 1}
+                      </div>
+                      <CircularScore score={score} />
+                      <div>
+                        <h4 className="font-bold text-text-primary text-sm">{broker.name}</h4>
+                        <p className="text-xs text-text-secondary">{broker.total} cliente{broker.total !== 1 ? 's' : ''}</p>
+                      </div>
                     </div>
-                    <CircularScore score={score} />
-                    <div>
-                      <h4 className="font-bold text-text-primary text-sm">{broker.name}</h4>
-                      <p className="text-xs text-text-secondary">{broker.total} clientes</p>
+                    <div className="flex items-center gap-3">
+                      <div className="text-right">
+                        <p className="text-sm font-bold text-green-600">{broker.vendas} vendas</p>
+                        <p className="text-xs text-text-secondary">{score}% conv.</p>
+                      </div>
+                      <ChevronRight
+                        size={16}
+                        className={`text-text-secondary transition-transform ${isSelected ? 'rotate-90' : ''}`}
+                      />
                     </div>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-sm font-bold text-green-600">{broker.vendas} vendas</p>
-                    <p className="text-xs text-text-secondary">{score}% conv.</p>
-                  </div>
-                </PremiumCard>
+                  </PremiumCard>
+
+                  {/* Client list for selected broker */}
+                  {isSelected && (
+                    <div className="mt-1 mb-2 ml-4 border-l-2 border-gold-200 dark:border-gold-800 pl-3 space-y-2">
+                      {brokerClients.length === 0 ? (
+                        <p className="text-xs text-text-secondary py-2 pl-1">Nenhum cliente no período selecionado.</p>
+                      ) : (
+                        brokerClients.map(client => (
+                          <div
+                            key={client.id}
+                            onClick={() => navigate(`/clients/${client.id}`)}
+                            className="flex items-center justify-between bg-card-bg rounded-xl px-3 py-2.5 cursor-pointer hover:bg-gold-50 dark:hover:bg-gold-900/10 hover:border-gold-200 border border-surface-100 transition-all"
+                          >
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-semibold text-text-primary truncate">{client.name}</p>
+                              <p className="text-xs text-text-secondary truncate">{client.development || 'Sem empreendimento'}</p>
+                            </div>
+                            <div className="flex items-center gap-2 ml-2 flex-shrink-0">
+                              <StatusBadge status={client.stage} />
+                              <ChevronRight size={14} className="text-text-secondary" />
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  )}
+                </div>
               );
             })}
           </div>
