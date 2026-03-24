@@ -49,22 +49,16 @@ export default function SendEmail() {
         coordinatorName = '';
         corretorName = ownerProfile!.name.toUpperCase();
       } else if (ownerRole === 'COORDENADOR') {
-        // Owner is the coordinator — look up manager from their team
+        // Owner is the coordinator — look up manager via direct manager_id FK
         coordinatorName = ownerProfile!.name.toUpperCase();
-        const managerObj = allProfiles.find(p =>
-          p.team_id === ownerTeamId && p.role?.toUpperCase() === 'GERENTE'
-        );
+        const managerObj = allProfiles.find(p => p.id === (ownerProfile as any).manager_id);
         managerName = managerObj ? managerObj.name.toUpperCase() : 'NÃO INFORMADO';
         corretorName = ownerProfile!.name.toUpperCase();
       } else {
-        // Owner is CORRETOR (or unknown) — look up full hierarchy from their team
+        // Owner is CORRETOR (or unknown) — resolve hierarchy via direct coordinator_id / manager_id FKs
         corretorName = ownerProfile ? ownerProfile.name.toUpperCase() : userName.toUpperCase();
-        const managerObj = allProfiles.find(p =>
-          p.team_id === ownerTeamId && p.role?.toUpperCase() === 'GERENTE'
-        );
-        const coordObj = allProfiles.find(p =>
-          p.team_id === ownerTeamId && p.role?.toUpperCase() === 'COORDENADOR'
-        );
+        const managerObj = allProfiles.find(p => p.id === (ownerProfile as any).manager_id);
+        const coordObj = allProfiles.find(p => p.id === (ownerProfile as any).coordinator_id);
         managerName = managerObj ? managerObj.name.toUpperCase() : 'NÃO INFORMADO';
         coordinatorName = coordObj ? coordObj.name.toUpperCase() : 'NÃO INFORMADO';
       }
