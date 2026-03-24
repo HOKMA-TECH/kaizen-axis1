@@ -285,6 +285,233 @@ function TeamReportView({
   );
 }
 
+// ─── Sub-view: Coordenação Report ─────────────────────────────────────────────
+
+function CoordReportView({
+  coordId, coordName, startDate, endDate,
+}: { coordId: string; coordName: string; startDate: string; endDate: string }) {
+  const navigate = useNavigate();
+  const { allProfiles, clients } = useApp();
+  const [selectedBrokerId, setSelectedBrokerId] = useState<string | null>(null);
+
+  // Corretores vinculados a este coordenador
+  const brokerProfiles = allProfiles.filter(p => p.coordinator_id === coordId);
+  const memberIds = Array.from(new Set([coordId, ...brokerProfiles.map(p => p.id)]));
+
+  const start = startDate ? new Date(startDate).getTime() : null;
+  const end = endDate ? new Date(endDate + 'T23:59:59').getTime() : null;
+
+  const coordClients = clients.filter(c => {
+    const ownerId = (c as any).owner_id;
+    if (!memberIds.includes(ownerId)) return false;
+    if (start && end) {
+      const created = c.createdAt ? new Date(c.createdAt).getTime() : 0;
+      return created >= start && created <= end;
+    }
+    return true;
+  });
+
+  const totalClientes = coordClients.length;
+  const vendas = coordClients.filter(c => c.stage === 'Concluído').length;
+  const aprovados = coordClients.filter(c => c.stage === 'Aprovado').length;
+  const taxaConversao = totalClientes > 0 ? Math.round((vendas / totalClientes) * 100) : 0;
+  const vgv = coordClients
+    .filter(c => c.stage === 'Concluído')
+    .reduce((acc, c) => acc + parseValue(c.intendedValue), 0);
+
+  const byStage: Record<string, number> = {};
+  coordClients.forEach(c => { byStage[c.stage] = (byStage[c.stage] ?? 0) + 1; });
+
+  const brokerRanking = allProfiles
+    .filter(p => memberIds.includes(p.id))
+    .map(p => {
+      const bc = coordClients.filter(c => (c as any).owner_id === p.id);
+      return {
+        id: p.id,
+        name: p.name,
+        total: bc.length,
+        vendas: bc.filter(c => c.stage === 'Concluído').length,
+      };
+    })
+    .sort((a, b) => b.vendas - a.vendas || b.total - a.total);
+
+  const convColor = taxaConversao >= 60
+    ? 'text-green-600' : taxaConversao >= 30
+      ? 'text-gold-600' : 'text-red-500';
+
+  return (
+    <div className="p-6 pb-24 min-h-screen bg-surface-50">
+      {/* Header */}
+      <div className="flex items-start justify-between mb-6 gap-3">
+        <div>
+          <button
+            onClick={() => navigate('/reports')}
+            className="flex items-center gap-1.5 text-xs text-text-secondary hover:text-gold-600 font-medium mb-2 transition-colors"
+          >
+            <ArrowLeft size={13} /> Ver Relatório Global
+          </button>
+          <div className="flex items-center gap-2">
+            <div className="w-9 h-9 rounded-xl bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
+              <Users size={18} className="text-purple-600 dark:text-purple-400" />
+            </div>
+            <div>
+              <h1 className="text-xl font-bold text-text-primary">{coordName}</h1>
+              <p className="text-xs text-text-secondary">Relatório por Coordenação</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Summary cards */}
+      <section className="grid grid-cols-2 gap-3 mb-6">
+        <PremiumCard className="flex flex-col gap-1">
+          <p className="text-[10px] text-text-secondary uppercase tracking-wide">Total Clientes</p>
+          <div className="flex items-end gap-2 mt-1">
+            <Users size={18} className="text-gold-500 mb-0.5" />
+            <h3 className="text-2xl font-bold text-text-primary">{totalClientes}</h3>
+          </div>
+        </PremiumCard>
+
+        <PremiumCard className="flex flex-col gap-1">
+          <p className="text-[10px] text-text-secondary uppercase tracking-wide">Vendas Concluídas</p>
+          <div className="flex items-end gap-2 mt-1">
+            <TrendingUp size={18} className="text-green-500 mb-0.5" />
+            <h3 className="text-2xl font-bold text-text-primary">{vendas}</h3>
+          </div>
+        </PremiumCard>
+
+        <PremiumCard className="flex flex-col gap-1">
+          <p className="text-[10px] text-text-secondary uppercase tracking-wide">Aprovados</p>
+          <div className="flex items-end gap-2 mt-1">
+            <TrendingUp size={18} className="text-blue-500 mb-0.5" />
+            <h3 className="text-2xl font-bold text-green-600">{aprovados}</h3>
+          </div>
+        </PremiumCard>
+
+        <PremiumCard className="flex flex-col gap-1">
+          <p className="text-[10px] text-text-secondary uppercase tracking-wide">Taxa de Conversão</p>
+          <div className="flex items-end gap-2 mt-1">
+            <Target size={18} className="text-blue-500 mb-0.5" />
+            <h3 className={`text-2xl font-bold ${convColor}`}>{taxaConversao}%</h3>
+          </div>
+        </PremiumCard>
+
+        <PremiumCard highlight className="col-span-2 flex flex-col gap-1">
+          <p className="text-[10px] text-gold-700 dark:text-gold-400 uppercase tracking-wide">VGV Concluído</p>
+          <h3 className="text-2xl font-bold text-text-primary mt-1">{brl(vgv)}</h3>
+        </PremiumCard>
+      </section>
+
+      {/* Pipeline by stage */}
+      <section className="mb-6">
+        <SectionHeader title="Pipeline por Etapa" subtitle="Distribuição atual dos clientes" />
+        <PremiumCard className="overflow-hidden p-0">
+          {Object.entries(byStage).length === 0 ? (
+            <p className="text-sm text-text-secondary text-center py-8">Nenhum cliente no período.</p>
+          ) : (
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-surface-200 bg-surface-50 dark:bg-surface-100">
+                  <th className="text-left p-3 text-xs font-medium text-text-secondary uppercase tracking-wide">Etapa</th>
+                  <th className="text-center p-3 text-xs font-medium text-text-secondary uppercase tracking-wide">Clientes</th>
+                  <th className="text-center p-3 text-xs font-medium text-text-secondary uppercase tracking-wide">%</th>
+                </tr>
+              </thead>
+              <tbody>
+                {Object.entries(byStage)
+                  .sort((a, b) => b[1] - a[1])
+                  .map(([stage, count]) => (
+                    <tr key={stage} className="border-b border-surface-100 last:border-0 hover:bg-surface-50 transition-colors">
+                      <td className="p-3 font-medium text-text-primary">{stage}</td>
+                      <td className="p-3 text-center text-text-secondary">{count}</td>
+                      <td className="p-3 text-center">
+                        <span className="text-xs font-bold text-text-secondary">
+                          {totalClientes > 0 ? Math.round((count / totalClientes) * 100) : 0}%
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+              </tbody>
+            </table>
+          )}
+        </PremiumCard>
+      </section>
+
+      {/* Broker ranking — clicável com lista de clientes */}
+      <section>
+        <SectionHeader title="Ranking de Corretores" subtitle="Clique em um corretor para ver seus clientes" />
+        {brokerRanking.length === 0 ? (
+          <PremiumCard className="text-center py-8">
+            <p className="text-text-secondary text-sm">Nenhum corretor vinculado a esta coordenação.</p>
+          </PremiumCard>
+        ) : (
+          <div className="space-y-2">
+            {brokerRanking.map((broker, i) => {
+              const score = broker.total > 0 ? Math.min(100, Math.round((broker.vendas / broker.total) * 100)) : 0;
+              const isSelected = selectedBrokerId === broker.id;
+              const brokerClients = coordClients.filter(c => (c as any).owner_id === broker.id);
+              return (
+                <div key={broker.id}>
+                  <PremiumCard
+                    className={`flex items-center justify-between p-4 cursor-pointer transition-all ${isSelected ? 'border-gold-400 dark:border-gold-500 shadow-md' : 'hover:border-gold-300'}`}
+                    onClick={() => setSelectedBrokerId(isSelected ? null : broker.id)}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-7 h-7 rounded-full bg-gold-100 dark:bg-gold-900/40 flex items-center justify-center text-xs font-bold text-gold-700">
+                        {i + 1}
+                      </div>
+                      <CircularScore score={score} />
+                      <div>
+                        <h4 className="font-bold text-text-primary text-sm">{broker.name}</h4>
+                        <p className="text-xs text-text-secondary">{broker.total} cliente{broker.total !== 1 ? 's' : ''}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <div className="text-right">
+                        <p className="text-sm font-bold text-green-600">{broker.vendas} vendas</p>
+                        <p className="text-xs text-text-secondary">{score}% conv.</p>
+                      </div>
+                      <ChevronRight
+                        size={16}
+                        className={`text-text-secondary transition-transform ${isSelected ? 'rotate-90' : ''}`}
+                      />
+                    </div>
+                  </PremiumCard>
+
+                  {isSelected && (
+                    <div className="mt-1 mb-2 ml-4 border-l-2 border-gold-200 dark:border-gold-800 pl-3 space-y-2">
+                      {brokerClients.length === 0 ? (
+                        <p className="text-xs text-text-secondary py-2 pl-1">Nenhum cliente no período selecionado.</p>
+                      ) : (
+                        brokerClients.map(client => (
+                          <div
+                            key={client.id}
+                            onClick={() => navigate(`/clients/${client.id}`)}
+                            className="flex items-center justify-between bg-card-bg rounded-xl px-3 py-2.5 cursor-pointer hover:bg-gold-50 dark:hover:bg-gold-900/10 border border-surface-100 hover:border-gold-200 transition-all"
+                          >
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-semibold text-text-primary truncate">{client.name}</p>
+                              <p className="text-xs text-text-secondary truncate">{client.development || 'Sem empreendimento'}</p>
+                            </div>
+                            <div className="flex items-center gap-2 ml-2 flex-shrink-0">
+                              <StatusBadge status={client.stage} />
+                              <ChevronRight size={14} className="text-text-secondary" />
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </section>
+    </div>
+  );
+}
+
 // ─── Sub-view: Diretoria Report ────────────────────────────────────────────────
 
 function DiretoriaReportView({
@@ -502,8 +729,8 @@ function DiretoriaReportView({
 export default function Reports() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { loading, teams, allProfiles } = useApp();
-  const { isAdmin, canViewAllClients } = useAuthorization();
+  const { loading, teams, allProfiles, profile } = useApp();
+  const { isAdmin, isManager, canViewAllClients } = useAuthorization();
 
   // ── Period state
   const [period, setPeriod] = useState('30 dias');
@@ -514,10 +741,8 @@ export default function Reports() {
 
   // ── Route-level scope reading
   const scope = searchParams.get('scope') ?? 'global';
-  const dirId = searchParams.get('id');
-  const dirName = decodeURIComponent(searchParams.get('name') ?? 'Diretoria');
-  const teamId = searchParams.get('id');
-  const teamName = decodeURIComponent(searchParams.get('name') ?? 'Equipe');
+  const scopeId = searchParams.get('id') ?? '';
+  const scopeName = decodeURIComponent(searchParams.get('name') ?? '');
 
   // ── Derive ISO dates from selected period
   const { start: startDate, end: endDate } = periodToDates(period);
@@ -565,16 +790,21 @@ export default function Reports() {
   ];
 
   // ── Delegate to diretoria sub-view (ADMIN only)
-  if (scope === 'diretoria' && dirId && isAdmin) {
-    return <DiretoriaReportView dirId={dirId} dirName={dirName} startDate={startDate} endDate={endDate} />;
+  if (scope === 'diretoria' && scopeId && isAdmin) {
+    return <DiretoriaReportView dirId={scopeId} dirName={scopeName || 'Diretoria'} startDate={startDate} endDate={endDate} />;
   }
 
   // ── Delegate to equipe sub-view
-  if (scope === 'equipe' && teamId && canViewAllClients) {
-    const teamObj = teams.find(t => t.id === teamId);
+  if (scope === 'equipe' && scopeId && canViewAllClients) {
+    const teamObj = teams.find(t => t.id === scopeId);
     if (teamObj) {
       return <TeamReportView team={teamObj} startDate={startDate} endDate={endDate} />;
     }
+  }
+
+  // ── Delegate to coordenação sub-view (GERENTE + ADMIN)
+  if (scope === 'coordenacao' && scopeId && (isManager || isAdmin)) {
+    return <CoordReportView coordId={scopeId} coordName={scopeName || 'Coordenação'} startDate={startDate} endDate={endDate} />;
   }
 
   const handlePeriodChange = (p: string) => {
@@ -724,6 +954,42 @@ export default function Reports() {
             ))}
         </div>
       </section>
+
+      {/* ── Por Coordenação (GERENTE) ── */}
+      {isManager && (() => {
+        const myCoords = allProfiles.filter(
+          p => p.manager_id === profile?.id && p.role?.toUpperCase() === 'COORDENADOR'
+        );
+        if (myCoords.length === 0) return null;
+        return (
+          <section className="mt-8 print:hidden">
+            <SectionHeader title="Relatório por Coordenação" subtitle="Análise segmentada por coordenador" />
+            <div className="grid grid-cols-1 gap-3">
+              {myCoords.map(coord => {
+                const brokerCount = allProfiles.filter(p => p.coordinator_id === coord.id).length;
+                return (
+                  <PremiumCard
+                    key={coord.id}
+                    className="flex items-center justify-between p-4 cursor-pointer hover:border-purple-300 transition-colors"
+                    onClick={() => navigate(`/reports?scope=coordenacao&id=${coord.id}&name=${encodeURIComponent(coord.name)}`)}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-purple-50 dark:bg-purple-900/20 flex items-center justify-center">
+                        <Users size={20} className="text-purple-500" />
+                      </div>
+                      <div>
+                        <h4 className="font-bold text-text-primary">{coord.name}</h4>
+                        <p className="text-xs text-text-secondary">{brokerCount} corretor{brokerCount !== 1 ? 'es' : ''}</p>
+                      </div>
+                    </div>
+                    <span className="text-gold-600 font-medium text-sm">Ver Relatório →</span>
+                  </PremiumCard>
+                );
+              })}
+            </div>
+          </section>
+        );
+      })()}
 
       {/* ── Por Equipe ── */}
       {canViewAllClients && teams.length > 0 && (
