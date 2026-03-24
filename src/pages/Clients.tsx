@@ -7,12 +7,12 @@ import {
   Clock, Plus, Loader2, Zap, Brain, AlertTriangle, CheckCircle2,
   Sparkles, X, BadgeCheck
 } from 'lucide-react';
-import { CLIENT_STAGES, ClientStage } from '@/data/clients';
+import { CLIENT_STAGES, ClientStage, Client } from '@/data/clients';
 import { AutomationLead } from '@/data/leads';
 import { useApp } from '@/context/AppContext';
 import { useAuthorization } from '@/hooks/useAuthorization';
-import { Client } from '@/data/clients';
 import { ClientHierarchyTags } from '@/components/ui/ClientHierarchyTags';
+import { supabase } from '@/lib/supabase';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -33,6 +33,30 @@ function formatPhone(phone: string) {
   if (d.length === 11) return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`;
   if (d.length === 10) return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`;
   return phone;
+}
+
+// ─── Urgency indicator ────────────────────────────────────────────────────────
+
+function getClientUrgency(client: Client): { days: number; level: 'critical' | 'urgent' | 'warning' | null } {
+  const stageEntries = (client.history || []).filter(
+    h => h.action === `Estágio alterado para ${client.stage}`
+  );
+  let refDate: Date;
+  if (stageEntries.length > 0) {
+    const sorted = [...stageEntries].sort((a, b) =>
+      new Date((b as any).created_at).getTime() - new Date((a as any).created_at).getTime()
+    );
+    refDate = new Date((sorted[0] as any).created_at);
+  } else {
+    refDate = new Date((client as any).createdAt || (client as any).created_at);
+  }
+  const days = Math.floor((Date.now() - refDate.getTime()) / (1000 * 60 * 60 * 24));
+  // Conformidade: urgente a partir de 7 dias
+  if (client.stage === 'Conformidade' && days >= 7) return { days, level: 'urgent' };
+  if (days >= 14) return { days, level: 'critical' };
+  if (days >= 7) return { days, level: 'urgent' };
+  if (days >= 3) return { days, level: 'warning' };
+  return { days, level: null };
 }
 
 // ─── Priority indicator ───────────────────────────────────────────────────────
@@ -282,8 +306,8 @@ function ConvertLeadModal({ lead, onClose, onConfirm }: {
 export default function Clients() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { clients, leads, loading, userRole, allProfiles, teams } = useApp();
-  const { isManager, canViewAllClients } = useAuthorization();
+  const { clients, leads, loading, userRole, allProfiles, teams, user } = useApp();
+  const { isManager, isAdmin, isDirector, canViewAllClients } = useAuthorization();
 
   const [mainTab, setMainTab] = useState<MainTab>('clientes');
   const [activeStage, setActiveStage] = useState<ClientStage | 'Todos'>('Todos');
@@ -303,6 +327,29 @@ export default function Clients() {
       setMainTab('documentacao');
     }
   }, [location.state]);
+
+  const handleSendManagerAlert = async (client: Client) => {
+    const ownerId = (client as any).owner_id;
+    if (!ownerId) { alert('Cliente sem responsável definido.'); return; }
+    const ownerProfile = allProfiles.find(p => p.id === ownerId);
+    const managerId = (ownerProfile as any)?.manager_id;
+    if (!managerId) { alert('Gerente não encontrado para este cliente.'); return; }
+    const myId = user?.id;
+    if (!myId) return;
+    const conversationId = [myId, managerId].sort().join('_');
+    const managerProfile = allProfiles.find(p => p.id === managerId);
+    const senderProfile = allProfiles.find(p => p.id === myId);
+    const msg = `⚠️ ALERTA URGENTE\n\nCliente: ${client.name}\nEtapa: ${client.stage}\nResponsável: ${ownerProfile?.name || '—'}\n\nEste cliente requer sua atenção imediata.\n\n— ${senderProfile?.name || 'Diretoria'}`;
+    const { error } = await supabase.from('chat_messages').insert({
+      sender_id: myId,
+      receiver_id: managerId,
+      conversation_id: conversationId,
+      content: msg,
+      type: 'text',
+    });
+    if (error) alert('Erro ao enviar alerta.');
+    else alert(`Alerta enviado para ${managerProfile?.name || 'o gerente'}!`);
+  };
 
   const filteredClients = clients.filter(client => {
     const matchesStage = activeStage === 'Todos' || client.stage === activeStage;
@@ -448,18 +495,31 @@ export default function Clients() {
             )}
             {filteredClients.map(client => {
               const ownerId = (client as any).owner_id;
+              const urgency = getClientUrgency(client);
               return (
               <PremiumCard
                 key={client.id}
-                className="relative group cursor-pointer hover:border-gold-300 transition-colors"
+                className={`relative group cursor-pointer hover:border-gold-300 transition-colors ${urgency.level === 'critical' ? 'border-red-300 dark:border-red-700' : urgency.level === 'urgent' ? 'border-orange-300 dark:border-orange-700' : ''}`}
                 onClick={() => navigate(`/clients/${client.id}`)}
               >
                 <div className="flex justify-between items-start mb-2">
-                  <div>
+                  <div className="flex-1 min-w-0 pr-2">
                     <h3 className="font-bold text-text-primary text-lg">{client.name}</h3>
                     <p className="text-sm text-text-secondary">{client.development || 'Sem empreendimento'}</p>
                   </div>
-                  <StatusBadge status={client.stage} />
+                  <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                    <StatusBadge status={client.stage} />
+                    {urgency.level && (
+                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                        urgency.level === 'critical' ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400' :
+                        urgency.level === 'urgent'   ? 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400' :
+                                                       'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400'
+                      }`}>
+                        <AlertTriangle size={9} />
+                        {urgency.level === 'critical' ? 'Crítico' : urgency.level === 'urgent' ? 'Urgente' : 'Atenção'} · {urgency.days}d
+                      </span>
+                    )}
+                  </div>
                 </div>
                 {/* Tags hierárquicas — visíveis para liderança */}
                 {canViewAllClients && (
@@ -485,6 +545,14 @@ export default function Clients() {
                   >
                     <Mail size={14} /> Email
                   </RoundedButton>
+                  {(isAdmin || isDirector) && (
+                    <RoundedButton
+                      variant="secondary" size="sm" className="h-9 px-3 text-xs text-red-600 dark:text-red-400 border-red-200 dark:border-red-800 hover:bg-red-50 dark:hover:bg-red-900/20"
+                      onClick={e => { e.stopPropagation(); handleSendManagerAlert(client); }}
+                    >
+                      <AlertTriangle size={14} />
+                    </RoundedButton>
+                  )}
                 </div>
               </PremiumCard>
               );
