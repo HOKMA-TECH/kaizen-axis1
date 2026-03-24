@@ -7,6 +7,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Modal } from '@/components/ui/Modal';
 import { useApp } from '@/context/AppContext';
 import { useAuthorization } from '@/hooks/useAuthorization';
+import { supabase } from '@/lib/supabase';
 import { ClientHierarchyTags } from '@/components/ui/ClientHierarchyTags';
 
 export default function ClientDetails() {
@@ -86,7 +87,7 @@ export default function ClientDetails() {
     }
   };
 
-  const handleOpenDocument = async (path: string) => {
+  const handleOpenDocument = (path: string) => {
     if (!path) return;
 
     // Se o path já for uma URL pública completa, abre direto
@@ -95,10 +96,10 @@ export default function ClientDetails() {
       return;
     }
 
-    // Caso contrário, tenta gerar o link assinado (fallback para paths relativos antigos)
-    const url = await getDownloadUrl(path, 'client-documents');
-    if (url) {
-      window.open(url, '_blank');
+    // Gera URL pública do bucket (bucket deve estar como público no Supabase)
+    const { data } = supabase.storage.from('client-documents').getPublicUrl(path);
+    if (data?.publicUrl) {
+      window.open(data.publicUrl, '_blank');
     } else {
       alert('Erro ao abrir documento.');
     }

@@ -5,6 +5,7 @@ import { ChevronLeft, Send, Paperclip, FileText, X, Loader2 } from 'lucide-react
 import { Client } from '@/data/clients';
 import { EmailInput } from '@/components/ui/EmailInput';
 import { useApp } from '@/context/AppContext';
+import { supabase } from '@/lib/supabase';
 
 interface Attachment {
   name: string;
@@ -138,10 +139,10 @@ PROFISSÃO: ${found.profession || 'Não informado'}`;
             // Manually added file
             base64Content = await fileToBase64(att.file);
           } else if (att.file_path) {
-            // Document from Supabase Storage — get signed URL then fetch
-            const signedUrl = await getDownloadUrl(att.file_path, 'client-documents');
-            if (signedUrl) {
-              base64Content = await urlToBase64(signedUrl);
+            // Document from Supabase Storage — get public URL then fetch
+            const { data: pubData } = supabase.storage.from('client-documents').getPublicUrl(att.file_path);
+            if (pubData?.publicUrl) {
+              base64Content = await urlToBase64(pubData.publicUrl);
             }
           }
 
