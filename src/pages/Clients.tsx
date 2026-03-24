@@ -53,9 +53,9 @@ function getClientUrgency(client: Client): { days: number; level: 'critical' | '
   const days = Math.floor((Date.now() - refDate.getTime()) / (1000 * 60 * 60 * 24));
   // Conformidade: urgente a partir de 7 dias
   if (client.stage === 'Conformidade' && days >= 7) return { days, level: 'urgent' };
-  if (days >= 14) return { days, level: 'critical' };
-  if (days >= 7) return { days, level: 'urgent' };
-  if (days >= 3) return { days, level: 'warning' };
+  if (days >= 3) return { days, level: 'critical' };
+  if (days >= 2) return { days, level: 'urgent' };
+  if (days >= 1) return { days, level: 'warning' };
   return { days, level: null };
 }
 
