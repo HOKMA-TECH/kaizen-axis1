@@ -7,12 +7,13 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Modal } from '@/components/ui/Modal';
 import { useApp } from '@/context/AppContext';
 import { useAuthorization } from '@/hooks/useAuthorization';
+import { ClientHierarchyTags } from '@/components/ui/ClientHierarchyTags';
 
 export default function ClientDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { getClient, updateClient, deleteClient, userName, getDownloadUrl, uploadFile, addDocumentToClient, deleteDocumentFromClient, clients } = useApp();
-  const { role } = useAuthorization();
+  const { getClient, updateClient, deleteClient, userName, getDownloadUrl, uploadFile, addDocumentToClient, deleteDocumentFromClient, clients, allProfiles, teams } = useApp();
+  const { role, canViewAllClients } = useAuthorization();
 
   // Roles that can set 'Concluído'
   const canConcluir = ['ADMIN', 'DIRETOR', 'GERENTE'].includes(role ?? '');
@@ -209,6 +210,15 @@ export default function ClientDetails() {
             </div>
             <StatusBadge status={client.stage} className="text-sm px-3 py-1.5" />
           </div>
+
+          {/* Tags hierárquicas — visíveis para liderança */}
+          {canViewAllClients && (
+            <ClientHierarchyTags
+              ownerId={(client as any).owner_id}
+              allProfiles={allProfiles}
+              teams={teams}
+            />
+          )}
 
           <div className="flex items-center gap-2 text-gold-600 dark:text-gold-400 font-medium bg-gold-50 dark:bg-gold-900/20 p-3 rounded-xl">
             <Wallet size={18} />

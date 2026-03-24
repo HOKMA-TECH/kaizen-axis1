@@ -12,6 +12,7 @@ import { AutomationLead } from '@/data/leads';
 import { useApp } from '@/context/AppContext';
 import { useAuthorization } from '@/hooks/useAuthorization';
 import { Client } from '@/data/clients';
+import { ClientHierarchyTags } from '@/components/ui/ClientHierarchyTags';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -281,8 +282,8 @@ function ConvertLeadModal({ lead, onClose, onConfirm }: {
 export default function Clients() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { clients, leads, loading, userRole, allProfiles } = useApp();
-  const { isManager } = useAuthorization();
+  const { clients, leads, loading, userRole, allProfiles, teams } = useApp();
+  const { isManager, canViewAllClients } = useAuthorization();
 
   const [mainTab, setMainTab] = useState<MainTab>('clientes');
   const [activeStage, setActiveStage] = useState<ClientStage | 'Todos'>('Todos');
@@ -447,10 +448,6 @@ export default function Clients() {
             )}
             {filteredClients.map(client => {
               const ownerId = (client as any).owner_id;
-              const ownerProfile = ownerId ? allProfiles.find(p => p.id === ownerId) : null;
-              const coordProfile = ownerProfile?.coordinator_id
-                ? allProfiles.find(p => p.id === ownerProfile.coordinator_id)
-                : null;
               return (
               <PremiumCard
                 key={client.id}
@@ -464,20 +461,14 @@ export default function Clients() {
                   </div>
                   <StatusBadge status={client.stage} />
                 </div>
-                {/* Tags de Corretor e Coordenador — visíveis para GERENTE */}
-                {isManager && (ownerProfile || coordProfile) && (
-                  <div className="flex flex-wrap gap-1 mb-2">
-                    {ownerProfile && (
-                      <span className="inline-flex items-center text-[10px] bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 px-2 py-0.5 rounded-full font-medium">
-                        👤 {ownerProfile.name}
-                      </span>
-                    )}
-                    {coordProfile && (
-                      <span className="inline-flex items-center text-[10px] bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 px-2 py-0.5 rounded-full font-medium">
-                        📋 {coordProfile.name}
-                      </span>
-                    )}
-                  </div>
+                {/* Tags hierárquicas — visíveis para liderança */}
+                {canViewAllClients && (
+                  <ClientHierarchyTags
+                    ownerId={ownerId}
+                    allProfiles={allProfiles}
+                    teams={teams}
+                    className="mb-2"
+                  />
                 )}
                 <div className="flex justify-between items-center mt-2 mb-4">
                   <span className="font-mono text-sm font-semibold text-text-primary bg-surface-100 px-2 py-1 rounded-md">

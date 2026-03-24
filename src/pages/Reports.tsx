@@ -3,10 +3,10 @@ import { SectionHeader, PremiumCard, RoundedButton } from '@/components/ui/Premi
 import { MetricCard } from '@/components/reports/MetricCard';
 import { CircularScore } from '@/components/reports/CircularScore';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { Download, FileSpreadsheet, FileText, Loader2, Building2, Users, TrendingUp, Target, ArrowLeft, AlertCircle, Timer } from 'lucide-react';
+import { Download, FileSpreadsheet, FileText, Loader2, Building2, Users, TrendingUp, Target, ArrowLeft, AlertCircle, Timer, Shield } from 'lucide-react';
 import { Modal } from '@/components/ui/Modal';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { useApp } from '@/context/AppContext';
+import { useApp, Team } from '@/context/AppContext';
 import { useAuthorization } from '@/hooks/useAuthorization';
 import { useReportsData } from '@/hooks/useReportsData';
 import { supabase } from '@/lib/supabase';
@@ -37,6 +37,207 @@ function periodToDates(period: string): { start: string; end: string } {
     start: start.toISOString().split('T')[0],
     end: end.toISOString().split('T')[0],
   };
+}
+
+/** Parse "R$ 200.000,00" → 200000 */
+function parseValue(v: string): number {
+  if (!v) return 0;
+  const clean = v.replace(/[R$\s.]/g, '').replace(',', '.');
+  return parseFloat(clean) || 0;
+}
+
+// ─── Sub-view: Equipe Report ────────────────────────────────────────────────────
+
+function TeamReportView({
+  team, startDate, endDate,
+}: { team: Team; startDate: string; endDate: string }) {
+  const navigate = useNavigate();
+  const { allProfiles, clients } = useApp();
+
+  // Members of this team
+  const memberIds = allProfiles
+    .filter(p => p.team_id === team.id)
+    .map(p => p.id);
+
+  // Clients belonging to team members, optionally filtered by date range
+  const start = startDate ? new Date(startDate).getTime() : null;
+  const end = endDate ? new Date(endDate + 'T23:59:59').getTime() : null;
+
+  const teamClients = clients.filter(c => {
+    const ownerId = (c as any).owner_id;
+    if (!memberIds.includes(ownerId)) return false;
+    if (start && end) {
+      const created = c.createdAt ? new Date(c.createdAt).getTime() : 0;
+      return created >= start && created <= end;
+    }
+    return true;
+  });
+
+  const totalClientes = teamClients.length;
+  const vendas = teamClients.filter(c => c.stage === 'Concluído').length;
+  const aprovados = teamClients.filter(c => c.stage === 'Aprovado').length;
+  const taxaConversao = totalClientes > 0 ? Math.round((vendas / totalClientes) * 100) : 0;
+  const vgv = teamClients
+    .filter(c => c.stage === 'Concluído')
+    .reduce((acc, c) => acc + parseValue(c.intendedValue), 0);
+
+  // Stage breakdown
+  const byStage: Record<string, number> = {};
+  teamClients.forEach(c => {
+    byStage[c.stage] = (byStage[c.stage] ?? 0) + 1;
+  });
+
+  // Broker ranking
+  const brokerRanking = allProfiles
+    .filter(p => memberIds.includes(p.id))
+    .map(p => {
+      const brokerClients = teamClients.filter(c => (c as any).owner_id === p.id);
+      return {
+        id: p.id,
+        name: p.name,
+        total: brokerClients.length,
+        vendas: brokerClients.filter(c => c.stage === 'Concluído').length,
+      };
+    })
+    .sort((a, b) => b.vendas - a.vendas || b.total - a.total);
+
+  const convColor = taxaConversao >= 60
+    ? 'text-green-600' : taxaConversao >= 30
+      ? 'text-gold-600' : 'text-red-500';
+
+  return (
+    <div className="p-6 pb-24 min-h-screen bg-surface-50">
+      {/* Header */}
+      <div className="flex items-start justify-between mb-6 gap-3">
+        <div>
+          <button
+            onClick={() => navigate('/reports')}
+            className="flex items-center gap-1.5 text-xs text-text-secondary hover:text-gold-600 font-medium mb-2 transition-colors"
+          >
+            <ArrowLeft size={13} /> Ver Relatório Global
+          </button>
+          <div className="flex items-center gap-2">
+            <div className="w-9 h-9 rounded-xl bg-gold-100 dark:bg-gold-900/30 flex items-center justify-center">
+              <Shield size={18} className="text-gold-600 dark:text-gold-400" />
+            </div>
+            <div>
+              <h1 className="text-xl font-bold text-text-primary">{team.name}</h1>
+              <p className="text-xs text-text-secondary">Relatório por Equipe</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Summary cards */}
+      <section className="grid grid-cols-2 gap-3 mb-6">
+        <PremiumCard className="flex flex-col gap-1">
+          <p className="text-[10px] text-text-secondary uppercase tracking-wide">Total Clientes</p>
+          <div className="flex items-end gap-2 mt-1">
+            <Users size={18} className="text-gold-500 mb-0.5" />
+            <h3 className="text-2xl font-bold text-text-primary">{totalClientes}</h3>
+          </div>
+        </PremiumCard>
+
+        <PremiumCard className="flex flex-col gap-1">
+          <p className="text-[10px] text-text-secondary uppercase tracking-wide">Vendas Concluídas</p>
+          <div className="flex items-end gap-2 mt-1">
+            <TrendingUp size={18} className="text-green-500 mb-0.5" />
+            <h3 className="text-2xl font-bold text-text-primary">{vendas}</h3>
+          </div>
+        </PremiumCard>
+
+        <PremiumCard className="flex flex-col gap-1">
+          <p className="text-[10px] text-text-secondary uppercase tracking-wide">Aprovados</p>
+          <div className="flex items-end gap-2 mt-1">
+            <TrendingUp size={18} className="text-blue-500 mb-0.5" />
+            <h3 className="text-2xl font-bold text-green-600">{aprovados}</h3>
+          </div>
+        </PremiumCard>
+
+        <PremiumCard className="flex flex-col gap-1">
+          <p className="text-[10px] text-text-secondary uppercase tracking-wide">Taxa de Conversão</p>
+          <div className="flex items-end gap-2 mt-1">
+            <Target size={18} className="text-blue-500 mb-0.5" />
+            <h3 className={`text-2xl font-bold ${convColor}`}>{taxaConversao}%</h3>
+          </div>
+        </PremiumCard>
+
+        <PremiumCard highlight className="col-span-2 flex flex-col gap-1">
+          <p className="text-[10px] text-gold-700 dark:text-gold-400 uppercase tracking-wide">VGV Concluído</p>
+          <h3 className="text-2xl font-bold text-text-primary mt-1">{brl(vgv)}</h3>
+        </PremiumCard>
+      </section>
+
+      {/* Pipeline by stage */}
+      <section className="mb-6">
+        <SectionHeader title="Pipeline por Etapa" subtitle="Distribuição atual dos clientes" />
+        <PremiumCard className="overflow-hidden p-0">
+          {Object.entries(byStage).length === 0 ? (
+            <p className="text-sm text-text-secondary text-center py-8">Nenhum cliente no período.</p>
+          ) : (
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-surface-200 bg-surface-50 dark:bg-surface-100">
+                  <th className="text-left p-3 text-xs font-medium text-text-secondary uppercase tracking-wide">Etapa</th>
+                  <th className="text-center p-3 text-xs font-medium text-text-secondary uppercase tracking-wide">Clientes</th>
+                  <th className="text-center p-3 text-xs font-medium text-text-secondary uppercase tracking-wide">%</th>
+                </tr>
+              </thead>
+              <tbody>
+                {Object.entries(byStage)
+                  .sort((a, b) => b[1] - a[1])
+                  .map(([stage, count]) => (
+                    <tr key={stage} className="border-b border-surface-100 last:border-0 hover:bg-surface-50 transition-colors">
+                      <td className="p-3 font-medium text-text-primary">{stage}</td>
+                      <td className="p-3 text-center text-text-secondary">{count}</td>
+                      <td className="p-3 text-center">
+                        <span className="text-xs font-bold text-text-secondary">
+                          {totalClientes > 0 ? Math.round((count / totalClientes) * 100) : 0}%
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+              </tbody>
+            </table>
+          )}
+        </PremiumCard>
+      </section>
+
+      {/* Broker ranking */}
+      <section>
+        <SectionHeader title="Ranking de Corretores" subtitle="Desempenho individual da equipe" />
+        {brokerRanking.length === 0 ? (
+          <PremiumCard className="text-center py-8">
+            <p className="text-text-secondary text-sm">Nenhum corretor vinculado a esta equipe.</p>
+          </PremiumCard>
+        ) : (
+          <div className="space-y-2">
+            {brokerRanking.map((broker, i) => {
+              const score = broker.total > 0 ? Math.min(100, Math.round((broker.vendas / broker.total) * 100)) : 0;
+              return (
+                <PremiumCard key={broker.id} className="flex items-center justify-between p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-7 h-7 rounded-full bg-gold-100 dark:bg-gold-900/40 flex items-center justify-center text-xs font-bold text-gold-700">
+                      {i + 1}
+                    </div>
+                    <CircularScore score={score} />
+                    <div>
+                      <h4 className="font-bold text-text-primary text-sm">{broker.name}</h4>
+                      <p className="text-xs text-text-secondary">{broker.total} clientes</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-sm font-bold text-green-600">{broker.vendas} vendas</p>
+                    <p className="text-xs text-text-secondary">{score}% conv.</p>
+                  </div>
+                </PremiumCard>
+              );
+            })}
+          </div>
+        )}
+      </section>
+    </div>
+  );
 }
 
 // ─── Sub-view: Diretoria Report ────────────────────────────────────────────────
@@ -256,8 +457,8 @@ function DiretoriaReportView({
 export default function Reports() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { loading } = useApp();
-  const { isAdmin } = useAuthorization();
+  const { loading, teams, allProfiles } = useApp();
+  const { isAdmin, canViewAllClients } = useAuthorization();
 
   // ── Period state
   const [period, setPeriod] = useState('30 dias');
@@ -270,6 +471,8 @@ export default function Reports() {
   const scope = searchParams.get('scope') ?? 'global';
   const dirId = searchParams.get('id');
   const dirName = decodeURIComponent(searchParams.get('name') ?? 'Diretoria');
+  const teamId = searchParams.get('id');
+  const teamName = decodeURIComponent(searchParams.get('name') ?? 'Equipe');
 
   // ── Derive ISO dates from selected period
   const { start: startDate, end: endDate } = periodToDates(period);
@@ -319,6 +522,14 @@ export default function Reports() {
   // ── Delegate to diretoria sub-view (ADMIN only)
   if (scope === 'diretoria' && dirId && isAdmin) {
     return <DiretoriaReportView dirId={dirId} dirName={dirName} startDate={startDate} endDate={endDate} />;
+  }
+
+  // ── Delegate to equipe sub-view
+  if (scope === 'equipe' && teamId && canViewAllClients) {
+    const teamObj = teams.find(t => t.id === teamId);
+    if (teamObj) {
+      return <TeamReportView team={teamObj} startDate={startDate} endDate={endDate} />;
+    }
   }
 
   const handlePeriodChange = (p: string) => {
@@ -468,6 +679,42 @@ export default function Reports() {
             ))}
         </div>
       </section>
+
+      {/* ── Por Equipe ── */}
+      {canViewAllClients && teams.length > 0 && (
+        <section className="mt-8 print:hidden">
+          <SectionHeader title="Relatório por Equipe" subtitle="Análise segmentada por equipe comercial" />
+          <div className="grid grid-cols-1 gap-3">
+            {teams.map(team => {
+              const memberIds = allProfiles.filter(p => p.team_id === team.id).map(p => p.id);
+              const teamClientCount = memberIds.length > 0
+                ? 0 // computed below to avoid multiple filter passes
+                : 0;
+              const memberCount = memberIds.length;
+              return (
+                <PremiumCard
+                  key={team.id}
+                  className="flex items-center justify-between p-4 cursor-pointer hover:border-gold-300 transition-colors"
+                  onClick={() => navigate(`/reports?scope=equipe&id=${team.id}&name=${encodeURIComponent(team.name)}`)}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-gold-50 dark:bg-gold-900/20 flex items-center justify-center">
+                      <Shield size={20} className="text-gold-500" />
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-text-primary">{team.name}</h4>
+                      <p className="text-xs text-text-secondary">{memberCount} membro{memberCount !== 1 ? 's' : ''}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 text-gold-600 font-medium text-sm">
+                    Ver Relatório →
+                  </div>
+                </PremiumCard>
+              );
+            })}
+          </div>
+        </section>
+      )}
 
       {/* ── Export Modal ── */}
       <Modal isOpen={isExportModalOpen} onClose={() => setIsExportModalOpen(false)} title="Exportar Relatório">

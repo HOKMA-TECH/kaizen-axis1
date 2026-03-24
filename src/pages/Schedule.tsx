@@ -8,12 +8,13 @@ import { ptBR } from 'date-fns/locale';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useApp, Appointment } from '@/context/AppContext';
 import { useAuthorization } from '@/hooks/useAuthorization';
+import { ClientHierarchyTags } from '@/components/ui/ClientHierarchyTags';
 
 export default function Schedule() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { appointments, addAppointment, updateAppointment, deleteAppointment, loading, allProfiles } = useApp();
-  const { isManager } = useAuthorization();
+  const { appointments, addAppointment, updateAppointment, deleteAppointment, loading, allProfiles, teams } = useApp();
+  const { isManager, canViewAllClients } = useAuthorization();
 
   const today = new Date();
   const [selectedDate, setSelectedDate] = useState<Date>(today);
@@ -181,28 +182,15 @@ export default function Schedule() {
                     <div className={`h-full w-0.5 mt-2 rounded-full ${event.completed ? 'bg-surface-200' : 'bg-gold-200'}`}></div>
                   </div>
                   <div className="flex-1 pb-2 min-w-0">
-                    {/* Tags de corretor/coordenador — visíveis para GERENTE */}
-                    {isManager && (() => {
-                      const brokerProfile = event.user_id ? allProfiles.find(p => p.id === event.user_id) : null;
-                      const coordProfile = brokerProfile?.coordinator_id
-                        ? allProfiles.find(p => p.id === brokerProfile.coordinator_id)
-                        : null;
-                      if (!brokerProfile && !coordProfile) return null;
-                      return (
-                        <div className="flex flex-wrap gap-1 mb-1">
-                          {brokerProfile && (
-                            <span className="inline-flex items-center text-[10px] bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 px-2 py-0.5 rounded-full font-medium">
-                              👤 {brokerProfile.name}
-                            </span>
-                          )}
-                          {coordProfile && (
-                            <span className="inline-flex items-center text-[10px] bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 px-2 py-0.5 rounded-full font-medium">
-                              📋 {coordProfile.name}
-                            </span>
-                          )}
-                        </div>
-                      );
-                    })()}
+                    {/* Tags hierárquicas — visíveis para liderança */}
+                    {canViewAllClients && (
+                      <ClientHierarchyTags
+                        ownerId={event.user_id}
+                        allProfiles={allProfiles}
+                        teams={teams}
+                        className="mb-1"
+                      />
+                    )}
                     <div className="flex justify-between items-start">
                       <div>
                         <h4 className={`font-bold truncate ${event.completed ? 'text-text-secondary line-through' : 'text-text-primary'}`}>{event.title}</h4>
