@@ -436,51 +436,6 @@ export default function Dashboard() {
           </div>
           <SalesProgressCard />
 
-          {/* ── Visão por Coordenação (apenas GERENTE) ───────────────────── */}
-          {isManager && (() => {
-            const myCoordinators = allProfiles.filter(p =>
-              p.manager_id === user?.id && p.role?.toUpperCase() === 'COORDENADOR'
-            );
-            if (myCoordinators.length === 0) return null;
-            return (
-              <section>
-                <SectionHeader title="Visão por Coordenação" subtitle="Métricas por coordenador da sua equipe" />
-                <div className="space-y-2">
-                  {myCoordinators.map(coord => {
-                    const coordBrokerIds = allProfiles
-                      .filter(p => (p as any).coordinator_id === coord.id)
-                      .map(p => p.id);
-                    const coordOwnerIds = new Set([...coordBrokerIds, coord.id]);
-                    const coordClients = clients.filter(c => coordOwnerIds.has((c as any).owner_id));
-                    const coordSales = coordClients.filter(c => c.stage === 'Concluído').length;
-                    const coordAnalise = coordClients.filter(c => c.stage === 'Em Análise').length;
-                    return (
-                      <PremiumCard key={coord.id} className="cursor-pointer hover:border-gold-400 hover:shadow-md transition-all" onClick={() => navigate(`/clients?coordinator=${coord.id}&coordName=${encodeURIComponent(coord.name)}`)}>
-
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-full bg-gold-100 dark:bg-gold-900/30 flex items-center justify-center text-gold-700 dark:text-gold-400 font-bold text-sm flex-shrink-0">
-                              {coord.name.charAt(0)}
-                            </div>
-                            <div>
-                              <p className="font-medium text-text-primary text-sm">{coord.name}</p>
-                              <p className="text-[10px] text-text-secondary">{coordBrokerIds.length} corretor(es) vinculado(s)</p>
-                            </div>
-                          </div>
-                          <div className="text-right">
-                            <p className="text-xs text-text-secondary">{coordClients.length} clientes</p>
-                            <p className="text-xs font-medium text-green-600">{coordSales} vendas</p>
-                            {coordAnalise > 0 && <p className="text-xs text-blue-500">{coordAnalise} em análise</p>}
-                          </div>
-                        </div>
-                      </PremiumCard>
-                    );
-                  })}
-                </div>
-              </section>
-            );
-          })()}
-
           <section><FunnelChart /></section>
 
           {/* Metas and Missions for the team */}
