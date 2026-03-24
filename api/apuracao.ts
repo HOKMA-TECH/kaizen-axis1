@@ -182,15 +182,23 @@ const KEYWORDS_IGNORAR = [
 // ── v3: Keywords de apostas/jogos (nova regra 2a) ────────────────────────────
 // Keywords específicas (marcas longas) — verificadas com includes() simples
 const KEYWORDS_APOSTAS_EXATAS = [
+    // Marcas brasileiras conhecidas
     'BETNACIONAL', 'BETANO', 'SPORTINGBET', 'BRAZINO', 'PIXBET',
     'ESPORTE DA SORTE', 'SUPERBET', 'NOVIBET', 'BLAZE',
     'FORTUNE TIGER', 'TIGRINHO',
+    'BETFAIR', 'BET365', 'BETWAY', 'BETBOO', 'BETSUL', 'BETSSON', 'BETMOTION',
+    'GALERA BET', 'ESTRELA BET', 'VAIDEBET', 'APOSTA GANHA', 'PARIMATCH',
+    '1XBET', 'KTO', 'F12 BET', 'F12.BET', 'BRAZINO777',
+    'ESPORTES GAMING', 'GAMING BRASIL', 'SORTE ONLINE', 'CASA DE APOSTAS',
+    'SPORTSBETTING', 'JOGO DO BICHO',
 ];
 // Keywords curtas/ambíguas — verificadas com word-boundary para não pegar substrings de nomes
 // Ex: "BET" não deve casar com "Elizabete", "JOGO" não deve casar com "Jogo de cintura"
 const KEYWORDS_APOSTAS_PALAVRA = [
-    'BET', 'CASINO', 'CASSINO', 'APOSTA', 'APOSTAS', 'LOTERIA', 'LOTERICA',
+    'BET', 'BETS', 'CASINO', 'CASSINO', 'APOSTA', 'APOSTAS', 'LOTERIA', 'LOTERICA',
     'JOGO', 'JOGOS', 'SLOTS', 'ROLETA', 'POKER', 'FORTUNE',
+    'GAMING', 'GAMBLING', 'AZAR', 'ODDS', 'STAKE',
+    'SPORTSBOOK', 'BOOKMAKER', 'BOOKIE',
 ];
 // \b (word boundary) garante que "BET" não case dentro de "ELIZABETE" ou "ROBERTA"
 const APOSTAS_PALAVRA_RE = new RegExp(
