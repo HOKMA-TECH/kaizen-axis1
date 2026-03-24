@@ -27,9 +27,11 @@ export function ClientHierarchyTags({
     ? allProfiles.find(p => p.id === ownerProfile.coordinator_id) ?? null
     : null;
 
+  // profile.team stores the team UUID (set by AdminPanel approval flow),
+  // so we look up the team by both team_id and the team UUID stored in .team
   const teamName = teams
-    ? (teams.find(t => t.id === ownerProfile.team_id)?.name ?? ownerProfile.team ?? null)
-    : (ownerProfile.team ?? null);
+    ? (teams.find(t => t.id === ownerProfile.team_id || t.id === ownerProfile.team)?.name ?? null)
+    : null;
 
   return (
     <div className={`flex flex-wrap gap-1 ${className ?? ''}`}>

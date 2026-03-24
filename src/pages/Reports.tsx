@@ -54,10 +54,15 @@ function TeamReportView({
   const navigate = useNavigate();
   const { allProfiles, clients } = useApp();
 
-  // Members of this team
-  const memberIds = allProfiles
-    .filter(p => p.team_id === team.id)
-    .map(p => p.id);
+  // Members of this team:
+  // - team.members[] is the authoritative list (set by the approval flow)
+  // - fallback: profile.team stores the team UUID (AdminPanel sets team = team_id)
+  // - always include the team manager themselves
+  const memberIds = Array.from(new Set([
+    ...(team.members ?? []),
+    ...allProfiles.filter(p => p.team === team.id || p.team_id === team.id).map(p => p.id),
+    ...(team.manager_id ? [team.manager_id] : []),
+  ]));
 
   // Clients belonging to team members, optionally filtered by date range
   const start = startDate ? new Date(startDate).getTime() : null;
@@ -686,11 +691,11 @@ export default function Reports() {
           <SectionHeader title="Relatório por Equipe" subtitle="Análise segmentada por equipe comercial" />
           <div className="grid grid-cols-1 gap-3">
             {teams.map(team => {
-              const memberIds = allProfiles.filter(p => p.team_id === team.id).map(p => p.id);
-              const teamClientCount = memberIds.length > 0
-                ? 0 // computed below to avoid multiple filter passes
-                : 0;
-              const memberCount = memberIds.length;
+              const memberCount = new Set([
+                ...(team.members ?? []),
+                ...allProfiles.filter(p => p.team === team.id || p.team_id === team.id).map(p => p.id),
+                ...(team.manager_id ? [team.manager_id] : []),
+              ]).size;
               return (
                 <PremiumCard
                   key={team.id}
