@@ -509,7 +509,7 @@ function extrair(texto: string): Array<{ dataRaw: string; descricaoRaw: string; 
     let descAcumulada = ''; // Buffer para acumular descrições multi-linha (ex: Bradesco)
 
     // Regex para ignorar cabeçalhos de página sem zerar o buffer (apenas pula a linha)
-    const CABECALHOS_IGNORE = /^(extrato de|bradesco|banco do brasil|lançamentos|histórico|docto|crédito|débito|saldo|data:|cliente:|agência:|conta:|^[\d/]+$|saldo ao final do dias?[:,]?|documento emitido em|hora\s+tipo|origem.*destino|forma de pagamento|entradas\s*(\(cr[eé]ditos?\))?$|sa[ií]das\s*(\(d[eé]bitos?\))?$|outras entradas|dep[oó]sitos e recebimentos|este material est[aá] dispon|res aplic aut mais|saldo aplic aut mais)/i;
+    const CABECALHOS_IGNORE = /^(extrato de|bradesco|banco do brasil|santander|nu pagamentos|nubank|lançamentos|histórico|docto|crédito|débito|saldo|data:|cliente:|agência:|conta:|^[\d/]+$|saldo ao final do dias?[:,]?|documento emitido em|hora\s+tipo|origem.*destino|forma de pagamento|entradas\s*(\(cr[eé]ditos?\))?$|sa[ií]das\s*(\(d[eé]bitos?\))?$|outras entradas|dep[oó]sitos e recebimentos|este material est[aá] dispon|res aplic aut mais|saldo aplic aut mais|tem alguma d[uú]vida|atendimento 24h|ouvidoria)/i;
 
     // Máquina de estados para ignorar sessões inteiras (ex: Santander "Comprovantes de Pagamento")
     // Para o Santander, iniciamos ignorando tudo até achar a seção correta ("Conta Corrente"), 
@@ -632,7 +632,9 @@ function extrair(texto: string): Array<{ dataRaw: string; descricaoRaw: string; 
             if (descSemData.length === 0 || descSemData.toLowerCase().includes('total de')) continue;
 
             // Linha com DATA, mas SEM VALOR. Ex: "03/01/2025 TRANSFERENCIA PIX". Acumula.
-            descAcumulada = `${descAcumulada} ${descSemData}`.trim();
+            // Limite de segurança: se o buffer ficar enorme, é lixo de cabeçalho — descarta o lixo e mantém só o trecho atual
+            const novaAcumuladaData = `${descAcumulada} ${descSemData}`.trim();
+            descAcumulada = novaAcumuladaData.length > 300 ? descSemData.trim() : novaAcumuladaData;
 
         } else if (dataContextual) {
             if (
@@ -686,7 +688,9 @@ function extrair(texto: string): Array<{ dataRaw: string; descricaoRaw: string; 
             } else {
                 // Linha sem valor financeiro e não é cabeçalho ou saldo.
                 // É continuação de descrição! Ex: "REM: Matheus Rodrigues 03/01"
-                descAcumulada = `${descAcumulada} ${linha}`.trim();
+                // Limite de segurança: buffer enorme = lixo de cabeçalho (ex: disclaimer Santander/Nubank) — zera
+                const novaAcumuladaElse = `${descAcumulada} ${linha}`.trim();
+                descAcumulada = novaAcumuladaElse.length > 300 ? '' : novaAcumuladaElse;
             }
         }
     }
