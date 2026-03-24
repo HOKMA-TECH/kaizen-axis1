@@ -139,7 +139,7 @@ PROFISSÃO: ${found.profession || 'Não informado'}`;
             base64Content = await fileToBase64(att.file);
           } else if (att.file_path) {
             // Document from Supabase Storage — get signed URL then fetch
-            const signedUrl = await getDownloadUrl(att.file_path);
+            const signedUrl = await getDownloadUrl(att.file_path, 'client-documents');
             if (signedUrl) {
               base64Content = await urlToBase64(signedUrl);
             }
