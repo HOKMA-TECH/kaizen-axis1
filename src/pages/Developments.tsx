@@ -13,6 +13,9 @@ export default function Developments() {
   const { developments, addDevelopment, updateDevelopment, deleteDevelopment, loading } = useApp();
   const { isBroker, canCreateStrategicResources } = useAuthorization();
   const [filter, setFilter] = useState('');
+  const [showFilters, setShowFilters] = useState(false);
+  const [filterTypes, setFilterTypes] = useState<string[]>([]);
+  const [filterStatuses, setFilterStatuses] = useState<string[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [editingDevId, setEditingDevId] = useState<string | null>(null);
@@ -105,10 +108,21 @@ export default function Developments() {
     });
   };
 
-  const filteredDevelopments = developments.filter(dev =>
-    dev.name.toLowerCase().includes(filter.toLowerCase()) ||
-    (dev.builder || '').toLowerCase().includes(filter.toLowerCase())
-  );
+  const toggleFilterType = (val: string) =>
+    setFilterTypes(prev => prev.includes(val) ? prev.filter(v => v !== val) : [...prev, val]);
+  const toggleFilterStatus = (val: string) =>
+    setFilterStatuses(prev => prev.includes(val) ? prev.filter(v => v !== val) : [...prev, val]);
+  const clearFilters = () => { setFilterTypes([]); setFilterStatuses([]); };
+  const activeFiltersCount = filterTypes.length + filterStatuses.length;
+
+  const filteredDevelopments = developments.filter(dev => {
+    const matchesSearch =
+      dev.name.toLowerCase().includes(filter.toLowerCase()) ||
+      (dev.builder || '').toLowerCase().includes(filter.toLowerCase());
+    const matchesType = filterTypes.length === 0 || filterTypes.includes(dev.type || '');
+    const matchesStatus = filterStatuses.length === 0 || filterStatuses.includes(dev.status || '');
+    return matchesSearch && matchesType && matchesStatus;
+  });
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -224,17 +238,61 @@ export default function Developments() {
         )}
       </div>
 
-      <div className="flex gap-3 mb-6">
+      <div className="flex gap-3 mb-3">
         <div className="flex-1 relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary" size={18} />
           <input type="text" placeholder="Buscar por nome, construtora..."
             className="w-full pl-10 pr-4 py-3 bg-card-bg rounded-xl text-sm shadow-sm border border-surface-200 focus:outline-none focus:ring-2 focus:ring-gold-200 text-text-primary placeholder:text-text-secondary"
             value={filter} onChange={(e) => setFilter(e.target.value)} />
         </div>
-        <button className="p-3 bg-card-bg rounded-xl text-text-secondary border border-surface-200 shadow-sm hover:bg-surface-100">
+        <button
+          onClick={() => setShowFilters(p => !p)}
+          className={`relative p-3 rounded-xl border shadow-sm transition-colors ${showFilters || activeFiltersCount > 0 ? 'bg-gold-500 text-white border-gold-500' : 'bg-card-bg text-text-secondary border-surface-200 hover:bg-surface-100'}`}
+        >
           <Filter size={20} />
+          {activeFiltersCount > 0 && (
+            <span className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
+              {activeFiltersCount}
+            </span>
+          )}
         </button>
       </div>
+
+      {/* Filter Panel */}
+      {showFilters && (
+        <div className="mb-5 p-4 bg-card-bg border border-surface-200 rounded-xl shadow-sm space-y-4">
+          <div className="flex justify-between items-center">
+            <span className="text-sm font-semibold text-text-primary">Filtros</span>
+            {activeFiltersCount > 0 && (
+              <button onClick={clearFilters} className="text-xs text-red-500 hover:underline flex items-center gap-1">
+                <X size={12} /> Limpar
+              </button>
+            )}
+          </div>
+          <div>
+            <p className="text-xs font-medium text-text-secondary uppercase mb-2">Tipo</p>
+            <div className="flex flex-wrap gap-2">
+              {['Apartamento', 'Casa', 'Flat', 'Lote'].map(t => (
+                <button key={t} onClick={() => toggleFilterType(t)}
+                  className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${filterTypes.includes(t) ? 'bg-gold-500 text-white border-gold-500' : 'bg-surface-50 text-text-secondary border-surface-200 hover:border-gold-300'}`}>
+                  {t}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div>
+            <p className="text-xs font-medium text-text-secondary uppercase mb-2">Status</p>
+            <div className="flex flex-wrap gap-2">
+              {['Lançamento', 'Em Construção', 'Pronto'].map(s => (
+                <button key={s} onClick={() => toggleFilterStatus(s)}
+                  className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${filterStatuses.includes(s) ? 'bg-gold-500 text-white border-gold-500' : 'bg-surface-50 text-text-secondary border-surface-200 hover:border-gold-300'}`}>
+                  {s}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="space-y-6">
         {loading ? (
