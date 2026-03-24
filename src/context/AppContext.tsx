@@ -547,7 +547,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       await supabase.from('client_history').insert([{ client_id: newClient.id, action: 'Cliente criado', user_name: userName }]);
       await refreshClients();
       return newClient;
-    } catch (e) { console.error('Erro ao adicionar cliente:', e); return null; }
+    } catch (e: any) {
+      console.error('Erro ao adicionar cliente:', e);
+      const msg = e?.message || e?.error_description || JSON.stringify(e);
+      throw new Error(msg);
+    }
   }, [userName, refreshClients, user, profile]);
 
   const updateClient = useCallback(async (id: string, data: Partial<Client>) => {

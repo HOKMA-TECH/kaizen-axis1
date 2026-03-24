@@ -95,25 +95,31 @@ export default function NewClient() {
       return;
     }
 
-    const newClient = await addClient({
-      name: formData.name,
-      cpf: formData.cpf,
-      email: formData.email,
-      phone: formData.phone,
-      address: formData.address,
-      profession: formData.profession,
-      grossIncome: formData.grossIncome,
-      incomeType: formData.incomeType as 'Formal' | 'Informal',
-      cotista: formData.cotista,
-      socialFactor: formData.socialFactor,
-      regionOfInterest: formData.regionOfInterest,
-      development: formData.development,
-      intendedValue: formData.intendedValue,
-      observations: formData.observations,
-      stage: formData.stage,
-    });
+    let newClient;
+    try {
+      newClient = await addClient({
+        name: formData.name,
+        cpf: formData.cpf,
+        email: formData.email,
+        phone: formData.phone,
+        address: formData.address,
+        profession: formData.profession,
+        grossIncome: formData.grossIncome,
+        incomeType: formData.incomeType as 'Formal' | 'Informal',
+        cotista: formData.cotista,
+        socialFactor: formData.socialFactor,
+        regionOfInterest: formData.regionOfInterest,
+        development: formData.development,
+        intendedValue: formData.intendedValue,
+        observations: formData.observations,
+        stage: formData.stage,
+      });
+    } catch (err: any) {
+      alert(`Erro ao salvar cliente:\n\n${err?.message || 'Tente novamente.'}`);
+      return;
+    }
 
-    if (newClient) {
+    if (newClient !== null && newClient !== undefined) {
       localStorage.removeItem(DRAFT_KEY);
       // Upload documents if any
       if (documents.length > 0) {
