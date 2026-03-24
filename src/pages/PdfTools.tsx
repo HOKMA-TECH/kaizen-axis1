@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import {
   ShieldCheck,
   FileImage,
@@ -8,14 +8,10 @@ import {
   Image as ImageIcon,
   ArrowDownUp,
   Lock,
-  Unlock,
-  Download,
-  FileText
+  Unlock
 } from 'lucide-react';
 import { PdfToolCard } from '@/components/pdf-tools/PdfToolCard';
 import { PdfToolDrawer } from '@/components/pdf-tools/PdfToolDrawer';
-import { supabase } from '@/lib/supabase';
-import { useApp } from '@/context/AppContext';
 
 export type PDFToolType =
   | 'image-to-pdf'
@@ -38,48 +34,7 @@ const TOOLS = [
 ] as const;
 
 export default function PdfTools() {
-  const { profile } = useApp();
   const [activeTool, setActiveTool] = useState<typeof TOOLS[number] | null>(null);
-  const [recentDocs, setRecentDocs] = useState<any[]>([]);
-  const [loadingRecent, setLoadingRecent] = useState(true);
-
-  useEffect(() => {
-    if (!profile?.id) return;
-
-    const fetchRecentDocs = async () => {
-      try {
-        const { data, error } = await supabase
-          .from('client_documents')
-          .select('id, name, type, url, upload_date')
-          .eq('created_by', profile.id)
-          .order('upload_date', { ascending: false })
-          .limit(5);
-
-        if (error) throw error;
-        setRecentDocs(data || []);
-      } catch (error) {
-        console.error('Error fetching recent docs:', error);
-      } finally {
-        setLoadingRecent(false);
-      }
-    };
-
-    fetchRecentDocs();
-
-    // Subscribe to realtime changes on this table to auto-update
-    const subscription = supabase
-      .channel('public:client_documents')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'client_documents', filter: `created_by=eq.${profile.id}` },
-        (payload) => {
-          setRecentDocs(prev => [payload.new, ...prev].slice(0, 5));
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(subscription);
-    };
-  }, [profile?.id]);
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] dark:bg-[#111b21] pb-24">
@@ -95,34 +50,6 @@ export default function PdfTools() {
             <span>Processamento local seguro</span>
           </div>
         </div>
-
-        {/* Recent Documents Section */}
-        {recentDocs.length > 0 && (
-          <div className="mb-12">
-            <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">Documentos recentes</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-              {recentDocs.map((doc) => (
-                <div key={doc.id} className="bg-white dark:bg-[#202c33] p-4 rounded-xl border border-gray-200 dark:border-gray-700 hover:shadow-md transition-shadow flex items-start gap-3">
-                  <div className="p-2 bg-red-50 dark:bg-red-900/20 rounded-lg text-red-500">
-                    <FileText size={20} />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{doc.name}</p>
-                    <p className="text-xs text-gray-500">{new Date(doc.upload_date).toLocaleDateString()}</p>
-                  </div>
-                  <a
-                    href={doc.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="p-1.5 text-gray-400 hover:text-gold-500 hover:bg-gold-50 dark:hover:bg-gold-900/20 rounded-lg transition-colors"
-                  >
-                    <Download size={16} />
-                  </a>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
 
         {/* Tools Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
