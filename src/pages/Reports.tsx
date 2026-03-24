@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import { SectionHeader, PremiumCard, RoundedButton, StatusBadge } from '@/components/ui/PremiumComponents';
 import { MetricCard } from '@/components/reports/MetricCard';
 import { CircularScore } from '@/components/reports/CircularScore';
@@ -9,8 +9,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useApp, Team } from '@/context/AppContext';
 import { useAuthorization } from '@/hooks/useAuthorization';
 import { useReportsData } from '@/hooks/useReportsData';
-import { supabase } from '@/lib/supabase';
-import type { DiretoriaReport, DiretoriaResumo } from '@/types/reports';
+import { STAGE_WEIGHTS } from '@/types/reports';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -518,62 +517,76 @@ function DiretoriaReportView({
   dirId, dirName, startDate, endDate,
 }: { dirId: string; dirName: string; startDate: string; endDate: string }) {
   const navigate = useNavigate();
-  const [data, setData] = useState<DiretoriaReport | null>(null);
-  const [loadingDir, setLoadingDir] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { clients, teams, allProfiles } = useApp();
 
-  useEffect(() => {
-    setLoadingDir(true);
-    setError(null);
-    supabase
-      .rpc('get_relatorio_diretoria', {
-        diretoria_uuid: dirId,
-        p_start_date: startDate ? new Date(startDate).toISOString() : null,
-        p_end_date: endDate ? new Date(endDate + 'T23:59:59').toISOString() : null,
-      })
-      .then(({ data: result, error: rpcError }) => {
-        if (rpcError) { setError(rpcError.message); }
-        else if ((result as any)?.error) { setError((result as any).error); }
-        else { setData(result as DiretoriaReport); }
-        setLoadingDir(false);
-      });
-  }, [dirId, startDate, endDate]);
+  // Clients belonging to this directorate, filtered by date range
+  const dirClients = useMemo(() =>
+    clients.filter(c => {
+      if ((c as any).directorate_id !== dirId) return false;
+      if (startDate && new Date(c.createdAt) < new Date(startDate)) return false;
+      if (endDate && new Date(c.createdAt) > new Date(endDate + 'T23:59:59')) return false;
+      return true;
+    }),
+    [clients, dirId, startDate, endDate]
+  );
 
-  if (loadingDir) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-3">
-        <Loader2 className="w-8 h-8 text-gold-500 animate-spin" />
-        <p className="text-text-secondary text-sm">Carregando relatório da diretoria…</p>
-      </div>
-    );
-  }
+  // Teams that belong to this directorate
+  const dirTeams = useMemo(() =>
+    teams.filter(t => t.directorate_id === dirId),
+    [teams, dirId]
+  );
 
-  if (error || !data) {
-    return (
-      <div className="p-6 pb-24">
-        <PremiumCard className="flex flex-col items-center gap-4 py-12 text-center">
-          <AlertCircle size={40} className="text-red-400" />
-          <div>
-            <h3 className="font-bold text-text-primary mb-1">Diretoria não encontrada</h3>
-            <p className="text-sm text-text-secondary">{error ?? 'Não foi possível carregar os dados.'}</p>
-          </div>
-          <RoundedButton onClick={() => navigate('/reports')}>← Ver Relatório Global</RoundedButton>
-        </PremiumCard>
-      </div>
-    );
-  }
+  // ── Metrics
+  const totalClientes = dirClients.length;
+  const vendas = dirClients.filter(c => c.stage === 'Concluído');
+  const totalVendas = vendas.length;
+  const aprovados = dirClients.filter(c => c.stage === 'Aprovado').length;
+  const taxaConversao = totalClientes > 0 ? ((totalVendas / totalClientes) * 100).toFixed(1) : '0.0';
+  const ciclosComDados = vendas.filter(c => c.closed_at);
+  const cicloMedioDias = ciclosComDados.length > 0
+    ? (ciclosComDados.reduce((acc, c) => {
+        const days = (new Date(c.closed_at!).getTime() - new Date(c.createdAt).getTime()) / (1000 * 60 * 60 * 24);
+        return acc + days;
+      }, 0) / ciclosComDados.length).toFixed(1)
+    : null;
 
-  const { resumo, equipes, corretores } = data;
-  const displayName = data.diretoria_nome || dirName;
+  // ── Health Scores (top 5 at-risk clients)
+  const healthScores = useMemo(() =>
+    dirClients.slice(0, 5).map(c => {
+      const stageBase: Record<string, number> = {
+        'Aprovado': 85, 'Contrato': 80, 'Em Tratativa': 65, 'Condicionado': 55,
+        'Em Análise': 50, 'Documentação': 40, 'Novo Lead': 35, 'Reprovado': 10, 'Concluído': 100,
+      };
+      let score = stageBase[c.stage] ?? 50;
+      if (parseValue(c.intendedValue ?? '') > 0) score += 10;
+      if (c.updated_at) {
+        const days = (Date.now() - new Date(c.updated_at).getTime()) / (1000 * 60 * 60 * 24);
+        if (days > 10) score -= 15;
+      }
+      score = Math.min(100, Math.max(0, Math.round(score)));
+      return { id: c.id, name: c.name, stage: c.stage, score, potentialValue: c.intendedValue ?? '', conversionProbability: score };
+    }),
+    [dirClients]
+  );
 
-  const convColor = resumo.taxa_conversao >= 60
-    ? 'text-green-600' : resumo.taxa_conversao >= 30
-      ? 'text-gold-600' : 'text-red-500';
+  // ── Weighted Pipeline chart data
+  const { weightedPipeline, forecastTotal } = useMemo(() => {
+    const months = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+    let totalWeightedBRL = 0;
+    const pipeline = months.map((m, i) => {
+      const mc = dirClients.filter(c => new Date(c.createdAt).getMonth() === i);
+      const weighted = mc.reduce((acc, c) => acc + parseValue(c.intendedValue ?? '') * (STAGE_WEIGHTS[c.stage] ?? 0), 0);
+      const confirmed = mc.filter(c => c.stage === 'Concluído').reduce((acc, c) => acc + parseValue(c.intendedValue ?? ''), 0);
+      totalWeightedBRL += weighted;
+      return { month: m, weighted: weighted / 1000, confirmed: confirmed / 1000 };
+    });
+    return { weightedPipeline: pipeline, forecastTotal: totalWeightedBRL };
+  }, [dirClients]);
 
   return (
-    <div className="p-6 pb-24 min-h-screen bg-surface-50 print:bg-white print:p-0 print:min-h-0 print:h-auto print:block">
+    <div className="p-6 pb-24 min-h-screen bg-surface-50">
       {/* ── Header ── */}
-      <div className="flex items-start justify-between mb-6 gap-3 print:mb-2">
+      <div className="flex items-start justify-between mb-6 gap-3">
         <div>
           <button
             onClick={() => navigate('/reports')}
@@ -586,133 +599,127 @@ function DiretoriaReportView({
               <Building2 size={18} className="text-gold-600 dark:text-gold-400" />
             </div>
             <div>
-              <h1 className="text-xl font-bold text-text-primary">{displayName}</h1>
+              <h1 className="text-xl font-bold text-text-primary">{dirName}</h1>
               <p className="text-xs text-text-secondary">Relatório por Diretoria</p>
             </div>
           </div>
         </div>
       </div>
 
-      {/* ── Resumo Cards ── */}
-      <section className="grid grid-cols-2 gap-3 mb-6">
-        <PremiumCard className="flex flex-col gap-1">
-          <p className="text-[10px] text-text-secondary uppercase tracking-wide">Total Clientes</p>
-          <div className="flex items-end gap-2 mt-1">
-            <Users size={18} className="text-gold-500 mb-0.5" />
-            <h3 className="text-2xl font-bold text-text-primary">{resumo.total_clientes}</h3>
-          </div>
-        </PremiumCard>
+      {/* ── Metrics ── */}
+      <section className="grid grid-cols-2 gap-3 mb-8">
+        {[
+          { id: '1', label: 'Vendas Totais', value: totalVendas.toString(), trend: 'up' as const, period: 'no período', inverse: false },
+          { id: '2', label: 'Total Clientes', value: totalClientes.toString(), trend: 'up' as const, period: 'no período', inverse: false },
+          { id: '3', label: 'Taxa de Conversão', value: `${taxaConversao}%`, trend: 'up' as const, period: 'no período', inverse: false },
+          { id: '4', label: 'Ciclo de Vendas', value: cicloMedioDias ? `${cicloMedioDias} dias` : '— dias', trend: 'up' as const, period: 'média real', inverse: true },
+        ].map(m => <MetricCard key={m.id} {...m} change="" />)}
+      </section>
 
-        <PremiumCard className="flex flex-col gap-1">
-          <p className="text-[10px] text-text-secondary uppercase tracking-wide">Vendas Concluídas</p>
-          <div className="flex items-end gap-2 mt-1">
-            <TrendingUp size={18} className="text-green-500 mb-0.5" />
-            <h3 className="text-2xl font-bold text-text-primary">{resumo.total_vendas}</h3>
+      {/* ── Forecast Comercial ── */}
+      <section className="mb-8">
+        <SectionHeader title="Forecast Comercial" subtitle="Pipeline Ponderado por Probabilidade de Estágio" />
+        <PremiumCard className="p-4 h-80">
+          <div className="flex justify-between items-center mb-4">
+            <div>
+              <p className="text-xs text-text-secondary uppercase">Receita Ponderada (Pipeline)</p>
+              <h3 className="text-xl font-bold text-text-primary">R$ {(forecastTotal / 1000000).toFixed(2)}M</h3>
+            </div>
           </div>
-        </PremiumCard>
-
-        <PremiumCard className="flex flex-col gap-1">
-          <p className="text-[10px] text-text-secondary uppercase tracking-wide">Aprovados</p>
-          <div className="flex items-end gap-2 mt-1">
-            <TrendingUp size={18} className="text-blue-500 mb-0.5" />
-            <h3 className="text-2xl font-bold text-green-600">{resumo.total_aprovados ?? 0}</h3>
+          <div className="h-48 w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={weightedPipeline}>
+                <defs>
+                  <linearGradient id="colorWeightedDir" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#1F6FE5" stopOpacity={0.3} />
+                    <stop offset="95%" stopColor="#1F6FE5" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
+                <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#6B7280' }} dy={10} />
+                <YAxis hide />
+                <Tooltip
+                  contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.1)' }}
+                  formatter={(val: number, name: string) => [`R$ ${val.toFixed(0)}k`, name === 'weighted' ? 'Pipeline Ponderado' : 'Confirmado']}
+                />
+                <Area type="monotone" dataKey="weighted" stroke="#1F6FE5" strokeWidth={3} fillOpacity={1} fill="url(#colorWeightedDir)" />
+                <Area type="monotone" dataKey="confirmed" stroke="#10B981" strokeWidth={2} strokeDasharray="5 5" fill="transparent" />
+              </AreaChart>
+            </ResponsiveContainer>
           </div>
-        </PremiumCard>
-
-        <PremiumCard className="flex flex-col gap-1">
-          <p className="text-[10px] text-text-secondary uppercase tracking-wide">Taxa de Conversão</p>
-          <div className="flex items-end gap-2 mt-1">
-            <Target size={18} className="text-blue-500 mb-0.5" />
-            <h3 className={`text-2xl font-bold ${convColor}`}>{resumo.taxa_conversao ?? 0}%</h3>
+          <div className="flex justify-center gap-4 mt-2">
+            <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-blue-500" /><span className="text-[10px] text-text-secondary">Pipeline Ponderado</span></div>
+            <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-green-500" /><span className="text-[10px] text-text-secondary">Confirmado</span></div>
           </div>
-        </PremiumCard>
-
-        <PremiumCard className="flex flex-col gap-1">
-          <p className="text-[10px] text-text-secondary uppercase tracking-wide">Ciclo Médio de Venda</p>
-          <div className="flex items-end gap-2 mt-1">
-            <Timer size={18} className="text-purple-500 mb-0.5" />
-            <h3 className="text-2xl font-bold text-text-primary">
-              {resumo.ciclo_medio_dias ?? 0}
-              <span className="text-sm font-normal text-text-secondary ml-1">dias</span>
-            </h3>
-          </div>
-        </PremiumCard>
-
-        <PremiumCard highlight className="col-span-2 flex flex-col gap-1">
-          <p className="text-[10px] text-gold-700 dark:text-gold-400 uppercase tracking-wide">Receita Total</p>
-          <h3 className="text-2xl font-bold text-text-primary mt-1">{brl(resumo.receita_total ?? 0)}</h3>
         </PremiumCard>
       </section>
 
-      {/* ── Equipes ── */}
-      <section className="mb-6">
-        <SectionHeader title="Por Equipe" subtitle="Desempenho das equipes da diretoria" />
-        {equipes.length === 0 ? (
-          <PremiumCard className="text-center py-8">
-            <p className="text-text-secondary text-sm">Nenhuma equipe cadastrada nesta diretoria.</p>
-          </PremiumCard>
-        ) : (
-          <PremiumCard className="overflow-hidden p-0">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-surface-200 bg-surface-50 dark:bg-surface-100">
-                  <th className="text-left p-3 text-xs font-medium text-text-secondary uppercase tracking-wide">Equipe</th>
-                  <th className="text-center p-3 text-xs font-medium text-text-secondary uppercase tracking-wide">Clientes</th>
-                  <th className="text-center p-3 text-xs font-medium text-text-secondary uppercase tracking-wide">Vendas</th>
-                  <th className="text-center p-3 text-xs font-medium text-text-secondary uppercase tracking-wide">Conversão</th>
-                </tr>
-              </thead>
-              <tbody>
-                {equipes.map((eq, i) => {
-                  const conv = eq.total_clientes > 0
-                    ? Math.round((eq.total_vendas / eq.total_clientes) * 100) : 0;
-                  return (
-                    <tr key={eq.equipe_id ?? i} className="border-b border-surface-100 last:border-0 hover:bg-surface-50 transition-colors">
-                      <td className="p-3 font-medium text-text-primary">{eq.equipe_nome}</td>
-                      <td className="p-3 text-center text-text-secondary">{eq.total_clientes}</td>
-                      <td className="p-3 text-center font-bold text-green-600">{eq.total_vendas}</td>
-                      <td className="p-3 text-center">
-                        <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${conv >= 60 ? 'bg-green-100 text-green-700'
-                          : conv >= 30 ? 'bg-gold-100 text-gold-700'
-                            : 'bg-surface-100 text-text-secondary'
-                          }`}>{conv}%</span>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </PremiumCard>
-        )}
+      {/* ── Health Score Comercial ── */}
+      <section className="mb-8">
+        <SectionHeader title="Health Score Comercial" subtitle="Risco e Probabilidade — Ponderado" />
+        <div className="space-y-3">
+          {healthScores.length === 0
+            ? <p className="text-sm text-text-secondary text-center py-8">Dados insuficientes para análise.</p>
+            : healthScores.map(client => (
+              <PremiumCard key={client.id} className="flex items-center justify-between p-4 cursor-pointer hover:border-blue-400 dark:hover:border-blue-500 hover:shadow-md transition-all"
+                onClick={() => navigate(`/clients/${client.id}`)}>
+                <div className="flex items-center gap-3">
+                  <CircularScore score={client.score} />
+                  <div>
+                    <h4 className="font-bold text-text-primary text-sm">{client.name}</h4>
+                    <p className="text-xs text-text-secondary">{client.stage} • {client.potentialValue}</p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className="text-[10px] text-text-secondary uppercase mb-0.5">Probabilidade</p>
+                  <p className={`text-sm font-bold ${client.conversionProbability > 70 ? 'text-green-600' : client.conversionProbability > 40 ? 'text-gold-600' : 'text-red-500'}`}>
+                    {client.conversionProbability}%
+                  </p>
+                </div>
+              </PremiumCard>
+            ))}
+        </div>
       </section>
 
-      {/* ── Corretores ── */}
+      {/* ── Relatório por Equipe ── */}
       <section>
-        <SectionHeader title="Ranking de Corretores" subtitle="Desempenho individual dos corretores" />
-        {corretores.length === 0 ? (
+        <SectionHeader title="Relatório por Equipe" subtitle="Análise segmentada por equipe da diretoria" />
+        {dirTeams.length === 0 ? (
           <PremiumCard className="text-center py-8">
-            <p className="text-text-secondary text-sm">Nenhum corretor vinculado a esta diretoria.</p>
+            <p className="text-text-secondary text-sm">Nenhuma equipe vinculada a esta diretoria.</p>
           </PremiumCard>
         ) : (
-          <div className="space-y-2">
-            {corretores.map((cor, i) => {
-              const score = cor.total_clientes > 0
-                ? Math.min(100, Math.round((cor.total_vendas / cor.total_clientes) * 100)) : 0;
+          <div className="grid grid-cols-1 gap-3">
+            {dirTeams.map(team => {
+              const memberIds = Array.from(new Set([
+                ...(team.members ?? []),
+                ...allProfiles.filter(p => p.team === team.id || p.team_id === team.id).map(p => p.id),
+                ...(team.manager_id ? [team.manager_id] : []),
+              ]));
+              const memberCount = memberIds.length;
+              const teamClients = clients.filter(c => memberIds.includes((c as any).owner_id));
+              const teamSales = teamClients.filter(c => c.stage === 'Concluído').length;
               return (
-                <PremiumCard key={cor.corretor_id ?? i} className="flex items-center justify-between p-4">
+                <PremiumCard
+                  key={team.id}
+                  className="flex items-center justify-between p-4 cursor-pointer hover:border-gold-300 transition-colors"
+                  onClick={() => navigate(`/reports?scope=equipe&id=${team.id}&name=${encodeURIComponent(team.name)}`)}
+                >
                   <div className="flex items-center gap-3">
-                    <div className="w-7 h-7 rounded-full bg-gold-100 dark:bg-gold-900/40 flex items-center justify-center text-xs font-bold text-gold-700">
-                      {i + 1}
+                    <div className="w-10 h-10 rounded-xl bg-gold-50 dark:bg-gold-900/20 flex items-center justify-center">
+                      <Shield size={20} className="text-gold-500" />
                     </div>
-                    <CircularScore score={score} />
                     <div>
-                      <h4 className="font-bold text-text-primary text-sm">{cor.corretor_nome}</h4>
-                      <p className="text-xs text-text-secondary">{cor.equipe}</p>
+                      <h4 className="font-bold text-text-primary">{team.name}</h4>
+                      <p className="text-xs text-text-secondary">{memberCount} membro{memberCount !== 1 ? 's' : ''}</p>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <p className="text-xs text-text-secondary">{cor.total_clientes} clientes</p>
-                    <p className="text-sm font-bold text-green-600">{cor.total_vendas} vendas</p>
+                  <div className="flex items-center gap-3">
+                    <div className="text-right">
+                      <p className="text-xs text-text-secondary">{teamClients.length} clientes</p>
+                      <p className="text-xs font-bold text-green-600">{teamSales} vendas</p>
+                    </div>
+                    <span className="text-gold-600 font-medium text-sm">Ver Relatório →</span>
                   </div>
                 </PremiumCard>
               );
