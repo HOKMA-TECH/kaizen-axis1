@@ -13,7 +13,7 @@ import { LeaderboardPanel } from '@/components/gamification/LeaderboardPanel';
 
 export default function Dashboard() {
   const navigate = useNavigate();
-  const { clients, appointments, goals, announcements, userName, loading, directorates, allProfiles, profile, user } = useApp();
+  const { clients, appointments, goals, announcements, userName, loading, directorates, allProfiles, profile, user, teams } = useApp();
   const { isAdmin, isDirector, isManager, isCoordinator, isBroker, directorateId, role } = useAuthorization();
 
   // Active announcements from the real database
@@ -239,7 +239,11 @@ export default function Dashboard() {
             {/* Metas and Missions */}
             <section className="space-y-6">
               {(() => {
-                const corretorGoals = goals.filter(g => !g.assignee_id || g.assignee_id === user?.id || g.assignee_type === 'All');
+                const corretorGoals = goals.filter(g =>
+                  g.assignee_type === 'All' ||
+                  (g.assignee_type === 'User' && g.assignee_id === user?.id) ||
+                  (g.assignee_type === 'Team' && g.assignee_id === profile?.team_id)
+                );
                 const metas = corretorGoals.filter(g => g.type !== 'Missão');
                 const missoes = corretorGoals.filter(g => g.type === 'Missão');
 
@@ -483,8 +487,16 @@ export default function Dashboard() {
           {goals.length > 0 ? (
             <section className="space-y-6">
               {(() => {
-                const teamMetas = goals.filter(g => g.type !== 'Missão');
-                const teamMissoes = goals.filter(g => g.type === 'Missão');
+                // Teams the current manager/coordinator belongs to or leads
+                const myTeamIds = teams
+                  .filter(t => t.manager_id === user?.id || (t.members || []).includes(user?.id || ''))
+                  .map(t => t.id);
+                const isGoalVisible = (g: Goal) =>
+                  g.assignee_type === 'All' ||
+                  (g.assignee_type === 'Team' && myTeamIds.includes(g.assignee_id || '')) ||
+                  (g.assignee_type === 'User' && g.assignee_id === user?.id);
+                const teamMetas = goals.filter(g => g.type !== 'Missão' && isGoalVisible(g));
+                const teamMissoes = goals.filter(g => g.type === 'Missão' && isGoalVisible(g));
                 const formatGoalVal = (g: Goal, val: number) =>
                   g.measure_type === 'quantity'
                     ? val.toString()
