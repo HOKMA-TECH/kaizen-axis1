@@ -1651,14 +1651,12 @@ export default function ChatDetail() {
               <Copy size={16} className="text-text-secondary" /> Copiar texto
             </button>
           )}
-          {ctxMenu.msg.isMe && (
-            <button
-              onClick={() => handleDeleteMessage(ctxMenu.msg.id)}
-              className="flex items-center gap-3 w-full px-4 py-3 text-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
-            >
-              <Trash2 size={16} /> Apagar mensagem
-            </button>
-          )}
+          <button
+            onClick={() => handleDeleteMessage(ctxMenu.msg.id)}
+            className="flex items-center gap-3 w-full px-4 py-3 text-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+          >
+            <Trash2 size={16} /> Apagar mensagem
+          </button>
         </div>
       )}
 

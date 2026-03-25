@@ -1,6 +1,6 @@
-import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Bot, MessageCircle } from 'lucide-react';
+import { Search, Bot, MessageCircle, Trash2 } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '@/lib/utils';
@@ -108,6 +108,8 @@ export function markConversationRead(userId: string, convId: string) {
   try { localStorage.setItem(`last-read-${userId}-${convId}`, String(Date.now())); } catch {}
 }
 
+type EnrichedConvo = ConversationPreview & { name: string; role: string; avatarUrl: string | null | undefined; isUnread: boolean };
+
 export default function Chat() {
   const navigate = useNavigate();
   const { allProfiles, user } = useApp();
@@ -115,6 +117,8 @@ export default function Chat() {
   const [focused, setFocused] = useState(false);
   const [conversations, setConversations] = useState<ConversationPreview[]>([]);
   const [loading, setLoading] = useState(true);
+  const [ctxConvo, setCtxConvo] = useState<{ convo: EnrichedConvo; x: number; y: number } | null>(null);
+  const pressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const myId = user?.id;
 
   const members = useMemo(
@@ -169,6 +173,28 @@ export default function Chat() {
       .subscribe();
     return () => { supabase.removeChannel(ch); };
   }, [myId, fetchConversations]);
+
+  // ── Delete conversation ───────────────────────────────────────────────────
+  const handleDeleteConversation = async (conversationId: string) => {
+    if (!confirm('Apagar esta conversa? Todas as mensagens serão removidas permanentemente.')) return;
+    setConversations(prev => prev.filter(c => c.conversationId !== conversationId));
+    setCtxConvo(null);
+    await supabase.from('chat_messages').delete().eq('conversation_id', conversationId);
+  };
+
+  const handleConvoTouchStart = (e: React.TouchEvent, convo: EnrichedConvo) => {
+    const touch = e.touches[0];
+    pressTimer.current = setTimeout(() => {
+      setCtxConvo({ convo, x: touch.clientX, y: touch.clientY });
+    }, 500);
+  };
+  const handleConvoTouchEnd = () => {
+    if (pressTimer.current) clearTimeout(pressTimer.current);
+  };
+  const handleConvoRightClick = (e: React.MouseEvent, convo: EnrichedConvo) => {
+    e.preventDefault();
+    setCtxConvo({ convo, x: e.clientX, y: e.clientY });
+  };
 
   // ── Derived ───────────────────────────────────────────────────────────────
 
@@ -342,6 +368,10 @@ export default function Chat() {
                 <motion.div key={`sr-${c.conversationId}`} layout initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                   transition={{ delay: i * 0.02, duration: 0.15 }}
                   onClick={() => navigate(c.isKAI ? '/chat/kai-agent' : `/chat/${c.otherId}`)}
+                  onTouchStart={(e) => handleConvoTouchStart(e, c)}
+                  onTouchEnd={handleConvoTouchEnd}
+                  onTouchMove={handleConvoTouchEnd}
+                  onContextMenu={(e) => handleConvoRightClick(e, c)}
                   className="flex items-center gap-3.5 px-5 py-3.5 cursor-pointer hover:bg-card-bg active:bg-card-bg transition-colors border-b border-surface-50"
                 >
                   <div className="relative flex-shrink-0">
@@ -408,6 +438,10 @@ export default function Chat() {
                 exit={{ opacity: 0 }}
                 transition={{ delay: i * 0.025, duration: 0.15 }}
                 onClick={() => navigate(c.isKAI ? '/chat/kai-agent' : `/chat/${c.otherId}`)}
+                onTouchStart={(e) => handleConvoTouchStart(e, c)}
+                onTouchEnd={handleConvoTouchEnd}
+                onTouchMove={handleConvoTouchEnd}
+                onContextMenu={(e) => handleConvoRightClick(e, c)}
                 className={cn(
                   'flex items-center gap-3.5 px-5 py-3.5 cursor-pointer',
                   'hover:bg-card-bg active:bg-card-bg transition-colors',
@@ -454,6 +488,31 @@ export default function Chat() {
 
         <div className="h-4" />
       </div>
+
+      {/* ── Context menu: apagar conversa ────────────────────────────── */}
+      {ctxConvo && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setCtxConvo(null)} />
+          <div
+            className="fixed z-50 bg-card-bg rounded-2xl shadow-2xl border border-surface-100 overflow-hidden min-w-[200px]"
+            style={{
+              top: Math.min(ctxConvo.y, window.innerHeight - 80),
+              left: Math.min(ctxConvo.x, window.innerWidth - 220),
+            }}
+          >
+            <div className="px-4 py-3 border-b border-surface-100">
+              <p className="text-sm font-semibold text-text-primary truncate max-w-[160px]">{ctxConvo.convo.name}</p>
+              <p className="text-xs text-text-secondary">Conversa</p>
+            </div>
+            <button
+              onClick={() => handleDeleteConversation(ctxConvo.convo.conversationId)}
+              className="flex items-center gap-3 w-full px-4 py-3 text-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+            >
+              <Trash2 size={16} /> Apagar conversa
+            </button>
+          </div>
+        </>
+      )}
     </div>
   );
 }
