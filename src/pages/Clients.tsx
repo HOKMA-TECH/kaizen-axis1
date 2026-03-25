@@ -5,7 +5,7 @@ import { PremiumCard, StatusBadge, RoundedButton } from '@/components/ui/Premium
 import {
   Search, Filter, Phone, Mail, MessageCircle, UserPlus,
   Clock, Plus, Loader2, Zap, Brain, AlertTriangle, CheckCircle2,
-  Sparkles, X, BadgeCheck
+  Sparkles, X, BadgeCheck, ChevronDown
 } from 'lucide-react';
 import { CLIENT_STAGES, ClientStage, Client } from '@/data/clients';
 import { AutomationLead } from '@/data/leads';
@@ -313,6 +313,12 @@ export default function Clients() {
   const [activeStage, setActiveStage] = useState<ClientStage | 'Todos'>('Todos');
   const [searchTerm, setSearchTerm] = useState('');
   const [convertSuccess, setConvertSuccess] = useState(false);
+  const [stageDropdownOpen, setStageDropdownOpen] = useState(false);
+
+  // Estágios principais (visíveis) e secundários (dropdown "Outros")
+  const PRIMARY_STAGES = CLIENT_STAGES.slice(0, 8); // até "Contrato"
+  const SECONDARY_STAGES = CLIENT_STAGES.slice(8);  // Formulários → Concluído
+  const activeIsSecondary = SECONDARY_STAGES.includes(activeStage as ClientStage);
 
   // Filtro por coordenador via query param (vindo do Dashboard do Gerente)
   const urlParams = new URLSearchParams(location.search);
@@ -473,21 +479,24 @@ export default function Clients() {
       {mainTab === 'clientes' && (
         <>
           {/* Stage Filter Chips */}
-          <div className="pt-2 pb-2 px-6 overflow-x-auto no-scrollbar flex gap-2">
+          <div className="pt-2 pb-2 px-4 flex gap-1.5 flex-wrap items-center">
+            {/* Chip: Todos */}
             <button
               onClick={() => setActiveStage('Todos')}
-              className={`flex-shrink-0 px-4 py-2 rounded-full text-xs font-medium transition-all ${activeStage === 'Todos'
+              className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${activeStage === 'Todos'
                 ? 'bg-gray-900 dark:bg-white text-white dark:text-black shadow-md'
                 : 'bg-card-bg text-text-secondary border border-surface-200'
                 }`}
             >
               Todos ({clients.length})
             </button>
-            {CLIENT_STAGES.map(stage => (
+
+            {/* Chips primários */}
+            {PRIMARY_STAGES.map(stage => (
               <button
                 key={stage}
                 onClick={() => setActiveStage(stage)}
-                className={`flex-shrink-0 px-4 py-2 rounded-full text-xs font-medium transition-all ${activeStage === stage
+                className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${activeStage === stage
                   ? 'bg-gold-500 text-white shadow-md'
                   : 'bg-card-bg text-text-secondary border border-surface-200'
                   }`}
@@ -495,6 +504,41 @@ export default function Clients() {
                 {stage}
               </button>
             ))}
+
+            {/* Dropdown "Outros" para etapas pós-contrato */}
+            <div className="relative flex-shrink-0">
+              <button
+                onClick={() => setStageDropdownOpen(o => !o)}
+                className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+                  activeIsSecondary
+                    ? 'bg-gold-500 text-white shadow-md'
+                    : 'bg-card-bg text-text-secondary border border-surface-200'
+                }`}
+              >
+                {activeIsSecondary ? activeStage : 'Outros'}
+                <ChevronDown size={11} className={`transition-transform ${stageDropdownOpen ? 'rotate-180' : ''}`} />
+              </button>
+              {stageDropdownOpen && (
+                <>
+                  {/* Overlay para fechar */}
+                  <div className="fixed inset-0 z-10" onClick={() => setStageDropdownOpen(false)} />
+                  <div className="absolute left-0 top-full mt-1.5 z-20 bg-card-bg border border-surface-200 rounded-2xl shadow-lg py-1.5 min-w-[160px]">
+                    {SECONDARY_STAGES.map(stage => (
+                      <button
+                        key={stage}
+                        onClick={() => { setActiveStage(stage); setStageDropdownOpen(false); }}
+                        className={`w-full text-left px-4 py-2 text-xs font-medium transition-colors hover:bg-surface-50 ${
+                          activeStage === stage ? 'text-gold-600 font-bold' : 'text-text-primary'
+                        }`}
+                      >
+                        {stage}
+                        {activeStage === stage && <span className="ml-1 text-gold-500">✓</span>}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
           </div>
 
           <div className="flex-1 px-6 py-4 space-y-4 overflow-y-auto pb-24">
