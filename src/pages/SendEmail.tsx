@@ -139,10 +139,12 @@ PROFISSÃO: ${found.profession || 'Não informado'}`;
             // Manually added file
             base64Content = await fileToBase64(att.file);
           } else if (att.file_path) {
-            // Document from Supabase Storage — get public URL then fetch
-            const { data: pubData } = supabase.storage.from('client-documents').getPublicUrl(att.file_path);
-            if (pubData?.publicUrl) {
-              base64Content = await urlToBase64(pubData.publicUrl);
+            // Bucket privado — gera URL assinada (válida por 5 min para o fetch)
+            const { data: signedData } = await supabase.storage
+              .from('client-documents')
+              .createSignedUrl(att.file_path, 300);
+            if (signedData?.signedUrl) {
+              base64Content = await urlToBase64(signedData.signedUrl);
             }
           }
 

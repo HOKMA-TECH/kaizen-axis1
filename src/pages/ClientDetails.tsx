@@ -88,7 +88,7 @@ export default function ClientDetails() {
     }
   };
 
-  const handleOpenDocument = (path: string) => {
+  const handleOpenDocument = async (path: string) => {
     if (!path) return;
 
     // Se o path já for uma URL pública completa, abre direto
@@ -97,13 +97,16 @@ export default function ClientDetails() {
       return;
     }
 
-    // Gera URL pública do bucket (bucket deve estar como público no Supabase)
-    const { data } = supabase.storage.from('client-documents').getPublicUrl(path);
-    if (data?.publicUrl) {
-      window.open(data.publicUrl, '_blank');
-    } else {
+    // Bucket é privado — gera URL assinada (válida por 1 hora)
+    const { data, error } = await supabase.storage
+      .from('client-documents')
+      .createSignedUrl(path, 3600);
+
+    if (error || !data?.signedUrl) {
       alert('Erro ao abrir documento.');
+      return;
     }
+    window.open(data.signedUrl, '_blank');
   };
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
