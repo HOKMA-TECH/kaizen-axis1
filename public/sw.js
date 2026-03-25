@@ -1,4 +1,4 @@
-// ─── Kaizen Axis — Service Worker v2 ────────────────────────────────────────
+// ─── Kaizen Axis — Service Worker v3 ────────────────────────────────────────
 // Estratégia cirúrgica:
 //   • Nunca intercepta POST/PUT/DELETE/PATCH  →  uploads de arquivo seguros
 //   • Nunca intercepta domínios Supabase      →  real-time e auth seguros
@@ -7,7 +7,7 @@
 //   • Limpa caches de versões antigas         →  sem conflito entre deploys
 // ─────────────────────────────────────────────────────────────────────────────
 
-const CACHE_VERSION = 'v2';
+const CACHE_VERSION = 'v3';
 const CACHE_NAME = `kaizen-axis-${CACHE_VERSION}`;
 const MAX_CACHE_ENTRIES = 60;
 
@@ -154,5 +154,47 @@ self.addEventListener('fetch', (event) => {
 
       return cached || networkFetch;
     })
+  );
+});
+
+// ─── PUSH — recebe push do servidor e exibe notificação nativa ───────────────
+self.addEventListener('push', (event) => {
+  let data = { title: 'Kaizen Axis', body: 'Você tem uma nova notificação.', url: '/' };
+  try { Object.assign(data, event.data?.json()); } catch {}
+
+  event.waitUntil(
+    self.registration.showNotification(data.title, {
+      body: data.body,
+      icon: '/pwa-192x192.png?v=4',
+      badge: '/pwa-192x192.png?v=4',
+      vibrate: [200, 100, 200, 100, 200],
+      tag: 'kaizen-notif',
+      renotify: true,
+      requireInteraction: false,
+      data: { url: data.url },
+    })
+  );
+});
+
+// ─── NOTIFICATION CLICK — abre o app na rota correta ────────────────────────
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const targetUrl = event.notification.data?.url || '/';
+
+  event.waitUntil(
+    self.clients
+      .matchAll({ type: 'window', includeUncontrolled: true })
+      .then((windowClients) => {
+        // Se já existe uma aba aberta do app, foca e navega
+        const existing = windowClients.find((c) =>
+          c.url.startsWith(self.location.origin)
+        );
+        if (existing) {
+          existing.focus();
+          return existing.navigate(targetUrl);
+        }
+        // Caso contrário, abre nova aba
+        return self.clients.openWindow(targetUrl);
+      })
   );
 });

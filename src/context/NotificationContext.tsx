@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useApp } from './AppContext';
 
@@ -28,15 +28,127 @@ interface NotificationContextType {
 
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
 
+// ─── VAPID public key (deve bater com VAPID_PUBLIC_KEY nas Supabase Secrets) ──
+const VAPID_PUBLIC_KEY = (import.meta as any).env?.VITE_VAPID_PUBLIC_KEY as string | undefined;
+
+// ─── Som de notificação via Web Audio API ─────────────────────────────────────
+function playNotificationSound() {
+    try {
+        const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+        if (!AudioCtx) return;
+        const ctx = new AudioCtx();
+
+        const play = (freq: number, startAt: number, duration: number, volume = 0.28) => {
+            const osc  = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(freq, ctx.currentTime + startAt);
+            gain.gain.setValueAtTime(0, ctx.currentTime + startAt);
+            gain.gain.linearRampToValueAtTime(volume, ctx.currentTime + startAt + 0.01);
+            gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + startAt + duration);
+            osc.start(ctx.currentTime + startAt);
+            osc.stop(ctx.currentTime + startAt + duration);
+        };
+
+        // Dois tons: sol5 (784 Hz) → si5 (987 Hz) — chime suave
+        play(784, 0,    0.22);
+        play(987, 0.18, 0.30);
+    } catch {
+        // Sem suporte a AudioContext — silêncio
+    }
+}
+
+// ─── Notificação nativa do browser ───────────────────────────────────────────
+function showBrowserNotification(title: string, body: string, route?: string | null) {
+    if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
+    try {
+        const notif = new Notification(title, {
+            body,
+            icon:  '/pwa-192x192.png?v=4',
+            badge: '/pwa-192x192.png?v=4',
+            tag:   'kaizen-axis-notif',
+            ...(({ renotify: true }) as any),
+        } as NotificationOptions);
+        if (route) {
+            notif.onclick = () => {
+                window.focus();
+                window.location.href = route;
+                notif.close();
+            };
+        }
+    } catch {
+        // Sem suporte — ignora
+    }
+}
+
+// ─── Converte base64url para Uint8Array (necessário para VAPID) ───────────────
+function urlBase64ToUint8Array(base64String: string): Uint8Array {
+    const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+    const base64  = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+    const raw     = window.atob(base64);
+    return Uint8Array.from([...raw].map(c => c.charCodeAt(0)));
+}
+
+// ─── Registra/atualiza push subscription no banco ────────────────────────────
+async function setupPushSubscription(userId: string) {
+    if (!VAPID_PUBLIC_KEY) return;
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+
+    try {
+        const reg = await navigator.serviceWorker.ready;
+        let sub   = await reg.pushManager.getSubscription();
+
+        if (!sub) {
+            sub = await reg.pushManager.subscribe({
+                userVisibleOnly:      true,
+                applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
+            });
+        }
+
+        const subJson = sub.toJSON() as { endpoint: string; keys: Record<string, string> };
+
+        await supabase.from('push_subscriptions').upsert(
+            {
+                user_id:      userId,
+                endpoint:     subJson.endpoint,
+                subscription: subJson,
+                updated_at:   new Date().toISOString(),
+            },
+            { onConflict: 'user_id,endpoint' }
+        );
+    } catch (err) {
+        console.warn('[Push] Falha ao registrar subscription:', err);
+    }
+}
+
+// ─── Provider ─────────────────────────────────────────────────────────────────
 export function NotificationProvider({ children }: { children: React.ReactNode }) {
     const { profile, loading: appLoading } = useApp();
     const [notifications, setNotifications] = useState<Notification[]>([]);
-    const [loading, setLoading] = useState(true);
+    const [loading, setLoading]             = useState(true);
+    const pushSetupDone = useRef(false);
 
     const unreadCount = notifications.filter((n) => !n.is_read).length;
 
+    // ── Solicita permissão de notificação + registra push subscription ───────
     useEffect(() => {
-        // Only initialized if we have a valid auth profile
+        if (!profile?.id || pushSetupDone.current) return;
+        pushSetupDone.current = true;
+
+        const requestAndSubscribe = async () => {
+            if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
+                await Notification.requestPermission();
+            }
+            await setupPushSubscription(profile.id);
+        };
+
+        requestAndSubscribe();
+    }, [profile?.id]);
+
+    // ── Carrega notificações e escuta tempo real ──────────────────────────────
+    useEffect(() => {
         if (appLoading || !profile?.id) {
             setNotifications([]);
             setLoading(false);
@@ -57,18 +169,15 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
 
                 if (error) throw error;
 
-                const role = profile.role?.toUpperCase();
+                const role        = profile.role?.toUpperCase();
                 const isLeadership = role === 'ADMIN' || role === 'DIRETOR';
 
                 const filtered = (data as Notification[]).filter(n => {
-                    // ADMIN e DIRETOR não recebem notificações de chat de terceiros
                     if (isLeadership && n.type === 'chat' && n.target_user_id !== profile.id) return false;
                     return true;
                 });
 
-                if (isMounted) {
-                    setNotifications(filtered);
-                }
+                if (isMounted) setNotifications(filtered);
             } catch (error) {
                 console.error('Error fetching notifications:', error);
             } finally {
@@ -78,44 +187,45 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
 
         fetchNotifications();
 
-        // Subscribe to realtime changes
         const subscription = supabase
             .channel('public:notifications')
             .on(
                 'postgres_changes',
-                {
-                    event: '*',
-                    schema: 'public',
-                    table: 'notifications',
-                },
+                { event: '*', schema: 'public', table: 'notifications' },
                 (payload) => {
                     if (!isMounted) return;
 
                     if (payload.eventType === 'INSERT') {
                         const newNotif = payload.new as Notification;
 
-                        // Client-side verification is strictly required here because Supabase Realtime
-                        // might drop payloads if RLS involves complex joins (like checking profiles table for role).
-                        const isForMe = newNotif.target_user_id === profile.id;
-                        const isForMyRole = newNotif.target_role === profile.role;
+                        const isForMe          = newNotif.target_user_id === profile.id;
+                        const isForMyRole      = newNotif.target_role    === profile.role;
                         const isForMyDirectorate = Boolean(newNotif.directorate_id && newNotif.directorate_id === profile.directorate_id);
-                        const isAdmin = profile.role === 'ADMIN';
-                        const role = profile.role?.toUpperCase();
-                        const isLeadership = role === 'ADMIN' || role === 'DIRETOR';
+                        const isAdmin          = profile.role === 'ADMIN';
+                        const role             = profile.role?.toUpperCase();
+                        const isLeadership     = role === 'ADMIN' || role === 'DIRETOR';
 
-                        // ADMIN e DIRETOR não recebem notificações de chat de terceiros
                         if (isLeadership && newNotif.type === 'chat' && !isForMe) return;
 
                         if (isForMe || isForMyRole || isForMyDirectorate || isAdmin) {
                             setNotifications((prev) => {
-                                // Prevent duplicates just in case
                                 if (prev.some(n => n.id === newNotif.id)) return prev;
                                 return [newNotif, ...prev];
                             });
+
+                            // ── Alerta sonoro + notificação nativa ──────────
+                            playNotificationSound();
+                            // Só mostra browser notification se a aba não está focada
+                            if (document.visibilityState !== 'visible') {
+                                showBrowserNotification(
+                                    newNotif.title,
+                                    newNotif.message,
+                                    newNotif.reference_route
+                                );
+                            }
                         }
                     } else if (payload.eventType === 'UPDATE') {
                         const updatedNotif = payload.new as Notification;
-                        // If notification became read, remove it from list (fetch only shows unread)
                         if (updatedNotif.is_read) {
                             setNotifications((prev) => prev.filter((n) => n.id !== updatedNotif.id));
                         } else {
@@ -138,13 +248,11 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
 
     const markAsRead = async (id: string) => {
         try {
-            // Optimistic UI update
             setNotifications((prev) => prev.map((n) => n.id === id ? { ...n, is_read: true } : n));
             const { error } = await supabase.from('notifications').update({ is_read: true }).eq('id', id);
             if (error) throw error;
         } catch (error) {
             console.error('Error marking as read:', error);
-            // Rollback optimism could be implemented here
         }
     };
 
@@ -153,14 +261,8 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
         try {
             const idsToMark = notifications.filter(n => !n.is_read).map(n => n.id);
             if (idsToMark.length === 0) return;
-
             setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
-
-            const { error } = await supabase
-                .from('notifications')
-                .update({ is_read: true })
-                .in('id', idsToMark);
-
+            const { error } = await supabase.from('notifications').update({ is_read: true }).in('id', idsToMark);
             if (error) throw error;
         } catch (error) {
             console.error('Error marking all as read:', error);
@@ -169,13 +271,8 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
 
     const deleteNotification = async (id: string) => {
         try {
-            // Optimistic UI update
             setNotifications((prev) => prev.filter((n) => n.id !== id));
-            // Mark as read so it won't come back on next fetch (is_read filter)
-            const { error } = await supabase
-                .from('notifications')
-                .update({ is_read: true })
-                .eq('id', id);
+            const { error } = await supabase.from('notifications').update({ is_read: true }).eq('id', id);
             if (error) throw error;
         } catch (error) {
             console.error('Error deleting notification:', error);
@@ -187,19 +284,8 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
         try {
             const ids = notifications.map((n) => n.id);
             if (ids.length === 0) return;
-
-            // Optimistic UI: clear immediately
             setNotifications([]);
-
-            // Use .in('id', ids) with the exact IDs visible to this user.
-            // These IDs already passed SELECT RLS, so UPDATE with .in() also passes.
-            // Using .eq('is_read', false) without id filter was silently blocked by
-            // RLS for role-targeted notifications (target_user_id = null).
-            const { error } = await supabase
-                .from('notifications')
-                .update({ is_read: true })
-                .in('id', ids);
-
+            const { error } = await supabase.from('notifications').update({ is_read: true }).in('id', ids);
             if (error) throw error;
         } catch (error) {
             console.error('Error clearing all notifications:', error);
