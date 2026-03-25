@@ -40,7 +40,7 @@ function isCurrentMonth(dateStr: string | undefined | null): boolean {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function SalesProgressCard() {
-  const { clients, user } = useApp();
+  const { clients, user, allProfiles } = useApp();
   const { role } = useAuthorization();
 
   const config = COMMISSION_CONFIG[role] ?? COMMISSION_CONFIG.CORRETOR;
@@ -152,6 +152,9 @@ export function SalesProgressCard() {
         <div className="space-y-2">
           {monthlySales.map(c => {
             const isOwn = (c as any).owner_id === user?.id;
+            const ownerProfile = !isOwn
+              ? allProfiles.find(p => p.id === (c as any).owner_id)
+              : null;
             const vgv = parseCurrency(c.intendedValue);
             // Comissão por venda baseada no tipo (própria vs equipe)
             const comissao = isOwn
@@ -178,7 +181,7 @@ export function SalesProgressCard() {
               >
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex items-center gap-1.5 flex-wrap">
                       <p className="font-semibold text-text-primary text-sm truncate">{c.name}</p>
                       {hasTeamCommission && (
                         <span className={`flex-shrink-0 text-[9px] font-bold px-1.5 py-px rounded-full ${
@@ -186,7 +189,7 @@ export function SalesProgressCard() {
                             ? 'bg-gold-100 text-gold-700 dark:bg-gold-900/30 dark:text-gold-400'
                             : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
                         }`}>
-                          {isOwn ? 'Própria' : 'Equipe'}
+                          {isOwn ? 'Própria' : ownerProfile?.name ?? 'Equipe'}
                         </span>
                       )}
                     </div>
