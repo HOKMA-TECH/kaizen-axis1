@@ -141,6 +141,10 @@ export default function Chat() {
     for (const msg of (data ?? [])) {
       if (seen.has(msg.conversation_id)) continue;
       seen.add(msg.conversation_id);
+      // Skip conversations the user hid locally
+      try {
+        if (localStorage.getItem(`hidden-conv-${myId}-${msg.conversation_id}`)) continue;
+      } catch {}
       const isKAI = msg.conversation_id.startsWith('kai-');
       const otherId = isKAI ? 'kai-agent'
         : (msg.sender_id === myId ? msg.receiver_id : msg.sender_id);
@@ -168,18 +172,23 @@ export default function Chat() {
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_messages' },
         (p) => {
           const m = p.new as any;
-          if (m.sender_id === myId || m.receiver_id === myId) fetchConversations();
+          if (m.sender_id === myId || m.receiver_id === myId) {
+            // Un-hide conversation if a new message arrives while it's hidden
+            try { localStorage.removeItem(`hidden-conv-${myId}-${m.conversation_id}`); } catch {}
+            fetchConversations();
+          }
         })
       .subscribe();
     return () => { supabase.removeChannel(ch); };
   }, [myId, fetchConversations]);
 
-  // ── Delete conversation ───────────────────────────────────────────────────
-  const handleDeleteConversation = async (conversationId: string) => {
-    if (!confirm('Apagar esta conversa? Todas as mensagens serão removidas permanentemente.')) return;
+  // ── Delete conversation (apenas para mim — oculta via localStorage) ─────
+  const handleDeleteConversation = (conversationId: string) => {
+    if (!myId) return;
+    if (!confirm('Apagar esta conversa para você? As mensagens serão removidas somente para você.')) return;
+    try { localStorage.setItem(`hidden-conv-${myId}-${conversationId}`, '1'); } catch {}
     setConversations(prev => prev.filter(c => c.conversationId !== conversationId));
     setCtxConvo(null);
-    await supabase.from('chat_messages').delete().eq('conversation_id', conversationId);
   };
 
   const handleConvoTouchStart = (e: React.TouchEvent, convo: EnrichedConvo) => {
@@ -508,7 +517,7 @@ export default function Chat() {
               onClick={() => handleDeleteConversation(ctxConvo.convo.conversationId)}
               className="flex items-center gap-3 w-full px-4 py-3 text-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
             >
-              <Trash2 size={16} /> Apagar conversa
+              <Trash2 size={16} /> Apagar conversa para mim
             </button>
           </div>
         </>

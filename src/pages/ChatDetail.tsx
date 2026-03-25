@@ -31,6 +31,9 @@ interface ChatMessage {
   reply_to_id?: string | null;
   reactions?: Record<string, string[]>;
   deliveryStatus?: 'sending' | 'sent';
+  // Soft delete
+  is_deleted?: boolean;
+  deleted_for?: string[];
 }
 
 interface ChatUser {
@@ -531,13 +534,17 @@ export default function ChatDetail() {
     reply_to_id: m.reply_to_id ?? null,
     reactions: m.reactions ?? {},
     deliveryStatus: 'sent',
+    is_deleted: m.is_deleted ?? false,
+    deleted_for: m.deleted_for ?? [],
   }), [myId]);
 
   const loadMessages = useCallback(async () => {
     if (isKAI || !myId) return;
     const { data, error } = await supabase
       .from('chat_messages')
-      .select('*').eq('conversation_id', conversationId)
+      .select('*')
+      .eq('conversation_id', conversationId)
+      .not('deleted_for', 'cs', `{"${myId}"}`)
       .order('created_at', { ascending: false })
       .range(0, PAGE_SIZE - 1);
     if (error) return;
@@ -552,6 +559,7 @@ export default function ChatDetail() {
       .from('chat_messages')
       .select('*')
       .eq('conversation_id', conversationId)
+      .not('deleted_for', 'cs', `{"${myId}"}`)
       .order('created_at', { ascending: false })
       .range(messages.length, messages.length + PAGE_SIZE - 1);
     const older = (data ?? []).map(mapMsg).reverse();
@@ -612,6 +620,29 @@ export default function ChatDetail() {
             reactions: m.reactions ?? {},
           }];
         });
+      }
+    );
+
+    // Listen for UPDATE rows (soft-delete: is_deleted or deleted_for)
+    channel.on(
+      'postgres_changes',
+      {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'chat_messages',
+        filter: `conversation_id=eq.${conversationId}`,
+      },
+      (payload) => {
+        const m = payload.new as any;
+        if (m.is_deleted) {
+          // "Apagar para todos" → substitui conteúdo pelo placeholder
+          setMessages(prev => prev.map(msg =>
+            msg.id === m.id ? { ...msg, is_deleted: true, text: undefined, type: 'text' as const } : msg
+          ));
+        } else if ((m.deleted_for ?? []).includes(myId)) {
+          // "Apagar para mim" → remove da lista do usuário atual
+          setMessages(prev => prev.filter(msg => msg.id !== m.id));
+        }
       }
     );
 
@@ -1095,10 +1126,24 @@ export default function ChatDetail() {
   };
 
   // ─── Delete message ───────────────────────────────────────────────────────
-  const handleDeleteMessage = async (msgId: string) => {
-    setMessages(prev => prev.filter(m => m.id !== msgId));
+
+  // Apagar para mim: adiciona myId ao array deleted_for — a mensagem some só para o usuário atual
+  const handleDeleteForMe = async (msg: ChatMessage) => {
+    const updated = [...(msg.deleted_for ?? []), myId];
+    setMessages(prev => prev.filter(m => m.id !== msg.id));
     setCtxMenu(null);
-    await supabase.from('chat_messages').delete().eq('id', msgId);
+    await supabase.from('chat_messages').update({ deleted_for: updated }).eq('id', msg.id);
+  };
+
+  // Apagar para todos: marca is_deleted = true, limpa conteúdo — todos veem o placeholder
+  const handleDeleteForAll = async (msgId: string) => {
+    setMessages(prev => prev.map(m =>
+      m.id === msgId ? { ...m, is_deleted: true, text: undefined } : m
+    ));
+    setCtxMenu(null);
+    await supabase.from('chat_messages')
+      .update({ is_deleted: true, content: null, media_url: null })
+      .eq('id', msgId);
   };
 
   // ─── Long press / right-click for context menu ────────────────────────────
@@ -1254,8 +1299,16 @@ export default function ChatDetail() {
                 onContextMenu={e => handleMsgRightClick(e, msg)}
               >
 
+                {/* ── DELETED FOR ALL placeholder ── */}
+                {msg.is_deleted && (
+                  <div className="flex items-center gap-2 text-text-secondary italic py-0.5">
+                    <Trash2 size={13} className="opacity-50 flex-shrink-0" />
+                    <span className="text-sm">Esta mensagem foi apagada</span>
+                  </div>
+                )}
+
                 {/* ── REPLY QUOTE ── */}
-                {parentMsg && (
+                {!msg.is_deleted && parentMsg && (
                   <div className="border-l-2 border-gold-500 pl-2 bg-black/5 dark:bg-white/5 rounded-r-lg p-1.5 mb-2">
                     <span className="text-[11px] font-semibold block text-gold-600 dark:text-gold-400">
                       {parentMsg.isMe ? 'Você' : chatUser?.name}
@@ -1652,11 +1705,19 @@ export default function ChatDetail() {
             </button>
           )}
           <button
-            onClick={() => handleDeleteMessage(ctxMenu.msg.id)}
+            onClick={() => handleDeleteForMe(ctxMenu.msg)}
             className="flex items-center gap-3 w-full px-4 py-3 text-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
           >
-            <Trash2 size={16} /> Apagar mensagem
+            <Trash2 size={16} /> Apagar para mim
           </button>
+          {ctxMenu.msg.isMe && (
+            <button
+              onClick={() => handleDeleteForAll(ctxMenu.msg.id)}
+              className="flex items-center gap-3 w-full px-4 py-3 text-sm text-red-700 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors border-t border-surface-100"
+            >
+              <Trash2 size={16} /> Apagar para todos
+            </button>
+          )}
         </div>
       )}
 
