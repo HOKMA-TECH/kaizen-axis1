@@ -474,26 +474,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         const memberIds = (directMembers || []).map((p: any) => p.id);
         const ownerIds = [...new Set([...memberIds, uid])];
         query = query.in('owner_id', ownerIds);
-      } else if (uid && role === 'GERENTE') {
-        // 1. Subordinados diretos por manager_id
-        const { data: directMembers } = await supabase
-          .from('profiles').select('id').eq('manager_id', uid);
-        let memberIds = (directMembers || []).map((p: any) => p.id);
-
-        // 2. Membros dos times gerenciados por este gerente (fallback quando manager_id não foi setado no profile)
-        const { data: managedTeams } = await supabase
-          .from('teams').select('id').eq('manager_id', uid);
-        const teamIds = (managedTeams || []).map((t: any) => t.id);
-        if (teamIds.length > 0) {
-          const { data: teamMembers } = await supabase
-            .from('profiles').select('id').in('team', teamIds);
-          memberIds = [...memberIds, ...(teamMembers || []).map((p: any) => p.id)];
-        }
-
-        const ownerIds = [...new Set([...memberIds, uid])];
-        query = query.in('owner_id', ownerIds);
       }
-      // ADMIN / DIRETOR: sem filtro de owner_id — veem tudo
+      // GERENTE / ADMIN / DIRETOR: sem filtro JS — o RLS (manager_view_team_clients) garante visibilidade correta
 
       const { data, error } = await query;
       if (error) throw error;
