@@ -88,24 +88,37 @@ export default function ClientDetails() {
     }
   };
 
-  const handleOpenDocument = async (path: string) => {
-    if (!path) return;
-
-    // Se o path já for uma URL pública completa, abre direto
-    if (path.startsWith('http://') || path.startsWith('https://')) {
-      window.open(path, '_blank');
+  const handleOpenDocument = async (rawPath: string) => {
+    if (!rawPath) {
+      console.warn('[doc] path vazio/nulo:', rawPath);
+      alert('Erro ao abrir documento: caminho vazio.');
       return;
     }
 
-    // Bucket é privado — gera URL assinada (válida por 1 hora)
+    // Se já for URL completa, abre direto
+    if (rawPath.startsWith('http://') || rawPath.startsWith('https://')) {
+      console.log('[doc] URL direta:', rawPath);
+      window.open(rawPath, '_blank');
+      return;
+    }
+
+    // Remove barra inicial se houver (alguns retornos da API incluem /)
+    const path = rawPath.startsWith('/') ? rawPath.slice(1) : rawPath;
+    console.log('[doc] path no storage:', path);
+
     const { data, error } = await supabase.storage
       .from('client-documents')
       .createSignedUrl(path, 3600);
 
+    console.log('[doc] createSignedUrl result:', { data, error });
+
     if (error || !data?.signedUrl) {
-      alert('Erro ao abrir documento.');
+      const msg = error?.message ?? 'signedUrl vazio';
+      console.error('[doc] Falha ao gerar signed URL:', msg, '| path:', path);
+      alert(`Erro ao abrir documento.\n\nDetalhe: ${msg}\nPath: ${path}`);
       return;
     }
+
     window.open(data.signedUrl, '_blank');
   };
 
