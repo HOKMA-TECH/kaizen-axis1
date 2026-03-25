@@ -58,7 +58,7 @@ export function PdfToolDrawer({ tool, isOpen, onClose }: PdfToolDrawerProps) {
         if (isSingleFile) {
             setFiles([newItems[0]]);
         } else {
-            setFiles(prev => [...prev, ...newItems].slice(0, 10));
+            setFiles(prev => [...prev, ...newItems]);
         }
     };
 
@@ -151,6 +151,7 @@ export function PdfToolDrawer({ tool, isOpen, onClose }: PdfToolDrawerProps) {
                                 <PdfDropzone
                                     onFilesAccepted={handleFilesAccepted}
                                     acceptType={tool.id === 'image-to-pdf' ? 'image' : 'pdf'}
+                                    maxFiles={['image-to-pdf', 'merge-pdf'].includes(tool.id) ? 200 : 1}
                                 />
 
                                 {files.length > 0 && (
