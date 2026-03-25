@@ -468,14 +468,29 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
       if (uid && role === 'CORRETOR') {
         query = query.eq('owner_id', uid);
-      } else if (uid && (role === 'GERENTE' || role === 'COORDENADOR')) {
-        const filterCol = role === 'COORDENADOR' ? 'coordinator_id' : 'manager_id';
-        const { data: teamMembers } = await supabase
-          .from('profiles')
-          .select('id')
-          .eq(filterCol, uid);
-        const memberIds = (teamMembers || []).map((p: any) => p.id);
-        const ownerIds = memberIds.length > 0 ? [...new Set([...memberIds, uid])] : [uid];
+      } else if (uid && role === 'COORDENADOR') {
+        const { data: directMembers } = await supabase
+          .from('profiles').select('id').eq('coordinator_id', uid);
+        const memberIds = (directMembers || []).map((p: any) => p.id);
+        const ownerIds = [...new Set([...memberIds, uid])];
+        query = query.in('owner_id', ownerIds);
+      } else if (uid && role === 'GERENTE') {
+        // 1. Subordinados diretos por manager_id
+        const { data: directMembers } = await supabase
+          .from('profiles').select('id').eq('manager_id', uid);
+        let memberIds = (directMembers || []).map((p: any) => p.id);
+
+        // 2. Membros dos times gerenciados por este gerente (fallback quando manager_id não foi setado no profile)
+        const { data: managedTeams } = await supabase
+          .from('teams').select('id').eq('manager_id', uid);
+        const teamIds = (managedTeams || []).map((t: any) => t.id);
+        if (teamIds.length > 0) {
+          const { data: teamMembers } = await supabase
+            .from('profiles').select('id').in('team', teamIds);
+          memberIds = [...memberIds, ...(teamMembers || []).map((p: any) => p.id)];
+        }
+
+        const ownerIds = [...new Set([...memberIds, uid])];
         query = query.in('owner_id', ownerIds);
       }
       // ADMIN / DIRETOR: sem filtro de owner_id — veem tudo
