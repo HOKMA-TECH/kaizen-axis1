@@ -37,22 +37,21 @@ async function createVapidJwt(audience: string): Promise<string> {
     exp: Math.floor(Date.now() / 1000) + 12 * 3600,
     sub: VAPID_MAILTO,
   };
-  const encode  = (obj: object) => bytesToB64url(new TextEncoder().encode(JSON.stringify(obj)));
+  const encode   = (obj: object) => bytesToB64url(new TextEncoder().encode(JSON.stringify(obj)));
   const sigInput = `${encode(header)}.${encode(payload)}`;
 
-  const privKeyBytes = b64urlToBytes(VAPID_PRIVATE_KEY);
-  // Importa como raw EC private key (formato JWK com "d" apenas)
+  // Extrai coordenadas x e y do ponto não comprimido da chave pública (04 || x || y)
+  const pubBytes = b64urlToBytes(VAPID_PUBLIC_KEY); // 65 bytes: 0x04 + x(32) + y(32)
+  const x = bytesToB64url(pubBytes.slice(1, 33));
+  const y = bytesToB64url(pubBytes.slice(33, 65));
+
   const privKey = await crypto.subtle.importKey(
     'jwk',
-    { kty: 'EC', crv: 'P-256', d: VAPID_PRIVATE_KEY, x: '', y: '', key_ops: ['sign'] },
+    { kty: 'EC', crv: 'P-256', d: VAPID_PRIVATE_KEY, x, y, ext: true },
     { name: 'ECDSA', namedCurve: 'P-256' },
     false,
     ['sign']
-  ).catch(async () => {
-    // Fallback: importa como raw (32 bytes) via PKCS8 construído manualmente
-    const pkcs8 = buildPkcs8(privKeyBytes);
-    return crypto.subtle.importKey('pkcs8', pkcs8, { name: 'ECDSA', namedCurve: 'P-256' }, false, ['sign']);
-  });
+  );
 
   const sig = await crypto.subtle.sign(
     { name: 'ECDSA', hash: 'SHA-256' },
@@ -61,22 +60,6 @@ async function createVapidJwt(audience: string): Promise<string> {
   );
 
   return `${sigInput}.${bytesToB64url(new Uint8Array(sig))}`;
-}
-
-// Constrói PKCS8 DER para P-256 a partir dos 32 bytes raw da chave privada
-function buildPkcs8(d: Uint8Array): ArrayBuffer {
-  // Template PKCS8 para P-256 sem chave pública embutida
-  const template = new Uint8Array([
-    0x30, 0x41, 0x02, 0x01, 0x00, 0x30, 0x13, 0x06,
-    0x07, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x02, 0x01,
-    0x06, 0x08, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x03,
-    0x01, 0x07, 0x04, 0x27, 0x30, 0x25, 0x02, 0x01,
-    0x01, 0x04, 0x20,
-  ]);
-  const buf = new Uint8Array(template.length + 32);
-  buf.set(template);
-  buf.set(d, template.length);
-  return buf.buffer;
 }
 
 // ── Envia Web Push para uma subscription ─────────────────────────────────────

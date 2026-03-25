@@ -31,14 +31,37 @@ const NotificationContext = createContext<NotificationContextType | undefined>(u
 // ─── VAPID public key (deve bater com VAPID_PUBLIC_KEY nas Supabase Secrets) ──
 const VAPID_PUBLIC_KEY = (import.meta as any).env?.VITE_VAPID_PUBLIC_KEY as string | undefined;
 
-// ─── Som de notificação via Web Audio API ─────────────────────────────────────
-function playNotificationSound() {
+// ─── AudioContext persistente — desbloqueado na primeira interação ────────────
+let _audioCtx: AudioContext | null = null;
+
+function getAudioCtx(): AudioContext | null {
     try {
         const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
-        if (!AudioCtx) return;
-        const ctx = new AudioCtx();
+        if (!AudioCtx) return null;
+        if (!_audioCtx) _audioCtx = new AudioCtx();
+        return _audioCtx;
+    } catch { return null; }
+}
 
-        const play = (freq: number, startAt: number, duration: number, volume = 0.28) => {
+// Desbloqueia o AudioContext na primeira interação do usuário
+function unlockAudio() {
+    const ctx = getAudioCtx();
+    if (ctx && ctx.state === 'suspended') {
+        ctx.resume().catch(() => {});
+    }
+}
+
+// ─── Som de notificação via Web Audio API ─────────────────────────────────────
+async function playNotificationSound() {
+    try {
+        const ctx = getAudioCtx();
+        if (!ctx) return;
+
+        // Resume caso ainda suspenso (política autoplay do browser)
+        if (ctx.state === 'suspended') await ctx.resume();
+        if (ctx.state !== 'running') return;
+
+        const scheduleNote = (freq: number, startAt: number, duration: number, volume = 0.28) => {
             const osc  = ctx.createOscillator();
             const gain = ctx.createGain();
             osc.connect(gain);
@@ -46,17 +69,17 @@ function playNotificationSound() {
             osc.type = 'sine';
             osc.frequency.setValueAtTime(freq, ctx.currentTime + startAt);
             gain.gain.setValueAtTime(0, ctx.currentTime + startAt);
-            gain.gain.linearRampToValueAtTime(volume, ctx.currentTime + startAt + 0.01);
+            gain.gain.linearRampToValueAtTime(volume, ctx.currentTime + startAt + 0.015);
             gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + startAt + duration);
             osc.start(ctx.currentTime + startAt);
-            osc.stop(ctx.currentTime + startAt + duration);
+            osc.stop(ctx.currentTime + startAt + duration + 0.05);
         };
 
-        // Dois tons: sol5 (784 Hz) → si5 (987 Hz) — chime suave
-        play(784, 0,    0.22);
-        play(987, 0.18, 0.30);
+        // Chime duplo: sol5 (784 Hz) → si5 (987 Hz)
+        scheduleNote(784, 0,    0.22);
+        scheduleNote(987, 0.18, 0.30);
     } catch {
-        // Sem suporte a AudioContext — silêncio
+        // Sem suporte — silêncio
     }
 }
 
@@ -131,6 +154,17 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     const pushSetupDone = useRef(false);
 
     const unreadCount = notifications.filter((n) => !n.is_read).length;
+
+    // ── Desbloqueia AudioContext na primeira interação do usuário ────────────
+    useEffect(() => {
+        const events = ['click', 'touchstart', 'keydown'] as const;
+        const handler = () => {
+            unlockAudio();
+            events.forEach(e => document.removeEventListener(e, handler));
+        };
+        events.forEach(e => document.addEventListener(e, handler, { once: true }));
+        return () => events.forEach(e => document.removeEventListener(e, handler));
+    }, []);
 
     // ── Solicita permissão de notificação + registra push subscription ───────
     useEffect(() => {
@@ -215,14 +249,12 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
 
                             // ── Alerta sonoro + notificação nativa ──────────
                             playNotificationSound();
-                            // Só mostra browser notification se a aba não está focada
-                            if (document.visibilityState !== 'visible') {
-                                showBrowserNotification(
-                                    newNotif.title,
-                                    newNotif.message,
-                                    newNotif.reference_route
-                                );
-                            }
+                            // Mostra notificação nativa do SO sempre
+                            showBrowserNotification(
+                                newNotif.title,
+                                newNotif.message,
+                                newNotif.reference_route
+                            );
                         }
                     } else if (payload.eventType === 'UPDATE') {
                         const updatedNotif = payload.new as Notification;
