@@ -155,6 +155,7 @@ export default function Dashboard() {
               <h3 className="text-2xl font-bold text-green-600 mt-2">{String(aprovados).padStart(2, '0')}</h3>
             </PremiumCard>
           </div>
+          <SalesProgressCard />
           <section><FunnelChart /></section>
         </>
       )}

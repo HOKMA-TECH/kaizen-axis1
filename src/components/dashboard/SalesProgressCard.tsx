@@ -1,20 +1,24 @@
 import { useApp } from '@/context/AppContext';
 import { useAuthorization } from '@/hooks/useAuthorization';
-import { AlertTriangle, TrendingUp, DollarSign } from 'lucide-react';
+import { AlertTriangle, TrendingUp, DollarSign, Users, User } from 'lucide-react';
 
-// ─── Commission rates by role ─────────────────────────────────────────────────
-const COMMISSION_RATE: Record<string, number> = {
-  CORRETOR:    0.018,
-  GERENTE:     0.024,
-  COORDENADOR: 0.020,
+// ─── Commission config per role ───────────────────────────────────────────────
+// ownRate: taxa quando o usuário criou o cliente (venda própria)
+// ownDiscount: aplica desconto de 14% sobre comissão própria
+// teamRate: taxa sobre cada venda da equipe (não própria)
+// teamDiscount: aplica desconto de 14% sobre comissão da equipe
+const COMMISSION_CONFIG: Record<string, { ownRate: number; ownDiscount: boolean; teamRate: number; teamDiscount: boolean }> = {
+  CORRETOR:    { ownRate: 0.018, ownDiscount: true,  teamRate: 0,     teamDiscount: false },
+  COORDENADOR: { ownRate: 0.020, ownDiscount: true,  teamRate: 0.002, teamDiscount: false },
+  GERENTE:     { ownRate: 0.024, ownDiscount: true,  teamRate: 0.004, teamDiscount: false },
+  DIRETOR:     { ownRate: 0.024, ownDiscount: true,  teamRate: 0.001, teamDiscount: false },
 };
+
 const TAX_DEDUCTION = 0.86; // -14%
 
 function parseCurrency(value: any): number {
   if (value == null) return 0;
-  // If already a number (DB numeric column), return directly
   if (typeof value === 'number') return isNaN(value) ? 0 : value;
-  // String like "R$ 450.000" or "R$ 450.000,00" → 450000
   const cleaned = String(value)
     .replace(/R\$\s*/g, '')
     .replace(/\./g, '')
@@ -39,23 +43,32 @@ export function SalesProgressCard() {
   const { clients, user } = useApp();
   const { role } = useAuthorization();
 
-  const commissionRate = COMMISSION_RATE[role] ?? COMMISSION_RATE.CORRETOR;
+  const config = COMMISSION_CONFIG[role] ?? COMMISSION_CONFIG.CORRETOR;
+  const hasTeamCommission = config.teamRate > 0;
 
-  // Filter: only current user's own sales, stage Concluído, updated this month
+  // Vendas concluídas no mês corrente
   const monthlySales = clients
     .filter(c => {
       if (c.stage !== 'Concluído') return false;
-      // Own sales only — owner_id comes from the DB spread
-      const ownerId = (c as any).owner_id;
-      if (ownerId && user?.id && ownerId !== user.id) return false;
-      return isCurrentMonth((c as any).updated_at || c.createdAt);
+      return isCurrentMonth((c as any).updated_at || (c as any).closed_at || c.createdAt);
     })
-    .slice(0, 50);
+    .slice(0, 100);
 
-  const totalVGV = monthlySales.reduce((sum, c) => sum + parseCurrency(c.intendedValue), 0);
-  const totalComissao = totalVGV * commissionRate * TAX_DEDUCTION;
+  // Separa vendas próprias vs equipe
+  const ownSales  = monthlySales.filter(c => (c as any).owner_id === user?.id);
+  const teamSales = monthlySales.filter(c => (c as any).owner_id !== user?.id);
+
+  // VGV por categoria
+  const ownVGV  = ownSales.reduce((sum, c)  => sum + parseCurrency(c.intendedValue), 0);
+  const teamVGV = teamSales.reduce((sum, c) => sum + parseCurrency(c.intendedValue), 0);
+  const totalVGV = ownVGV + teamVGV;
+
+  // Comissão por categoria
+  const ownCommission  = ownVGV  * config.ownRate  * (config.ownDiscount  ? TAX_DEDUCTION : 1);
+  const teamCommission = teamVGV * config.teamRate * (config.teamDiscount ? TAX_DEDUCTION : 1);
+  const totalCommission = ownCommission + teamCommission;
+
   const hasSales = monthlySales.length > 0;
-
   const monthName = new Date().toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
 
   return (
@@ -81,7 +94,7 @@ export function SalesProgressCard() {
       </div>
 
       {/* Summary indicators */}
-      <div className="flex items-stretch mb-4 rounded-xl overflow-hidden border border-black/5 dark:border-white/5 bg-black/5 dark:bg-white/5">
+      <div className="flex items-stretch mb-3 rounded-xl overflow-hidden border border-black/5 dark:border-white/5 bg-black/5 dark:bg-white/5">
         <div className="flex-1 flex flex-col items-center justify-center py-3 px-2 gap-0.5">
           <p className="text-[10px] font-semibold text-text-secondary uppercase tracking-wider">Vendas</p>
           <p className="text-xl font-bold text-text-primary">{monthlySales.length}</p>
@@ -93,10 +106,38 @@ export function SalesProgressCard() {
         </div>
         <div className="w-px bg-black/10 dark:bg-white/10" />
         <div className="flex-1 flex flex-col items-center justify-center py-3 px-2 gap-0.5">
-          <p className="text-[10px] font-semibold text-text-secondary uppercase tracking-wider">Comissão</p>
-          <p className="text-sm font-bold text-green-600 dark:text-green-400">{formatBRL(totalComissao)}</p>
+          <p className="text-[10px] font-semibold text-text-secondary uppercase tracking-wider">Comissão Prevista</p>
+          <p className="text-sm font-bold text-green-600 dark:text-green-400">{formatBRL(totalCommission)}</p>
         </div>
       </div>
+
+      {/* Breakdown de comissão para roles com equipe */}
+      {hasTeamCommission && hasSales && (ownSales.length > 0 || teamSales.length > 0) && (
+        <div className="flex gap-2 mb-4">
+          {ownSales.length > 0 && (
+            <div className="flex-1 flex items-center gap-2 bg-white dark:bg-surface-900 rounded-xl px-3 py-2 border border-green-100 dark:border-green-900/40">
+              <div className="w-6 h-6 rounded-full bg-gold-100 dark:bg-gold-900/40 flex items-center justify-center flex-shrink-0">
+                <User size={11} className="text-gold-600" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-[10px] text-text-secondary font-medium">Própria ({ownSales.length})</p>
+                <p className="text-xs font-bold text-green-600 dark:text-green-400 truncate">{formatBRL(ownCommission)}</p>
+              </div>
+            </div>
+          )}
+          {teamSales.length > 0 && (
+            <div className="flex-1 flex items-center gap-2 bg-white dark:bg-surface-900 rounded-xl px-3 py-2 border border-blue-100 dark:border-blue-900/40">
+              <div className="w-6 h-6 rounded-full bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center flex-shrink-0">
+                <Users size={11} className="text-blue-600" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-[10px] text-text-secondary font-medium">Equipe ({teamSales.length})</p>
+                <p className="text-xs font-bold text-blue-600 dark:text-blue-400 truncate">{formatBRL(teamCommission)}</p>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Sales list or empty state */}
       {!hasSales ? (
@@ -110,8 +151,13 @@ export function SalesProgressCard() {
       ) : (
         <div className="space-y-2">
           {monthlySales.map(c => {
+            const isOwn = (c as any).owner_id === user?.id;
             const vgv = parseCurrency(c.intendedValue);
-            const comissao = vgv * commissionRate * TAX_DEDUCTION;
+            // Comissão por venda baseada no tipo (própria vs equipe)
+            const comissao = isOwn
+              ? vgv * config.ownRate  * (config.ownDiscount  ? TAX_DEDUCTION : 1)
+              : vgv * config.teamRate * (config.teamDiscount ? TAX_DEDUCTION : 1);
+
             const rawDate = (c as any).updated_at || (c as any).closed_at || c.createdAt;
             let dateDisplay = '—';
             try {
@@ -124,16 +170,35 @@ export function SalesProgressCard() {
             return (
               <div
                 key={c.id}
-                className="bg-white dark:bg-surface-900 rounded-xl px-3 py-2.5 shadow-xs border border-green-100 dark:border-green-900/40"
+                className={`bg-white dark:bg-surface-900 rounded-xl px-3 py-2.5 shadow-xs border ${
+                  isOwn
+                    ? 'border-green-100 dark:border-green-900/40'
+                    : 'border-blue-100 dark:border-blue-900/40'
+                }`}
               >
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-text-primary text-sm truncate">{c.name}</p>
+                    <div className="flex items-center gap-1.5">
+                      <p className="font-semibold text-text-primary text-sm truncate">{c.name}</p>
+                      {hasTeamCommission && (
+                        <span className={`flex-shrink-0 text-[9px] font-bold px-1.5 py-px rounded-full ${
+                          isOwn
+                            ? 'bg-gold-100 text-gold-700 dark:bg-gold-900/30 dark:text-gold-400'
+                            : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
+                        }`}>
+                          {isOwn ? 'Própria' : 'Equipe'}
+                        </span>
+                      )}
+                    </div>
                     <p className="text-[11px] text-text-secondary truncate">{c.development || '—'}</p>
                   </div>
                   <div className="text-right flex-shrink-0">
                     <p className="text-xs font-medium text-text-primary">{formatBRL(vgv)}</p>
-                    <p className="text-[11px] text-green-600 dark:text-green-400 font-semibold">{formatBRL(comissao)}</p>
+                    <p className={`text-[11px] font-semibold ${
+                      isOwn
+                        ? 'text-green-600 dark:text-green-400'
+                        : 'text-blue-600 dark:text-blue-400'
+                    }`}>{formatBRL(comissao)}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-1 mt-1">
