@@ -89,36 +89,32 @@ export default function ClientDetails() {
   };
 
   const handleOpenDocument = async (rawPath: string) => {
-    if (!rawPath) {
-      console.warn('[doc] path vazio/nulo:', rawPath);
-      alert('Erro ao abrir documento: caminho vazio.');
-      return;
+    if (!rawPath) return;
+
+    // Alguns documentos têm o path salvo como URL pública completa do Supabase Storage.
+    // O bucket é privado, então não podemos abrir essas URLs diretamente (400).
+    // Extraímos o path relativo e geramos uma signed URL.
+    let storagePath = rawPath;
+    const PUBLIC_MARKER = '/object/public/client-documents/';
+    const SIGN_MARKER   = '/object/sign/client-documents/';
+    if (rawPath.includes(PUBLIC_MARKER)) {
+      storagePath = rawPath.split(PUBLIC_MARKER)[1];
+    } else if (rawPath.includes(SIGN_MARKER)) {
+      // Já era signed URL — extrai só o path (antes do ?)
+      storagePath = rawPath.split(SIGN_MARKER)[1].split('?')[0];
     }
 
-    // Se já for URL completa, abre direto
-    if (rawPath.startsWith('http://') || rawPath.startsWith('https://')) {
-      console.log('[doc] URL direta:', rawPath);
-      window.open(rawPath, '_blank');
-      return;
-    }
-
-    // Remove barra inicial se houver (alguns retornos da API incluem /)
-    const path = rawPath.startsWith('/') ? rawPath.slice(1) : rawPath;
-    console.log('[doc] path no storage:', path);
+    // Remove barra inicial residual
+    storagePath = storagePath.startsWith('/') ? storagePath.slice(1) : storagePath;
 
     const { data, error } = await supabase.storage
       .from('client-documents')
-      .createSignedUrl(path, 3600);
-
-    console.log('[doc] createSignedUrl result:', { data, error });
+      .createSignedUrl(storagePath, 3600);
 
     if (error || !data?.signedUrl) {
-      const msg = error?.message ?? 'signedUrl vazio';
-      console.error('[doc] Falha ao gerar signed URL:', msg, '| path:', path);
-      alert(`Erro ao abrir documento.\n\nDetalhe: ${msg}\nPath: ${path}`);
+      alert('Erro ao abrir documento.');
       return;
     }
-
     window.open(data.signedUrl, '_blank');
   };
 

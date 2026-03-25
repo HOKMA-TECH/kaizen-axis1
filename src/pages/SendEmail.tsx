@@ -136,13 +136,23 @@ PROFISSÃO: ${found.profession || 'Não informado'}`;
           let base64Content: string | null = null;
 
           if (att.file) {
-            // Manually added file
+            // Arquivo adicionado manualmente
             base64Content = await fileToBase64(att.file);
           } else if (att.file_path) {
-            // Bucket privado — gera URL assinada (válida por 5 min para o fetch)
+            // Resolve path relativo (pode estar salvo como URL pública completa)
+            let storagePath = att.file_path;
+            const PUBLIC_MARKER = '/object/public/client-documents/';
+            const SIGN_MARKER   = '/object/sign/client-documents/';
+            if (storagePath.includes(PUBLIC_MARKER)) {
+              storagePath = storagePath.split(PUBLIC_MARKER)[1];
+            } else if (storagePath.includes(SIGN_MARKER)) {
+              storagePath = storagePath.split(SIGN_MARKER)[1].split('?')[0];
+            }
+            storagePath = storagePath.startsWith('/') ? storagePath.slice(1) : storagePath;
+
             const { data: signedData } = await supabase.storage
               .from('client-documents')
-              .createSignedUrl(att.file_path, 300);
+              .createSignedUrl(storagePath, 300);
             if (signedData?.signedUrl) {
               base64Content = await urlToBase64(signedData.signedUrl);
             }
