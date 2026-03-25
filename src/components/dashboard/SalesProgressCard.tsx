@@ -3,15 +3,19 @@ import { useAuthorization } from '@/hooks/useAuthorization';
 import { AlertTriangle, TrendingUp, DollarSign, Users, User } from 'lucide-react';
 
 // ─── Commission config per role ───────────────────────────────────────────────
-// ownRate: taxa quando o usuário criou o cliente (venda própria)
-// ownDiscount: aplica desconto de 14% sobre comissão própria
-// teamRate: taxa sobre cada venda da equipe (não própria)
-// teamDiscount: aplica desconto de 14% sobre comissão da equipe
-const COMMISSION_CONFIG: Record<string, { ownRate: number; ownDiscount: boolean; teamRate: number; teamDiscount: boolean }> = {
-  CORRETOR:    { ownRate: 0.018, ownDiscount: true,  teamRate: 0,     teamDiscount: false },
-  COORDENADOR: { ownRate: 0.020, ownDiscount: true,  teamRate: 0.002, teamDiscount: false },
-  GERENTE:     { ownRate: 0.024, ownDiscount: true,  teamRate: 0.004, teamDiscount: false },
-  DIRETOR:     { ownRate: 0.024, ownDiscount: true,  teamRate: 0.001, teamDiscount: false },
+// ownRate:     taxa sobre venda própria (owner_id === user.id)
+// teamRate:    taxa sobre venda de membro da equipe/coord/diretoria
+// Todos os valores sofrem desconto de -14% (TAX_DEDUCTION)
+//
+// CORRETOR:    própria 1.8%  | sem comissão de equipe
+// COORDENADOR: própria 2.0%  | equipe 0.1%
+// GERENTE:     própria 2.4%  | equipe 0.4%
+// DIRETOR:     própria 2.4%  | equipe 0.1%
+const COMMISSION_CONFIG: Record<string, { ownRate: number; teamRate: number }> = {
+  CORRETOR:    { ownRate: 0.018, teamRate: 0     },
+  COORDENADOR: { ownRate: 0.020, teamRate: 0.001 },
+  GERENTE:     { ownRate: 0.024, teamRate: 0.004 },
+  DIRETOR:     { ownRate: 0.024, teamRate: 0.001 },
 };
 
 const TAX_DEDUCTION = 0.86; // -14%
@@ -43,7 +47,7 @@ export function SalesProgressCard() {
   const { clients, user, allProfiles } = useApp();
   const { role } = useAuthorization();
 
-  const config = COMMISSION_CONFIG[role] ?? COMMISSION_CONFIG.CORRETOR;
+  const config = COMMISSION_CONFIG[role?.toUpperCase() ?? ''] ?? COMMISSION_CONFIG.CORRETOR;
   const hasTeamCommission = config.teamRate > 0;
 
   // Vendas concluídas no mês corrente
@@ -63,9 +67,9 @@ export function SalesProgressCard() {
   const teamVGV = teamSales.reduce((sum, c) => sum + parseCurrency(c.intendedValue), 0);
   const totalVGV = ownVGV + teamVGV;
 
-  // Comissão por categoria
-  const ownCommission  = ownVGV  * config.ownRate  * (config.ownDiscount  ? TAX_DEDUCTION : 1);
-  const teamCommission = teamVGV * config.teamRate * (config.teamDiscount ? TAX_DEDUCTION : 1);
+  // Comissão por categoria — todos os valores levam -14%
+  const ownCommission   = ownVGV  * config.ownRate  * TAX_DEDUCTION;
+  const teamCommission  = teamVGV * config.teamRate * TAX_DEDUCTION;
   const totalCommission = ownCommission + teamCommission;
 
   const hasSales = monthlySales.length > 0;
@@ -156,10 +160,10 @@ export function SalesProgressCard() {
               ? allProfiles.find(p => p.id === (c as any).owner_id)
               : null;
             const vgv = parseCurrency(c.intendedValue);
-            // Comissão por venda baseada no tipo (própria vs equipe)
+            // Comissão por venda — -14% em todos os casos
             const comissao = isOwn
-              ? vgv * config.ownRate  * (config.ownDiscount  ? TAX_DEDUCTION : 1)
-              : vgv * config.teamRate * (config.teamDiscount ? TAX_DEDUCTION : 1);
+              ? vgv * config.ownRate  * TAX_DEDUCTION
+              : vgv * config.teamRate * TAX_DEDUCTION;
 
             const rawDate = (c as any).updated_at || (c as any).closed_at || c.createdAt;
             let dateDisplay = '—';
