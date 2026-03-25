@@ -1,4 +1,4 @@
-// ─── Kaizen Axis — Service Worker v3 ────────────────────────────────────────
+// ─── Kaizen Axis — Service Worker v4 ────────────────────────────────────────
 // Estratégia cirúrgica:
 //   • Nunca intercepta POST/PUT/DELETE/PATCH  →  uploads de arquivo seguros
 //   • Nunca intercepta domínios Supabase      →  real-time e auth seguros
@@ -7,7 +7,7 @@
 //   • Limpa caches de versões antigas         →  sem conflito entre deploys
 // ─────────────────────────────────────────────────────────────────────────────
 
-const CACHE_VERSION = 'v3';
+const CACHE_VERSION = 'v4';
 const CACHE_NAME = `kaizen-axis-${CACHE_VERSION}`;
 const MAX_CACHE_ENTRIES = 60;
 
@@ -165,8 +165,8 @@ self.addEventListener('push', (event) => {
   event.waitUntil(
     self.registration.showNotification(data.title, {
       body: data.body,
-      icon: '/pwa-192x192.png?v=4',
-      badge: '/pwa-192x192.png?v=4',
+      icon: '/pwa-192x192.png',
+      badge: '/pwa-192x192.png',
       vibrate: [200, 100, 200, 100, 200],
       tag: 'kaizen-notif',
       renotify: true,

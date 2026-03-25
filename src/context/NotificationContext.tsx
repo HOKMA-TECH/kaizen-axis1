@@ -155,30 +155,49 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
 
     const unreadCount = notifications.filter((n) => !n.is_read).length;
 
-    // ── Desbloqueia AudioContext na primeira interação do usuário ────────────
+    // ── Desbloqueia AudioContext + solicita permissão push na 1ª interação ──
+    // iOS PWA: requestPermission() SOMENTE funciona dentro de um gesto do usuário.
+    // Por isso unificamos o desbloqueio de áudio e a solicitação de permissão
+    // num único handler de gesto, registrado assim que o profile estiver disponível.
     useEffect(() => {
         const events = ['click', 'touchstart', 'keydown'] as const;
-        const handler = () => {
+
+        const handler = async () => {
+            // 1. Desbloqueia AudioContext (política de autoplay)
             unlockAudio();
+
+            // 2. Solicita permissão de notificação (deve ser dentro do gesto no iOS)
+            if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
+                try { await Notification.requestPermission(); } catch {}
+            }
+
+            // 3. Registra push subscription se permissão foi concedida
+            if (
+                !pushSetupDone.current &&
+                profile?.id &&
+                typeof Notification !== 'undefined' &&
+                Notification.permission === 'granted'
+            ) {
+                pushSetupDone.current = true;
+                await setupPushSubscription(profile.id);
+            }
+
             events.forEach(e => document.removeEventListener(e, handler));
         };
+
         events.forEach(e => document.addEventListener(e, handler, { once: true }));
         return () => events.forEach(e => document.removeEventListener(e, handler));
-    }, []);
+    }, [profile?.id]);
 
-    // ── Solicita permissão de notificação + registra push subscription ───────
+    // ── Para usuários que já concederam permissão em sessões anteriores ──────
     useEffect(() => {
         if (!profile?.id || pushSetupDone.current) return;
+        if (typeof Notification === 'undefined') return;
+        if (Notification.permission !== 'granted') return;
+
+        // Permissão já concedida — registra subscription diretamente
         pushSetupDone.current = true;
-
-        const requestAndSubscribe = async () => {
-            if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
-                await Notification.requestPermission();
-            }
-            await setupPushSubscription(profile.id);
-        };
-
-        requestAndSubscribe();
+        setupPushSubscription(profile.id);
     }, [profile?.id]);
 
     // ── Carrega notificações e escuta tempo real ──────────────────────────────

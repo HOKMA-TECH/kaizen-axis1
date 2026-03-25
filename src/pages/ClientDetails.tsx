@@ -16,8 +16,9 @@ export default function ClientDetails() {
   const { getClient, updateClient, deleteClient, userName, getDownloadUrl, uploadFile, addDocumentToClient, deleteDocumentFromClient, clients, allProfiles, teams } = useApp();
   const { role, canViewAllClients } = useAuthorization();
 
-  // Roles that can set 'Concluído'
-  const canConcluir = ['ADMIN', 'DIRETOR', 'GERENTE'].includes(role ?? '');
+  // Etapas avançadas: apenas COORDENADOR, GERENTE, DIRETOR e ADMIN podem mover o cliente para cá
+  const ADVANCED_STAGES: ClientStage[] = ['Contrato', 'Formulários', 'Conformidade', 'Abertura de Conta', 'Repasse', 'Concluído'];
+  const canAdvanceStage = ['ADMIN', 'DIRETOR', 'GERENTE', 'COORDENADOR'].includes(role ?? '');
 
   const [client, setClient] = useState<Client | null>(null);
   const [isEditingStage, setIsEditingStage] = useState(false);
@@ -40,9 +41,9 @@ export default function ClientDetails() {
   const handleStageChange = async (newStage: ClientStage) => {
     if (!client || !id) return;
 
-    // Block CORRETOR from setting 'Concluído'
-    if (newStage === 'Concluído' && !canConcluir) {
-      alert('⛔ Apenas ADMIN, Diretor ou Gerente podem mover uma ficha para "Concluído".');
+    // Bloqueia CORRETOR de avançar para etapas avançadas
+    if (ADVANCED_STAGES.includes(newStage) && !canAdvanceStage) {
+      alert(`⛔ Apenas Coordenador, Gerente, Diretor ou ADMIN podem mover o cliente para "${newStage}".`);
       setIsEditingStage(false);
       return;
     }
@@ -269,13 +270,13 @@ export default function ClientDetails() {
                 className="grid grid-cols-2 gap-2 overflow-hidden"
               >
                 {CLIENT_STAGES.map((stage) => {
-                  const isRestricted = stage === 'Concluído' && !canConcluir;
+                  const isRestricted = ADVANCED_STAGES.includes(stage) && !canAdvanceStage;
                   return (
                     <button
                       key={stage}
                       onClick={() => !isRestricted && handleStageChange(stage)}
                       disabled={isRestricted}
-                      title={isRestricted ? 'Apenas ADMIN, Diretor ou Gerente podem concluir' : undefined}
+                      title={isRestricted ? 'Apenas Coordenador, Gerente, Diretor ou ADMIN podem usar esta etapa' : undefined}
                       className={`p-3 rounded-xl text-sm font-medium border transition-all text-left flex items-center justify-between ${client.stage === stage
                         ? 'bg-gold-50 dark:bg-gold-900/20 border-gold-400 text-gold-700 dark:text-gold-400'
                         : isRestricted
