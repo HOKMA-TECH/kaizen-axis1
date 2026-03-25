@@ -331,23 +331,46 @@ export default function Clients() {
   const handleSendManagerAlert = async (client: Client) => {
     const ownerId = (client as any).owner_id;
     if (!ownerId) { alert('Cliente sem responsável definido.'); return; }
+
     const ownerProfile = allProfiles.find(p => p.id === ownerId);
-    const managerId = (ownerProfile as any)?.manager_id;
+
+    // Busca managerId: primeiro direto no perfil, depois via equipe
+    let managerId: string | null = (ownerProfile as any)?.manager_id || null;
+    if (!managerId && ownerProfile?.team_id) {
+      const team = teams.find(t => t.id === ownerProfile.team_id);
+      managerId = team?.manager_id || null;
+    }
+
     if (!managerId) { alert('Gerente não encontrado para este cliente.'); return; }
+
     const myId = user?.id;
     if (!myId) return;
+
     const conversationId = [myId, managerId].sort().join('_');
     const managerProfile = allProfiles.find(p => p.id === managerId);
     const senderProfile = allProfiles.find(p => p.id === myId);
     const msg = `⚠️ ALERTA URGENTE\n\nCliente: ${client.name}\nEtapa: ${client.stage}\nResponsável: ${ownerProfile?.name || '—'}\n\nEste cliente requer sua atenção imediata.\n\n— ${senderProfile?.name || 'Diretoria'}`;
-    const { error } = await supabase.from('chat_messages').insert({
+
+    // Envia mensagem no chat
+    const { error: chatError } = await supabase.from('chat_messages').insert({
       sender_id: myId,
       receiver_id: managerId,
       conversation_id: conversationId,
       content: msg,
       type: 'text',
     });
-    if (error) alert('Erro ao enviar alerta.');
+
+    // Envia notificação direta para o gerente
+    await supabase.from('notifications').insert({
+      user_id: managerId,
+      type: 'aviso',
+      title: `⚠️ Alerta: Cliente parado — ${client.name}`,
+      message: `${client.name} está na etapa "${client.stage}" há muito tempo. Atenção necessária.`,
+      link: `/clients/${client.id}`,
+      read: false,
+    });
+
+    if (chatError) alert('Erro ao enviar alerta.');
     else alert(`Alerta enviado para ${managerProfile?.name || 'o gerente'}!`);
   };
 
@@ -391,11 +414,9 @@ export default function Clients() {
       <div className="px-6 pt-8 pb-3 bg-card-bg shadow-sm z-10">
         <div className="flex justify-between items-center mb-4">
           <h1 className="text-2xl font-bold text-text-primary">Gestão de Clientes</h1>
-          {mainTab === 'clientes' && (
-            <RoundedButton size="sm" onClick={() => navigate('/clients/new')} className="flex items-center gap-1">
-              <Plus size={16} /> Novo
-            </RoundedButton>
-          )}
+          <RoundedButton size="sm" onClick={() => navigate('/clients/new')} className="flex items-center gap-1">
+            <Plus size={16} /> Novo Cliente
+          </RoundedButton>
         </div>
 
         {/* Main Tabs */}
