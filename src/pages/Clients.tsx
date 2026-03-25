@@ -612,7 +612,16 @@ export default function Clients() {
                   </RoundedButton>
                   {(isAdmin || isDirector) && (
                     <RoundedButton
-                      variant="secondary" size="sm" className="h-9 px-3 text-xs text-red-600 dark:text-red-400 border-red-200 dark:border-red-800 hover:bg-red-50 dark:hover:bg-red-900/20"
+                      variant="secondary" size="sm"
+                      className={`h-9 px-3 text-xs ${
+                        urgency.level === 'critical'
+                          ? 'text-red-600 dark:text-red-400 border-red-300 dark:border-red-700 hover:bg-red-50 dark:hover:bg-red-900/20'
+                          : urgency.level === 'urgent'
+                          ? 'text-orange-500 dark:text-orange-400 border-orange-300 dark:border-orange-700 hover:bg-orange-50 dark:hover:bg-orange-900/20'
+                          : urgency.level === 'warning'
+                          ? 'text-yellow-500 dark:text-yellow-400 border-yellow-300 dark:border-yellow-700 hover:bg-yellow-50 dark:hover:bg-yellow-900/20'
+                          : 'text-blue-500 dark:text-blue-400 border-blue-200 dark:border-blue-800 hover:bg-blue-50 dark:hover:bg-blue-900/20'
+                      }`}
                       onClick={e => { e.stopPropagation(); handleSendManagerAlert(client); }}
                     >
                       <AlertTriangle size={14} />
