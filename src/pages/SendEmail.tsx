@@ -58,10 +58,15 @@ export default function SendEmail() {
       } else {
         // Owner is CORRETOR (or unknown) — resolve hierarchy via direct coordinator_id / manager_id FKs
         corretorName = ownerProfile ? ownerProfile.name.toUpperCase() : userName.toUpperCase();
-        const managerObj = allProfiles.find(p => p.id === (ownerProfile as any).manager_id);
         const coordObj = allProfiles.find(p => p.id === (ownerProfile as any).coordinator_id);
+        coordinatorName = coordObj ? coordObj.name.toUpperCase() : '';
+
+        // Prefer direct manager_id; fallback to coordinator's manager_id
+        const directManagerId = (ownerProfile as any)?.manager_id;
+        const cascadeManagerId = (coordObj as any)?.manager_id;
+        const resolvedManagerId = directManagerId || cascadeManagerId;
+        const managerObj = allProfiles.find(p => p.id === resolvedManagerId);
         managerName = managerObj ? managerObj.name.toUpperCase() : 'NÃO INFORMADO';
-        coordinatorName = coordObj ? coordObj.name.toUpperCase() : 'NÃO INFORMADO';
       }
 
       setSubject(
