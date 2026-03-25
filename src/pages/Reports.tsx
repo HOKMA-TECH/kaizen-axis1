@@ -737,7 +737,7 @@ export default function Reports() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { loading, teams, allProfiles, profile } = useApp();
-  const { isAdmin, isManager, canViewAllClients } = useAuthorization();
+  const { isAdmin, isDirector, isManager, isCoordinator, canViewAllClients } = useAuthorization();
 
   // ── Period state
   const [period, setPeriod] = useState('30 dias');
@@ -804,7 +804,16 @@ export default function Reports() {
   // ── Delegate to equipe sub-view
   if (scope === 'equipe' && scopeId && canViewAllClients) {
     const teamObj = teams.find(t => t.id === scopeId);
-    if (teamObj) {
+    // GERENTE só pode ver equipes que gerencia; COORDENADOR só a sua
+    const canViewThisTeam =
+      isAdmin || isDirector ||
+      (isManager && teamObj?.manager_id === profile?.id) ||
+      (isCoordinator && (
+        teamObj?.members?.includes(profile?.id ?? '') ||
+        allProfiles.find(p => p.id === profile?.id)?.team_id === teamObj?.id ||
+        allProfiles.find(p => p.id === profile?.id)?.team === teamObj?.id
+      ));
+    if (teamObj && canViewThisTeam) {
       return <TeamReportView team={teamObj} startDate={startDate} endDate={endDate} />;
     }
   }
@@ -999,11 +1008,23 @@ export default function Reports() {
       })()}
 
       {/* ── Por Equipe ── */}
-      {canViewAllClients && teams.length > 0 && (
+      {canViewAllClients && (() => {
+        const visibleTeams = (isAdmin || isDirector)
+          ? teams
+          : isManager
+            ? teams.filter(t => t.manager_id === profile?.id)
+            : // COORDENADOR: só a equipe a que pertence
+              teams.filter(t =>
+                t.members?.includes(profile?.id ?? '') ||
+                allProfiles.find(p => p.id === profile?.id)?.team_id === t.id ||
+                allProfiles.find(p => p.id === profile?.id)?.team === t.id
+              );
+        if (visibleTeams.length === 0) return null;
+        return (
         <section className="mt-8 print:hidden">
           <SectionHeader title="Relatório por Equipe" subtitle="Análise segmentada por equipe comercial" />
           <div className="grid grid-cols-1 gap-3">
-            {teams.map(team => {
+            {visibleTeams.map(team => {
               const memberCount = new Set([
                 ...(team.members ?? []),
                 ...allProfiles.filter(p => p.team === team.id || p.team_id === team.id).map(p => p.id),
@@ -1032,7 +1053,8 @@ export default function Reports() {
             })}
           </div>
         </section>
-      )}
+        );
+      })()}
 
       {/* ── Export Modal ── */}
       <Modal isOpen={isExportModalOpen} onClose={() => setIsExportModalOpen(false)} title="Exportar Relatório">
