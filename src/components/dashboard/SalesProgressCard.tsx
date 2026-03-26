@@ -45,15 +45,17 @@ function isCurrentMonth(dateStr: string | undefined | null): boolean {
 
 export function SalesProgressCard() {
   const { clients, user, allProfiles } = useApp();
-  const { role } = useAuthorization();
+  const { role, directorateId } = useAuthorization();
 
   const config = COMMISSION_CONFIG[role?.toUpperCase() ?? ''] ?? COMMISSION_CONFIG.CORRETOR;
   const hasTeamCommission = config.teamRate > 0;
 
   // Vendas concluídas no mês corrente
+  // Para DIRETOR: filtra apenas clientes da sua própria diretoria
   const monthlySales = clients
     .filter(c => {
       if (c.stage !== 'Concluído') return false;
+      if (role === 'DIRETOR' && directorateId && (c as any).directorate_id !== directorateId) return false;
       return isCurrentMonth((c as any).updated_at || (c as any).closed_at || c.createdAt);
     })
     .slice(0, 100);
