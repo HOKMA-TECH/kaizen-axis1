@@ -177,6 +177,11 @@ const KEYWORDS_IGNORAR = [
     'TOTAL DE SAIDAS', 'TOTAL DE ENTRADAS',
     // Nubank — transações de saída (valor aparece positivo na linha individual)
     'TRANSFERENCIA ENVIADA', 'ENVIADA PELO PIX',
+    // Nubank — compras no débito e pagamentos (nunca são renda)
+    'COMPRA NO DEBITO', 'COMPRA DEBITO', 'COMPRA NO DEB', 'COMPRA COM CARTAO DE DEBITO',
+    'COMPRA COM CARTAO', 'PAGAMENTO NO DEBITO', 'PAGAMENTO DEBITO',
+    'PAGAMENTO DE FATURA', 'PAGAMENTO FATURA',
+    'SAQUE', 'SAQUE ATM', 'SAQUE 24H', 'SAQUE CAIXA',
 ];
 
 // ── v3: Keywords de apostas/jogos (nova regra 2a) ────────────────────────────
@@ -473,9 +478,26 @@ function extrair(texto: string): Array<{ dataRaw: string; descricaoRaw: string; 
     // Tracker para inferir sinal do Bradesco (matemática de Saldo)
     let saldoAnteriorTracker: number | null = null;
 
+    // Nubank: descrições que indicam débito mesmo quando valor vem positivo no PDF
+    const NUBANK_DEBIT_DESCS = [
+        'COMPRA NO DEBITO', 'COMPRA DEBITO', 'COMPRA NO DEB',
+        'COMPRA COM CARTAO', 'PAGAMENTO NO DEBITO', 'PAGAMENTO DEBITO',
+        'PAGAMENTO DE FATURA', 'PAGAMENTO FATURA',
+        'TRANSFERENCIA ENVIADA', 'PIX ENVIADO', 'ENVIADO PELO PIX',
+        'SAQUE',
+    ];
+
     function add(dataRaw: string, descricaoRaw: string, valorStr: string, isCreditInferred?: boolean) {
         let v = valorStr.replace(/\s+/g, '').replace(/^R\$/i, '').replace(/^-R\$/i, '-');
         if (v.startsWith('+')) v = v.substring(1);
+
+        // Nubank: se a descrição indica débito e o valor veio positivo, negativa
+        if (isCreditInferred === undefined && !v.startsWith('-')) {
+            const descUp = normalizar(descricaoRaw);
+            if (NUBANK_DEBIT_DESCS.some(k => descUp.includes(k))) {
+                v = `-${v}`;
+            }
+        }
 
         // Suportar (D), (C), (+), (-) ou explicitos (com centavos decimais em vírgula ou ponto)
         const mDC = v.match(/^(-?[\d.,]+[.,]\d{2})([CD]|\(\+\)|\(-\)|\+|-)?$/i);
@@ -763,7 +785,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         for (const t of transacoes) {
             // Cria uma assinatura ignorando espaços extras, mantendo apenas alfanuméricos curtos para tolerância
-            const descCurta = t.descricao.replace(/[^A-Z0-9]/ig, '').substring(0, 15).toUpperCase();
+            const descCurta = t.descricao.replace(/[^A-Z0-9]/ig, '').substring(0, 40).toUpperCase();
             const assinatura = `${t.data}_${t.valor}_${descCurta}`;
 
             if (!assinaturas.has(assinatura)) {
