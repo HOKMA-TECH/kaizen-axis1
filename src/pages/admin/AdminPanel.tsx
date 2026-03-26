@@ -8,6 +8,7 @@ import { Navigate, useNavigate } from 'react-router-dom';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, Legend } from 'recharts';
 import { supabase } from '@/lib/supabase';
 import PipelinePdfExport from '@/components/admin/PipelinePdfExport';
+import { useReportsData } from '@/hooks/useReportsData';
 
 type Tab = 'users' | 'teams' | 'goals' | 'announcements' | 'reports' | 'directorates' | 'gamification';
 
@@ -79,6 +80,22 @@ export default function AdminPanel() {
   const [xpReportLoading, setXpReportLoading] = useState(false);
 
   const navigate = useNavigate();
+
+  // ── Client-side metrics (reliable, bypass broken RPC fields) ───────────────
+  const { globalMetrics } = useReportsData({ startDate: reportDateRange.start, endDate: reportDateRange.end });
+
+  const parseCurrencyLocal = (v: string | undefined | null): number => {
+    if (!v) return 0;
+    return parseFloat(v.replace(/[^\d,]/g, '').replace(',', '.')) || 0;
+  };
+
+  const vgvLocal = clients
+    .filter(c => {
+      if (c.stage !== 'Concluído') return false;
+      const created = new Date(c.createdAt);
+      return created >= new Date(reportDateRange.start) && created <= new Date(reportDateRange.end + 'T23:59:59');
+    })
+    .reduce((acc, c) => acc + parseCurrencyLocal(c.intendedValue), 0);
 
   useEffect(() => {
     if (activeTab === 'reports' && reportDateRange.start && reportDateRange.end) {
@@ -724,13 +741,8 @@ export default function AdminPanel() {
                   <PremiumCard className="p-3 bg-gradient-to-br from-gold-50/50 to-white dark:from-gold-900/10 dark:to-surface-800 border-gold-100 shadow-[0_2px_10px_rgba(0,0,0,0.03)] h-28 flex flex-col justify-between">
                     <p className="text-[10px] uppercase font-bold tracking-wider text-gold-600 flex items-center gap-1"><Trophy size={12} /> Vendas</p>
                     <div>
-                      <p className="text-2xl font-bold text-text-primary leading-none">{reportData.resumo_geral.V}</p>
-                      <p className="text-[9px] font-semibold text-text-secondary mt-1.5 flex items-center gap-1">
-                        <span className={reportData.comparativo_mes_atual.crescimento_vendas > 0 ? 'text-green-600' : reportData.comparativo_mes_atual.crescimento_vendas < 0 ? 'text-red-600' : ''}>
-                          {reportData.comparativo_mes_atual.crescimento_vendas > 0 ? '+' : ''}{reportData.comparativo_mes_atual.crescimento_vendas}%
-                        </span>
-                        vs anterior
-                      </p>
+                      <p className="text-2xl font-bold text-text-primary leading-none">{globalMetrics.totalVendas}</p>
+                      <p className="text-[9px] font-semibold text-text-secondary mt-1.5">no período selecionado</p>
                     </div>
                   </PremiumCard>
 
@@ -738,14 +750,9 @@ export default function AdminPanel() {
                     <p className="text-[10px] uppercase font-bold tracking-wider text-green-600 flex items-center gap-1"><TrendingUp size={12} /> VGV</p>
                     <div>
                       <p className="text-xl font-bold text-text-primary leading-none whitespace-nowrap">
-                        {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0, notation: 'compact' }).format(reportData.resumo_geral.R)}
+                        {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0, notation: 'compact' }).format(vgvLocal)}
                       </p>
-                      <p className="text-[9px] font-semibold text-text-secondary mt-1.5 flex items-center gap-1">
-                        <span className={reportData.comparativo_mes_atual.crescimento_receita > 0 ? 'text-green-600' : reportData.comparativo_mes_atual.crescimento_receita < 0 ? 'text-red-600' : ''}>
-                          {reportData.comparativo_mes_atual.crescimento_receita > 0 ? '+' : ''}{reportData.comparativo_mes_atual.crescimento_receita}%
-                        </span>
-                        vs anterior
-                      </p>
+                      <p className="text-[9px] font-semibold text-text-secondary mt-1.5">vendas concluídas</p>
                     </div>
                   </PremiumCard>
 
@@ -753,11 +760,9 @@ export default function AdminPanel() {
                     <p className="text-[10px] uppercase font-bold tracking-wider text-blue-600 flex items-center gap-1"><Target size={12} /> Conversão</p>
                     <div>
                       <div className="flex items-end gap-1 mb-1">
-                        <p className="text-2xl font-bold text-text-primary leading-none">{reportData.resumo_geral.Taxa_Conversao}%</p>
+                        <p className="text-2xl font-bold text-text-primary leading-none">{globalMetrics.taxaConversao.toFixed(1)}%</p>
                       </div>
-                      <p className="text-[9px] font-semibold text-text-secondary bg-white inline-block px-1.5 py-0.5 rounded border border-surface-100/50 shadow-sm mt-0.5 whitespace-nowrap">
-                        T.M: {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0, notation: 'compact' }).format(reportData.resumo_geral.Ticket_Medio)}
-                      </p>
+                      <p className="text-[9px] font-semibold text-text-secondary mt-0.5">vendas / total clientes</p>
                     </div>
                   </PremiumCard>
 
@@ -766,7 +771,7 @@ export default function AdminPanel() {
                       <span className="flex items-center gap-1"><Calendar size={12} /> Jornada</span>
                     </p>
                     <div>
-                      <p className="text-2xl font-bold text-text-primary leading-none">{reportData.resumo_geral.Tempo_Medio_Conversao} <span className="text-[10px] font-bold text-text-secondary tracking-normal">dias</span></p>
+                      <p className="text-2xl font-bold text-text-primary leading-none">{Math.round(globalMetrics.cicloMedioDias)} <span className="text-[10px] font-bold text-text-secondary tracking-normal">dias</span></p>
                       <p className="text-[9px] font-semibold text-text-secondary mt-1.5 flex items-center gap-1">TMC em média</p>
                     </div>
                   </PremiumCard>
