@@ -40,12 +40,12 @@ export function PdfToolConfig({ toolId, config, onChange }: PdfToolConfigProps) 
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Intervalo de Páginas</label>
                 <input
                     type="text"
-                    placeholder="Ex: 1-3,5,8-10"
+                    placeholder="Ex: 1-5, 10, 15-30"
                     value={config.pages || ''}
                     onChange={e => onChange({ ...config, pages: e.target.value })}
                     className="w-full rounded-lg border-gray-300 dark:border-gray-700 bg-white dark:bg-[#202c33] text-gray-900 dark:text-gray-200 focus:ring-gold-500 focus:border-gold-500 text-sm placeholder:text-gray-500"
                 />
-                <p className="text-xs text-gray-500 mt-2">Vírgulas separam, hífens definem intervalos.</p>
+                <p className="text-xs text-gray-500 mt-2">Vírgulas separam, hífens definem intervalos. Sem limite de páginas.</p>
             </div>
         );
     }

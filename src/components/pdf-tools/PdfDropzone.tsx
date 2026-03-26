@@ -9,7 +9,7 @@ interface PdfDropzoneProps {
     maxSizeMB?: number;
 }
 
-export function PdfDropzone({ onFilesAccepted, acceptType, maxFiles = 10, maxSizeMB = 25 }: PdfDropzoneProps) {
+export function PdfDropzone({ onFilesAccepted, acceptType, maxFiles = 10, maxSizeMB = 500 }: PdfDropzoneProps) {
     const maxSize = maxSizeMB * 1024 * 1024;
 
     const onDrop = useCallback((acceptedFiles: File[], fileRejections: FileRejection[]) => {
@@ -50,7 +50,7 @@ export function PdfDropzone({ onFilesAccepted, acceptType, maxFiles = 10, maxSiz
                         Arraste arquivos aqui ou clique para selecionar
                     </p>
                     <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                        {acceptType === 'pdf' ? 'Apenas arquivos PDF' : 'Imagens JPG, PNG, WEBP'}. Max {maxSizeMB}MB
+                        {acceptType === 'pdf' ? 'Apenas arquivos PDF' : 'Imagens JPG, PNG, WEBP'}. Máx {maxSizeMB}MB
                     </p>
                 </div>
             </div>
