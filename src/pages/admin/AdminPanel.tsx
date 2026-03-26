@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { SectionHeader, PremiumCard, RoundedButton } from '@/components/ui/PremiumComponents';
-import { Users, Shield, Target, Megaphone, BarChart3, Plus, Search, Trophy, Download, FileSpreadsheet, FileText, Trash2, Edit2, ChevronDown, Calendar, Loader2, Building2, TrendingUp, Printer, Star, Award, Zap, Flame } from 'lucide-react';
+import { Users, Shield, Target, Megaphone, BarChart3, Plus, Search, Trophy, Download, FileSpreadsheet, FileText, Trash2, Edit2, ChevronDown, Calendar, Loader2, Building2, TrendingUp, Printer, Star, Award, Zap, Flame, MoreHorizontal, FileDown } from 'lucide-react';
 import { Modal } from '@/components/ui/Modal';
 import { useApp, Team, Goal, Announcement, Directorate } from '@/context/AppContext';
 import { useAuthorization } from '@/hooks/useAuthorization';
@@ -61,6 +61,10 @@ export default function AdminPanel() {
   const [editingDir, setEditingDir] = useState<Directorate | null>(null);
   const [dirForm, setDirForm] = useState<Partial<Directorate>>({ name: '', description: '' });
   const [isSavingDir, setIsSavingDir] = useState(false);
+
+  // Extra tools dropdown/modal
+  const [isToolsMenuOpen, setIsToolsMenuOpen] = useState(false);
+  const [isPipelineModalOpen, setIsPipelineModalOpen] = useState(false);
 
   // Reports
   const [reportDateRange, setReportDateRange] = useState({
@@ -660,26 +664,54 @@ export default function AdminPanel() {
       case 'reports':
         return (
           <div className="space-y-6 print:space-y-4">
-            {/* ── Pipeline PDF Export ── */}
-            <PipelinePdfExport corretores={allProfiles} />
+            {/* ── Modal: Pipeline por Corretor ── */}
+            <Modal isOpen={isPipelineModalOpen} onClose={() => setIsPipelineModalOpen(false)} title="Pipeline por Corretor (PDF)">
+              <PipelinePdfExport corretores={allProfiles} />
+            </Modal>
 
-            {/* ── Presence Report shortcut ── */}
-            <div className="print:hidden">
+            {/* ── Extra Tools: "..." button ── */}
+            <div className="print:hidden flex justify-end relative">
               <button
-                onClick={() => navigate('/admin/reports/presence')}
-                className="w-full flex items-center justify-between gap-3 bg-gold-50 dark:bg-gold-900/20 border border-gold-200 dark:border-gold-800 rounded-xl px-4 py-3 hover:bg-gold-100 dark:hover:bg-gold-900/30 transition-colors"
+                onClick={() => setIsToolsMenuOpen(v => !v)}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-surface-200 bg-white dark:bg-surface-100 text-text-secondary hover:text-text-primary hover:border-gold-300 shadow-sm transition-all text-sm font-medium"
               >
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-lg bg-gold-400 flex items-center justify-center">
-                    <BarChart3 size={16} className="text-white" />
-                  </div>
-                  <div className="text-left">
-                    <p className="text-sm font-semibold text-text-primary">Relatório de Presença e Engajamento</p>
-                    <p className="text-xs text-text-secondary">Check-ins, score de engajamento e alertas de ausência</p>
-                  </div>
-                </div>
-                <ChevronDown size={16} className="text-gold-500 -rotate-90 shrink-0" />
+                <MoreHorizontal size={16} />
+                <span>Ferramentas</span>
               </button>
+
+              {isToolsMenuOpen && (
+                <>
+                  {/* backdrop */}
+                  <div className="fixed inset-0 z-10" onClick={() => setIsToolsMenuOpen(false)} />
+                  <div className="absolute right-0 top-full mt-1.5 z-20 w-64 bg-white dark:bg-surface-100 border border-surface-200 rounded-xl shadow-xl overflow-hidden">
+                    <button
+                      onClick={() => { setIsToolsMenuOpen(false); setIsPipelineModalOpen(true); }}
+                      className="w-full flex items-center gap-3 px-4 py-3 hover:bg-surface-50 dark:hover:bg-surface-200 transition-colors text-left"
+                    >
+                      <div className="w-8 h-8 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center shrink-0">
+                        <FileDown size={15} className="text-blue-600 dark:text-blue-400" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-text-primary">Pipeline por Corretor</p>
+                        <p className="text-[11px] text-text-secondary">Exportar PDF dos leads ativos</p>
+                      </div>
+                    </button>
+                    <div className="border-t border-surface-100" />
+                    <button
+                      onClick={() => { setIsToolsMenuOpen(false); navigate('/admin/reports/presence'); }}
+                      className="w-full flex items-center gap-3 px-4 py-3 hover:bg-surface-50 dark:hover:bg-surface-200 transition-colors text-left"
+                    >
+                      <div className="w-8 h-8 rounded-lg bg-gold-100 dark:bg-gold-900/30 flex items-center justify-center shrink-0">
+                        <BarChart3 size={15} className="text-gold-600 dark:text-gold-400" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-text-primary">Presença e Engajamento</p>
+                        <p className="text-[11px] text-text-secondary">Check-ins, score e alertas</p>
+                      </div>
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
 
             <div className="flex flex-col gap-4 print:hidden">
