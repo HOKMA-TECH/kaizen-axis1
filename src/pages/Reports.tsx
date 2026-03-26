@@ -667,7 +667,9 @@ function DiretoriaReportView({
                   <CircularScore score={client.score} />
                   <div>
                     <h4 className="font-bold text-text-primary text-sm">{client.name}</h4>
-                    <p className="text-xs text-text-secondary">{client.stage} • {client.potentialValue}</p>
+                    <p className="text-xs text-text-secondary">
+                      {client.stage}{parseValue(client.potentialValue ?? '') > 0 ? ` • ${brl(parseValue(client.potentialValue ?? ''))}` : ''}
+                    </p>
                   </div>
                 </div>
                 <div className="text-right">
@@ -957,7 +959,9 @@ export default function Reports() {
                   <CircularScore score={client.score} />
                   <div>
                     <h4 className="font-bold text-text-primary text-sm">{client.name}</h4>
-                    <p className="text-xs text-text-secondary">{client.stage} • {client.potentialValue}</p>
+                    <p className="text-xs text-text-secondary">
+                      {client.stage}{parseValue(client.potentialValue ?? '') > 0 ? ` • ${brl(parseValue(client.potentialValue ?? ''))}` : ''}
+                    </p>
                   </div>
                 </div>
                 <div className="text-right">
