@@ -8,40 +8,47 @@ interface ImageScanModalProps {
     onClose: () => void;
 }
 
-// Loads OpenCV.js from CDN (only once)
-function loadOpenCV(): Promise<void> {
+// ─── Load scripts via tag (avoids Vite bundling issues with cv global) ────────
+
+function loadScript(id: string, src: string): Promise<void> {
     return new Promise((resolve, reject) => {
-        if ((window as any).cv?.Mat) {
-            resolve();
+        if (document.getElementById(id)) {
+            resolve(); // already loading or loaded — caller must poll readiness
             return;
         }
-        if (document.getElementById('opencv-script')) {
-            // Already loading — poll until ready
-            const poll = setInterval(() => {
-                if ((window as any).cv?.Mat) {
-                    clearInterval(poll);
-                    resolve();
-                }
-            }, 100);
-            return;
-        }
-        const script = document.createElement('script');
-        script.id = 'opencv-script';
-        script.src = 'https://docs.opencv.org/4.x/opencv.js';
-        script.async = true;
-        script.onload = () => {
-            // OpenCV sets cv['onRuntimeInitialized'] once WASM is ready
-            const waitReady = setInterval(() => {
-                if ((window as any).cv?.Mat) {
-                    clearInterval(waitReady);
-                    resolve();
-                }
-            }, 100);
-        };
-        script.onerror = () => reject(new Error('Falha ao carregar OpenCV.'));
-        document.head.appendChild(script);
+        const s = document.createElement('script');
+        s.id = id;
+        s.src = src;
+        s.async = true;
+        s.onload = () => resolve();
+        s.onerror = () => reject(new Error(`Falha ao carregar: ${src}`));
+        document.head.appendChild(s);
     });
 }
+
+async function loadOpenCV(): Promise<void> {
+    if ((window as any).cv?.Mat) return;
+    await loadScript('opencv-script', 'https://docs.opencv.org/4.x/opencv.js');
+    // Wait for WASM to initialise
+    await new Promise<void>(resolve => {
+        const poll = setInterval(() => {
+            if ((window as any).cv?.Mat) { clearInterval(poll); resolve(); }
+        }, 100);
+    });
+}
+
+async function loadJscanify(): Promise<void> {
+    if ((window as any).jscanify) return;
+    await loadScript('jscanify-script', 'https://unpkg.com/jscanify@1.4.0/src/jscanify.js');
+    // brief poll to ensure class is defined
+    await new Promise<void>(resolve => {
+        const poll = setInterval(() => {
+            if ((window as any).jscanify) { clearInterval(poll); resolve(); }
+        }, 50);
+    });
+}
+
+// ─── Component ────────────────────────────────────────────────────────────────
 
 export function ImageScanModal({ imageFile, onConfirm, onClose }: ImageScanModalProps) {
     const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
@@ -57,7 +64,7 @@ export function ImageScanModal({ imageFile, onConfirm, onClose }: ImageScanModal
             try {
                 setStatus('loading');
 
-                // Draw original image
+                // Draw original image on canvas
                 const img = new Image();
                 const objectUrl = URL.createObjectURL(imageFile);
                 await new Promise<void>((res, rej) => {
@@ -67,50 +74,43 @@ export function ImageScanModal({ imageFile, onConfirm, onClose }: ImageScanModal
                 });
 
                 if (originalCanvasRef.current) {
-                    const ctx = originalCanvasRef.current.getContext('2d')!;
                     originalCanvasRef.current.width = img.naturalWidth;
                     originalCanvasRef.current.height = img.naturalHeight;
-                    ctx.drawImage(img, 0, 0);
+                    originalCanvasRef.current.getContext('2d')!.drawImage(img, 0, 0);
                 }
 
-                // Load OpenCV (may take a few seconds on first use)
+                // Load OpenCV first, then jscanify (depends on cv global)
                 await loadOpenCV();
                 if (cancelled) return;
+                await loadJscanify();
+                if (cancelled) return;
 
-                const cv = (window as any).cv;
-                // @ts-ignore
-                const jscanify = (await import('jscanify')).default;
-                const scanner = new jscanify();
+                const Jscanify = (window as any).jscanify;
+                const scanner = new Jscanify();
 
-                // Load image into cv.Mat via canvas
+                // Source canvas for jscanify
                 const srcCanvas = document.createElement('canvas');
                 srcCanvas.width = img.naturalWidth;
                 srcCanvas.height = img.naturalHeight;
-                const srcCtx = srcCanvas.getContext('2d')!;
-                srcCtx.drawImage(img, 0, 0);
+                srcCanvas.getContext('2d')!.drawImage(img, 0, 0);
 
+                const cv = (window as any).cv;
                 const src = cv.imread(srcCanvas);
                 const contour = scanner.findPaperContour(src);
+                src.delete();
 
-                if (!contour) {
+                if (!contour || contour.rows === 0) {
                     throw new Error('detect_failed');
                 }
 
-                // Extract paper with perspective correction
-                // Output size preserves aspect from the detected contour
-                const resultWidth = img.naturalWidth;
-                const resultHeight = img.naturalHeight;
-                const resultCanvas = scanner.extractPaper(srcCanvas, resultWidth, resultHeight);
-                src.delete();
+                // Extract with perspective correction
+                const resultCanvas = scanner.extractPaper(srcCanvas, img.naturalWidth, img.naturalHeight);
 
-                // Convert result canvas to Blob
+                URL.revokeObjectURL(objectUrl);
+
                 const blob: Blob = await new Promise(res =>
                     resultCanvas.toBlob(b => res(b!), 'image/jpeg', 0.95)
                 );
-
-                const croppedFile = new File([blob], imageFile.name, { type: 'image/jpeg' });
-
-                URL.revokeObjectURL(objectUrl);
 
                 if (!cancelled) {
                     setCroppedDataUrl(resultCanvas.toDataURL('image/jpeg'));
@@ -162,30 +162,33 @@ export function ImageScanModal({ imageFile, onConfirm, onClose }: ImageScanModal
                 <div className="flex-1 overflow-y-auto p-5">
                     {status === 'loading' && (
                         <div className="flex flex-col items-center justify-center py-16 gap-4">
+                            <canvas ref={originalCanvasRef} className="hidden" />
                             <Loader2 size={40} className="animate-spin text-amber-500" />
                             <p className="text-sm text-gray-600 dark:text-gray-400 text-center">
                                 Detectando bordas do documento...
                                 <br />
                                 <span className="text-xs text-gray-400">(Na primeira vez pode demorar alguns segundos para carregar o motor de detecção)</span>
                             </p>
-                            <canvas ref={originalCanvasRef} className="hidden" />
                         </div>
                     )}
 
                     {status === 'error' && (
-                        <div className="flex flex-col items-center justify-center py-12 gap-4">
-                            <div className="w-16 h-16 bg-red-50 dark:bg-red-900/20 rounded-full flex items-center justify-center">
-                                <AlertTriangle size={32} className="text-red-500" />
+                        <>
+                            <canvas ref={originalCanvasRef} className="hidden" />
+                            <div className="flex flex-col items-center justify-center py-12 gap-4">
+                                <div className="w-16 h-16 bg-red-50 dark:bg-red-900/20 rounded-full flex items-center justify-center">
+                                    <AlertTriangle size={32} className="text-red-500" />
+                                </div>
+                                <p className="text-sm text-red-600 dark:text-red-400 text-center whitespace-pre-line">{errorMsg}</p>
                             </div>
-                            <p className="text-sm text-red-600 dark:text-red-400 text-center whitespace-pre-line">{errorMsg}</p>
-                        </div>
+                        </>
                     )}
 
                     {status === 'success' && (
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
                                 <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Original</p>
-                                <canvas ref={originalCanvasRef} className="w-full h-auto rounded-xl border border-gray-200 dark:border-gray-700 object-contain" />
+                                <canvas ref={originalCanvasRef} className="w-full h-auto rounded-xl border border-gray-200 dark:border-gray-700" />
                             </div>
                             <div>
                                 <p className="text-xs font-semibold text-amber-600 dark:text-amber-400 uppercase tracking-wider mb-2 flex items-center gap-1">
@@ -194,7 +197,7 @@ export function ImageScanModal({ imageFile, onConfirm, onClose }: ImageScanModal
                                 <img
                                     src={croppedDataUrl}
                                     alt="Documento recortado"
-                                    className="w-full h-auto rounded-xl border-2 border-amber-400 object-contain"
+                                    className="w-full h-auto rounded-xl border-2 border-amber-400"
                                 />
                             </div>
                         </div>
