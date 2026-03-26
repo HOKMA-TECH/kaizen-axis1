@@ -499,6 +499,21 @@ function extrair(texto: string): Array<{ dataRaw: string; descricaoRaw: string; 
             }
         }
 
+        // Nubank PIX recebido: "Transferência recebida pelo Pix NOME - CPF - 7,00"
+        // O " - " antes do valor é SEPARADOR de campo (não sinal negativo).
+        // O valoresLine regex captura "- 7,00" como negativo → corrigir aqui.
+        if (v.startsWith('-')) {
+            const descUp = normalizar(descricaoRaw);
+            const NUBANK_INCOME_DESCS = [
+                'TRANSFERENCIA RECEBIDA', 'RECEBIDO PELO PIX', 'PIX RECEBIDO',
+                'RECEBIMENTO PIX', 'TED RECEBIDA', 'DOC RECEBIDO', 'TEV RECEBIDA',
+                'DEPOSITO RECEBIDO', 'CREDITO EM CONTA', 'VALOR ADICIONADO',
+            ];
+            if (NUBANK_INCOME_DESCS.some(k => descUp.includes(k))) {
+                v = v.substring(1); // "-7,00" → "7,00"
+            }
+        }
+
         // Suportar (D), (C), (+), (-) ou explicitos (com centavos decimais em vírgula ou ponto)
         const mDC = v.match(/^(-?[\d.,]+[.,]\d{2})([CD]|\(\+\)|\(-\)|\+|-)?$/i);
         if (mDC) {
