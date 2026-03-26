@@ -673,10 +673,9 @@ export default function AdminPanel() {
             <div className="print:hidden flex justify-end relative">
               <button
                 onClick={() => setIsToolsMenuOpen(v => !v)}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-surface-200 bg-white dark:bg-surface-100 text-text-secondary hover:text-text-primary hover:border-gold-300 shadow-sm transition-all text-sm font-medium"
+                className="flex items-center justify-center w-9 h-9 rounded-lg border border-surface-200 bg-white dark:bg-surface-100 text-text-secondary hover:text-text-primary hover:border-gold-300 shadow-sm transition-all"
               >
-                <MoreHorizontal size={16} />
-                <span>Ferramentas</span>
+                <MoreHorizontal size={18} />
               </button>
 
               {isToolsMenuOpen && (
