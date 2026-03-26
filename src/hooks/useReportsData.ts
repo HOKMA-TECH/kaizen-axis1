@@ -82,15 +82,16 @@ export function useReportsData({ startDate, endDate }: UseReportsDataOptions = {
         const totalVendas = vendas.length;
         const taxaConversao = total > 0 ? (totalVendas / total) * 100 : 0;
 
-        // Real average sales cycle from closed_at - created_at
-        const ciclosComDados = vendas.filter(c => c.closed_at);
+        // Real average sales cycle: closed_at → fallback updated_at → fallback createdAt
+        const ciclosComDados = vendas.filter(c => c.closed_at || c.updated_at);
         const cicloMedioDias =
             ciclosComDados.length > 0
                 ? ciclosComDados.reduce((acc, c) => {
+                    const closedDate = c.closed_at || c.updated_at!;
                     const days =
-                        (new Date(c.closed_at!).getTime() - new Date(c.createdAt).getTime()) /
+                        (new Date(closedDate).getTime() - new Date(c.createdAt).getTime()) /
                         (1000 * 60 * 60 * 24);
-                    return acc + days;
+                    return acc + Math.max(0, days);
                 }, 0) / ciclosComDados.length
                 : 0;
 

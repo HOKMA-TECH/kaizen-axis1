@@ -84,16 +84,18 @@ export default function AdminPanel() {
   // ── Client-side metrics (reliable, bypass broken RPC fields) ───────────────
   const { globalMetrics } = useReportsData({ startDate: reportDateRange.start, endDate: reportDateRange.end });
 
+  // Same parser as Reports.tsx — handles "R$ 1.500.000,00" and "1500000,00"
   const parseCurrencyLocal = (v: string | undefined | null): number => {
     if (!v) return 0;
-    return parseFloat(v.replace(/[^\d,]/g, '').replace(',', '.')) || 0;
+    return parseFloat(v.replace(/[R$\s.]/g, '').replace(',', '.')) || 0;
   };
 
+  // VGV: sum intendedValue of concluded clients closed within the selected period
   const vgvLocal = clients
     .filter(c => {
       if (c.stage !== 'Concluído') return false;
-      const created = new Date(c.createdAt);
-      return created >= new Date(reportDateRange.start) && created <= new Date(reportDateRange.end + 'T23:59:59');
+      const closedDate = new Date((c as any).closed_at || (c as any).updated_at || c.createdAt);
+      return closedDate >= new Date(reportDateRange.start) && closedDate <= new Date(reportDateRange.end + 'T23:59:59');
     })
     .reduce((acc, c) => acc + parseCurrencyLocal(c.intendedValue), 0);
 
