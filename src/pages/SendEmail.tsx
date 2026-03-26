@@ -155,28 +155,38 @@ PROFISSÃO: ${found.profession || 'Não informado'}`;
             }
             storagePath = storagePath.startsWith('/') ? storagePath.slice(1) : storagePath;
 
-            // Usa a edge function get-doc-url (service role) para gerar a signed URL.
-            // Isso garante que funciona independente das políticas RLS do Storage.
+            // Tenta via edge function (service role, imune a RLS)
+            let attachSignedUrl: string | null = null;
             const { data: { session } } = await supabase.auth.getSession();
             const token = session?.access_token;
             if (token) {
-              const docRes = await fetch(`${SUPABASE_URL}/functions/v1/get-doc-url`, {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                  'apikey': SUPABASE_ANON_KEY,
-                  'Authorization': `Bearer ${token}`,
-                },
-                body: JSON.stringify({ bucket: 'client-documents', path: storagePath, expiresIn: 300 }),
-              });
-              if (docRes.ok) {
-                const docData = await docRes.json();
-                if (docData.signedUrl) {
-                  base64Content = await urlToBase64(docData.signedUrl);
+              try {
+                const docRes = await fetch(`${SUPABASE_URL}/functions/v1/get-doc-url`, {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'apikey': SUPABASE_ANON_KEY,
+                    'Authorization': `Bearer ${token}`,
+                  },
+                  body: JSON.stringify({ bucket: 'client-documents', path: storagePath, expiresIn: 300 }),
+                });
+                if (docRes.ok) {
+                  const docData = await docRes.json();
+                  attachSignedUrl = docData.signedUrl ?? null;
                 }
-              } else {
-                console.warn(`Falha ao obter URL do anexo "${att.name}":`, await docRes.text());
-              }
+              } catch { /* ignora — usa fallback */ }
+            }
+
+            // Fallback: createSignedUrl direto (requer políticas RLS)
+            if (!attachSignedUrl) {
+              const { data: signedData } = await supabase.storage
+                .from('client-documents')
+                .createSignedUrl(storagePath, 300);
+              attachSignedUrl = signedData?.signedUrl ?? null;
+            }
+
+            if (attachSignedUrl) {
+              base64Content = await urlToBase64(attachSignedUrl);
             }
           }
 

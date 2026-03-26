@@ -111,6 +111,8 @@ export default function ClientDetails() {
     const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
     const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
+    // Tenta via edge function (service role, imune a RLS)
+    let signedUrl: string | null = null;
     try {
       const res = await fetch(`${SUPABASE_URL}/functions/v1/get-doc-url`, {
         method: 'POST',
@@ -121,15 +123,25 @@ export default function ClientDetails() {
         },
         body: JSON.stringify({ bucket: 'client-documents', path: storagePath }),
       });
-      const data = await res.json();
-      if (!res.ok || !data.signedUrl) {
+      if (res.ok) {
+        const data = await res.json();
+        signedUrl = data.signedUrl ?? null;
+      }
+    } catch { /* ignora — usa fallback abaixo */ }
+
+    // Fallback: chama createSignedUrl diretamente (requer políticas RLS)
+    if (!signedUrl) {
+      const { data, error } = await supabase.storage
+        .from('client-documents')
+        .createSignedUrl(storagePath, 3600);
+      if (error || !data?.signedUrl) {
         alert('Erro ao abrir documento.');
         return;
       }
-      window.open(data.signedUrl, '_blank');
-    } catch {
-      alert('Erro ao abrir documento.');
+      signedUrl = data.signedUrl;
     }
+
+    window.open(signedUrl, '_blank');
   };
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
