@@ -613,30 +613,47 @@ function extrair(texto: string): Array<{ dataRaw: string; descricaoRaw: string; 
                 descPura = `${descAcumulada} ${descPura}`.trim();
                 descAcumulada = ''; // limpa o buffer após uso
 
+                // Nubank: pdfjs pode mesclar "Total de entradas/saídas +X,XX" com a linha real
+                // da transação. Quando detectado, stripamos o resumo e usamos o ÚLTIMO valor
+                // (montante da transação) em vez do penúltimo (total do dia).
+                const NUBANK_RESUMO_RE = /^Total\s+de\s+(?:entradas?|sa[ií]das?)\s*/i;
+                let useLastValue = false;
+                if (NUBANK_RESUMO_RE.test(descPura)) {
+                    descPura = descPura.replace(NUBANK_RESUMO_RE, '').trim();
+                    useLastValue = true;
+                }
+
                 if (descPura.length === 0 || /^\d+$/.test(descPura)) continue;
 
                 // Se houver mais de um número e for o layout Bradesco (Valor + Saldo no final)
                 if (valoresLine.length >= 2) {
-                    const ult = valoresLine[valoresLine.length - 1];
-                    const penult = valoresLine[valoresLine.length - 2];
-                    const saldoAtual = parseMoeda(ult[1]);
-                    const valorTransacaoNum = parseMoeda(penult[1]);
+                    if (useLastValue) {
+                        // Nubank merged-line: o último valor é o montante real da transação
+                        const ult = valoresLine[valoresLine.length - 1];
+                        add(dataContextual, descPura, ult[1] + (ult[2] ?? ''));
+                        saldoAnteriorTracker = parseMoeda(ult[1]);
+                    } else {
+                        const ult = valoresLine[valoresLine.length - 1];
+                        const penult = valoresLine[valoresLine.length - 2];
+                        const saldoAtual = parseMoeda(ult[1]);
+                        const valorTransacaoNum = parseMoeda(penult[1]);
 
-                    const strMod = penult[2] ?? '';
+                        const strMod = penult[2] ?? '';
 
-                    let isCreditInferred: boolean | undefined = undefined;
+                        let isCreditInferred: boolean | undefined = undefined;
 
-                    // Se não tiver sinal explícito (D/C/+/-), tentar matemática
-                    if (!strMod.match(/[CD\+\-]/i) && saldoAnteriorTracker !== null) {
-                        if (Math.abs((saldoAnteriorTracker + valorTransacaoNum) - saldoAtual) < 5) {
-                            isCreditInferred = true;
-                        } else if (Math.abs((saldoAnteriorTracker - valorTransacaoNum) - saldoAtual) < 5) {
-                            isCreditInferred = false;
+                        // Se não tiver sinal explícito (D/C/+/-), tentar matemática
+                        if (!strMod.match(/[CD\+\-]/i) && saldoAnteriorTracker !== null) {
+                            if (Math.abs((saldoAnteriorTracker + valorTransacaoNum) - saldoAtual) < 5) {
+                                isCreditInferred = true;
+                            } else if (Math.abs((saldoAnteriorTracker - valorTransacaoNum) - saldoAtual) < 5) {
+                                isCreditInferred = false;
+                            }
                         }
-                    }
 
-                    add(dataContextual, descPura, penult[1] + strMod, isCreditInferred);
-                    saldoAnteriorTracker = saldoAtual;
+                        add(dataContextual, descPura, penult[1] + strMod, isCreditInferred);
+                        saldoAnteriorTracker = saldoAtual;
+                    }
                 } else {
                     // Apenas 1 valor na linha (ex: BB com (+), Nubank, Inter)
                     const vMatch = valoresLine[0];
@@ -689,6 +706,7 @@ function extrair(texto: string): Array<{ dataRaw: string; descricaoRaw: string; 
                 // Assume o penúltimo como o valor se tiver múltiplos (lógica Bradesco) e o último como saldo
                 let targetMatch = valoresMatches[0];
                 let isCreditInferred: boolean | undefined = undefined;
+                let useLastValueNubank = false;
 
                 if (valoresMatches.length >= 2) {
                     const ult = valoresMatches[valoresMatches.length - 1];
@@ -712,8 +730,19 @@ function extrair(texto: string): Array<{ dataRaw: string; descricaoRaw: string; 
                 descPura = `${descAcumulada} ${descPura}`.trim();
                 descAcumulada = '';
 
+                // Nubank: strip "Total de entradas/saídas" prefix merged by pdfjs
+                const NUBANK_RESUMO_RE2 = /^Total\s+de\s+(?:entradas?|sa[ií]das?)\s*/i;
+                if (NUBANK_RESUMO_RE2.test(descPura)) {
+                    descPura = descPura.replace(NUBANK_RESUMO_RE2, '').trim();
+                    useLastValueNubank = true;
+                }
+
+                const valorFinal = useLastValueNubank
+                    ? valoresMatches[valoresMatches.length - 1][1] + (valoresMatches[valoresMatches.length - 1][2] ?? '')
+                    : valorRealNum + suf;
+
                 if (descPura.length > 0 && !/^\d+$/.test(descPura)) {
-                    add(dataContextual, descPura, valorRealNum + suf, isCreditInferred);
+                    add(dataContextual, descPura, valorFinal, useLastValueNubank ? undefined : isCreditInferred);
                 }
             } else {
                 // Linha sem valor financeiro e não é cabeçalho ou saldo.
