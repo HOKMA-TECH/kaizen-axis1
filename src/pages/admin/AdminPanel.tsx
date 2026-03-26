@@ -99,6 +99,33 @@ export default function AdminPanel() {
     })
     .reduce((acc, c) => acc + parseCurrencyLocal(c.intendedValue), 0);
 
+  // Broker ranking computed client-side (RPC Li=0 because leads table is empty per-broker)
+  const localBrokerRanking = (() => {
+    const start = new Date(reportDateRange.start);
+    const end = new Date(reportDateRange.end + 'T23:59:59');
+    const periodClients = clients.filter(c => {
+      const created = new Date(c.createdAt);
+      return created >= start && created <= end;
+    });
+    return allProfiles
+      .map(p => {
+        const bc = periodClients.filter(c => (c as any).owner_id === p.id);
+        if (bc.length === 0) return null;
+        const vi = bc.filter(c => c.stage === 'Concluído').length;
+        const ri = bc.filter(c => c.stage === 'Concluído').reduce((acc, c) => acc + parseCurrencyLocal(c.intendedValue), 0);
+        return {
+          corretor_id: p.id,
+          nome: p.name,
+          Li: bc.length,
+          Vi: vi,
+          Taxa_Conversao_i: Math.round((vi / bc.length) * 100),
+          Ri: ri,
+        };
+      })
+      .filter(Boolean)
+      .sort((a: any, b: any) => b.Vi - a.Vi || b.Ri - a.Ri);
+  })();
+
   useEffect(() => {
     if (activeTab === 'reports' && reportDateRange.start && reportDateRange.end) {
       fetchReportData();
@@ -144,9 +171,9 @@ export default function AdminPanel() {
       });
 
       rows.push([]);
-      rows.push(['Corretores - Nome', 'Leads', 'Vendas', 'Receita', 'Taxa Conversão', 'Ticket Médio']);
-      reportData.performance_corretores.forEach((c: any) => {
-        rows.push([c.nome, c.Li.toString(), c.Vi.toString(), c.Ri.toString(), `${c.Taxa_Conversao_i}%`, c.Ticket_Medio_i.toString()]);
+      rows.push(['Corretores - Nome', 'Clientes', 'Vendas', 'Receita', 'Taxa Conversão']);
+      localBrokerRanking.forEach((c: any) => {
+        rows.push([c.nome, c.Li.toString(), c.Vi.toString(), c.Ri.toString(), `${c.Taxa_Conversao_i}%`]);
       });
 
       const csvContent = "data:text/csv;charset=utf-8,\uFEFF" + rows.map(e => e.join(";")).join("\n");
@@ -827,21 +854,21 @@ export default function AdminPanel() {
                 <PremiumCard className="p-0 overflow-hidden border-surface-100 shadow-[0_2px_10px_rgba(0,0,0,0.02)] mt-4">
                   <div className="p-3 border-b border-surface-100 flex items-center justify-between bg-surface-50">
                     <h4 className="text-[11px] uppercase tracking-wider font-bold text-text-secondary flex items-center gap-1.5"><Trophy size={14} className="text-gold-500" /> Ranking de Corretores</h4>
-                    <span className="text-[10px] font-bold text-text-secondary bg-white px-2 py-0.5 border border-surface-200 rounded-md shadow-sm">{reportData.performance_corretores.length} ativos</span>
+                    <span className="text-[10px] font-bold text-text-secondary bg-white px-2 py-0.5 border border-surface-200 rounded-md shadow-sm">{localBrokerRanking.length} ativos</span>
                   </div>
                   <div className="overflow-x-auto no-scrollbar">
                     <table className="w-full text-left border-collapse min-w-[380px]">
                       <thead>
                         <tr className="bg-white text-text-secondary text-[9px] uppercase tracking-wider border-b border-surface-100">
                           <th className="p-3 font-bold">Corretor</th>
-                          <th className="p-3 font-bold text-center">Leads</th>
+                          <th className="p-3 font-bold text-center">Clientes</th>
                           <th className="p-3 font-bold text-center">Vendas</th>
                           <th className="p-3 font-bold text-center">Conversão</th>
                           <th className="p-3 font-bold text-right">VGV / Receita</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {reportData.performance_corretores.sort((a: any, b: any) => b.Vi - a.Vi || b.Ri - a.Ri).map((c: any, i: number) => (
+                        {localBrokerRanking.map((c: any, i: number) => (
                           <tr key={c.corretor_id} className="border-b border-surface-50 last:border-0 hover:bg-surface-50/50 transition-colors">
                             <td className="p-3 text-[11px] font-bold text-text-primary flex items-center gap-2">
                               {i < 3 ? (
@@ -865,8 +892,8 @@ export default function AdminPanel() {
                             </td>
                           </tr>
                         ))}
-                        {reportData.performance_corretores.length === 0 && (
-                          <tr><td colSpan={6} className="p-8 text-center text-text-secondary text-sm">Nenhum dado de corretor encontrado nesse período.</td></tr>
+                        {localBrokerRanking.length === 0 && (
+                          <tr><td colSpan={5} className="p-8 text-center text-text-secondary text-sm">Nenhum dado de corretor encontrado nesse período.</td></tr>
                         )}
                       </tbody>
                     </table>
