@@ -91,31 +91,45 @@ export default function ClientDetails() {
   const handleOpenDocument = async (rawPath: string) => {
     if (!rawPath) return;
 
-    // Alguns documentos têm o path salvo como URL pública completa do Supabase Storage.
-    // O bucket é privado, então não podemos abrir essas URLs diretamente (400).
-    // Extraímos o path relativo e geramos uma signed URL.
+    // Extrai o path relativo (remove prefixos de URL pública ou signed URL)
     let storagePath = rawPath;
     const PUBLIC_MARKER = '/object/public/client-documents/';
     const SIGN_MARKER   = '/object/sign/client-documents/';
     if (rawPath.includes(PUBLIC_MARKER)) {
       storagePath = rawPath.split(PUBLIC_MARKER)[1];
     } else if (rawPath.includes(SIGN_MARKER)) {
-      // Já era signed URL — extrai só o path (antes do ?)
       storagePath = rawPath.split(SIGN_MARKER)[1].split('?')[0];
     }
-
-    // Remove barra inicial residual
     storagePath = storagePath.startsWith('/') ? storagePath.slice(1) : storagePath;
 
-    const { data, error } = await supabase.storage
-      .from('client-documents')
-      .createSignedUrl(storagePath, 3600);
+    // Usa a edge function get-doc-url (service role) para gerar a signed URL.
+    // Isso garante que funciona independente das políticas RLS do Storage.
+    const { data: { session } } = await supabase.auth.getSession();
+    const token = session?.access_token;
+    if (!token) { alert('Sessão expirada. Faça login novamente.'); return; }
 
-    if (error || !data?.signedUrl) {
+    const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+    const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+    try {
+      const res = await fetch(`${SUPABASE_URL}/functions/v1/get-doc-url`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': SUPABASE_ANON_KEY,
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({ bucket: 'client-documents', path: storagePath }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.signedUrl) {
+        alert('Erro ao abrir documento.');
+        return;
+      }
+      window.open(data.signedUrl, '_blank');
+    } catch {
       alert('Erro ao abrir documento.');
-      return;
     }
-    window.open(data.signedUrl, '_blank');
   };
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {

@@ -155,11 +155,28 @@ PROFISSÃO: ${found.profession || 'Não informado'}`;
             }
             storagePath = storagePath.startsWith('/') ? storagePath.slice(1) : storagePath;
 
-            const { data: signedData } = await supabase.storage
-              .from('client-documents')
-              .createSignedUrl(storagePath, 300);
-            if (signedData?.signedUrl) {
-              base64Content = await urlToBase64(signedData.signedUrl);
+            // Usa a edge function get-doc-url (service role) para gerar a signed URL.
+            // Isso garante que funciona independente das políticas RLS do Storage.
+            const { data: { session } } = await supabase.auth.getSession();
+            const token = session?.access_token;
+            if (token) {
+              const docRes = await fetch(`${SUPABASE_URL}/functions/v1/get-doc-url`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'apikey': SUPABASE_ANON_KEY,
+                  'Authorization': `Bearer ${token}`,
+                },
+                body: JSON.stringify({ bucket: 'client-documents', path: storagePath, expiresIn: 300 }),
+              });
+              if (docRes.ok) {
+                const docData = await docRes.json();
+                if (docData.signedUrl) {
+                  base64Content = await urlToBase64(docData.signedUrl);
+                }
+              } else {
+                console.warn(`Falha ao obter URL do anexo "${att.name}":`, await docRes.text());
+              }
             }
           }
 
