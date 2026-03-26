@@ -8,14 +8,15 @@ export interface ImageToPdfOptions {
 /**
  * Converts multiple images into a single PDF document.
  * Images are scaled to fit the page while preserving their original aspect ratio.
+ * Uses canvas to normalise EXIF orientation (fixes rotated phone photos).
  */
 export async function imageToPdf(files: File[], options: ImageToPdfOptions = { orientation: 'portrait', format: 'a4' }): Promise<Blob> {
     let doc: jsPDF | null = null;
 
     for (let i = 0; i < files.length; i++) {
         const file = files[i];
-        const imgData = await fileToDataUrl(file);
-        const { width: imgW, height: imgH } = await getImageDimensions(imgData);
+        // Draw through canvas so the browser applies EXIF orientation automatically
+        const { dataUrl: imgData, width: imgW, height: imgH } = await fileToNormalisedDataUrl(file);
         const imgAspect = imgW / imgH;
 
         if (options.format === 'fit') {
@@ -75,24 +76,33 @@ export async function imageToPdf(files: File[], options: ImageToPdfOptions = { o
 
 function getImgType(file: File): string {
     if (file.type === 'image/png')  return 'PNG';
-    if (file.type === 'image/webp') return 'WEBP';
-    return 'JPEG';
+    return 'JPEG'; // WEBP and JPEG both safe as JPEG output from canvas
 }
 
-function fileToDataUrl(file: File): Promise<string> {
+/**
+ * Loads a File through a canvas so the browser applies EXIF orientation
+ * automatically. Returns a JPEG data URL with the correct orientation
+ * plus the post-rotation dimensions.
+ */
+function fileToNormalisedDataUrl(file: File): Promise<{ dataUrl: string; width: number; height: number }> {
     return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = (e) => resolve(e.target?.result as string);
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-    });
-}
-
-function getImageDimensions(dataUrl: string): Promise<{ width: number; height: number }> {
-    return new Promise((resolve, reject) => {
+        const objectUrl = URL.createObjectURL(file);
         const img = new Image();
-        img.onload  = () => resolve({ width: img.naturalWidth, height: img.naturalHeight });
-        img.onerror = reject;
-        img.src     = dataUrl;
+        img.onload = () => {
+            // naturalWidth/Height are already post-EXIF in modern browsers
+            const canvas = document.createElement('canvas');
+            canvas.width  = img.naturalWidth;
+            canvas.height = img.naturalHeight;
+            const ctx = canvas.getContext('2d')!;
+            ctx.drawImage(img, 0, 0);
+            URL.revokeObjectURL(objectUrl);
+            resolve({
+                dataUrl: canvas.toDataURL('image/jpeg', 0.95),
+                width:   img.naturalWidth,
+                height:  img.naturalHeight,
+            });
+        };
+        img.onerror = () => { URL.revokeObjectURL(objectUrl); reject(new Error('Falha ao carregar imagem')); };
+        img.src = objectUrl;
     });
 }
