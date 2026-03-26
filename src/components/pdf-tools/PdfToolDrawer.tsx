@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Reorder } from 'framer-motion';
-import { X, Loader2, CheckCircle2, Download, Database, Trash2, FileText, GripVertical } from 'lucide-react';
+import { X, Loader2, CheckCircle2, Download, Database, Trash2, FileText, GripVertical, ScanLine } from 'lucide-react';
 import { PDFToolType } from '@/pages/PdfTools';
 import { PdfDropzone } from './PdfDropzone';
 import { PdfToolConfig } from './PdfToolConfig';
 import { SaveDocumentModal } from './SaveDocumentModal';
+import { ImageScanModal } from './ImageScanModal';
 import { saveAs } from 'file-saver';
 
 // Import PDF function libraries
@@ -37,6 +38,7 @@ export function PdfToolDrawer({ tool, isOpen, onClose }: PdfToolDrawerProps) {
     const [generatedFileName, setGeneratedFileName] = useState<string>('');
     const [config, setConfig] = useState<any>({});
     const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
+    const [scanTarget, setScanTarget] = useState<FileItem | null>(null);
 
     useEffect(() => {
         if (!isOpen) return;
@@ -174,6 +176,16 @@ export function PdfToolDrawer({ tool, isOpen, onClose }: PdfToolDrawerProps) {
                                                         <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{item.file.name}</p>
                                                         <p className="text-xs text-gray-400">{(item.file.size / 1024 / 1024).toFixed(2)} MB</p>
                                                     </div>
+                                                    {/* Auto-Recortar: only for image files in image-to-pdf */}
+                                                    {tool.id === 'image-to-pdf' && item.previewUrl && (
+                                                        <button
+                                                            onClick={() => setScanTarget(item)}
+                                                            title="Auto-Recortar documento"
+                                                            className="p-1.5 text-amber-500 hover:text-amber-700 hover:bg-amber-50 dark:hover:bg-amber-900/20 rounded-lg transition-colors flex-shrink-0"
+                                                        >
+                                                            <ScanLine size={15} />
+                                                        </button>
+                                                    )}
                                                     <button
                                                         onClick={() => setFiles(files.filter(f => f.id !== item.id))}
                                                         className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors flex-shrink-0"
@@ -250,6 +262,23 @@ export function PdfToolDrawer({ tool, isOpen, onClose }: PdfToolDrawerProps) {
                 fileBlob={generatedBlob}
                 fileName={generatedFileName}
             />
+
+            {/* Auto-Scan Modal */}
+            {scanTarget && (
+                <ImageScanModal
+                    imageFile={scanTarget.file}
+                    onConfirm={(croppedFile) => {
+                        const newPreviewUrl = URL.createObjectURL(croppedFile);
+                        setFiles(prev => prev.map(f =>
+                            f.id === scanTarget.id
+                                ? { ...f, file: croppedFile, previewUrl: newPreviewUrl }
+                                : f
+                        ));
+                        setScanTarget(null);
+                    }}
+                    onClose={() => setScanTarget(null)}
+                />
+            )}
         </>,
         document.body
     );

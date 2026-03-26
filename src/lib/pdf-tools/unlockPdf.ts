@@ -5,12 +5,27 @@ import { PDFDocument } from 'pdf-lib';
  * Returns a new PDF blob without the password.
  */
 export async function unlockPdf(file: File, password: string): Promise<Blob> {
+    if (!password || password.trim().length === 0) {
+        throw new Error('Por favor, informe a senha atual do PDF.');
+    }
+
     const arrayBuffer = await file.arrayBuffer();
 
-    // PDF-lib supports decrypting a document if you provide the correct password
-    const pdf = await PDFDocument.load(arrayBuffer, { password });
+    let pdf: PDFDocument;
+    try {
+        pdf = await PDFDocument.load(arrayBuffer, { password });
+    } catch (err: any) {
+        const msg = String(err?.message ?? err).toLowerCase();
+        if (msg.includes('password') || msg.includes('incorrect') || msg.includes('encrypted') || msg.includes('decrypt')) {
+            throw new Error('Senha incorreta. Verifique a senha e tente novamente.');
+        }
+        if (msg.includes('not encrypted') || msg.includes('no password')) {
+            throw new Error('Este PDF não está protegido por senha.');
+        }
+        throw new Error('Não foi possível abrir o PDF. Verifique o arquivo e a senha.');
+    }
 
-    // Save it back. By default, pdf-lib saves docs without encryption.
+    // Save without encryption (pdf-lib default)
     const pdfBytes = await pdf.save();
     return new Blob([pdfBytes], { type: 'application/pdf' });
 }
