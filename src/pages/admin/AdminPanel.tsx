@@ -752,7 +752,7 @@ export default function AdminPanel() {
                     <p className="text-[10px] uppercase font-bold tracking-wider text-green-600 flex items-center gap-1"><TrendingUp size={12} /> VGV</p>
                     <div>
                       <p className="text-xl font-bold text-text-primary leading-none whitespace-nowrap">
-                        {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0, notation: 'compact' }).format(vgvLocal)}
+                        {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 1, maximumFractionDigits: 1, notation: 'compact' }).format(vgvLocal)}
                       </p>
                       <p className="text-[9px] font-semibold text-text-secondary mt-1.5">vendas concluídas</p>
                     </div>
