@@ -188,7 +188,7 @@ function TeamReportView({
         const rc = rowIdx % 2 === 0 ? white : light;
         page.drawRectangle({ x: MARGIN, y: y - 14 + 5, width: COL_W, height: 16, color: rc });
         page.drawText(String(i + 1), { x: MARGIN + 4, y: y - 8, size: 7, font: regular, color: dark });
-        page.drawText((broker.name ?? '-').slice(0, 35), { x: MARGIN + 30, y: y - 8, size: 7, font: regular, color: dark });
+        page.drawText((broker.name ?? '-').slice(0, 42), { x: MARGIN + 30, y: y - 8, size: 7, font: regular, color: dark });
         page.drawText(String(broker.total), { x: MARGIN + 280, y: y - 8, size: 7, font: regular, color: dark });
         page.drawText(String(broker.vendas), { x: MARGIN + 350, y: y - 8, size: 7, font: regular, color: dark });
         page.drawText(`${conv}%`, { x: MARGIN + 420, y: y - 8, size: 7, font: regular, color: dark });
@@ -1025,8 +1025,8 @@ export default function Reports() {
           for (const hs of healthScores) {
             const rc = rowIdx % 2 === 0 ? white : light;
             page.drawRectangle({ x: MARGIN, y: y - 14 + 5, width: COL_W, height: 16, color: rc });
-            page.drawText((hs.name ?? '—').slice(0, 35), { x: MARGIN + 4, y: y - 8, size: 7, font: regular, color: dark });
-            page.drawText((hs.stage ?? '—').slice(0, 20), { x: MARGIN + 250, y: y - 8, size: 7, font: regular, color: dark });
+            page.drawText((hs.name ?? '—').slice(0, 45), { x: MARGIN + 4, y: y - 8, size: 7, font: regular, color: dark });
+            page.drawText((hs.stage ?? '—').slice(0, 24), { x: MARGIN + 250, y: y - 8, size: 7, font: regular, color: dark });
             page.drawText(String(hs.score), { x: MARGIN + 430, y: y - 8, size: 7, font: regular, color: dark });
             y -= 14;
             rowIdx++;

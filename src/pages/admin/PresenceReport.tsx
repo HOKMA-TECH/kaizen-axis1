@@ -13,6 +13,7 @@ import { useApp } from '@/context/AppContext';
 import { useAuthorization } from '@/hooks/useAuthorization';
 import { supabase } from '@/lib/supabase';
 import { X } from 'lucide-react';
+import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -117,6 +118,7 @@ export default function PresenceReport() {
   // ── Data ────────────────────────────────────────────────────────────────────
   const [data, setData] = useState<ReportData | null>(null);
   const [loading, setLoading] = useState(false);
+  const [pdfLoading, setPdfLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Unique teams from corretores
@@ -197,127 +199,199 @@ export default function PresenceReport() {
   const exportPDF = async () => {
     if (!data) return;
     const { start, end } = getDateRange();
-    const { default: jsPDF } = await import('jspdf');
-    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+    setPdfLoading(true);
+    try {
+      const pdfDoc = await PDFDocument.create();
+      const bold    = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+      const regular = await pdfDoc.embedFont(StandardFonts.Helvetica);
+      const PAGE_W = 595, PAGE_H = 842, MARGIN = 36;
+      const COL_W  = PAGE_W - MARGIN * 2;
+      const gold   = rgb(0.82, 0.66, 0.18);
+      const dark   = rgb(0.10, 0.10, 0.10);
+      const gray   = rgb(0.45, 0.45, 0.45);
+      const light  = rgb(0.96, 0.96, 0.96);
+      const white  = rgb(1, 1, 1);
+      const red    = rgb(0.75, 0.15, 0.15);
 
-    const W = doc.internal.pageSize.getWidth();
-    const m = 14;
-    const cw = W - m * 2;
-    let y = 18;
+      let page = pdfDoc.addPage([PAGE_W, PAGE_H]);
+      let y = PAGE_H - MARGIN;
 
-    const nl = () => { if (y > 272) { doc.addPage(); y = 18; } };
+      // ── Cabeçalho ──
+      page.drawRectangle({ x: 0, y: PAGE_H - 70, width: PAGE_W, height: 70, color: dark });
+      page.drawText('Relatorio de Presenca', { x: MARGIN, y: PAGE_H - 30, size: 16, font: bold, color: gold });
+      page.drawText(`Periodo: ${fmtDate(start)} – ${fmtDate(end)}`, { x: MARGIN, y: PAGE_H - 48, size: 10, font: regular, color: white });
+      page.drawText(`Gerado em: ${new Date().toLocaleDateString('pt-BR')}`, { x: MARGIN, y: PAGE_H - 63, size: 9, font: regular, color: rgb(0.75, 0.75, 0.75) });
+      y = PAGE_H - 90;
 
-    // ── Cabeçalho ──
-    doc.setFontSize(16); doc.setFont('helvetica', 'bold'); doc.setTextColor(20, 20, 20);
-    doc.text('Relatório de Presença', m, y); y += 6;
-    doc.setFontSize(8); doc.setFont('helvetica', 'normal'); doc.setTextColor(130, 130, 130);
-    doc.text(
-      `Período: ${fmtDate(start)} – ${fmtDate(end)}   |   Gerado em: ${new Date().toLocaleDateString('pt-BR')}`,
-      m, y,
-    ); y += 7;
-    doc.setDrawColor(212, 160, 23); doc.setLineWidth(0.4); doc.line(m, y, W - m, y); y += 8;
+      // ── Métricas ──
+      page.drawText('METRICAS', { x: MARGIN, y, size: 10, font: bold, color: gold });
+      y -= 18;
+      for (const [label, value] of [
+        ['Total Check-ins', String(data.metrics.total_checkins)],
+        ['Usuarios Ativos (7d)', String(data.metrics.usuarios_ativos)],
+        ['Usuarios Inativos', String(data.metrics.usuarios_inativos)],
+        ['Media Diaria', String(data.metrics.media_diaria)],
+      ] as [string, string][]) {
+        page.drawText(`${label}:`, { x: MARGIN, y, size: 9, font: bold, color: dark });
+        page.drawText(value, { x: MARGIN + 170, y, size: 9, font: regular, color: dark });
+        y -= 14;
+      }
+      y -= 8;
+      page.drawRectangle({ x: MARGIN, y, width: COL_W, height: 0.5, color: rgb(0.85, 0.85, 0.85) });
+      y -= 16;
 
-    // ── Métricas ──
-    doc.setFontSize(10); doc.setFont('helvetica', 'bold'); doc.setTextColor(20, 20, 20);
-    doc.text('Métricas', m, y); y += 5;
-    const mw = cw / 4;
-    [
-      ['Total Check-ins', String(data.metrics.total_checkins)],
-      ['Ativos (7d)', String(data.metrics.usuarios_ativos)],
-      ['Inativos', String(data.metrics.usuarios_inativos)],
-      ['Média/dia', String(data.metrics.media_diaria)],
-    ].forEach(([lbl, val], i) => {
-      const mx = m + i * mw;
-      doc.setFillColor(248, 248, 248);
-      doc.roundedRect(mx, y, mw - 2, 14, 1.5, 1.5, 'F');
-      doc.setFontSize(7); doc.setFont('helvetica', 'normal'); doc.setTextColor(110, 110, 110);
-      doc.text(lbl, mx + (mw - 2) / 2, y + 4.5, { align: 'center' });
-      doc.setFontSize(12); doc.setFont('helvetica', 'bold'); doc.setTextColor(20, 20, 20);
-      doc.text(val, mx + (mw - 2) / 2, y + 11, { align: 'center' });
-    });
-    y += 20;
+      // ── Helper: tabela genérica ──
+      const ROW_H = 16, HDR_H = 18;
+      type TblCol = { label: string; w: number };
 
-    // ── Helpers de tabela ──
-    type Col = { text: string; w: number };
-    const ROW_H = 6;
+      const drawTableHeader = (pg: ReturnType<typeof pdfDoc.addPage>, startY: number, cols: TblCol[]) => {
+        pg.drawRectangle({ x: MARGIN, y: startY - HDR_H + 4, width: COL_W, height: HDR_H, color: dark });
+        let cx = MARGIN + 4;
+        for (const col of cols) {
+          pg.drawText(col.label, { x: cx, y: startY - 9, size: 7, font: bold, color: white });
+          cx += col.w;
+        }
+        return startY - HDR_H;
+      };
 
-    const thead = (cols: Col[]) => {
-      nl();
-      doc.setFillColor(245, 245, 245); doc.rect(m, y - ROW_H + 1, cw, ROW_H + 1, 'F');
-      doc.setFontSize(7.5); doc.setFont('helvetica', 'bold'); doc.setTextColor(90, 90, 90);
-      let x = m + 1.5;
-      cols.forEach(c => { doc.text(c.text, x, y); x += c.w; });
-      y += ROW_H;
-    };
+      const drawTableRow = (pg: ReturnType<typeof pdfDoc.addPage>, startY: number, cells: string[], cols: TblCol[], rowIdx: number) => {
+        const rc = rowIdx % 2 === 0 ? white : light;
+        pg.drawRectangle({ x: MARGIN, y: startY - ROW_H + 5, width: COL_W, height: ROW_H, color: rc });
+        let cx = MARGIN + 4;
+        for (let i = 0; i < cols.length; i++) {
+          pg.drawText(cells[i] ?? '—', { x: cx, y: startY - 8, size: 7, font: regular, color: dark });
+          cx += cols[i].w;
+        }
+        return startY - ROW_H;
+      };
 
-    const trow = (cells: Col[], alt: boolean) => {
-      nl();
-      if (alt) { doc.setFillColor(252, 252, 252); doc.rect(m, y - ROW_H + 1, cw, ROW_H, 'F'); }
-      doc.setFontSize(8); doc.setFont('helvetica', 'normal'); doc.setTextColor(25, 25, 25);
-      let x = m + 1.5;
-      cells.forEach(c => {
-        const maxChars = Math.max(3, Math.floor(c.w / 1.9));
-        const txt = c.text.length > maxChars ? c.text.slice(0, maxChars - 1) + '…' : c.text;
-        doc.text(txt, x, y); x += c.w;
+      // ── Ranking de Presença ──
+      page.drawText('RANKING DE PRESENCA', { x: MARGIN, y, size: 10, font: bold, color: gold });
+      y -= 16;
+
+      const rankCols: TblCol[] = [
+        { label: '#',        w: 20  },
+        { label: 'Nome',     w: 140 },
+        { label: 'Dias',     w: 40  },
+        { label: 'Taxa%',    w: 45  },
+        { label: 'Ult. CI',  w: 60  },
+        { label: 'Score',    w: 40  },
+        { label: 'Nivel',    w: 40  },
+      ];
+
+      y = drawTableHeader(page, y, rankCols);
+      let rowIdx = 0;
+
+      for (const [i, row] of data.ranking.entries()) {
+        if (y < MARGIN + ROW_H + 20) {
+          page = pdfDoc.addPage([PAGE_W, PAGE_H]);
+          y = PAGE_H - MARGIN;
+          page.drawText('Relatorio de Presenca (continuacao)', { x: MARGIN, y, size: 8, font: regular, color: gray });
+          y -= 14;
+          y = drawTableHeader(page, y, rankCols);
+          rowIdx = 0;
+        }
+        y = drawTableRow(page, y, [
+          String(i + 1),
+          (row.name ?? '—').slice(0, 24),
+          String(row.dias_presenca),
+          `${row.taxa_presenca}%`,
+          fmtDate(row.ultimo_checkin),
+          String(row.score),
+          classify(row.score).label,
+        ], rankCols, rowIdx);
+        rowIdx++;
+      }
+
+      y -= 10;
+      page.drawRectangle({ x: MARGIN, y, width: COL_W, height: 0.5, color: rgb(0.85, 0.85, 0.85) });
+      y -= 16;
+
+      // ── Score de Engajamento ──
+      if (y < MARGIN + 60) {
+        page = pdfDoc.addPage([PAGE_W, PAGE_H]);
+        y = PAGE_H - MARGIN;
+      }
+
+      page.drawText('SCORE DE ENGAJAMENTO', { x: MARGIN, y, size: 10, font: bold, color: gold });
+      y -= 16;
+
+      const engCols: TblCol[] = [
+        { label: 'Nome',     w: 160 },
+        { label: 'Presenca', w: 60  },
+        { label: 'Leads',    w: 55  },
+        { label: 'Vendas',   w: 55  },
+        { label: 'Score',    w: 45  },
+        { label: 'Nivel',    w: 48  },
+      ];
+
+      y = drawTableHeader(page, y, engCols);
+      rowIdx = 0;
+
+      for (const row of [...data.ranking].sort((a, b) => b.score - a.score)) {
+        if (y < MARGIN + ROW_H + 20) {
+          page = pdfDoc.addPage([PAGE_W, PAGE_H]);
+          y = PAGE_H - MARGIN;
+          page.drawText('Score de Engajamento (continuacao)', { x: MARGIN, y, size: 8, font: regular, color: gray });
+          y -= 14;
+          y = drawTableHeader(page, y, engCols);
+          rowIdx = 0;
+        }
+        y = drawTableRow(page, y, [
+          (row.name ?? '—').slice(0, 28),
+          String(row.dias_presenca),
+          String(row.leads_atendidos),
+          String(row.vendas),
+          String(row.score),
+          classify(row.score).label,
+        ], engCols, rowIdx);
+        rowIdx++;
+      }
+
+      // ── Alertas de Ausência ──
+      if (data.alerts.length > 0) {
+        if (y < MARGIN + 60) {
+          page = pdfDoc.addPage([PAGE_W, PAGE_H]);
+          y = PAGE_H - MARGIN;
+        }
+        y -= 10;
+        page.drawRectangle({ x: MARGIN, y, width: COL_W, height: 0.5, color: rgb(0.85, 0.85, 0.85) });
+        y -= 16;
+        page.drawText(`ALERTAS DE AUSENCIA (${data.alerts.length})`, { x: MARGIN, y, size: 10, font: bold, color: red });
+        y -= 16;
+        for (const a of data.alerts) {
+          if (y < MARGIN + 14) {
+            page = pdfDoc.addPage([PAGE_W, PAGE_H]);
+            y = PAGE_H - MARGIN;
+          }
+          page.drawText(`• ${(a.name ?? '').slice(0, 42)}  —  ausente ha ${a.dias_ausente} dias`, { x: MARGIN, y, size: 9, font: regular, color: red });
+          y -= 13;
+        }
+      }
+
+      // ── Rodapé em todas as páginas ──
+      const pages = pdfDoc.getPages();
+      pages.forEach((pg, idx) => {
+        pg.drawText(`Kaizen Axis — Confidencial  |  Pagina ${idx + 1} de ${pages.length}`, {
+          x: MARGIN, y: 18, size: 7, font: regular, color: gray,
+        });
       });
-      y += ROW_H;
-    };
 
-    // ── Ranking de Presença ──
-    doc.setFontSize(10); doc.setFont('helvetica', 'bold'); doc.setTextColor(20, 20, 20);
-    doc.text('Ranking de Presença', m, y); y += 5;
-    const rCols: Col[] = [
-      { text: '#', w: 8 }, { text: 'Nome', w: 55 }, { text: 'Dias', w: 20 },
-      { text: 'Taxa%', w: 20 }, { text: 'Último CI', w: 28 }, { text: 'Score', w: 22 }, { text: 'Nível', w: 29 },
-    ];
-    thead(rCols);
-    data.ranking.forEach((row, i) => {
-      trow([
-        { text: String(i + 1), w: 8 },
-        { text: row.name, w: 55 },
-        { text: String(row.dias_presenca), w: 20 },
-        { text: `${row.taxa_presenca}%`, w: 20 },
-        { text: fmtDate(row.ultimo_checkin), w: 28 },
-        { text: String(row.score), w: 22 },
-        { text: classify(row.score).label, w: 29 },
-      ], i % 2 === 1);
-    });
-    y += 6;
+      // ── Download ──
+      const pdfBytes = await pdfDoc.save();
+      const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `presenca_${start}_${end}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
 
-    // ── Score de Engajamento ──
-    nl();
-    doc.setFontSize(10); doc.setFont('helvetica', 'bold'); doc.setTextColor(20, 20, 20);
-    doc.text('Score de Engajamento', m, y); y += 5;
-    const sCols: Col[] = [
-      { text: 'Nome', w: 58 }, { text: 'Presença', w: 26 }, { text: 'Leads', w: 24 },
-      { text: 'Vendas', w: 24 }, { text: 'Score', w: 24 }, { text: 'Nível', w: 26 },
-    ];
-    thead(sCols);
-    [...data.ranking].sort((a, b) => b.score - a.score).forEach((row, i) => {
-      trow([
-        { text: row.name, w: 58 },
-        { text: String(row.dias_presenca), w: 26 },
-        { text: String(row.leads_atendidos), w: 24 },
-        { text: String(row.vendas), w: 24 },
-        { text: String(row.score), w: 24 },
-        { text: classify(row.score).label, w: 26 },
-      ], i % 2 === 1);
-    });
-
-    // ── Alertas de Ausência ──
-    if (data.alerts.length > 0) {
-      y += 8; nl();
-      doc.setFontSize(10); doc.setFont('helvetica', 'bold'); doc.setTextColor(20, 20, 20);
-      doc.text(`Alertas de Ausência (${data.alerts.length})`, m, y); y += 6;
-      doc.setFontSize(8.5); doc.setFont('helvetica', 'normal');
-      data.alerts.forEach(a => {
-        nl();
-        doc.setTextColor(190, 35, 35);
-        doc.text(`• ${a.name}  —  ausente há ${a.dias_ausente} dias`, m + 2, y); y += 5.5;
-      });
+    } catch (err: any) {
+      alert(`Erro ao gerar PDF: ${err.message}`);
+    } finally {
+      setPdfLoading(false);
     }
-
-    doc.save(`presenca_${start}_${end}.pdf`);
   };
 
   // ── Modal logic ────────────────────────────────────────────────────────
@@ -361,9 +435,9 @@ export default function PresenceReport() {
             </div>
           </div>
         </div>
-        <RoundedButton size="sm" variant="outline" onClick={exportPDF} disabled={!data}>
-          <Download size={14} />
-          Exportar PDF
+        <RoundedButton size="sm" variant="outline" onClick={exportPDF} disabled={!data || pdfLoading}>
+          {pdfLoading ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
+          {pdfLoading ? 'Gerando...' : 'Exportar PDF'}
         </RoundedButton>
       </div>
 
