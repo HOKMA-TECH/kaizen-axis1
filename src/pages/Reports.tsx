@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 import { SectionHeader, PremiumCard, RoundedButton, StatusBadge } from '@/components/ui/PremiumComponents';
 import { MetricCard } from '@/components/reports/MetricCard';
 import { CircularScore } from '@/components/reports/CircularScore';
@@ -53,6 +54,7 @@ function TeamReportView({
   const navigate = useNavigate();
   const { allProfiles, clients } = useApp();
   const [selectedBrokerId, setSelectedBrokerId] = useState<string | null>(null);
+  const [pdfLoading, setPdfLoading] = useState(false);
 
   // Members of this team:
   // - team.members[] is the authoritative list (set by the approval flow)
@@ -110,6 +112,106 @@ function TeamReportView({
     ? 'text-green-600' : taxaConversao >= 30
       ? 'text-gold-600' : 'text-red-500';
 
+  const handleDownloadPdf = async () => {
+    setPdfLoading(true);
+    try {
+      const pdfDoc = await PDFDocument.create();
+      const bold    = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+      const regular = await pdfDoc.embedFont(StandardFonts.Helvetica);
+      const PAGE_W = 595, PAGE_H = 842, MARGIN = 36;
+      const COL_W  = PAGE_W - MARGIN * 2;
+      const gold   = rgb(0.82, 0.66, 0.18);
+      const dark   = rgb(0.10, 0.10, 0.10);
+      const gray   = rgb(0.45, 0.45, 0.45);
+      const light  = rgb(0.96, 0.96, 0.96);
+      const white  = rgb(1, 1, 1);
+      const brlFmt = (n: number) => n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 });
+
+      const page = pdfDoc.addPage([PAGE_W, PAGE_H]);
+      let y = PAGE_H - MARGIN;
+
+      page.drawRectangle({ x: 0, y: PAGE_H - 70, width: PAGE_W, height: 70, color: dark });
+      page.drawText('Relatorio por Equipe', { x: MARGIN, y: PAGE_H - 30, size: 16, font: bold, color: gold });
+      page.drawText(`Equipe: ${team.name}`, { x: MARGIN, y: PAGE_H - 48, size: 10, font: regular, color: white });
+      page.drawText(`Gerado em: ${new Date().toLocaleDateString('pt-BR')}`, { x: MARGIN, y: PAGE_H - 63, size: 9, font: regular, color: rgb(0.75, 0.75, 0.75) });
+      y = PAGE_H - 90;
+
+      page.drawText('RESUMO DA EQUIPE', { x: MARGIN, y, size: 10, font: bold, color: gold });
+      y -= 18;
+      for (const [label, value] of [
+        ['Total de Clientes', String(totalClientes)],
+        ['Vendas Concluidas', String(vendas)],
+        ['Aprovados', String(aprovados)],
+        ['Taxa de Conversao', `${taxaConversao}%`],
+        ['VGV Concluido', brlFmt(vgv)],
+      ] as [string, string][]) {
+        page.drawText(`${label}:`, { x: MARGIN, y, size: 9, font: bold, color: dark });
+        page.drawText(value, { x: MARGIN + 150, y, size: 9, font: regular, color: dark });
+        y -= 14;
+      }
+      y -= 8;
+      page.drawRectangle({ x: MARGIN, y, width: COL_W, height: 0.5, color: rgb(0.85, 0.85, 0.85) });
+      y -= 16;
+
+      page.drawText('PIPELINE POR ETAPA', { x: MARGIN, y, size: 10, font: bold, color: gold });
+      y -= 16;
+      page.drawRectangle({ x: MARGIN, y: y - 14 + 4, width: COL_W, height: 18, color: dark });
+      for (const [txt, px] of [['Etapa', MARGIN + 4], ['Clientes', MARGIN + 260], ['%', MARGIN + 360]] as [string, number][]) {
+        page.drawText(txt, { x: px, y: y - 9, size: 7, font: bold, color: white });
+      }
+      y -= 14;
+      let rowIdx = 0;
+      for (const [stage, count] of Object.entries(byStage).sort((a, b) => (b[1] as number) - (a[1] as number))) {
+        const pct = totalClientes > 0 ? Math.round(((count as number) / totalClientes) * 100) : 0;
+        const rc = rowIdx % 2 === 0 ? white : light;
+        page.drawRectangle({ x: MARGIN, y: y - 14 + 5, width: COL_W, height: 16, color: rc });
+        page.drawText(stage, { x: MARGIN + 4, y: y - 8, size: 7, font: regular, color: dark });
+        page.drawText(String(count), { x: MARGIN + 260, y: y - 8, size: 7, font: regular, color: dark });
+        page.drawText(`${pct}%`, { x: MARGIN + 360, y: y - 8, size: 7, font: regular, color: dark });
+        y -= 14;
+        rowIdx++;
+      }
+      y -= 10;
+      page.drawRectangle({ x: MARGIN, y, width: COL_W, height: 0.5, color: rgb(0.85, 0.85, 0.85) });
+      y -= 16;
+
+      page.drawText('RANKING DE CORRETORES', { x: MARGIN, y, size: 10, font: bold, color: gold });
+      y -= 16;
+      page.drawRectangle({ x: MARGIN, y: y - 14 + 4, width: COL_W, height: 18, color: dark });
+      for (const [txt, px] of [['Pos.', MARGIN + 4], ['Nome', MARGIN + 30], ['Clientes', MARGIN + 280], ['Vendas', MARGIN + 350], ['Conv.%', MARGIN + 420]] as [string, number][]) {
+        page.drawText(txt, { x: px, y: y - 9, size: 7, font: bold, color: white });
+      }
+      y -= 14;
+      rowIdx = 0;
+      for (const [i, broker] of brokerRanking.entries()) {
+        const conv = broker.total > 0 ? Math.round((broker.vendas / broker.total) * 100) : 0;
+        const rc = rowIdx % 2 === 0 ? white : light;
+        page.drawRectangle({ x: MARGIN, y: y - 14 + 5, width: COL_W, height: 16, color: rc });
+        page.drawText(String(i + 1), { x: MARGIN + 4, y: y - 8, size: 7, font: regular, color: dark });
+        page.drawText((broker.name ?? '-').slice(0, 35), { x: MARGIN + 30, y: y - 8, size: 7, font: regular, color: dark });
+        page.drawText(String(broker.total), { x: MARGIN + 280, y: y - 8, size: 7, font: regular, color: dark });
+        page.drawText(String(broker.vendas), { x: MARGIN + 350, y: y - 8, size: 7, font: regular, color: dark });
+        page.drawText(`${conv}%`, { x: MARGIN + 420, y: y - 8, size: 7, font: regular, color: dark });
+        y -= 14;
+        rowIdx++;
+      }
+      page.drawText('Kaizen Axis - Confidencial  |  Pagina 1 de 1', { x: MARGIN, y: 18, size: 7, font: regular, color: gray });
+
+      const pdfBytes = await pdfDoc.save();
+      const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `relatorio-equipe-${team.name.replace(/\s+/g, '-')}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err: any) {
+      alert(`Erro ao gerar PDF: ${err.message}`);
+    } finally {
+      setPdfLoading(false);
+    }
+  };
+
   return (
     <div className="p-6 pb-24 min-h-screen bg-surface-50">
       {/* Header */}
@@ -131,6 +233,14 @@ function TeamReportView({
             </div>
           </div>
         </div>
+        <button
+          onClick={handleDownloadPdf}
+          disabled={pdfLoading}
+          className="flex items-center gap-1.5 px-3 py-2 bg-white dark:bg-surface-100 border border-surface-200 rounded-lg text-sm font-medium text-text-secondary hover:text-gold-600 shadow-sm transition-colors disabled:opacity-50"
+        >
+          {pdfLoading ? <Loader2 size={15} className="animate-spin" /> : <Download size={15} />}
+          {pdfLoading ? 'Gerando...' : 'PDF'}
+        </button>
       </div>
 
       {/* Summary cards */}
@@ -838,7 +948,7 @@ export default function Reports() {
     } else alert('Por favor, selecione as datas de início e fim.');
   };
 
-  const handleExport = (format: 'pdf' | 'excel') => {
+  const handleExport = async (format: 'pdf' | 'excel') => {
     const fileName = `relatorio_estrategico_${new Date().toISOString().split('T')[0]}.${format === 'excel' ? 'csv' : 'pdf'}`;
     if (format === 'excel') {
       const headers = ['Cliente', 'Estágio', 'Valor Potencial', 'Health Score'];
@@ -852,7 +962,91 @@ export default function Reports() {
       link.click();
     } else {
       setIsExportModalOpen(false);
-      setTimeout(() => { window.print(); }, 150);
+      try {
+        const pdfDoc = await PDFDocument.create();
+        const bold    = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+        const regular = await pdfDoc.embedFont(StandardFonts.Helvetica);
+        const PAGE_W = 595, PAGE_H = 842, MARGIN = 36;
+        const COL_W  = PAGE_W - MARGIN * 2;
+        const gold   = rgb(0.82, 0.66, 0.18);
+        const dark   = rgb(0.10, 0.10, 0.10);
+        const gray   = rgb(0.45, 0.45, 0.45);
+        const light  = rgb(0.96, 0.96, 0.96);
+        const white  = rgb(1, 1, 1);
+        const brlFmt = (n: number) => n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 });
+
+        const page = pdfDoc.addPage([PAGE_W, PAGE_H]);
+        let y = PAGE_H - MARGIN;
+
+        // Cabeçalho
+        page.drawRectangle({ x: 0, y: PAGE_H - 70, width: PAGE_W, height: 70, color: dark });
+        page.drawText('Relatorio Estrategico - Visao Global', { x: MARGIN, y: PAGE_H - 30, size: 16, font: bold, color: gold });
+        page.drawText(`Periodo: ${period}`, { x: MARGIN, y: PAGE_H - 48, size: 10, font: regular, color: white });
+        page.drawText(`Gerado em: ${new Date().toLocaleDateString('pt-BR')}`, { x: MARGIN, y: PAGE_H - 63, size: 9, font: regular, color: rgb(0.75, 0.75, 0.75) });
+        y = PAGE_H - 90;
+
+        // Indicadores
+        page.drawText('INDICADORES DO PERIODO', { x: MARGIN, y, size: 10, font: bold, color: gold });
+        y -= 18;
+        for (const [label, value] of [
+          ['Vendas Totais', String(globalMetrics.totalVendas)],
+          ['Novos Leads', String(globalMetrics.novosLeads)],
+          ['Taxa de Conversao', `${globalMetrics.taxaConversao.toFixed(1)}%`],
+          ['Ciclo Medio de Vendas', globalMetrics.cicloMedioDias > 0 ? `${globalMetrics.cicloMedioDias} dias` : '—'],
+        ] as [string, string][]) {
+          page.drawText(`${label}:`, { x: MARGIN, y, size: 9, font: bold, color: dark });
+          page.drawText(value, { x: MARGIN + 170, y, size: 9, font: regular, color: dark });
+          y -= 14;
+        }
+        y -= 8;
+        page.drawRectangle({ x: MARGIN, y, width: COL_W, height: 0.5, color: rgb(0.85, 0.85, 0.85) });
+        y -= 16;
+
+        // Forecast
+        page.drawText('FORECAST COMERCIAL (PIPELINE PONDERADO)', { x: MARGIN, y, size: 10, font: bold, color: gold });
+        y -= 18;
+        page.drawText('Pipeline Ponderado Total:', { x: MARGIN, y, size: 9, font: bold, color: dark });
+        page.drawText(brlFmt(forecastTotal), { x: MARGIN + 170, y, size: 9, font: regular, color: dark });
+        y -= 14;
+        y -= 8;
+        page.drawRectangle({ x: MARGIN, y, width: COL_W, height: 0.5, color: rgb(0.85, 0.85, 0.85) });
+        y -= 16;
+
+        // Health Score
+        page.drawText('HEALTH SCORE — TOP CLIENTES', { x: MARGIN, y, size: 10, font: bold, color: gold });
+        y -= 16;
+        if (healthScores.length > 0) {
+          page.drawRectangle({ x: MARGIN, y: y - 14 + 4, width: COL_W, height: 18, color: dark });
+          for (const [txt, px] of [['Cliente', MARGIN + 4], ['Etapa', MARGIN + 250], ['Score', MARGIN + 430]] as [string, number][]) {
+            page.drawText(txt, { x: px, y: y - 9, size: 7, font: bold, color: white });
+          }
+          y -= 14;
+          let rowIdx = 0;
+          for (const hs of healthScores) {
+            const rc = rowIdx % 2 === 0 ? white : light;
+            page.drawRectangle({ x: MARGIN, y: y - 14 + 5, width: COL_W, height: 16, color: rc });
+            page.drawText((hs.name ?? '—').slice(0, 35), { x: MARGIN + 4, y: y - 8, size: 7, font: regular, color: dark });
+            page.drawText((hs.stage ?? '—').slice(0, 20), { x: MARGIN + 250, y: y - 8, size: 7, font: regular, color: dark });
+            page.drawText(String(hs.score), { x: MARGIN + 430, y: y - 8, size: 7, font: regular, color: dark });
+            y -= 14;
+            rowIdx++;
+          }
+        }
+
+        // Rodapé
+        page.drawText('Kaizen Axis - Confidencial  |  Pagina 1 de 1', { x: MARGIN, y: 18, size: 7, font: regular, color: gray });
+
+        const pdfBytes = await pdfDoc.save();
+        const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = fileName;
+        a.click();
+        URL.revokeObjectURL(url);
+      } catch (err: any) {
+        alert(`Erro ao gerar PDF: ${err.message}`);
+      }
     }
   };
 

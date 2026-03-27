@@ -140,7 +140,7 @@ export default function PresenceReport() {
       if (filterTeam && p.team !== filterTeam) return false;
       return true;
     })
-    .sort((a, b) => a.name.localeCompare(b.name));
+    .sort((a, b) => (a.name ?? '').localeCompare(b.name ?? ''));
 
   // Directorate name lookup
   const dirName = (id: string | null) =>

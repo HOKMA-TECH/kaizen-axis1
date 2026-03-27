@@ -210,7 +210,7 @@ export default function PipelinePdfExport({ corretores }: Props) {
         <option value="">Selecione um corretor...</option>
         {corretores
           .filter(p => p.role?.toUpperCase() === 'CORRETOR')
-          .sort((a, b) => a.name.localeCompare(b.name))
+          .sort((a, b) => (a.name ?? '').localeCompare(b.name ?? ''))
           .map(p => <option key={p.id} value={p.id}>{p.name}</option>)
         }
       </select>
