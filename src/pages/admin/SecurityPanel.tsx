@@ -13,7 +13,6 @@ interface AuditLog {
   user_id?: string | null;
   created_at: string;
   ip_address?: string | null;
-  device_info?: string | null;
 }
 
 interface SecurityEvent {
@@ -173,4 +172,91 @@ export default function SecurityPanel() {
             <div className="space-y-3 max-h-[320px] overflow-y-auto pr-2">
               {failedLogins.map(log => (
                 <div key={log.id} className="p-3 rounded-xl border border-red-100 bg-red-50/40">
-                  <p className="text-sm font-semibold text-red-700">{log.metadata?.email || log.user_id || 'Usuário'
+                  <p className="text-sm font-semibold text-red-700">{log.metadata?.email || log.user_id || 'Usuário'}</p>
+                  <p clas
+                  <p className="text-xs text-red-600">{formatDate(log.created_at)} · {log.ip_address || 'IP desconhecido'}</p>
+                  {log.metadata?.reason && (
+                    <p className="text-xs text-text-secondary mt-1">Erro: {log.metadata.reason}</p>
+                  )}
+                </div>
+              ))}
+              {failedLogins.length === 0 && <p className="text-sm text-text-secondary">Sem falhas de login.</p>}
+            </div>
+          </PremiumCard>
+        </div>
+
+        <PremiumCard>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-base font-semibold text-text-primary flex items-center gap-2">
+              <DownloadCloud size={18} /> Downloads recentes
+            </h3>
+            <span className="text-xs text-text-secondary">Monitoramento automático</span>
+          </div>
+          <div className="grid md:grid-cols-2 gap-3">
+            {documentDownloads.slice(0, 10).map(log => (
+              <div key={log.id} className="p-3 rounded-xl border border-surface-100">
+                <p className="text-sm font-semibold">{log.metadata?.client_id || log.entity_id}</p>
+                <p className="text-xs text-text-secondary">{formatDate(log.created_at)}</p>
+                <p className="text-xs text-text-secondary">IP {log.ip_address || 'desconhecido'}</p>
+              </div>
+            ))}
+            {documentDownloads.length === 0 && <p className="text-sm text-text-secondary">Nenhum download registrado.</p>}
+          </div>
+        </PremiumCard>
+
+        <SectionHeader title="Eventos suspeitos" subtitle="Alertas gerados automaticamente" />
+        <PremiumCard>
+          <div className="space-y-3">
+            {securityEvents.length === 0 && <p className="text-sm text-text-secondary">Nenhum evento suspeito registrado.</p>}
+            {securityEvents.map(event => (
+              <div key={event.id} className="p-4 rounded-xl border border-surface-100">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-semibold text-text-primary">{event.description || event.event_type}</p>
+                  <span className={`text-xs font-bold px-3 py-1 rounded-full ${severityBadge[event.severity] || 'bg-surface-100'}`}>
+                    {event.severity.toUpperCase()}
+                  </span>
+                </div>
+                <p className="text-xs text-text-secondary mt-1">{formatDate(event.created_at)}</p>
+                {event.metadata && (
+                  <pre className="text-[11px] bg-surface-50 rounded-lg mt-2 p-2 overflow-x-auto text-text-secondary">
+                    {JSON.stringify(event.metadata, null, 2)}
+                  </pre>
+                )}
+              </div>
+            ))}
+          </div>
+        </PremiumCard>
+
+        <SectionHeader title="Linha do tempo" subtitle="Selecione uma categoria para filtrar os eventos" />
+        <div className="flex flex-wrap gap-2">
+          {ACTION_FILTERS.map(option => (
+            <button
+              key={option.value}
+              onClick={() => setFilter(option.value)}
+              className={`px-4 py-2 rounded-full text-xs font-semibold border ${filter === option.value ? 'bg-gold-500 text-white border-gold-500' : 'border-surface-200 text-text-secondary'}`}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+
+        <PremiumCard>
+          <div className="space-y-3 max-h-[480px] overflow-y-auto pr-2">
+            {filteredActivity.length === 0 && <p className="text-sm text-text-secondary">Sem registros para o filtro selecionado.</p>}
+            {filteredActivity.map(log => (
+              <div key={log.id} className="p-4 border border-surface-100 rounded-xl">
+                <p className="text-sm font-semibold text-text-primary">{log.action}</p>
+                <p className="text-xs text-text-secondary">{formatDate(log.created_at)} · {log.ip_address || 'IP desconhecido'}</p>
+                {log.metadata && (
+                  <pre className="text-[11px] bg-surface-50 rounded-lg mt-2 p-2 overflow-x-auto text-text-secondary">
+                    {JSON.stringify(log.metadata, null, 2)}
+                  </pre>
+                )}
+              </div>
+            ))}
+          </div>
+        </PremiumCard>
+      </div>
+    </div>
+  );
+}
