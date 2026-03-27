@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
-import { ShieldCheck, AlertTriangle, DownloadCloud, RefreshCcw, ChevronLeft } from 'lucide-react';
+import { ShieldCheck, AlertTriangle, DownloadCloud, RefreshCcw, ChevronLeft, LogIn } from 'lucide-react';
 import { PremiumCard, SectionHeader } from '@/components/ui/PremiumComponents';
 
 interface AuditLog {
@@ -56,7 +56,7 @@ export default function SecurityPanel() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [{ data: auditData, error: auditError }, { data: eventsData, error: eventsError }, { data: loginData }, { data: failedData }, { data: downloadData }] = await Promise.all([
+      const [auditRes, eventsRes, recentRes, failedRes, downloadRes] = await Promise.all([
         supabase.from('audit_logs').select('*').order('created_at', { ascending: false }).limit(120),
         supabase.from('security_events').select('*').order('created_at', { ascending: false }).limit(40),
         supabase.from('audit_logs').select('*').eq('action', 'login_success').order('created_at', { ascending: false }).limit(20),
@@ -64,14 +64,14 @@ export default function SecurityPanel() {
         supabase.from('audit_logs').select('*').eq('action', 'document_downloaded').order('created_at', { ascending: false }).limit(20),
       ]);
 
-      if (auditError) throw auditError;
-      if (eventsError) throw eventsError;
+      if (auditRes.error) throw auditRes.error;
+      if (eventsRes.error) throw eventsRes.error;
 
-      setAuditLogs(auditData || []);
-      setSecurityEvents(eventsData || []);
-      setRecentLogins(loginData || []);
-      setFailedLogins(failedData || []);
-      setDocumentDownloads(downloadData || []);
+      setAuditLogs(auditRes.data || []);
+      setSecurityEvents(eventsRes.data || []);
+      setRecentLogins(recentRes.data || []);
+      setFailedLogins(failedRes.data || []);
+      setDocumentDownloads(downloadRes.data || []);
     } catch (err) {
       console.error('Erro ao carregar painel de segurança:', err);
       alert('Não foi possível carregar os dados de segurança.');
@@ -173,4 +173,4 @@ export default function SecurityPanel() {
             <div className="space-y-3 max-h-[320px] overflow-y-auto pr-2">
               {failedLogins.map(log => (
                 <div key={log.id} className="p-3 rounded-xl border border-red-100 bg-red-50/40">
-                  <p className="text-sm font-semibold t
+                  <p className="text-sm font-semibold text-red-700">{log.metadata?.email || log.user_id || 'Usuário'
