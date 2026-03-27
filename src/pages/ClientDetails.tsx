@@ -8,6 +8,7 @@ import { Modal } from '@/components/ui/Modal';
 import { useApp } from '@/context/AppContext';
 import { useAuthorization } from '@/hooks/useAuthorization';
 import { supabase } from '@/lib/supabase';
+import { logAuditEvent } from '@/services/auditLogger';
 import { ClientHierarchyTags } from '@/components/ui/ClientHierarchyTags';
 
 export default function ClientDetails() {
@@ -37,6 +38,12 @@ export default function ClientDetails() {
       setEditForm(found);
     }
   }, [id, getClient, clients]);
+
+  useEffect(() => {
+    if (id && client) {
+      logAuditEvent({ action: 'client_view', entity: 'client', entityId: id });
+    }
+  }, [id, client?.id]);
 
   const handleStageChange = async (newStage: ClientStage) => {
     if (!client || !id) return;
@@ -141,6 +148,12 @@ export default function ClientDetails() {
       signedUrl = data.signedUrl;
     }
 
+    logAuditEvent({
+      action: 'document_downloaded',
+      entity: 'client_document',
+      entityId: storagePath,
+      metadata: { client_id: id }
+    });
     window.open(signedUrl, '_blank');
   };
 

@@ -2,6 +2,8 @@ import React, { createContext, useContext, useState, useCallback, useEffect } fr
 import { Client } from '@/data/clients';
 import { AutomationLead } from '@/data/leads';
 import { supabase } from '@/lib/supabase';
+import { logAuditEvent } from '@/services/auditLogger';
+import { rateLimiter } from '@/services/rateLimiter';
 import { Session, User } from '@supabase/supabase-js';
 import confetti from 'canvas-confetti';
 
@@ -376,14 +378,23 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const { error } = await supabase.from('profiles').update(data).eq('id', id);
       if (error) throw error;
       await refreshProfiles();
+      logAuditEvent({
+        action: data.role ? 'permissions_updated' : 'profile_updated',
+        entity: 'profile',
+        entityId: id,
+        userId: userRef.current?.id || null,
+        metadata: data
+      });
     } catch (e) {
       console.error('Erro ao atualizar profile:', e);
     }
   }, [refreshProfiles]);
 
   const signOut = async () => {
+    const uid = userRef.current?.id || null;
     await supabase.auth.signOut();
     localStorage.removeItem('isAuthenticated');
+    logAuditEvent({ action: 'logout', entity: 'auth', userId: uid });
   };
 
   // ─── Clients ──────────────────────────────────────────────────────────────
@@ -461,6 +472,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const role = String(rawRole).toUpperCase();
       const uid = userRef.current?.id;
 
+      try {
+        await rateLimiter.enforce('clients_query', { userId: uid || null });
+      } catch (err: any) {
+        setLoading(false);
+        alert(err?.message || 'Limite de consultas atingido. Aguarde um minuto.');
+        return;
+      }
+
       let query = supabase
         .from('clients')
         .select('*, history:client_history(*), documents:client_documents(*)')
@@ -523,6 +542,21 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       if (leadError) throw leadError;
 
       await Promise.all([refreshLeads(), refreshClients()]);
+      const actingUser = userRef.current?.id || null;
+      logAuditEvent({
+        action: 'client_created',
+        entity: 'client',
+        entityId: newClient.id,
+        userId: actingUser,
+        metadata: { source: 'lead_conversion' }
+      });
+      logAuditEvent({
+        action: 'lead_converted',
+        entity: 'lead',
+        entityId: leadId,
+        userId: actingUser,
+        metadata: { client_id: newClient.id }
+      });
       return { success: true, clientId: newClient.id };
     } catch (e: any) {
       console.error('Erro ao converter lead:', e);
@@ -543,6 +577,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       if (error) throw error;
       await supabase.from('client_history').insert([{ client_id: newClient.id, action: 'Cliente criado', user_name: userName }]);
       await refreshClients();
+      logAuditEvent({
+        action: 'client_created',
+        entity: 'client',
+        entityId: newClient.id,
+        userId: user?.id || null,
+        metadata: { stage: data.stage }
+      });
       return newClient;
     } catch (e: any) { console.error('Erro ao adicionar cliente:', e); throw e; }
   }, [userName, refreshClients, user, profile]);
@@ -581,6 +622,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         await supabase.from('client_history').insert([{ client_id: id, action: `Estágio alterado para ${data.stage}`, user_name: userName }]);
       }
       await refreshClients();
+      logAuditEvent({
+        action: 'client_updated',
+        entity: 'client',
+        entityId: id,
+        userId: userRef.current?.id || null,
+        metadata: { fields: Object.keys(updatePayload) }
+      });
     } catch (e) {
       console.error('Erro ao atualizar cliente:', e);
       throw e; // re-throw so callers can handle/show error
@@ -592,6 +640,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const { error } = await supabase.from('clients').delete().eq('id', id);
       if (error) throw error;
       await refreshClients();
+      logAuditEvent({ action: 'client_deleted', entity: 'client', entityId: id, userId: userRef.current?.id || null });
     } catch (e) { console.error('Erro ao deletar cliente:', e); }
   }, [refreshClients]);
 
@@ -600,10 +649,20 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   // ─── Storage ──────────────────────────────────────────────────────────────
 
   const uploadFile = async (file: File, path: string, bucket = 'documents'): Promise<string | null> => {
+    const targetBucket = bucket || 'documents';
     try {
+      if (targetBucket === 'client-documents') {
+        try {
+          await rateLimiter.enforce('document_upload', { userId: userRef.current?.id || null });
+        } catch (err: any) {
+          alert(err?.message || 'Limite de upload atingido. Aguarde instantes e tente novamente.');
+          return null;
+        }
+      }
+
       // Remove accents and special characters to prevent Supabase Storage "Invalid key" errors
       const sanitizedPath = path.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9.\-_/]/g, '_');
-      const { data, error } = await supabase.storage.from(bucket).upload(sanitizedPath, file, {
+      const { data, error } = await supabase.storage.from(targetBucket).upload(sanitizedPath, file, {
         upsert: true,
         contentType: file.type
       });
@@ -620,6 +679,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const { error } = await supabase.from('client_documents').insert([{ client_id: clientId, name, url: path }]);
       if (error) return { success: false, error: error.message };
       await refreshClients();
+      logAuditEvent({
+        action: 'document_uploaded',
+        entity: 'client_document',
+        entityId: clientId,
+        userId: userRef.current?.id || null,
+        metadata: { name, path }
+      });
       return { success: true };
     } catch (e: any) {
       console.error('Erro ao adicionar documento:', e);
@@ -641,6 +707,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       if (error) return { success: false, error: error.message };
 
       await refreshClients();
+      logAuditEvent({
+        action: 'document_deleted',
+        entity: 'client_document',
+        entityId: docId,
+        userId: userRef.current?.id || null,
+        metadata: { path: filePath }
+      });
       return { success: true };
     } catch (e: any) {
       console.error('Erro ao deletar documento:', e);
@@ -651,6 +724,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const getDownloadUrl = async (path: string, bucket = 'documents'): Promise<string | null> => {
     const { data, error } = await supabase.storage.from(bucket).createSignedUrl(path, 60);
     if (error) { console.error('Erro ao gerar link:', error); return null; }
+    if (bucket === 'client-documents' && data?.signedUrl) {
+      logAuditEvent({
+        action: 'document_downloaded',
+        entity: 'client_document',
+        entityId: path,
+        userId: userRef.current?.id || null
+      });
+    }
     return data.signedUrl;
   };
 

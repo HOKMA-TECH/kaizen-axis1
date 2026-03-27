@@ -6,6 +6,7 @@ import { Client } from '@/data/clients';
 import { EmailInput } from '@/components/ui/EmailInput';
 import { useApp } from '@/context/AppContext';
 import { supabase } from '@/lib/supabase';
+import { logAuditEvent } from '@/services/auditLogger';
 
 interface Attachment {
   name: string;
@@ -187,6 +188,12 @@ PROFISSÃO: ${found.profession || 'Não informado'}`;
 
             if (attachSignedUrl) {
               base64Content = await urlToBase64(attachSignedUrl);
+              logAuditEvent({
+                action: 'document_downloaded',
+                entity: 'client_document',
+                entityId: storagePath,
+                metadata: { client_id: id, context: 'email_attachment' }
+              });
             }
           }
 

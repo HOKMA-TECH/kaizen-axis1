@@ -122,16 +122,16 @@ export default function NewClient() {
     if (newClient !== null && newClient !== undefined) {
       localStorage.removeItem(DRAFT_KEY);
       // Upload documents if any
-      if (documents.length > 0) {
-        let hasError = false;
-        for (const file of documents) {
-          const filePath = `${newClient.id}/${Date.now()}-${file.name}`;
-          const uploadedPath = await uploadFile(file, filePath);
-          if (uploadedPath) {
-            const dbResult = await addDocumentToClient(newClient.id, file.name, uploadedPath);
-            if (!dbResult.success) {
-              hasError = true;
-              console.error(dbResult.error);
+          if (documents.length > 0) {
+            let hasError = false;
+            for (const file of documents) {
+              const filePath = `${newClient.id}/${Date.now()}-${file.name}`;
+              const uploadedPath = await uploadFile(file, filePath, 'client-documents');
+              if (uploadedPath) {
+                const dbResult = await addDocumentToClient(newClient.id, file.name, uploadedPath);
+                if (!dbResult.success) {
+                  hasError = true;
+                  console.error(dbResult.error);
             }
           } else {
             hasError = true;

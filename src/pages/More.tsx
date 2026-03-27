@@ -1,5 +1,5 @@
 import { PremiumCard, SectionHeader } from '@/components/ui/PremiumComponents';
-import { Building2, CheckSquare, GraduationCap, Calculator, Settings, ChevronRight, BarChart3, Lock, FileType, Globe, QrCode, Home } from 'lucide-react';
+import { Building2, CheckSquare, GraduationCap, Calculator, Settings, ChevronRight, BarChart3, Lock, FileType, Globe, QrCode, Home, Shield } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuthorization } from '@/hooks/useAuthorization';
 
@@ -40,6 +40,21 @@ export default function More() {
                 <div className="flex-1">
                   <h3 className="font-bold text-white">Painel Administrativo</h3>
                   <p className="text-xs text-gray-300">Governança e Controle</p>
+                </div>
+                <ChevronRight size={20} className="text-gray-400" />
+              </PremiumCard>
+            )}
+            {(isAdmin || isDirector) && (
+              <PremiumCard
+                className="flex items-center gap-4 p-4 bg-gradient-to-r from-slate-900 to-slate-800 text-white border-none cursor-pointer"
+                onClick={() => navigate('/admin/security')}
+              >
+                <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center backdrop-blur-sm">
+                  <Shield size={20} className="text-emerald-300" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-bold text-white">Painel de Segurança</h3>
+                  <p className="text-xs text-gray-300">Monitoramento e auditoria</p>
                 </div>
                 <ChevronRight size={20} className="text-gray-400" />
               </PremiumCard>

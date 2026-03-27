@@ -2,6 +2,8 @@ import { useState, useEffect, useRef } from 'react';
 import { X, Search, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useApp } from '@/context/AppContext';
+import { logAuditEvent } from '@/services/auditLogger';
+import { rateLimiter } from '@/services/rateLimiter';
 
 interface SaveDocumentModalProps {
     isOpen: boolean;
@@ -70,6 +72,15 @@ export function SaveDocumentModal({ isOpen, onClose, fileBlob, fileName }: SaveD
         setErrorMsg('');
 
         try {
+            try {
+                await rateLimiter.enforce('document_upload', { userId: profile?.id || null });
+            } catch (err: any) {
+                setErrorMsg(err?.message || 'Limite de upload atingido. Aguarde instantes.');
+                setSaveStatus('error');
+                setIsSaving(false);
+                return;
+            }
+
             const finalName = `${editableName.trim() || 'Documento Sem Nome'}${fileExt}`;
             const extForStorage = fileExt.replace('.', '');
             const storagePath = `${selectedClient.id}/${Date.now()}.${extForStorage}`;
@@ -96,11 +107,6 @@ export function SaveDocumentModal({ isOpen, onClose, fileBlob, fileName }: SaveD
                 throw new Error(`Erro no Upload: ${uploadError.message || uploadError}`);
             }
 
-            // Get public URL
-            const { data: urlData } = supabase.storage
-                .from('client-documents')
-                .getPublicUrl(storagePath);
-
             // Insert record
             const { error: dbError } = await supabase
                 .from('client_documents')
@@ -108,7 +114,7 @@ export function SaveDocumentModal({ isOpen, onClose, fileBlob, fileName }: SaveD
                     client_id: selectedClient.id,
                     name: finalName,
                     type: docType,
-                    url: urlData.publicUrl,
+                    url: storagePath,
                     created_by: profile?.id ?? null,
                 });
 
@@ -117,6 +123,13 @@ export function SaveDocumentModal({ isOpen, onClose, fileBlob, fileName }: SaveD
             }
 
             await refreshClients();
+            logAuditEvent({
+                action: 'document_uploaded',
+                entity: 'client_document',
+                entityId: selectedClient.id,
+                userId: profile?.id || null,
+                metadata: { name: finalName, path: storagePath, origin: 'pdf_tools_modal' }
+            });
 
             setSaveStatus('success');
             setTimeout(() => onClose(), 1500);

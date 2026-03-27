@@ -11,6 +11,7 @@ import * as pdfjsLib from 'pdfjs-dist';
 import { jsPDF } from 'jspdf';
 import { Modal } from '@/components/ui/Modal';
 import { useApp } from '@/context/AppContext';
+import { logAuditEvent } from '@/services/auditLogger';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
 
@@ -666,14 +667,19 @@ export default function IncomeAnalysis() {
           .upload(storagePath, fileObj, { contentType: 'application/pdf', upsert: false });
 
         if (!uploadError) {
-          const { data: urlData } = supabase.storage.from('client-documents').getPublicUrl(storagePath);
-
           await supabase.from('client_documents').insert({
             client_id: clienteVinculado || null,
             name: `Apuracao de Renda - ${new Date().toLocaleString('pt-BR').split(' ')[0].replace(/\//g, '-')}.pdf`,
             type: 'Comprovante de Renda',
-            url: urlData.publicUrl,
+            url: storagePath,
             created_by: user?.id ?? null,
+          });
+          logAuditEvent({
+            action: 'document_uploaded',
+            entity: 'client_document',
+            entityId: clienteVinculado || undefined,
+            userId: user?.id || null,
+            metadata: { storagePath, origin: 'income_analysis' }
           });
         } else {
           console.error('Erro ao fazer upload do PDF da apuração:', uploadError);

@@ -22,7 +22,7 @@ function errJson(msg: string, status = 400) {
 // recorrente de "Erro ao abrir documento" causado por políticas perdidas.
 //
 // Body: { bucket: string; path: string; expiresIn?: number }
-// Auth: Authorization: Bearer <user_jwt>
+// Auth: apikey: <SUPABASE_ANON_KEY>  (não depende de JWT do usuário — sem expiração)
 // Returns: { signedUrl: string }
 // ─────────────────────────────────────────────────────────────────────────────
 Deno.serve(async (req: Request) => {
@@ -32,18 +32,17 @@ Deno.serve(async (req: Request) => {
 
   if (req.method !== 'POST') return errJson('Método não permitido', 405);
 
-  // Valida o JWT do usuário
-  const authHeader = req.headers.get('Authorization');
-  if (!authHeader) return errJson('Não autorizado', 401);
+  // Valida a apikey (anon key) — não depende de JWT do usuário que expira a cada 1h
+  const apiKey = req.headers.get('apikey');
+  const expectedKey = Deno.env.get('SUPABASE_ANON_KEY');
+  if (!apiKey || !expectedKey || apiKey !== expectedKey) {
+    return errJson('Não autorizado', 401);
+  }
 
   const supabaseAdmin = createClient(
     Deno.env.get('SUPABASE_URL')!,
     Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
   );
-
-  const token = authHeader.replace('Bearer ', '');
-  const { data: { user }, error: userError } = await supabaseAdmin.auth.getUser(token);
-  if (userError || !user) return errJson('Token inválido', 401);
 
   // Lê o body
   let body: { bucket?: string; path?: string; expiresIn?: number };
@@ -53,13 +52,15 @@ Deno.serve(async (req: Request) => {
     return errJson('Body inválido');
   }
 
-  const { bucket, path, expiresIn = 3600 } = body;
+  const expiresRaw = typeof body.expiresIn === 'number' ? body.expiresIn : 120;
+  const ttl = Math.min(Math.max(expiresRaw, 30), 600);
+  const { bucket, path } = body;
   if (!bucket || !path) return errJson('bucket e path são obrigatórios');
 
   // Gera a signed URL usando service role (ignora RLS)
   const { data, error } = await supabaseAdmin.storage
     .from(bucket)
-    .createSignedUrl(path, expiresIn);
+    .createSignedUrl(path, ttl);
 
   if (error || !data?.signedUrl) {
     console.error('Erro ao gerar signed URL:', error);

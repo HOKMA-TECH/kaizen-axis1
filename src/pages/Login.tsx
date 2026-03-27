@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { RoundedButton } from '@/components/ui/PremiumComponents';
 import { Building2, Mail, Lock, User, Users, ShieldCheck, Loader2, ArrowLeft } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { logAuditEvent } from '@/services/auditLogger';
+import { rateLimiter } from '@/services/rateLimiter';
 
 export default function Login() {
   const navigate = useNavigate();
@@ -21,6 +23,7 @@ export default function Login() {
   const [showMfaInput, setShowMfaInput] = useState(false);
   const [mfaCode, setMfaCode] = useState('');
   const [mfaFactorId, setMfaFactorId] = useState('');
+  const [pendingUserId, setPendingUserId] = useState<string | null>(null);
 
   // Estado de redefinição de senha (vindo do link do e-mail)
   const [showResetPassword, setShowResetPassword] = useState(false);
@@ -94,12 +97,21 @@ export default function Login() {
         setLoading(false);
       } else {
         // Login Etapa 1: Senha
+        try {
+          await rateLimiter.enforce('login');
+        } catch (err: any) {
+          alert(err?.message || 'Limite de tentativas atingido. Aguarde antes de tentar novamente.');
+          setLoading(false);
+          return;
+        }
+
         const { data, error } = await supabase.auth.signInWithPassword({
           email: formData.email,
           password: formData.password
         });
 
         if (error) throw error;
+        setPendingUserId(data.session?.user?.id || null);
 
         // Verificar se requer MFA (Assurance Level AAL2 não atingido)
         if (data.session && data.session.user) {
@@ -121,10 +133,16 @@ export default function Login() {
         }
 
         // Login direto bem-sucedido (não tem MFA ativado)
-        finishLogin();
+        finishLogin(data.session?.user?.id || null);
+        setPendingUserId(null);
       }
     } catch (error: any) {
       console.error('Erro na autenticação:', error.message);
+      logAuditEvent({
+        action: 'login_failed',
+        entity: 'auth',
+        metadata: { email: formData.email, reason: error.message }
+      });
       alert(error.message);
       setLoading(false);
     }
@@ -151,15 +169,27 @@ export default function Login() {
       if (verifyError) throw verifyError;
 
       // Código verificado com sucesso, entra no sistema
-      finishLogin();
+      finishLogin(pendingUserId || verifyData?.user?.id || null);
+      setPendingUserId(null);
     } catch (error: any) {
       console.error('Erro MFA:', error.message);
+      logAuditEvent({
+        action: 'login_failed',
+        entity: 'auth',
+        metadata: { email: formData.email, stage: 'mfa', reason: error.message }
+      });
       alert('Código inválido. Tente novamente.');
       setLoading(false);
     }
   };
 
-  const finishLogin = () => {
+  const finishLogin = (userId?: string | null) => {
+    logAuditEvent({
+      action: 'login_success',
+      entity: 'auth',
+      userId: userId ?? null,
+      metadata: { email: formData.email }
+    });
     navigate('/');
   };
 
