@@ -919,6 +919,31 @@ function DiretoriaReportView({
         </div>
       </div>
 
+      <div className="print:hidden flex justify-end mb-4 relative">
+        <button
+          onClick={() => setIsActionsMenuOpen(v => !v)}
+          className="h-9 w-9 flex items-center justify-center rounded-lg border border-surface-200 bg-white dark:bg-surface-100 text-text-secondary hover:text-gold-700 hover:border-gold-300 shadow-sm transition-all"
+        >
+          <MoreHorizontal size={18} />
+        </button>
+
+        {isActionsMenuOpen && (
+          <>
+            <div className="fixed inset-0 z-10" onClick={() => setIsActionsMenuOpen(false)} />
+            <div className="absolute right-0 top-full mt-2 z-20 w-56 bg-white dark:bg-surface-100 border border-surface-200 rounded-xl shadow-xl overflow-hidden p-2">
+              <p className="px-2 pb-2 text-[10px] font-bold uppercase tracking-wider text-text-secondary">Exportar relatório</p>
+              <button
+                onClick={() => { setIsActionsMenuOpen(false); handleDownloadPdf(); }}
+                disabled={pdfLoading}
+                className="w-full flex items-center gap-2 px-2.5 py-2 border border-surface-200 rounded-lg text-text-secondary text-[11px] font-semibold hover:text-gold-700 hover:bg-gold-50 transition-colors disabled:opacity-50"
+              >
+                {pdfLoading ? <Loader2 size={14} className="animate-spin" /> : <FileText size={14} />} PDF da Diretoria
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+
       {/* ── Metrics ── */}
       <section className="grid grid-cols-2 gap-3 mb-8">
         {[
@@ -1292,31 +1317,6 @@ export default function Reports() {
           <h1 className="text-2xl font-bold text-text-primary">Relatórios</h1>
           <p className="text-text-secondary text-sm">Inteligência Estratégica — Visão Global</p>
         </div>
-      </div>
-
-      <div className="print:hidden flex justify-end mb-4 relative">
-        <button
-          onClick={() => setIsActionsMenuOpen(v => !v)}
-          className="h-9 w-9 flex items-center justify-center rounded-lg border border-surface-200 bg-white dark:bg-surface-100 text-text-secondary hover:text-gold-700 hover:border-gold-300 shadow-sm transition-all"
-        >
-          <MoreHorizontal size={18} />
-        </button>
-
-        {isActionsMenuOpen && (
-          <>
-            <div className="fixed inset-0 z-10" onClick={() => setIsActionsMenuOpen(false)} />
-            <div className="absolute right-0 top-full mt-2 z-20 w-56 bg-white dark:bg-surface-100 border border-surface-200 rounded-xl shadow-xl overflow-hidden p-2">
-              <p className="px-2 pb-2 text-[10px] font-bold uppercase tracking-wider text-text-secondary">Exportar relatório</p>
-              <button
-                onClick={() => { setIsActionsMenuOpen(false); handleDownloadPdf(); }}
-                disabled={pdfLoading}
-                className="w-full flex items-center gap-2 px-2.5 py-2 border border-surface-200 rounded-lg text-text-secondary text-[11px] font-semibold hover:text-gold-700 hover:bg-gold-50 transition-colors disabled:opacity-50"
-              >
-                {pdfLoading ? <Loader2 size={14} className="animate-spin" /> : <FileText size={14} />} PDF da Diretoria
-              </button>
-            </div>
-          </>
-        )}
       </div>
 
       {/* ── Period Filters ── */}
