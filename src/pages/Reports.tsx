@@ -4,7 +4,7 @@ import { SectionHeader, PremiumCard, RoundedButton, StatusBadge } from '@/compon
 import { MetricCard } from '@/components/reports/MetricCard';
 import { CircularScore } from '@/components/reports/CircularScore';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { FileSpreadsheet, Loader2, Building2, Users, TrendingUp, Target, ArrowLeft, AlertCircle, Timer, Shield, ChevronRight, X, MoreHorizontal, FileText } from 'lucide-react';
+import { Loader2, Building2, Users, TrendingUp, Target, ArrowLeft, AlertCircle, Timer, Shield, ChevronRight, X, MoreHorizontal, FileText } from 'lucide-react';
 import { Modal } from '@/components/ui/Modal';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useApp, Team } from '@/context/AppContext';
@@ -1184,12 +1184,6 @@ export default function Reports() {
                   className="w-full flex items-center gap-2 px-2.5 py-2 border border-surface-200 rounded-lg text-text-secondary text-[11px] font-semibold hover:text-gold-700 hover:bg-gold-50 transition-colors"
                 >
                   <FileText size={14} /> PDF
-                </button>
-                <button
-                  onClick={() => { setIsExportMenuOpen(false); handleExport('excel'); }}
-                  className="w-full flex items-center gap-2 px-2.5 py-2 border border-surface-200 rounded-lg text-text-secondary text-[11px] font-semibold hover:text-gold-700 hover:bg-gold-50 transition-colors"
-                >
-                  <FileSpreadsheet size={14} /> CSV
                 </button>
               </div>
             </div>
