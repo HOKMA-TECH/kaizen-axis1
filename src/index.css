@@ -66,37 +66,51 @@
 }
 
 :root.dark {
-  --bg-app: #0A0A0A;
-  --bg-card: #141414;
-  --bg-subtle: #1F1F1F;
-  --border-subtle: #2A2A2A;
-  --border-strong: #404040;
-  --text-primary: #F9FAFB;
-  --text-secondary: #9CA3AF;
+  --bg-app: #0f131a;
+  --bg-card: #151c25;
+  --bg-subtle: #1d2633;
+  --border-subtle: #2a3647;
+  --border-strong: #3a4a61;
+  --text-primary: #eef3fb;
+  --text-secondary: #9eabc0;
 
   /* Primary Theme Colors - Dark Mode */
-  --color-primary: #3B82F6;
-  --color-primary-dark: #1F6FE5;
-  --color-primary-light: #60A5FA;
-  --color-primary-hover: #4B92FF;
+  --color-primary: #4d8fff;
+  --color-primary-dark: #2d6fd9;
+  --color-primary-light: #78adff;
+  --color-primary-hover: #63a0ff;
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not(.light) {
-    --bg-app: #0A0A0A;
-    --bg-card: #141414;
-    --bg-subtle: #1F1F1F;
-    --border-subtle: #2A2A2A;
-    --border-strong: #404040;
-    --text-primary: #F9FAFB;
-    --text-secondary: #9CA3AF;
+    --bg-app: #0f131a;
+    --bg-card: #151c25;
+    --bg-subtle: #1d2633;
+    --border-subtle: #2a3647;
+    --border-strong: #3a4a61;
+    --text-primary: #eef3fb;
+    --text-secondary: #9eabc0;
 
     /* Primary Theme Colors - Dark Mode */
-    --color-primary: #3B82F6;
-    --color-primary-dark: #1F6FE5;
-    --color-primary-light: #60A5FA;
-    --color-primary-hover: #4B92FF;
+    --color-primary: #4d8fff;
+    --color-primary-dark: #2d6fd9;
+    --color-primary-light: #78adff;
+    --color-primary-hover: #63a0ff;
   }
+}
+
+:root.dark {
+  color-scheme: dark;
+}
+
+:root.dark input,
+:root.dark select,
+:root.dark textarea {
+  color-scheme: dark;
+}
+
+:root.dark input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: invert(0.88) brightness(1.05);
 }
 
 /* iOS Safari ignores overflow-x on body alone — must set on html too */

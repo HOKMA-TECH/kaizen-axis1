@@ -37,13 +37,13 @@ export default function PdfTools() {
   const [activeTool, setActiveTool] = useState<typeof TOOLS[number] | null>(null);
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] dark:bg-[#111b21] pb-24">
+    <div className="min-h-screen bg-surface-50 pb-24">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header Section */}
         <div className="flex flex-col md:flex-row md:items-start justify-between gap-4 mb-10">
           <div>
-            <h1 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-2">Conversor de PDF</h1>
-            <p className="text-gray-500 dark:text-gray-400 text-lg">Ferramentas inteligentes para manipulação e organização de documentos</p>
+            <h1 className="text-3xl md:text-4xl font-bold text-text-primary mb-2">Conversor de PDF</h1>
+            <p className="text-text-secondary text-lg">Ferramentas inteligentes para manipulação e organização de documentos</p>
           </div>
           <div className="inline-flex items-center gap-2 bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 px-3 py-1.5 rounded-full text-sm font-medium border border-green-200 dark:border-green-800/50">
             <ShieldCheck size={16} />

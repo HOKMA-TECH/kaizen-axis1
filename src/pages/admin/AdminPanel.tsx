@@ -1049,7 +1049,7 @@ export default function AdminPanel() {
             </div>
 
             <div className="flex flex-col gap-4 print:hidden">
-              <div className="bg-white p-4 rounded-xl border border-surface-200 shadow-sm space-y-3">
+              <div className="bg-card-bg p-4 rounded-xl border border-surface-200 shadow-sm space-y-3">
                 <div className="flex items-center gap-2 text-gold-600 font-semibold mb-2">
                   <Calendar size={18} />
                   <span className="text-sm text-text-primary">Período do Relatório</span>
@@ -1088,7 +1088,7 @@ export default function AdminPanel() {
             </div>
 
             {reportLoading || !reportData ? (
-              <div className="flex flex-col items-center justify-center py-20 bg-white rounded-2xl border border-surface-200 shadow-sm">
+              <div className="flex flex-col items-center justify-center py-20 bg-card-bg rounded-2xl border border-surface-200 shadow-sm">
                 <Loader2 size={40} className="animate-spin text-gold-500 mb-4" />
                 <p className="text-sm font-semibold text-text-primary">Processando indicadores no banco de dados...</p>
                 <p className="text-xs text-text-secondary mt-1">Isso pode levar alguns segundos dependendo do volume do período.</p>
@@ -1098,7 +1098,7 @@ export default function AdminPanel() {
                 {/* TOP NAVIGATION METRICS */}
                 <div className="hidden print:block text-center mt-4">
                   <h2 className="text-xl font-bold">Relatório de Desempenho</h2>
-                  <p className="text-sm text-gray-500">{new Date(reportDateRange.start).toLocaleDateString('pt-BR')} a {new Date(reportDateRange.end).toLocaleDateString('pt-BR')}</p>
+                  <p className="text-sm text-text-secondary">{new Date(reportDateRange.start).toLocaleDateString('pt-BR')} a {new Date(reportDateRange.end).toLocaleDateString('pt-BR')}</p>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3 print:grid-cols-4 print:gap-4 print:mt-4">
@@ -1127,7 +1127,7 @@ export default function AdminPanel() {
 
                 {/* STRATEGIC DASHBOARD */}
                 <div className="grid grid-cols-2 gap-3 print:grid-cols-4 print:gap-4">
-                  <PremiumCard className="p-3 bg-gradient-to-br from-gold-50/50 to-white dark:from-gold-900/10 dark:to-surface-800 border-gold-100 shadow-[0_2px_10px_rgba(0,0,0,0.03)] h-28 flex flex-col justify-between">
+                  <PremiumCard className="p-3 bg-gradient-to-br from-gold-50/60 to-card-bg dark:from-gold-900/15 dark:to-card-bg border-gold-100 dark:border-gold-900/30 shadow-[0_2px_10px_rgba(0,0,0,0.03)] h-28 flex flex-col justify-between">
                     <p className="text-[10px] uppercase font-bold tracking-wider text-gold-600 flex items-center gap-1"><Trophy size={12} /> Vendas</p>
                     <div>
                       <p className="text-2xl font-bold text-text-primary leading-none">{globalMetrics.totalVendas}</p>
@@ -1135,7 +1135,7 @@ export default function AdminPanel() {
                     </div>
                   </PremiumCard>
 
-                  <PremiumCard className="p-3 bg-gradient-to-br from-green-50/50 to-white dark:from-green-900/10 dark:to-surface-800 border-green-100 shadow-[0_2px_10px_rgba(0,0,0,0.03)] h-28 flex flex-col justify-between">
+                  <PremiumCard className="p-3 bg-gradient-to-br from-green-50/60 to-card-bg dark:from-green-900/15 dark:to-card-bg border-green-100 dark:border-green-900/30 shadow-[0_2px_10px_rgba(0,0,0,0.03)] h-28 flex flex-col justify-between">
                     <p className="text-[10px] uppercase font-bold tracking-wider text-green-600 flex items-center gap-1"><TrendingUp size={12} /> VGV</p>
                     <div>
                       <p className="text-xl font-bold text-text-primary leading-none whitespace-nowrap">
@@ -1145,7 +1145,7 @@ export default function AdminPanel() {
                     </div>
                   </PremiumCard>
 
-                  <PremiumCard className="p-3 bg-gradient-to-br from-blue-50/50 to-white dark:from-blue-900/10 dark:to-surface-800 border-blue-100 shadow-[0_2px_10px_rgba(0,0,0,0.03)] h-28 flex flex-col justify-between">
+                  <PremiumCard className="p-3 bg-gradient-to-br from-blue-50/60 to-card-bg dark:from-blue-900/15 dark:to-card-bg border-blue-100 dark:border-blue-900/30 shadow-[0_2px_10px_rgba(0,0,0,0.03)] h-28 flex flex-col justify-between">
                     <p className="text-[10px] uppercase font-bold tracking-wider text-blue-600 flex items-center gap-1"><Target size={12} /> Conversão</p>
                     <div>
                       <div className="flex items-end gap-1 mb-1">
@@ -1155,7 +1155,7 @@ export default function AdminPanel() {
                     </div>
                   </PremiumCard>
 
-                  <PremiumCard className="p-3 bg-gradient-to-br from-purple-50/50 to-white dark:from-purple-900/10 dark:to-surface-800 border-purple-100 shadow-[0_2px_10px_rgba(0,0,0,0.03)] h-28 flex flex-col justify-between">
+                  <PremiumCard className="p-3 bg-gradient-to-br from-purple-50/60 to-card-bg dark:from-purple-900/15 dark:to-card-bg border-purple-100 dark:border-purple-900/30 shadow-[0_2px_10px_rgba(0,0,0,0.03)] h-28 flex flex-col justify-between">
                     <p className="text-[10px] uppercase font-bold tracking-wider text-purple-600 flex items-center gap-1 justify-between">
                       <span className="flex items-center gap-1"><Calendar size={12} /> Jornada</span>
                     </p>
@@ -1214,12 +1214,12 @@ export default function AdminPanel() {
                 <PremiumCard className="p-0 overflow-hidden border-surface-100 shadow-[0_2px_10px_rgba(0,0,0,0.02)] mt-4">
                   <div className="p-3 border-b border-surface-100 flex items-center justify-between bg-surface-50">
                     <h4 className="text-[11px] uppercase tracking-wider font-bold text-text-secondary flex items-center gap-1.5"><Trophy size={14} className="text-gold-500" /> Ranking de Corretores</h4>
-                    <span className="text-[10px] font-bold text-text-secondary bg-white px-2 py-0.5 border border-surface-200 rounded-md shadow-sm">{localBrokerRanking.length} ativos</span>
+                    <span className="text-[10px] font-bold text-text-secondary bg-card-bg px-2 py-0.5 border border-surface-200 rounded-md shadow-sm">{localBrokerRanking.length} ativos</span>
                   </div>
                   <div className="overflow-x-auto no-scrollbar">
                     <table className="w-full text-left border-collapse min-w-[380px]">
                       <thead>
-                        <tr className="bg-white text-text-secondary text-[9px] uppercase tracking-wider border-b border-surface-100">
+                        <tr className="bg-card-bg text-text-secondary text-[9px] uppercase tracking-wider border-b border-surface-100">
                           <th className="p-3 font-bold">Corretor</th>
                           <th className="p-3 font-bold text-center">Clientes</th>
                           <th className="p-3 font-bold text-center">Vendas</th>
@@ -1334,7 +1334,7 @@ export default function AdminPanel() {
             {activeGamifSection === 'xp' && (
               <section>
                 <div className="flex flex-col gap-4 print:hidden">
-                  <div className="bg-white p-4 rounded-xl border border-surface-200 shadow-sm space-y-3">
+                  <div className="bg-card-bg p-4 rounded-xl border border-surface-200 shadow-sm space-y-3">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2 text-gold-600 font-semibold mb-2">
                         <Zap size={18} />
