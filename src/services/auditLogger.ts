@@ -1,5 +1,4 @@
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || '';
-const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+import { supabase } from '@/lib/supabase';
 
 export type AuditAction =
   | 'login_success'
@@ -26,54 +25,34 @@ export interface AuditEventInput {
 }
 
 class AuditLogger {
-  private endpoint: string | null;
-
-  constructor() {
-    this.endpoint = SUPABASE_URL ? `${SUPABASE_URL}/functions/v1/audit-log` : null;
-  }
-
   log(event: AuditEventInput) {
-    if (!this.endpoint || !event.action || !event.entity) {
-      return;
-    }
-
-    const payload = {
-      action: event.action,
-      entity: event.entity,
-      entityId: event.entityId ?? null,
-      userId: event.userId ?? null,
-      metadata: event.metadata ?? {},
-      emittedAt: new Date().toISOString(),
-    };
-
-    queueMicrotask(() => this.dispatch(payload));
+    if (!event.action || !event.entity) return;
+    // Assíncrono — nunca bloqueia o fluxo principal
+    queueMicrotask(() => this.dispatch(event));
   }
 
-  private dispatch(payload: any) {
-    if (!this.endpoint) return;
-
+  private async dispatch(event: AuditEventInput) {
     try {
-      if (typeof navigator !== 'undefined' && typeof navigator.sendBeacon === 'function' && SUPABASE_ANON_KEY) {
-        const blob = new Blob([JSON.stringify(payload)], { type: 'application/json' });
-        navigator.sendBeacon(this.endpoint, blob);
-        return;
-      }
-    } catch {
-      // Ignora e tenta o fallback abaixo
-    }
+      const { data: { session } } = await supabase.auth.getSession();
+      const userId = event.userId ?? session?.user?.id ?? null;
 
-    if (typeof fetch === 'function') {
-      fetch(this.endpoint, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(SUPABASE_ANON_KEY ? { apikey: SUPABASE_ANON_KEY } : {}),
+      const { error } = await supabase.from('audit_logs').insert({
+        user_id: userId,
+        action: String(event.action).slice(0, 80),
+        entity: String(event.entity).slice(0, 80),
+        entity_id: event.entityId ?? null,
+        metadata: {
+          ...(event.metadata ?? {}),
+          // Inclui info do dispositivo automaticamente
+          userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : undefined,
         },
-        keepalive: true,
-        body: JSON.stringify(payload),
-      }).catch((err) => {
-        console.warn('[audit] Falha ao enviar evento', err);
       });
+
+      if (error) {
+        console.warn('[audit] Falha ao gravar evento:', error.message);
+      }
+    } catch (err) {
+      console.warn('[audit] Erro ao gravar evento', err);
     }
   }
 }
