@@ -715,9 +715,9 @@ export default function AdminPanel() {
         return (
           <div className="space-y-6">
             <section>
-              <div className="flex justify-between items-center mb-3">
+              <div className="flex flex-col md:flex-row md:justify-between md:items-center mb-3 gap-2">
                 <h3 className="text-sm font-bold text-text-secondary uppercase">Usuários Ativos ({activeUsers.length})</h3>
-                <div className="relative w-56">
+                <div className="relative w-full md:w-56">
                   <Search size={14} className="absolute left-2 top-1/2 -translate-y-1/2 text-text-secondary" />
                   <input type="text" placeholder="Buscar..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)}
                     className="w-full pl-7 pr-2 py-1.5 text-xs bg-white dark:bg-surface-100 border border-surface-200 rounded-lg focus:outline-none focus:border-gold-400" />
@@ -1586,7 +1586,7 @@ export default function AdminPanel() {
 
 
   return (
-    <div className="p-6 pb-24 min-h-screen bg-surface-50 print:p-0 print:bg-white">
+    <div className="p-6 pb-24 min-h-screen bg-surface-50 print:p-0 print:bg-white overflow-x-hidden">
       <div className="print:hidden">
         <SectionHeader title="Painel Administrativo" subtitle="Governança e Estratégia" />
       </div>
