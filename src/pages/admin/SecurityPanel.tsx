@@ -324,7 +324,7 @@ export default function SecurityPanel() {
           {documentDownloads.length === 0
             ? <p className="text-sm text-text-secondary">Nenhum download registrado ainda.</p>
             : (
-              <div className="grid md:grid-cols-2 gap-2 max-h-96 overflow-y-auto pr-1">
+              <div className="grid md:grid-cols-2 gap-2 max-h-64 overflow-y-auto pr-1">
                 {documentDownloads.map(log => (
                   <div key={log.id} className="flex items-start gap-3 p-3 rounded-xl border border-surface-100 hover:bg-surface-50">
                     <div className="w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center shrink-0">
