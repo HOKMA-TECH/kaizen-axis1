@@ -75,8 +75,8 @@ export const BottomNav = () => {
 
 export const Layout = ({ children }: { children: React.ReactNode }) => {
   return (
-    <div className="min-h-screen bg-surface-50 pb-24 max-w-md mx-auto shadow-2xl shadow-black/5 relative overflow-x-hidden print:pb-0 print:max-w-none print:shadow-none print:bg-white print:overflow-visible print:px-4">
-      <main className="h-full overflow-y-auto overflow-x-hidden no-scrollbar print:overflow-visible print:h-auto">
+    <div className="min-h-screen bg-surface-50 pb-24 max-w-md mx-auto shadow-2xl shadow-black/5 relative print:pb-0 print:max-w-none print:shadow-none print:bg-white print:overflow-visible print:px-4">
+      <main className="h-full overflow-y-auto no-scrollbar print:overflow-visible print:h-auto">
         {children}
       </main>
       <BottomNav />

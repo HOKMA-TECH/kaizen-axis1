@@ -105,6 +105,8 @@ body {
   -webkit-font-smoothing: antialiased;
   /* iOS PWA: full viewport height */
   min-height: 100dvh;
+  /* Prevent horizontal scroll/bounce on mobile PWA */
+  overflow-x: hidden;
 }
 
 /* iOS Safari: prevent auto-zoom on input focus.
