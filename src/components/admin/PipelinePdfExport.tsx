@@ -21,7 +21,23 @@ function formatDate(iso: string | null | undefined): string {
 
 function formatCurrency(value: number | null | undefined): string {
   if (value == null) return '—';
-  return Number(value).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  const num = Number(value);
+  if (!Number.isFinite(num)) return '—';
+  return num.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+}
+
+function parseMoney(value: unknown): number {
+  if (typeof value === 'number') return Number.isFinite(value) ? value : 0;
+  if (typeof value === 'string') {
+    const normalized = value
+      .replace(/\s/g, '')
+      .replace(/R\$/g, '')
+      .replace(/\./g, '')
+      .replace(',', '.');
+    const parsed = Number(normalized);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+  return 0;
 }
 
 export default function PipelinePdfExport({ corretores }: Props) {
@@ -38,7 +54,7 @@ export default function PipelinePdfExport({ corretores }: Props) {
         .from('clients')
         .select('name, phone, email, region_of_interest, profession, gross_income, stage, intended_value, created_at, updated_at')
         .eq('owner_id', selectedId)
-        .not('stage', 'in', '("Concluido","Cancelado")')
+        .not('stage', 'in', '("Concluido","Concluído","Cancelado")')
         .order('updated_at', { ascending: false })
         .limit(1000);
 
@@ -52,7 +68,7 @@ export default function PipelinePdfExport({ corretores }: Props) {
 
       // 2. Resumo executivo
       const totalLeads = clients.length;
-      const valorTotal = clients.reduce((acc, c) => acc + (c.intended_value || 0), 0);
+      const valorTotal = clients.reduce((acc, c: any) => acc + parseMoney(c.intended_value), 0);
       const distribuicao: Record<string, number> = {};
       for (const c of clients) {
         distribuicao[c.stage] = (distribuicao[c.stage] || 0) + 1;
@@ -116,23 +132,23 @@ export default function PipelinePdfExport({ corretores }: Props) {
         { label: 'Valor',       w: 65 },
         { label: 'Atualização', w: 55 },
       ];
-      const ROW_H = 16, HDR_H = 18;
+      const SAFE_ROW_H = 18, SAFE_HDR_H = 20;
 
       const drawHeader = (pg: typeof page, startY: number) => {
-        pg.drawRectangle({ x: MARGIN, y: startY - HDR_H + 4, width: COL_W, height: HDR_H, color: dark });
+        pg.drawRectangle({ x: MARGIN, y: startY - SAFE_HDR_H, width: COL_W, height: SAFE_HDR_H, color: dark });
         let cx = MARGIN + 4;
         for (const col of cols) {
-          pg.drawText(col.label, { x: cx, y: startY - 9, size: 7, font: bold, color: white });
+          pg.drawText(col.label, { x: cx, y: startY - SAFE_HDR_H + 6, size: 7, font: bold, color: white });
           cx += col.w;
         }
-        return startY - HDR_H;
+        return startY - SAFE_HDR_H;
       };
 
       y = drawHeader(page, y);
 
       let rowIdx = 0;
       for (const c of clients) {
-        if (y < MARGIN + ROW_H + 20) {
+        if (y < MARGIN + SAFE_ROW_H + 20) {
           page = pdfDoc.addPage([PAGE_W, PAGE_H]);
           y = PAGE_H - MARGIN;
           page.drawText(`Pipeline — ${corretorName} (continuação)`, { x: MARGIN, y, size: 8, font: regular, color: gray });
@@ -142,7 +158,7 @@ export default function PipelinePdfExport({ corretores }: Props) {
         }
 
         const rowColor = rowIdx % 2 === 0 ? white : light;
-        page.drawRectangle({ x: MARGIN, y: y - ROW_H + 5, width: COL_W, height: ROW_H, color: rowColor });
+        page.drawRectangle({ x: MARGIN, y: y - SAFE_ROW_H, width: COL_W, height: SAFE_ROW_H, color: rowColor });
 
         const cells = [
           truncate(c.name, 16),
@@ -151,18 +167,18 @@ export default function PipelinePdfExport({ corretores }: Props) {
           truncate(c.profession, 12),
           c.gross_income ? formatCurrency(parseFloat(c.gross_income)) : '—',
           truncate(c.stage, 10),
-          c.intended_value != null ? formatCurrency(c.intended_value) : '—',
+          c.intended_value != null ? formatCurrency(parseMoney(c.intended_value)) : '—',
           formatDate(c.updated_at),
         ];
 
         let cx = MARGIN + 4;
         for (let i = 0; i < cols.length; i++) {
-          page.drawText(cells[i], { x: cx, y: y - 8, size: 7, font: regular, color: dark });
+          page.drawText(cells[i], { x: cx, y: y - SAFE_ROW_H + 6, size: 7, font: regular, color: dark });
           cx += cols[i].w;
         }
-        page.drawRectangle({ x: MARGIN, y: y - ROW_H + 5, width: COL_W, height: 0.3, color: rgb(0.88, 0.88, 0.88) });
+        page.drawRectangle({ x: MARGIN, y: y - SAFE_ROW_H, width: COL_W, height: 0.3, color: rgb(0.88, 0.88, 0.88) });
 
-        y -= ROW_H;
+        y -= SAFE_ROW_H;
         rowIdx++;
       }
 

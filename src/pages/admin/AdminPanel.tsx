@@ -212,8 +212,8 @@ export default function AdminPanel() {
     const PAGE_H = 842;
     const MARGIN = 36;
     const TABLE_W = PAGE_W - (MARGIN * 2);
-    const ROW_H = 16;
-    const HEADER_H = 18;
+    const ROW_H = 18;
+    const HEADER_H = 20;
 
     const colorDark = rgb(0.11, 0.12, 0.15);
     const colorGold = rgb(0.82, 0.66, 0.18);
@@ -233,10 +233,10 @@ export default function AdminPanel() {
     };
 
     const drawTableHeader = () => {
-      page.drawRectangle({ x: MARGIN, y: y - HEADER_H + 4, width: TABLE_W, height: HEADER_H, color: colorDark });
+      page.drawRectangle({ x: MARGIN, y: y - HEADER_H, width: TABLE_W, height: HEADER_H, color: colorDark });
       let cx = MARGIN + 4;
       columns.forEach((col) => {
-        page.drawText(col.header, { x: cx, y: y - 9, size: 7, font: fontBold, color: colorWhite });
+        page.drawText(col.header, { x: cx, y: y - HEADER_H + 6, size: 7, font: fontBold, color: colorWhite });
         cx += col.width;
       });
       y -= HEADER_H;
@@ -272,7 +272,7 @@ export default function AdminPanel() {
       const isEven = rowIndex % 2 === 0;
       page.drawRectangle({
         x: MARGIN,
-        y: y - ROW_H + 5,
+        y: y - ROW_H,
         width: TABLE_W,
         height: ROW_H,
         color: isEven ? colorWhite : colorLight,
@@ -285,7 +285,7 @@ export default function AdminPanel() {
         const maxChars = Math.max(8, Math.floor(colW / 4.2));
         page.drawText(text.length > maxChars ? `${text.slice(0, maxChars - 1)}…` : text, {
           x: cx,
-          y: y - 8,
+          y: y - ROW_H + 6,
           size: 7,
           font: fontRegular,
           color: colorDark,

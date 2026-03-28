@@ -121,6 +121,8 @@ function TeamReportView({
       const regular = await pdfDoc.embedFont(StandardFonts.Helvetica);
       const PAGE_W = 595, PAGE_H = 842, MARGIN = 36;
       const COL_W  = PAGE_W - MARGIN * 2;
+      const ROW_H = 18;
+      const HDR_H = 20;
       const gold   = rgb(0.82, 0.66, 0.18);
       const dark   = rgb(0.10, 0.10, 0.10);
       const gray   = rgb(0.45, 0.45, 0.45);
@@ -143,19 +145,19 @@ function TeamReportView({
       };
 
       const drawPipelineHeader = () => {
-        page.drawRectangle({ x: MARGIN, y: y - 14 + 4, width: COL_W, height: 18, color: dark });
+        page.drawRectangle({ x: MARGIN, y: y - HDR_H, width: COL_W, height: HDR_H, color: dark });
         for (const [txt, px] of [['Etapa', MARGIN + 4], ['Clientes', MARGIN + 260], ['%', MARGIN + 360]] as [string, number][]) {
-          page.drawText(txt, { x: px, y: y - 9, size: 7, font: bold, color: white });
+          page.drawText(txt, { x: px, y: y - HDR_H + 6, size: 7, font: bold, color: white });
         }
-        y -= 14;
+        y -= HDR_H;
       };
 
       const drawRankingHeader = () => {
-        page.drawRectangle({ x: MARGIN, y: y - 14 + 4, width: COL_W, height: 18, color: dark });
+        page.drawRectangle({ x: MARGIN, y: y - HDR_H, width: COL_W, height: HDR_H, color: dark });
         for (const [txt, px] of [['Pos.', MARGIN + 4], ['Nome', MARGIN + 30], ['Clientes', MARGIN + 280], ['Vendas', MARGIN + 350], ['Conv.%', MARGIN + 420]] as [string, number][]) {
-          page.drawText(txt, { x: px, y: y - 9, size: 7, font: bold, color: white });
+          page.drawText(txt, { x: px, y: y - HDR_H + 6, size: 7, font: bold, color: white });
         }
-        y -= 14;
+        y -= HDR_H;
       };
 
       page.drawRectangle({ x: 0, y: PAGE_H - 70, width: PAGE_W, height: 70, color: dark });
@@ -186,7 +188,7 @@ function TeamReportView({
       drawPipelineHeader();
       let rowIdx = 0;
       for (const [stage, count] of Object.entries(byStage).sort((a, b) => (b[1] as number) - (a[1] as number))) {
-        ensureSpace(28, 'Relatorio por Equipe (continuacao)');
+        ensureSpace(ROW_H + 10, 'Relatorio por Equipe (continuacao)');
         if (y > PAGE_H - MARGIN - 20) {
           page.drawText('PIPELINE POR ETAPA (continuacao)', { x: MARGIN, y, size: 10, font: bold, color: gold });
           y -= 16;
@@ -194,11 +196,11 @@ function TeamReportView({
         }
         const pct = totalClientes > 0 ? Math.round(((count as number) / totalClientes) * 100) : 0;
         const rc = rowIdx % 2 === 0 ? white : light;
-        page.drawRectangle({ x: MARGIN, y: y - 14 + 5, width: COL_W, height: 16, color: rc });
-        page.drawText(stage, { x: MARGIN + 4, y: y - 8, size: 7, font: regular, color: dark });
-        page.drawText(String(count), { x: MARGIN + 260, y: y - 8, size: 7, font: regular, color: dark });
-        page.drawText(`${pct}%`, { x: MARGIN + 360, y: y - 8, size: 7, font: regular, color: dark });
-        y -= 14;
+        page.drawRectangle({ x: MARGIN, y: y - ROW_H, width: COL_W, height: ROW_H, color: rc });
+        page.drawText(stage, { x: MARGIN + 4, y: y - ROW_H + 6, size: 7, font: regular, color: dark });
+        page.drawText(String(count), { x: MARGIN + 260, y: y - ROW_H + 6, size: 7, font: regular, color: dark });
+        page.drawText(`${pct}%`, { x: MARGIN + 360, y: y - ROW_H + 6, size: 7, font: regular, color: dark });
+        y -= ROW_H;
         rowIdx++;
       }
       y -= 10;
@@ -211,7 +213,7 @@ function TeamReportView({
       drawRankingHeader();
       rowIdx = 0;
       for (const [i, broker] of brokerRanking.entries()) {
-        ensureSpace(28, 'Relatorio por Equipe (continuacao)');
+        ensureSpace(ROW_H + 10, 'Relatorio por Equipe (continuacao)');
         if (y > PAGE_H - MARGIN - 20) {
           page.drawText('RANKING DE CORRETORES (continuacao)', { x: MARGIN, y, size: 10, font: bold, color: gold });
           y -= 16;
@@ -219,13 +221,13 @@ function TeamReportView({
         }
         const conv = broker.total > 0 ? Math.round((broker.vendas / broker.total) * 100) : 0;
         const rc = rowIdx % 2 === 0 ? white : light;
-        page.drawRectangle({ x: MARGIN, y: y - 14 + 5, width: COL_W, height: 16, color: rc });
-        page.drawText(String(i + 1), { x: MARGIN + 4, y: y - 8, size: 7, font: regular, color: dark });
-        page.drawText((broker.name ?? '-').slice(0, 42), { x: MARGIN + 30, y: y - 8, size: 7, font: regular, color: dark });
-        page.drawText(String(broker.total), { x: MARGIN + 280, y: y - 8, size: 7, font: regular, color: dark });
-        page.drawText(String(broker.vendas), { x: MARGIN + 350, y: y - 8, size: 7, font: regular, color: dark });
-        page.drawText(`${conv}%`, { x: MARGIN + 420, y: y - 8, size: 7, font: regular, color: dark });
-        y -= 14;
+        page.drawRectangle({ x: MARGIN, y: y - ROW_H, width: COL_W, height: ROW_H, color: rc });
+        page.drawText(String(i + 1), { x: MARGIN + 4, y: y - ROW_H + 6, size: 7, font: regular, color: dark });
+        page.drawText((broker.name ?? '-').slice(0, 42), { x: MARGIN + 30, y: y - ROW_H + 6, size: 7, font: regular, color: dark });
+        page.drawText(String(broker.total), { x: MARGIN + 280, y: y - ROW_H + 6, size: 7, font: regular, color: dark });
+        page.drawText(String(broker.vendas), { x: MARGIN + 350, y: y - ROW_H + 6, size: 7, font: regular, color: dark });
+        page.drawText(`${conv}%`, { x: MARGIN + 420, y: y - ROW_H + 6, size: 7, font: regular, color: dark });
+        y -= ROW_H;
         rowIdx++;
       }
 
@@ -1006,6 +1008,8 @@ export default function Reports() {
         const regular = await pdfDoc.embedFont(StandardFonts.Helvetica);
         const PAGE_W = 595, PAGE_H = 842, MARGIN = 36;
         const COL_W  = PAGE_W - MARGIN * 2;
+        const ROW_H = 18;
+        const HDR_H = 20;
         const gold   = rgb(0.82, 0.66, 0.18);
         const dark   = rgb(0.10, 0.10, 0.10);
         const gray   = rgb(0.45, 0.45, 0.45);
@@ -1028,11 +1032,11 @@ export default function Reports() {
         };
 
         const drawHealthHeader = () => {
-          page.drawRectangle({ x: MARGIN, y: y - 14 + 4, width: COL_W, height: 18, color: dark });
+          page.drawRectangle({ x: MARGIN, y: y - HDR_H, width: COL_W, height: HDR_H, color: dark });
           for (const [txt, px] of [['Cliente', MARGIN + 4], ['Etapa', MARGIN + 250], ['Score', MARGIN + 430]] as [string, number][]) {
-            page.drawText(txt, { x: px, y: y - 9, size: 7, font: bold, color: white });
+            page.drawText(txt, { x: px, y: y - HDR_H + 6, size: 7, font: bold, color: white });
           }
-          y -= 14;
+          y -= HDR_H;
         };
 
         // Cabeçalho
@@ -1077,18 +1081,18 @@ export default function Reports() {
           drawHealthHeader();
           let rowIdx = 0;
           for (const hs of healthScores) {
-            ensureSpace(28, 'Relatorio Estrategico (continuacao)');
+            ensureSpace(ROW_H + 10, 'Relatorio Estrategico (continuacao)');
             if (y > PAGE_H - MARGIN - 20) {
               page.drawText('HEALTH SCORE — TOP CLIENTES (continuacao)', { x: MARGIN, y, size: 10, font: bold, color: gold });
               y -= 16;
               drawHealthHeader();
             }
             const rc = rowIdx % 2 === 0 ? white : light;
-            page.drawRectangle({ x: MARGIN, y: y - 14 + 5, width: COL_W, height: 16, color: rc });
-            page.drawText((hs.name ?? '—').slice(0, 45), { x: MARGIN + 4, y: y - 8, size: 7, font: regular, color: dark });
-            page.drawText((hs.stage ?? '—').slice(0, 24), { x: MARGIN + 250, y: y - 8, size: 7, font: regular, color: dark });
-            page.drawText(String(hs.score), { x: MARGIN + 430, y: y - 8, size: 7, font: regular, color: dark });
-            y -= 14;
+            page.drawRectangle({ x: MARGIN, y: y - ROW_H, width: COL_W, height: ROW_H, color: rc });
+            page.drawText((hs.name ?? '—').slice(0, 45), { x: MARGIN + 4, y: y - ROW_H + 6, size: 7, font: regular, color: dark });
+            page.drawText((hs.stage ?? '—').slice(0, 24), { x: MARGIN + 250, y: y - ROW_H + 6, size: 7, font: regular, color: dark });
+            page.drawText(String(hs.score), { x: MARGIN + 430, y: y - ROW_H + 6, size: 7, font: regular, color: dark });
+            y -= ROW_H;
             rowIdx++;
           }
         }
