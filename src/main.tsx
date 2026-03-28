@@ -4,6 +4,7 @@ import './index.css'
 import App from './App.tsx'
 import { AppProvider } from './context/AppContext.tsx'
 import { NotificationProvider } from './context/NotificationContext.tsx'
+import { ChatUnreadProvider } from './context/ChatUnreadContext.tsx'
 
 // ── PWA: registra o Service Worker em produção ───────────────────────────────
 // O SW usa estratégia cirúrgica: nunca intercepta Supabase nem métodos não-GET,
@@ -48,7 +49,9 @@ createRoot(document.getElementById('root')!).render(
     <ErrorBoundary>
       <AppProvider>
         <NotificationProvider>
-          <App />
+          <ChatUnreadProvider>
+            <App />
+          </ChatUnreadProvider>
         </NotificationProvider>
       </AppProvider>
     </ErrorBoundary>

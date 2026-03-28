@@ -10,6 +10,7 @@ import { cn } from '@/lib/utils';
 import { useAuthorization } from '@/hooks/useAuthorization';
 import { useApp } from '@/context/AppContext';
 import { NotificationBell } from '@/components/ui/NotificationBell';
+import { useChatUnread } from '@/context/ChatUnreadContext';
 
 // ─── Nav items definition ─────────────────────────────────────────────────────
 
@@ -49,7 +50,7 @@ const NAV_ADMIN: NavItem[] = [
 
 // ─── Sidebar nav link ─────────────────────────────────────────────────────────
 
-function SideNavLink({ item }: { item: NavItem }) {
+function SideNavLink({ item, unreadCount = 0 }: { item: NavItem; unreadCount?: number }) {
   const location = useLocation();
   const isActive = item.path === '/'
     ? location.pathname === '/'
@@ -67,19 +68,24 @@ function SideNavLink({ item }: { item: NavItem }) {
     >
       <item.icon size={18} strokeWidth={isActive ? 2.5 : 2} />
       <span>{item.label}</span>
-      {isActive && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-primary-500" />}
+      {unreadCount > 0 && (
+        <span className="ml-auto min-w-5 h-5 px-1.5 rounded-full bg-emerald-500 text-white text-[10px] font-bold flex items-center justify-center">
+          {unreadCount > 99 ? '99+' : unreadCount}
+        </span>
+      )}
+      {isActive && unreadCount === 0 && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-primary-500" />}
     </NavLink>
   );
 }
 
 // ─── Sidebar group ────────────────────────────────────────────────────────────
 
-function NavGroup({ label, items }: { label: string; items: NavItem[] }) {
+function NavGroup({ label, items, chatUnread }: { label: string; items: NavItem[]; chatUnread?: number }) {
   if (items.length === 0) return null;
   return (
     <div className="space-y-0.5">
       <p className="text-[10px] font-bold uppercase tracking-widest text-text-secondary px-3 mb-1">{label}</p>
-      {items.map(item => <SideNavLink key={item.path} item={item} />)}
+      {items.map(item => <SideNavLink key={item.path} item={item} unreadCount={item.path === '/chat' ? chatUnread : 0} />)}
     </div>
   );
 }
@@ -89,6 +95,7 @@ function NavGroup({ label, items }: { label: string; items: NavItem[] }) {
 function Sidebar() {
   const { isBroker, isAdmin, isDirector, isManager, isCoordinator } = useAuthorization();
   const { userName, profile, signOut } = useApp();
+  const { totalUnread } = useChatUnread();
   const navigate = useNavigate();
 
   const isLeadership = !isBroker; // everyone except CORRETOR
@@ -124,7 +131,7 @@ function Sidebar() {
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-5 no-scrollbar">
         {allGroups.map(g => (
-          <NavGroup key={g.label} label={g.label} items={g.items} />
+          <NavGroup key={g.label} label={g.label} items={g.items} chatUnread={totalUnread} />
         ))}
       </nav>
 

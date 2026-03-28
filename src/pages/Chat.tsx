@@ -5,6 +5,7 @@ import { useApp } from '@/context/AppContext';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/lib/supabase';
+import { useChatUnread } from '@/context/ChatUnreadContext';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -96,19 +97,13 @@ function GreenDot({ position = 'list' }: { position?: 'strip' | 'list' }) {
 
 // ─── Chat ─────────────────────────────────────────────────────────────────────
 
-// ── Unread badge helpers ──────────────────────────────────────────────────────
-
-function getLastRead(userId: string, convId: string): number {
-  try {
-    return parseInt(localStorage.getItem(`last-read-${userId}-${convId}`) ?? '0', 10);
-  } catch { return 0; }
-}
-
-export function markConversationRead(userId: string, convId: string) {
-  try { localStorage.setItem(`last-read-${userId}-${convId}`, String(Date.now())); } catch {}
-}
-
-type EnrichedConvo = ConversationPreview & { name: string; role: string; avatarUrl: string | null | undefined; isUnread: boolean };
+type EnrichedConvo = ConversationPreview & {
+  name: string;
+  role: string;
+  avatarUrl: string | null | undefined;
+  isUnread: boolean;
+  unreadCount: number;
+};
 
 export default function Chat() {
   const navigate = useNavigate();
@@ -120,6 +115,7 @@ export default function Chat() {
   const [ctxConvo, setCtxConvo] = useState<{ convo: EnrichedConvo; x: number; y: number } | null>(null);
   const pressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const myId = user?.id;
+  const { unreadByConversation, markConversationRead } = useChatUnread();
 
   const members = useMemo(
     () => (allProfiles || []).filter(p => p.id !== myId),
@@ -222,13 +218,34 @@ export default function Chat() {
   // Conversations enriched with profile info + unread status
   const enrichedConvos = useMemo(() =>
     conversations.map(c => {
-      const lastRead = myId ? getLastRead(myId, c.conversationId) : 0;
-      const isUnread = !c.senderIsMe && new Date(c.lastAt).getTime() > lastRead;
-      if (c.isKAI) return { ...c, name: 'KAI', role: 'Assistente IA', avatarUrl: null as string | null | undefined, isUnread };
+      const unreadCount = unreadByConversation[c.conversationId] ?? 0;
+      const isUnread = unreadCount > 0;
+      if (c.isKAI) {
+        return {
+          ...c,
+          name: 'KAI',
+          role: 'Assistente IA',
+          avatarUrl: null as string | null | undefined,
+          isUnread,
+          unreadCount,
+        };
+      }
       const p = allProfiles?.find(pr => pr.id === c.otherId);
-      return { ...c, name: p?.name || 'Usuário', role: p?.role || '', avatarUrl: p?.avatar_url, isUnread };
+      return {
+        ...c,
+        name: p?.name || 'Usuário',
+        role: p?.role || '',
+        avatarUrl: p?.avatar_url,
+        isUnread,
+        unreadCount,
+      };
     }),
-  [conversations, allProfiles, myId]);
+  [conversations, allProfiles, unreadByConversation]);
+
+  const openConversation = (convo: EnrichedConvo) => {
+    markConversationRead(convo.conversationId);
+    navigate(convo.isKAI ? '/chat/kai-agent' : `/chat/${convo.otherId}`);
+  };
 
   // Filtered conversations (by search)
   const enriched = useMemo(() => {
@@ -376,7 +393,7 @@ export default function Chat() {
               {enriched.map((c, i) => (
                 <motion.div key={`sr-${c.conversationId}`} layout initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                   transition={{ delay: i * 0.02, duration: 0.15 }}
-                  onClick={() => navigate(c.isKAI ? '/chat/kai-agent' : `/chat/${c.otherId}`)}
+                  onClick={() => openConversation(c)}
                   onTouchStart={(e) => handleConvoTouchStart(e, c)}
                   onTouchEnd={handleConvoTouchEnd}
                   onTouchMove={handleConvoTouchEnd}
@@ -394,8 +411,15 @@ export default function Chat() {
                     </div>
                     <p className="text-xs text-text-secondary truncate">{formatPreview(c.lastType, c.lastContent, c.senderIsMe)}</p>
                   </div>
-                  <span className="text-[11px] text-text-secondary flex-shrink-0 ml-2">{formatTime(c.lastAt)}</span>
-                </motion.div>
+                   <div className="flex items-center gap-1.5 flex-shrink-0 ml-2">
+                     <span className="text-[11px] text-text-secondary">{formatTime(c.lastAt)}</span>
+                     {c.unreadCount > 0 && (
+                       <span className="min-w-5 h-5 px-1.5 rounded-full bg-emerald-500 text-white text-[10px] font-bold flex items-center justify-center">
+                         {c.unreadCount > 99 ? '99+' : c.unreadCount}
+                       </span>
+                     )}
+                   </div>
+                 </motion.div>
               ))}
             </AnimatePresence>
 
@@ -446,7 +470,7 @@ export default function Chat() {
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
                 transition={{ delay: i * 0.025, duration: 0.15 }}
-                onClick={() => navigate(c.isKAI ? '/chat/kai-agent' : `/chat/${c.otherId}`)}
+                onClick={() => openConversation(c)}
                 onTouchStart={(e) => handleConvoTouchStart(e, c)}
                 onTouchEnd={handleConvoTouchEnd}
                 onTouchMove={handleConvoTouchEnd}
@@ -479,9 +503,9 @@ export default function Chat() {
                       <span className={cn('text-[11px]', c.isUnread ? 'text-gold-600 dark:text-gold-400 font-semibold' : 'text-text-secondary')}>
                         {formatTime(c.lastAt)}
                       </span>
-                      {c.isUnread && (
-                        <span className="w-5 h-5 rounded-full bg-gold-500 text-white text-[10px] font-bold flex items-center justify-center flex-shrink-0">
-                          N
+                      {c.unreadCount > 0 && (
+                        <span className="min-w-5 h-5 px-1.5 rounded-full bg-emerald-500 text-white text-[10px] font-bold flex items-center justify-center flex-shrink-0">
+                          {c.unreadCount > 99 ? '99+' : c.unreadCount}
                         </span>
                       )}
                     </div>

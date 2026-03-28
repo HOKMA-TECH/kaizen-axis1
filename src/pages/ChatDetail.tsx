@@ -12,6 +12,7 @@ import { sendMessageToKai } from '@/services/kaiAgent';
 import ReactMarkdown from 'react-markdown';
 import { supabase } from '@/lib/supabase';
 import { useApp } from '@/context/AppContext';
+import { useChatUnread } from '@/context/ChatUnreadContext';
 
 interface ChatMessage {
   id: string;
@@ -477,6 +478,7 @@ export default function ChatDetail() {
   const myId = user?.id ?? '';
   const myName = profile?.name || 'Usuário';
   const conversationId = isKAI ? `kai-${myId}` : [myId, id].sort().join('_');
+  const { markConversationRead } = useChatUnread();
 
   // ─── Load chat partner ────────────────────────────────────────────────────
   useEffect(() => {
@@ -682,11 +684,17 @@ export default function ChatDetail() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isKaiTyping, typingUser]);
 
-  // Mark conversation as read on mount
+  // Mark conversation as read when opening
   useEffect(() => {
     if (!myId) return;
-    try { localStorage.setItem(`last-read-${myId}-${conversationId}`, String(Date.now())); } catch {}
-  }, [myId, conversationId]);
+    markConversationRead(conversationId);
+  }, [myId, conversationId, markConversationRead]);
+
+  // Keep it read while the user is viewing this conversation
+  useEffect(() => {
+    if (!myId || messages.length === 0) return;
+    markConversationRead(conversationId);
+  }, [myId, conversationId, messages.length, markConversationRead]);
 
   // Load KAI history from localStorage
   useEffect(() => {

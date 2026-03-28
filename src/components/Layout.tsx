@@ -4,6 +4,7 @@ import { LayoutDashboard, Users, Calendar, MessageSquare, Menu } from 'lucide-re
 import { cn } from '@/lib/utils';
 import { motion } from 'motion/react';
 import { useAuthorization } from '@/hooks/useAuthorization';
+import { useChatUnread } from '@/context/ChatUnreadContext';
 
 /** Detecta se o teclado virtual está aberto no iOS via visualViewport */
 function useKeyboardOpen() {
@@ -22,6 +23,7 @@ export const BottomNav = () => {
   const location = useLocation();
   const { isBroker, isManager, isCoordinator, canAccessAdmin } = useAuthorization();
   const keyboardOpen = useKeyboardOpen();
+  const { totalUnread } = useChatUnread();
 
   // Build nav items based on role
   const navItems = [
@@ -50,6 +52,11 @@ export const BottomNav = () => {
             >
               <div className="relative">
                 <item.icon size={24} strokeWidth={isActive ? 2.5 : 2} />
+                {item.path === '/chat' && totalUnread > 0 && (
+                  <span className="absolute -top-1.5 -right-2 min-w-4 h-4 px-1 rounded-full bg-emerald-500 text-white text-[9px] font-bold flex items-center justify-center">
+                    {totalUnread > 99 ? '99+' : totalUnread}
+                  </span>
+                )}
                 {isActive && (
                   <motion.div
                     layoutId="nav-indicator"
