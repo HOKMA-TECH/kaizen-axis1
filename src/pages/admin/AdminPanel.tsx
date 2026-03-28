@@ -1279,7 +1279,7 @@ export default function AdminPanel() {
         ))}
         <button
           onClick={() => navigate('/admin/security')}
-          className="flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap transition-all bg-emerald-600 text-white shadow-md shadow-emerald-500/20 hover:bg-emerald-500"
+          className="flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap transition-all bg-white dark:bg-surface-100 text-text-secondary border border-surface-200 hover:border-gold-400 hover:text-gold-500"
         >
           <ShieldCheck size={14} /> Painel de Segurança
         </button>
