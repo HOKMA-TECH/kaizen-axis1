@@ -40,7 +40,6 @@ export default defineConfig(({ mode }) => {
       tailwindcss(),
       vercelApiPlugin(),
     ],
-    define: {},
     resolve: {
       alias: {
         '@': path.resolve(__dirname, './src'),
