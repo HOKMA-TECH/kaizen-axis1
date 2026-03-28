@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { PremiumCard, SectionHeader, RoundedButton } from '@/components/ui/PremiumComponents';
 import { useApp } from '@/context/AppContext';
+import { logAuditEvent } from '@/services/auditLogger';
 import { useAuthorization } from '@/hooks/useAuthorization';
 import { supabase } from '@/lib/supabase';
 import { X } from 'lucide-react';
@@ -386,6 +387,7 @@ export default function PresenceReport() {
       a.download = `presenca_${start}_${end}.pdf`;
       a.click();
       URL.revokeObjectURL(url);
+      logAuditEvent({ action: 'document_downloaded', entity: 'report', entityId: `presenca_${start}_${end}`, metadata: { type: 'relatorio_presenca', start, end } });
 
     } catch (err: any) {
       alert(`Erro ao gerar PDF: ${err.message}`);

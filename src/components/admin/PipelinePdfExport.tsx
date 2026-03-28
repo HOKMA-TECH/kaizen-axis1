@@ -3,6 +3,7 @@ import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 import { supabase } from '@/lib/supabase';
 import { Download, FileText, Loader2 } from 'lucide-react';
 import { Profile } from '@/context/AppContext';
+import { logAuditEvent } from '@/services/auditLogger';
 
 interface Props {
   corretores: Profile[];
@@ -182,6 +183,7 @@ export default function PipelinePdfExport({ corretores }: Props) {
       a.download = `pipeline-${corretorName.replace(/\s+/g, '-')}.pdf`;
       a.click();
       URL.revokeObjectURL(url);
+      logAuditEvent({ action: 'document_downloaded', entity: 'report', entityId: `pipeline-${corretorName}`, metadata: { type: 'pipeline_corretor', corretor: corretorName } });
 
     } catch (err: any) {
       alert(`Erro: ${err.message}`);

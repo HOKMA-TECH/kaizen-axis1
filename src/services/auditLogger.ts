@@ -25,9 +25,15 @@ export interface AuditEventInput {
 }
 
 class AuditLogger {
+  // Deduplicação: evita gravar o mesmo evento mais de uma vez em 3 segundos
+  private readonly _recent = new Map<string, number>();
+
   log(event: AuditEventInput) {
     if (!event.action || !event.entity) return;
-    // Assíncrono — nunca bloqueia o fluxo principal
+    const key = `${event.action}:${event.entity}:${event.entityId ?? ''}`;
+    const now = Date.now();
+    if ((this._recent.get(key) ?? 0) > now - 3000) return;
+    this._recent.set(key, now);
     queueMicrotask(() => this.dispatch(event));
   }
 

@@ -8,6 +8,7 @@ import { Download, FileSpreadsheet, FileText, Loader2, Building2, Users, Trendin
 import { Modal } from '@/components/ui/Modal';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useApp, Team } from '@/context/AppContext';
+import { logAuditEvent } from '@/services/auditLogger';
 import { useAuthorization } from '@/hooks/useAuthorization';
 import { useReportsData } from '@/hooks/useReportsData';
 import { STAGE_WEIGHTS } from '@/types/reports';
@@ -205,6 +206,7 @@ function TeamReportView({
       a.download = `relatorio-equipe-${team.name.replace(/\s+/g, '-')}.pdf`;
       a.click();
       URL.revokeObjectURL(url);
+      logAuditEvent({ action: 'document_downloaded', entity: 'report', entityId: `relatorio-equipe-${team.name}`, metadata: { type: 'relatorio_equipe', team: team.name } });
     } catch (err: any) {
       alert(`Erro ao gerar PDF: ${err.message}`);
     } finally {
@@ -1044,6 +1046,7 @@ export default function Reports() {
         a.download = fileName;
         a.click();
         URL.revokeObjectURL(url);
+        logAuditEvent({ action: 'document_downloaded', entity: 'report', entityId: fileName, metadata: { type: 'relatorio_global' } });
       } catch (err: any) {
         alert(`Erro ao gerar PDF: ${err.message}`);
       }
