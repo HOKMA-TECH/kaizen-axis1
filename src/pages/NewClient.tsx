@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { PremiumCard, RoundedButton, SectionHeader } from '@/components/ui/PremiumComponents';
-import { ChevronLeft, Save, UploadCloud, FileText, X } from 'lucide-react';
+import { ChevronLeft, Save, UploadCloud, FileText, X, Loader2 } from 'lucide-react';
 import { CLIENT_STAGES, ClientStage } from '@/data/clients';
 import { useApp } from '@/context/AppContext';
 
@@ -62,6 +62,7 @@ export default function NewClient() {
   }, [location.state]);
 
   const [documents, setDocuments] = useState<File[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     let { name, value } = e.target;
@@ -88,15 +89,18 @@ export default function NewClient() {
     setDocuments(prev => prev.filter((_, i) => i !== index));
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const submitClient = async () => {
+    if (isSubmitting) return;
+
     if (!formData.name.trim()) {
       alert('Por favor, informe o nome do cliente.');
       return;
     }
 
-    let newClient;
+    setIsSubmitting(true);
+
     try {
+      let newClient;
       newClient = await addClient({
         name: formData.name,
         cpf: formData.cpf,
@@ -114,29 +118,32 @@ export default function NewClient() {
         observations: formData.observations,
         stage: formData.stage,
       });
-    } catch (err: any) {
-      alert(`Erro ao salvar cliente:\n\n${err?.message || 'Tente novamente.'}`);
-      return;
-    }
+      if (newClient === null || newClient === undefined) {
+        alert('Erro ao salvar cliente. Tente novamente.');
+        return;
+      }
 
-    if (newClient !== null && newClient !== undefined) {
       localStorage.removeItem(DRAFT_KEY);
-      // Upload documents if any
-          if (documents.length > 0) {
-            let hasError = false;
-            for (const file of documents) {
-              const filePath = `${newClient.id}/${Date.now()}-${file.name}`;
-              const uploadedPath = await uploadFile(file, filePath, 'client-documents');
-              if (uploadedPath) {
-                const dbResult = await addDocumentToClient(newClient.id, file.name, uploadedPath);
-                if (!dbResult.success) {
-                  hasError = true;
-                  console.error(dbResult.error);
-            }
-          } else {
+
+      if (documents.length > 0) {
+        let hasError = false;
+
+        for (const file of documents) {
+          const filePath = `${newClient.id}/${Date.now()}-${file.name}`;
+          const uploadedPath = await uploadFile(file, filePath, 'client-documents');
+
+          if (!uploadedPath) {
             hasError = true;
+            continue;
+          }
+
+          const dbResult = await addDocumentToClient(newClient.id, file.name, uploadedPath);
+          if (!dbResult.success) {
+            hasError = true;
+            console.error(dbResult.error);
           }
         }
+
         if (hasError) {
           alert('Cliente salvo, mas houve erros ao vincular alguns documentos no banco de dados.');
         } else {
@@ -145,10 +152,18 @@ export default function NewClient() {
       } else {
         alert('Cliente cadastrado com sucesso!');
       }
+
       navigate('/clients');
-    } else {
-      alert('Erro ao salvar cliente. Tente novamente.');
+    } catch (err: any) {
+      alert(`Erro ao salvar cliente:\n\n${err?.message || 'Tente novamente.'}`);
+    } finally {
+      setIsSubmitting(false);
     }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await submitClient();
   };
 
   return (
@@ -161,8 +176,14 @@ export default function NewClient() {
           </button>
           <h1 className="text-lg font-bold text-text-primary">Novo Cliente</h1>
         </div>
-        <button onClick={handleSubmit} className="text-gold-600 font-medium text-sm">
-          Salvar
+        <button
+          type="button"
+          onClick={submitClient}
+          disabled={isSubmitting}
+          className="text-gold-600 font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+        >
+          {isSubmitting && <Loader2 size={14} className="animate-spin" />}
+          {isSubmitting ? 'Salvando...' : 'Salvar'}
         </button>
       </div>
 
@@ -401,8 +422,8 @@ export default function NewClient() {
           </PremiumCard>
         </section>
 
-        <RoundedButton type="submit" fullWidth className="mt-4">
-          <Save size={20} /> Salvar Cliente
+        <RoundedButton type="submit" fullWidth className="mt-4" disabled={isSubmitting}>
+          {isSubmitting ? <Loader2 size={20} className="animate-spin" /> : <Save size={20} />} {isSubmitting ? 'Salvando...' : 'Salvar Cliente'}
         </RoundedButton>
       </form>
     </div>
