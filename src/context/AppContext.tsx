@@ -467,7 +467,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const refreshClients = useCallback(async () => {
     try {
-      setLoading(true);
       const rawRole = profileRef.current?.role || userRoleRef.current || 'CORRETOR';
       const role = String(rawRole).toUpperCase();
       const uid = userRef.current?.id;
@@ -475,7 +474,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       try {
         await rateLimiter.enforce('clients_query', { userId: uid || null });
       } catch (err: any) {
-        setLoading(false);
         alert(err?.message || 'Limite de consultas atingido. Aguarde um minuto.');
         return;
       }
@@ -511,7 +509,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       }));
       setClients(transformed);
     } catch (e) { console.error('Erro ao carregar clientes:', e); }
-    finally { setLoading(false); }
   }, []);
 
   const convertLeadToClient = useCallback(async (leadId: string, clientData: any): Promise<{ success: boolean; clientId?: string }> => {
@@ -1152,20 +1149,26 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       profileRef.current = forcedProfile;
       userRoleRef.current = forcedProfile.role || 'Corretor';
     }
-    await Promise.all([
-      refreshClients(),
-      refreshLeads(),
-      refreshPortals(),
-      refreshTrainings(),
-      refreshAppointments(),
-      refreshTasks(),
-      refreshDevelopments(),
-      refreshTeams(),
-      refreshGoals(),
-      refreshAnnouncements(),
-      refreshProfiles(),
-      refreshDirectorates(),
-    ]);
+    try {
+      await Promise.all([
+        refreshClients(),
+        refreshLeads(),
+        refreshPortals(),
+        refreshTrainings(),
+        refreshAppointments(),
+        refreshTasks(),
+        refreshDevelopments(),
+        refreshTeams(),
+        refreshGoals(),
+        refreshAnnouncements(),
+        refreshProfiles(),
+        refreshDirectorates(),
+      ]);
+    } finally {
+      // loading controla somente a inicialização de sessão/tela protegida.
+      // Atualizações em background não devem desmontar a UI inteira.
+      setLoading(false);
+    }
   }, [refreshClients, refreshLeads, refreshAppointments, refreshTasks, refreshDevelopments, refreshTeams, refreshGoals, refreshAnnouncements, refreshProfiles, refreshDirectorates]);
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
