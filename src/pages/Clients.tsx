@@ -484,7 +484,7 @@ export default function Clients() {
             <button
               onClick={() => setActiveStage('Todos')}
               className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${activeStage === 'Todos'
-                ? 'bg-gray-900 dark:bg-white text-white dark:text-black shadow-md'
+                ? 'bg-gold-500 text-white shadow-md'
                 : 'bg-card-bg text-text-secondary border border-surface-200'
                 }`}
             >

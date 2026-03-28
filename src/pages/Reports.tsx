@@ -279,7 +279,7 @@ function TeamReportView({
       <div className="print:hidden flex justify-end mb-4 relative">
         <button
           onClick={() => setIsActionsMenuOpen(v => !v)}
-          className="h-9 w-9 flex items-center justify-center rounded-lg border border-surface-200 bg-white dark:bg-surface-100 text-text-secondary hover:text-gold-700 hover:border-gold-300 shadow-sm transition-all"
+          className="h-9 w-9 flex items-center justify-center rounded-lg border border-surface-200 bg-card-bg text-text-secondary hover:text-gold-700 hover:border-gold-300 shadow-sm transition-all"
         >
           <MoreHorizontal size={18} />
         </button>
@@ -287,7 +287,7 @@ function TeamReportView({
         {isActionsMenuOpen && (
           <>
             <div className="fixed inset-0 z-10" onClick={() => setIsActionsMenuOpen(false)} />
-            <div className="absolute right-0 top-full mt-2 z-20 w-56 bg-white dark:bg-surface-100 border border-surface-200 rounded-xl shadow-xl overflow-hidden p-2">
+            <div className="absolute right-0 top-full mt-2 z-20 w-56 bg-card-bg border border-surface-200 rounded-xl shadow-xl overflow-hidden p-2">
               <p className="px-2 pb-2 text-[10px] font-bold uppercase tracking-wider text-text-secondary">Exportar relatório</p>
               <button
                 onClick={() => { setIsActionsMenuOpen(false); handleDownloadPdf(); }}
@@ -922,7 +922,7 @@ function DiretoriaReportView({
       <div className="print:hidden flex justify-end mb-4 relative">
         <button
           onClick={() => setIsActionsMenuOpen(v => !v)}
-          className="h-9 w-9 flex items-center justify-center rounded-lg border border-surface-200 bg-white dark:bg-surface-100 text-text-secondary hover:text-gold-700 hover:border-gold-300 shadow-sm transition-all"
+          className="h-9 w-9 flex items-center justify-center rounded-lg border border-surface-200 bg-card-bg text-text-secondary hover:text-gold-700 hover:border-gold-300 shadow-sm transition-all"
         >
           <MoreHorizontal size={18} />
         </button>
@@ -930,7 +930,7 @@ function DiretoriaReportView({
         {isActionsMenuOpen && (
           <>
             <div className="fixed inset-0 z-10" onClick={() => setIsActionsMenuOpen(false)} />
-            <div className="absolute right-0 top-full mt-2 z-20 w-56 bg-white dark:bg-surface-100 border border-surface-200 rounded-xl shadow-xl overflow-hidden p-2">
+            <div className="absolute right-0 top-full mt-2 z-20 w-56 bg-card-bg border border-surface-200 rounded-xl shadow-xl overflow-hidden p-2">
               <p className="px-2 pb-2 text-[10px] font-bold uppercase tracking-wider text-text-secondary">Exportar relatório</p>
               <button
                 onClick={() => { setIsActionsMenuOpen(false); handleDownloadPdf(); }}
@@ -1327,7 +1327,7 @@ export default function Reports() {
             onClick={() => handlePeriodChange(p)}
             className={`px-4 py-2 rounded-full text-xs font-medium whitespace-nowrap transition-all ${period === p || (p === 'Personalizado' && period.includes('/'))
               ? 'bg-gold-500 text-white shadow-md'
-              : 'bg-white dark:bg-surface-100 text-text-secondary border border-surface-200'
+              : 'bg-card-bg text-text-secondary border border-surface-200'
               }`}
           >
             {p}
@@ -1338,7 +1338,7 @@ export default function Reports() {
       <div className="print:hidden flex justify-end mb-6 relative">
         <button
           onClick={() => setIsExportMenuOpen(v => !v)}
-          className="h-9 w-9 flex items-center justify-center rounded-lg border border-surface-200 bg-white dark:bg-surface-100 text-text-secondary hover:text-gold-700 hover:border-gold-300 shadow-sm transition-all"
+          className="h-9 w-9 flex items-center justify-center rounded-lg border border-surface-200 bg-card-bg text-text-secondary hover:text-gold-700 hover:border-gold-300 shadow-sm transition-all"
         >
           <MoreHorizontal size={18} />
         </button>
@@ -1346,7 +1346,7 @@ export default function Reports() {
         {isExportMenuOpen && (
           <>
             <div className="fixed inset-0 z-10" onClick={() => setIsExportMenuOpen(false)} />
-            <div className="absolute right-0 top-full mt-2 z-20 w-56 bg-white dark:bg-surface-100 border border-surface-200 rounded-xl shadow-xl overflow-hidden p-2">
+            <div className="absolute right-0 top-full mt-2 z-20 w-56 bg-card-bg border border-surface-200 rounded-xl shadow-xl overflow-hidden p-2">
               <p className="px-2 pb-2 text-[10px] font-bold uppercase tracking-wider text-text-secondary">Exportar relatório</p>
               <div className="space-y-1.5">
                 <button
