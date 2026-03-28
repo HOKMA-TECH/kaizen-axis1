@@ -42,6 +42,10 @@ class RateLimiter {
       if (err instanceof Error && err.message.includes('Limite de requisições')) {
         throw err;
       }
+      // Fail-closed para login: se a edge function cair, bloqueia em vez de permitir
+      if (scope === 'login') {
+        throw new Error('Serviço de segurança indisponível. Tente novamente em instantes.');
+      }
       console.warn('[rate-limit] Falha ao contactar rate guard', err);
     }
   }

@@ -46,8 +46,8 @@ export default function Login() {
       alert('As senhas não coincidem.');
       return;
     }
-    if (newPassword.length < 6) {
-      alert('A senha deve ter pelo menos 6 caracteres.');
+    if (newPassword.length < 8) {
+      alert('A senha deve ter pelo menos 8 caracteres.');
       return;
     }
     setLoading(true);
@@ -100,7 +100,9 @@ export default function Login() {
         try {
           await rateLimiter.enforce('login');
         } catch (err: any) {
-          alert(err?.message || 'Limite de tentativas atingido. Aguarde antes de tentar novamente.');
+          // Falha no rate limiter: se for limite atingido bloqueia; se for erro de rede bloqueia também (fail-closed)
+          logAuditEvent({ action: 'login_failed', entity: 'auth', metadata: { reason: err?.message || 'rate_limit' } });
+          alert(err?.message || 'Não foi possível validar a requisição. Tente novamente em instantes.');
           setLoading(false);
           return;
         }
@@ -129,6 +131,11 @@ export default function Login() {
               setLoading(false);
               return; // Para aqui e aguarda o código MFA
             }
+
+            // MFA é exigido mas nenhum fator verificado encontrado — bloqueia acesso
+            await supabase.auth.signOut();
+            logAuditEvent({ action: 'login_failed', entity: 'auth', metadata: { reason: 'mfa_required_no_factor' } });
+            throw new Error('Autenticação em dois fatores é obrigatória. Configure o 2FA nas configurações da sua conta.');
           }
         }
 
@@ -221,7 +228,7 @@ export default function Login() {
                 type="password"
                 placeholder="Nova senha"
                 required
-                minLength={6}
+                minLength={8}
                 value={newPassword}
                 onChange={e => setNewPassword(e.target.value)}
                 className="w-full pl-12 pr-4 py-3.5 bg-surface-50 dark:bg-surface-800/50 rounded-xl border border-surface-200 dark:border-surface-700 focus:ring-2 focus:ring-gold-500 focus:border-gold-500 transition-all text-sm text-text-primary focus:outline-none"
@@ -233,7 +240,7 @@ export default function Login() {
                 type="password"
                 placeholder="Confirme a nova senha"
                 required
-                minLength={6}
+                minLength={8}
                 value={confirmNewPassword}
                 onChange={e => setConfirmNewPassword(e.target.value)}
                 className="w-full pl-12 pr-4 py-3.5 bg-surface-50 dark:bg-surface-800/50 rounded-xl border border-surface-200 dark:border-surface-700 focus:ring-2 focus:ring-gold-500 focus:border-gold-500 transition-all text-sm text-text-primary focus:outline-none"
