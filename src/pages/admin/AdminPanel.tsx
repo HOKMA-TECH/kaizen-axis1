@@ -7,6 +7,7 @@ import { useAuthorization } from '@/hooks/useAuthorization';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, Legend } from 'recharts';
 import { supabase } from '@/lib/supabase';
+import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
 import PipelinePdfExport from '@/components/admin/PipelinePdfExport';
 import { useReportsData } from '@/hooks/useReportsData';
 
@@ -74,6 +75,7 @@ export default function AdminPanel() {
   const [reportData, setReportData] = useState<any>(null);
   const [reportLoading, setReportLoading] = useState(false);
   const [isGeneratingCSV, setIsGeneratingCSV] = useState(false);
+  const [pdfExportType, setPdfExportType] = useState<'geral' | 'equipe' | 'coordenacao' | null>(null);
 
   // XP Report
   const [xpDateRange, setXpDateRange] = useState({
@@ -129,6 +131,297 @@ export default function AdminPanel() {
       .filter(Boolean)
       .sort((a: any, b: any) => b.Vi - a.Vi || b.Ri - a.Ri);
   })();
+
+  const reportByTeam = (() => {
+    const brokerMap = new Map(localBrokerRanking.map((row: any) => [row.corretor_id, row]));
+
+    return teams
+      .map((team) => {
+        const brokerIds = Array.from(new Set(allProfiles
+          .filter((p: any) => (p.team === team.id || p.team_id === team.id) && p.role?.toUpperCase() === 'CORRETOR')
+          .map((p) => p.id)));
+
+        const rows = brokerIds.map((id) => brokerMap.get(id)).filter(Boolean) as any[];
+        const clientes = rows.reduce((acc, row) => acc + Number(row.Li || 0), 0);
+        const vendas = rows.reduce((acc, row) => acc + Number(row.Vi || 0), 0);
+        const receita = rows.reduce((acc, row) => acc + Number(row.Ri || 0), 0);
+        const conversao = clientes > 0 ? Math.round((vendas / clientes) * 100) : 0;
+
+        return {
+          nome: team.name,
+          corretores: brokerIds.length,
+          clientes,
+          vendas,
+          conversao,
+          receita,
+        };
+      })
+      .filter((row) => row.clientes > 0 || row.vendas > 0 || row.receita > 0)
+      .sort((a, b) => b.vendas - a.vendas || b.receita - a.receita);
+  })();
+
+  const reportByCoordination = (() => {
+    const brokerMap = new Map(localBrokerRanking.map((row: any) => [row.corretor_id, row]));
+
+    return allProfiles
+      .filter((p) => p.role?.toUpperCase() === 'COORDENADOR')
+      .map((coord) => {
+        const brokerIds = Array.from(new Set(allProfiles
+          .filter((p: any) => p.coordinator_id === coord.id && p.role?.toUpperCase() === 'CORRETOR')
+          .map((p) => p.id)));
+
+        const rows = brokerIds.map((id) => brokerMap.get(id)).filter(Boolean) as any[];
+        const clientes = rows.reduce((acc, row) => acc + Number(row.Li || 0), 0);
+        const vendas = rows.reduce((acc, row) => acc + Number(row.Vi || 0), 0);
+        const receita = rows.reduce((acc, row) => acc + Number(row.Ri || 0), 0);
+        const conversao = clientes > 0 ? Math.round((vendas / clientes) * 100) : 0;
+
+        return {
+          nome: coord.name,
+          corretores: brokerIds.length,
+          clientes,
+          vendas,
+          conversao,
+          receita,
+        };
+      })
+      .filter((row) => row.corretores > 0 || row.clientes > 0 || row.vendas > 0)
+      .sort((a, b) => b.vendas - a.vendas || b.receita - a.receita);
+  })();
+
+  const buildPdfReport = async ({
+    filename,
+    title,
+    subtitle,
+    metrics,
+    columns,
+    rows,
+  }: {
+    filename: string;
+    title: string;
+    subtitle: string;
+    metrics: Array<{ label: string; value: string }>;
+    columns: Array<{ header: string; width: number }>;
+    rows: string[][];
+  }) => {
+    const doc = await PDFDocument.create();
+    const fontRegular = await doc.embedFont(StandardFonts.Helvetica);
+    const fontBold = await doc.embedFont(StandardFonts.HelveticaBold);
+
+    const PAGE_W = 595;
+    const PAGE_H = 842;
+    const MARGIN = 36;
+    const TABLE_W = PAGE_W - (MARGIN * 2);
+    const ROW_H = 16;
+    const HEADER_H = 18;
+
+    const colorDark = rgb(0.11, 0.12, 0.15);
+    const colorGold = rgb(0.82, 0.66, 0.18);
+    const colorGray = rgb(0.43, 0.45, 0.5);
+    const colorLight = rgb(0.96, 0.96, 0.97);
+    const colorWhite = rgb(1, 1, 1);
+
+    let page = doc.addPage([PAGE_W, PAGE_H]);
+    let y = PAGE_H - MARGIN;
+
+    const drawHeader = () => {
+      page.drawRectangle({ x: 0, y: PAGE_H - 72, width: PAGE_W, height: 72, color: colorDark });
+      page.drawText(title, { x: MARGIN, y: PAGE_H - 30, size: 15, font: fontBold, color: colorGold });
+      page.drawText(subtitle, { x: MARGIN, y: PAGE_H - 48, size: 9, font: fontRegular, color: colorWhite });
+      page.drawText(`Gerado em ${new Date().toLocaleString('pt-BR')}`, { x: MARGIN, y: PAGE_H - 63, size: 8, font: fontRegular, color: rgb(0.74, 0.76, 0.8) });
+      y = PAGE_H - 92;
+    };
+
+    const drawTableHeader = () => {
+      page.drawRectangle({ x: MARGIN, y: y - HEADER_H + 4, width: TABLE_W, height: HEADER_H, color: colorDark });
+      let cx = MARGIN + 4;
+      columns.forEach((col) => {
+        page.drawText(col.header, { x: cx, y: y - 9, size: 7, font: fontBold, color: colorWhite });
+        cx += col.width;
+      });
+      y -= HEADER_H;
+    };
+
+    drawHeader();
+
+    page.drawText('RESUMO', { x: MARGIN, y, size: 10, font: fontBold, color: colorGold });
+    y -= 17;
+    metrics.forEach((metric) => {
+      page.drawText(`${metric.label}:`, { x: MARGIN, y, size: 8.5, font: fontBold, color: colorDark });
+      page.drawText(metric.value, { x: MARGIN + 170, y, size: 8.5, font: fontRegular, color: colorDark });
+      y -= 13;
+    });
+
+    y -= 5;
+    page.drawRectangle({ x: MARGIN, y, width: TABLE_W, height: 0.7, color: rgb(0.86, 0.87, 0.9) });
+    y -= 15;
+
+    page.drawText('DETALHAMENTO', { x: MARGIN, y, size: 10, font: fontBold, color: colorGold });
+    y -= 15;
+    drawTableHeader();
+
+    rows.forEach((row, rowIndex) => {
+      if (y < MARGIN + ROW_H + 18) {
+        page = doc.addPage([PAGE_W, PAGE_H]);
+        y = PAGE_H - MARGIN;
+        page.drawText(`${title} - continuacao`, { x: MARGIN, y, size: 8, font: fontRegular, color: colorGray });
+        y -= 14;
+        drawTableHeader();
+      }
+
+      const isEven = rowIndex % 2 === 0;
+      page.drawRectangle({
+        x: MARGIN,
+        y: y - ROW_H + 5,
+        width: TABLE_W,
+        height: ROW_H,
+        color: isEven ? colorWhite : colorLight,
+      });
+
+      let cx = MARGIN + 4;
+      row.forEach((cell, cellIndex) => {
+        const colW = columns[cellIndex]?.width || 80;
+        const text = String(cell || '');
+        const maxChars = Math.max(8, Math.floor(colW / 4.2));
+        page.drawText(text.length > maxChars ? `${text.slice(0, maxChars - 1)}…` : text, {
+          x: cx,
+          y: y - 8,
+          size: 7,
+          font: fontRegular,
+          color: colorDark,
+        });
+        cx += colW;
+      });
+      y -= ROW_H;
+    });
+
+    const bytes = await doc.save();
+    const blob = new Blob([bytes], { type: 'application/pdf' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleExportGeneralPdf = async () => {
+    if (!reportData) return;
+    setPdfExportType('geral');
+    try {
+      const resumo = reportData.resumo_geral || {};
+      await buildPdfReport({
+        filename: `relatorio-geral-${reportDateRange.start}-${reportDateRange.end}.pdf`,
+        title: 'Relatorio Geral de Performance',
+        subtitle: `Periodo ${new Date(reportDateRange.start).toLocaleDateString('pt-BR')} a ${new Date(reportDateRange.end).toLocaleDateString('pt-BR')}`,
+        metrics: [
+          { label: 'Leads', value: String(resumo.L || 0) },
+          { label: 'Clientes', value: String(resumo.C || 0) },
+          { label: 'Vendas concluidas', value: String(resumo.V || 0) },
+          { label: 'Taxa de conversao', value: `${resumo.Taxa_Conversao || 0}%` },
+          { label: 'Receita total', value: new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(resumo.R || 0)) },
+          { label: 'VGV concluido', value: new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(vgvLocal) },
+        ],
+        columns: [
+          { header: 'Corretor', width: 210 },
+          { header: 'Clientes', width: 70 },
+          { header: 'Vendas', width: 65 },
+          { header: 'Conv.%', width: 60 },
+          { header: 'Receita', width: 118 },
+        ],
+        rows: localBrokerRanking.map((row: any) => [
+          String(row.nome || '-'),
+          String(row.Li || 0),
+          String(row.Vi || 0),
+          `${row.Taxa_Conversao_i || 0}%`,
+          new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(Number(row.Ri || 0)),
+        ]),
+      });
+    } catch (error) {
+      console.error('Erro ao gerar PDF geral', error);
+      alert('Nao foi possivel gerar o PDF geral.');
+    } finally {
+      setPdfExportType(null);
+    }
+  };
+
+  const handleExportTeamPdf = async () => {
+    if (!reportData) return;
+    setPdfExportType('equipe');
+    try {
+      await buildPdfReport({
+        filename: `relatorio-equipes-${reportDateRange.start}-${reportDateRange.end}.pdf`,
+        title: 'Relatorio por Equipe',
+        subtitle: `Periodo ${new Date(reportDateRange.start).toLocaleDateString('pt-BR')} a ${new Date(reportDateRange.end).toLocaleDateString('pt-BR')}`,
+        metrics: [
+          { label: 'Equipes com resultado', value: String(reportByTeam.length) },
+          { label: 'Clientes no periodo', value: String(reportByTeam.reduce((acc, row) => acc + row.clientes, 0)) },
+          { label: 'Vendas concluidas', value: String(reportByTeam.reduce((acc, row) => acc + row.vendas, 0)) },
+          { label: 'Receita total', value: new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(reportByTeam.reduce((acc, row) => acc + row.receita, 0)) },
+        ],
+        columns: [
+          { header: 'Equipe', width: 185 },
+          { header: 'Corretores', width: 70 },
+          { header: 'Clientes', width: 62 },
+          { header: 'Vendas', width: 58 },
+          { header: 'Conv.%', width: 55 },
+          { header: 'Receita', width: 122 },
+        ],
+        rows: reportByTeam.map((row) => [
+          row.nome,
+          String(row.corretores),
+          String(row.clientes),
+          String(row.vendas),
+          `${row.conversao}%`,
+          new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(row.receita),
+        ]),
+      });
+    } catch (error) {
+      console.error('Erro ao gerar PDF por equipe', error);
+      alert('Nao foi possivel gerar o PDF por equipe.');
+    } finally {
+      setPdfExportType(null);
+    }
+  };
+
+  const handleExportCoordinationPdf = async () => {
+    if (!reportData) return;
+    setPdfExportType('coordenacao');
+    try {
+      await buildPdfReport({
+        filename: `relatorio-coordenacao-${reportDateRange.start}-${reportDateRange.end}.pdf`,
+        title: 'Relatorio por Coordenacao',
+        subtitle: `Periodo ${new Date(reportDateRange.start).toLocaleDateString('pt-BR')} a ${new Date(reportDateRange.end).toLocaleDateString('pt-BR')}`,
+        metrics: [
+          { label: 'Coordenacoes com resultado', value: String(reportByCoordination.length) },
+          { label: 'Corretores mapeados', value: String(reportByCoordination.reduce((acc, row) => acc + row.corretores, 0)) },
+          { label: 'Vendas concluidas', value: String(reportByCoordination.reduce((acc, row) => acc + row.vendas, 0)) },
+          { label: 'Receita total', value: new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(reportByCoordination.reduce((acc, row) => acc + row.receita, 0)) },
+        ],
+        columns: [
+          { header: 'Coordenacao', width: 185 },
+          { header: 'Corretores', width: 70 },
+          { header: 'Clientes', width: 62 },
+          { header: 'Vendas', width: 58 },
+          { header: 'Conv.%', width: 55 },
+          { header: 'Receita', width: 122 },
+        ],
+        rows: reportByCoordination.map((row) => [
+          row.nome,
+          String(row.corretores),
+          String(row.clientes),
+          String(row.vendas),
+          `${row.conversao}%`,
+          new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(row.receita),
+        ]),
+      });
+    } catch (error) {
+      console.error('Erro ao gerar PDF por coordenacao', error);
+      alert('Nao foi possivel gerar o PDF por coordenacao.');
+    } finally {
+      setPdfExportType(null);
+    }
+  };
 
   useEffect(() => {
     if (activeTab === 'reports' && reportDateRange.start && reportDateRange.end) {
@@ -749,9 +1042,30 @@ export default function AdminPanel() {
                     <button onClick={() => { const today = new Date(); const m30 = new Date(); m30.setDate(today.getDate() - 30); setReportDateRange({ start: m30.toISOString().slice(0, 10), end: today.toISOString().slice(0, 10) }) }} className="px-3 py-1.5 bg-surface-100 text-[11px] font-semibold text-text-secondary rounded-lg hover:bg-gold-50 hover:text-gold-700 transition-colors">30 Dias</button>
                   </div>
 
-                  <div className="flex gap-2">
-                    <button onClick={() => window.print()} className="flex items-center gap-1.5 px-3 py-1.5 border border-surface-200 rounded-lg text-text-secondary text-[11px] font-bold hover:text-gold-600 hover:bg-gold-50 transition-colors shadow-sm" title="Baixar PDF">
-                      <Printer size={14} /> PDF
+                  <div className="flex gap-2 flex-wrap justify-end">
+                    <button
+                      onClick={handleExportGeneralPdf}
+                      disabled={reportLoading || !reportData || pdfExportType !== null}
+                      className="flex items-center gap-1.5 px-3 py-1.5 border border-surface-200 rounded-lg text-text-secondary text-[11px] font-bold hover:text-gold-600 hover:bg-gold-50 transition-colors shadow-sm disabled:opacity-50"
+                      title="Gerar PDF geral"
+                    >
+                      {pdfExportType === 'geral' ? <Loader2 size={14} className="animate-spin" /> : <Printer size={14} />} PDF Geral
+                    </button>
+                    <button
+                      onClick={handleExportTeamPdf}
+                      disabled={reportLoading || !reportData || pdfExportType !== null}
+                      className="flex items-center gap-1.5 px-3 py-1.5 border border-surface-200 rounded-lg text-text-secondary text-[11px] font-bold hover:text-blue-700 hover:bg-blue-50 transition-colors shadow-sm disabled:opacity-50"
+                      title="Gerar PDF por equipe"
+                    >
+                      {pdfExportType === 'equipe' ? <Loader2 size={14} className="animate-spin" /> : <FileDown size={14} />} PDF Equipe
+                    </button>
+                    <button
+                      onClick={handleExportCoordinationPdf}
+                      disabled={reportLoading || !reportData || pdfExportType !== null}
+                      className="flex items-center gap-1.5 px-3 py-1.5 border border-surface-200 rounded-lg text-text-secondary text-[11px] font-bold hover:text-emerald-700 hover:bg-emerald-50 transition-colors shadow-sm disabled:opacity-50"
+                      title="Gerar PDF por coordenacao"
+                    >
+                      {pdfExportType === 'coordenacao' ? <Loader2 size={14} className="animate-spin" /> : <FileText size={14} />} PDF Coordenacao
                     </button>
                   </div>
                 </div>
