@@ -52,24 +52,24 @@ const ACTION_LABELS: Record<string, string> = {
 };
 
 const ACTION_COLORS: Record<string, string> = {
-  login_success:       'text-emerald-600',
-  login_failed:        'text-red-600',
+  login_success:       'text-emerald-600 dark:text-emerald-400',
+  login_failed:        'text-red-600 dark:text-red-400',
   logout:              'text-slate-500',
-  client_created:      'text-blue-600',
-  client_updated:      'text-amber-600',
-  client_deleted:      'text-red-600',
+  client_created:      'text-blue-600 dark:text-blue-400',
+  client_updated:      'text-amber-600 dark:text-amber-400',
+  client_deleted:      'text-red-600 dark:text-red-400',
   client_view:         'text-slate-500',
-  document_uploaded:   'text-blue-600',
-  document_deleted:    'text-red-600',
-  document_downloaded: 'text-purple-600',
-  permissions_updated: 'text-orange-600',
+  document_uploaded:   'text-blue-600 dark:text-blue-400',
+  document_deleted:    'text-red-600 dark:text-red-400',
+  document_downloaded: 'text-purple-600 dark:text-purple-400',
+  permissions_updated: 'text-orange-600 dark:text-orange-400',
 };
 
 const SEVERITY_BADGE: Record<string, string> = {
-  low:      'bg-emerald-100 text-emerald-700',
-  medium:   'bg-amber-100 text-amber-700',
-  high:     'bg-orange-100 text-orange-700',
-  critical: 'bg-red-100 text-red-700',
+  low:      'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300',
+  medium:   'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300',
+  high:     'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300',
+  critical: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300',
 };
 
 const SEVERITY_LABELS: Record<string, string> = {
@@ -190,7 +190,7 @@ export default function SecurityPanel() {
   return (
     <div className="min-h-screen bg-surface-50 pb-24">
       {/* Header */}
-      <div className="bg-card-bg px-4 py-4 shadow-sm sticky top-0 z-20 flex items-center justify-between">
+      <div className="bg-card-bg/95 backdrop-blur px-4 py-4 border-b border-surface-200 sticky top-0 z-20 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <button onClick={() => navigate(-1)} className="p-2 rounded-full hover:bg-surface-100 text-text-secondary">
             <ChevronLeft size={22} />
@@ -216,10 +216,10 @@ export default function SecurityPanel() {
 
         {/* Diagnóstico */}
         {diagError && (
-          <div className="p-4 rounded-xl bg-red-50 border border-red-200 text-sm text-red-700 space-y-2">
+          <div className="p-4 rounded-xl bg-red-50 border border-red-200 text-sm text-red-700 dark:bg-red-900/20 dark:border-red-800/60 dark:text-red-300 space-y-2">
             <p className="font-bold">⚠️ Erro ao carregar dados:</p>
             <p className="font-mono text-xs break-all">{diagError}</p>
-            <p className="text-xs text-red-500">Verifique se a migration <code>20260327000000_security_layers.sql</code> e a policy de INSERT foram aplicadas no Supabase.</p>
+            <p className="text-xs text-red-500 dark:text-red-400">Verifique se a migration <code>20260327000000_security_layers.sql</code> e a policy de INSERT foram aplicadas no Supabase.</p>
           </div>
         )}
 
@@ -231,15 +231,15 @@ export default function SecurityPanel() {
 
         {/* Botão de diagnóstico — visível quando não há dados */}
         {!loading && auditLogs.length === 0 && !diagError && (
-          <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 space-y-3">
-            <p className="text-sm text-amber-800 font-medium">Nenhum log encontrado. Teste se a gravação está funcionando:</p>
+          <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 dark:bg-amber-900/20 dark:border-amber-800/60 space-y-3">
+            <p className="text-sm text-amber-800 dark:text-amber-300 font-medium">Nenhum log encontrado. Teste se a gravação está funcionando:</p>
             <button
               onClick={runTest}
               className="px-4 py-2 rounded-full bg-amber-500 text-white text-xs font-semibold shadow hover:bg-amber-600"
             >
               Testar gravação de log agora
             </button>
-            <p className="text-xs text-amber-600">
+            <p className="text-xs text-amber-600 dark:text-amber-400">
               Se retornar erro de RLS ou "relation does not exist", a migration SQL não foi aplicada no Supabase.
             </p>
           </div>
@@ -270,14 +270,14 @@ export default function SecurityPanel() {
                 ? <p className="text-sm text-text-secondary">Nenhum login registrado ainda.</p>
                 : recentLogins.map(log => (
                   <div key={log.id} className="flex items-start gap-3 p-3 rounded-xl border border-surface-100 hover:bg-surface-50">
-                    <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center shrink-0">
-                      <User size={14} className="text-emerald-600" />
+                    <div className="w-8 h-8 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center shrink-0">
+                      <User size={14} className="text-emerald-600 dark:text-emerald-400" />
                     </div>
                     <div className="min-w-0">
                       <p className="text-sm font-semibold text-text-primary truncate">{userName(log)}</p>
                       <p className="text-xs text-text-secondary">{timeAgo(log.created_at)} · {log.ip_address || 'IP não registrado'}</p>
                       {profiles[log.user_id ?? '']?.role && (
-                        <span className="text-[10px] text-emerald-600 font-medium uppercase">{profiles[log.user_id!].role}</span>
+                          <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium uppercase">{profiles[log.user_id!].role}</span>
                       )}
                     </div>
                     <p className="text-xs text-text-secondary shrink-0 hidden sm:block">{formatDate(log.created_at)}</p>
@@ -296,18 +296,18 @@ export default function SecurityPanel() {
               {failedLogins.length === 0
                 ? <p className="text-sm text-text-secondary">Sem falhas de login registradas.</p>
                 : failedLogins.map(log => (
-                  <div key={log.id} className="flex items-start gap-3 p-3 rounded-xl border border-red-100 bg-red-50/30 hover:bg-red-50/60">
-                    <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center shrink-0">
-                      <AlertTriangle size={14} className="text-red-600" />
+                  <div key={log.id} className="flex items-start gap-3 p-3 rounded-xl border border-red-100 bg-red-50/40 hover:bg-red-50/70 dark:border-red-900/40 dark:bg-red-900/15 dark:hover:bg-red-900/25">
+                    <div className="w-8 h-8 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center shrink-0">
+                      <AlertTriangle size={14} className="text-red-600 dark:text-red-400" />
                     </div>
                     <div className="min-w-0">
-                      <p className="text-sm font-semibold text-red-700 truncate">{userName(log)}</p>
-                      <p className="text-xs text-red-500">{timeAgo(log.created_at)} · {log.ip_address || 'IP não registrado'}</p>
+                      <p className="text-sm font-semibold text-red-700 dark:text-red-300 truncate">{userName(log)}</p>
+                      <p className="text-xs text-red-500 dark:text-red-400">{timeAgo(log.created_at)} · {log.ip_address || 'IP não registrado'}</p>
                       {log.metadata?.reason && (
                         <p className="text-xs text-text-secondary mt-0.5">Motivo: {log.metadata.reason}</p>
                       )}
                     </div>
-                    <p className="text-xs text-red-400 shrink-0 hidden sm:block">{formatDate(log.created_at)}</p>
+                    <p className="text-xs text-red-400 dark:text-red-500 shrink-0 hidden sm:block">{formatDate(log.created_at)}</p>
                   </div>
                 ))
               }
@@ -327,8 +327,8 @@ export default function SecurityPanel() {
               <div className="grid md:grid-cols-2 gap-2 max-h-64 overflow-y-auto pr-1">
                 {documentDownloads.map(log => (
                   <div key={log.id} className="flex items-start gap-3 p-3 rounded-xl border border-surface-100 hover:bg-surface-50">
-                    <div className="w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center shrink-0">
-                      <FileText size={14} className="text-purple-600" />
+                    <div className="w-8 h-8 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center shrink-0">
+                      <FileText size={14} className="text-purple-600 dark:text-purple-400" />
                     </div>
                     <div className="min-w-0">
                       <p className="text-sm font-semibold text-text-primary truncate">{userName(log)}</p>
@@ -413,7 +413,7 @@ export default function SecurityPanel() {
                           <span className="text-xs text-text-secondary">·</span>
                           <span className="text-xs text-text-secondary">{userName(log)}</span>
                           {profiles[log.user_id ?? '']?.role && (
-                            <span className="text-[10px] text-gold-500 font-semibold uppercase bg-gold-50 px-1.5 py-0.5 rounded">
+                            <span className="text-[10px] text-gold-500 dark:text-gold-400 font-semibold uppercase bg-gold-50 dark:bg-gold-900/20 px-1.5 py-0.5 rounded">
                               {profiles[log.user_id!].role}
                             </span>
                           )}
