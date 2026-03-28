@@ -4,7 +4,7 @@ import { SectionHeader, PremiumCard, RoundedButton, StatusBadge } from '@/compon
 import { MetricCard } from '@/components/reports/MetricCard';
 import { CircularScore } from '@/components/reports/CircularScore';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { Download, FileSpreadsheet, FileText, Loader2, Building2, Users, TrendingUp, Target, ArrowLeft, AlertCircle, Timer, Shield, ChevronRight, X } from 'lucide-react';
+import { FileSpreadsheet, Loader2, Building2, Users, TrendingUp, Target, ArrowLeft, AlertCircle, Timer, Shield, ChevronRight, X, MoreHorizontal, FileText } from 'lucide-react';
 import { Modal } from '@/components/ui/Modal';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useApp, Team } from '@/context/AppContext';
@@ -56,6 +56,7 @@ function TeamReportView({
   const { allProfiles, clients } = useApp();
   const [selectedBrokerId, setSelectedBrokerId] = useState<string | null>(null);
   const [pdfLoading, setPdfLoading] = useState(false);
+  const [isActionsMenuOpen, setIsActionsMenuOpen] = useState(false);
 
   // Members of this team:
   // - team.members[] is the authoritative list (set by the approval flow)
@@ -255,7 +256,7 @@ function TeamReportView({
   return (
     <div className="p-6 pb-24 min-h-screen bg-surface-50">
       {/* Header */}
-      <div className="flex items-start justify-between mb-6 gap-3">
+      <div className="flex items-start justify-between mb-4 gap-3">
         <div>
           <button
             onClick={() => navigate('/reports')}
@@ -273,14 +274,31 @@ function TeamReportView({
             </div>
           </div>
         </div>
+      </div>
+
+      <div className="print:hidden flex justify-end mb-4 relative">
         <button
-          onClick={handleDownloadPdf}
-          disabled={pdfLoading}
-          className="flex items-center gap-1.5 px-3 py-2 bg-white dark:bg-surface-100 border border-surface-200 rounded-lg text-sm font-medium text-text-secondary hover:text-gold-600 shadow-sm transition-colors disabled:opacity-50"
+          onClick={() => setIsActionsMenuOpen(v => !v)}
+          className="h-9 w-9 flex items-center justify-center rounded-lg border border-surface-200 bg-white dark:bg-surface-100 text-text-secondary hover:text-gold-700 hover:border-gold-300 shadow-sm transition-all"
         >
-          {pdfLoading ? <Loader2 size={15} className="animate-spin" /> : <Download size={15} />}
-          {pdfLoading ? 'Gerando...' : 'PDF'}
+          <MoreHorizontal size={18} />
         </button>
+
+        {isActionsMenuOpen && (
+          <>
+            <div className="fixed inset-0 z-10" onClick={() => setIsActionsMenuOpen(false)} />
+            <div className="absolute right-0 top-full mt-2 z-20 w-56 bg-white dark:bg-surface-100 border border-surface-200 rounded-xl shadow-xl overflow-hidden p-2">
+              <p className="px-2 pb-2 text-[10px] font-bold uppercase tracking-wider text-text-secondary">Exportar relatório</p>
+              <button
+                onClick={() => { setIsActionsMenuOpen(false); handleDownloadPdf(); }}
+                disabled={pdfLoading}
+                className="w-full flex items-center gap-2 px-2.5 py-2 border border-surface-200 rounded-lg text-text-secondary text-[11px] font-semibold hover:text-gold-700 hover:bg-gold-50 transition-colors disabled:opacity-50"
+              >
+                {pdfLoading ? <Loader2 size={14} className="animate-spin" /> : <FileText size={14} />} PDF da Equipe
+              </button>
+            </div>
+          </>
+        )}
       </div>
 
       {/* Summary cards */}
@@ -893,7 +911,7 @@ export default function Reports() {
 
   // ── Period state
   const [period, setPeriod] = useState('30 dias');
-  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+  const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
   const [isDateModalOpen, setIsDateModalOpen] = useState(false);
   const [startDateInput, setStartDateInput] = useState('');
   const [endDateInput, setEndDateInput] = useState('');
@@ -1001,7 +1019,6 @@ export default function Reports() {
       link.setAttribute('download', fileName);
       link.click();
     } else {
-      setIsExportModalOpen(false);
       try {
         const pdfDoc = await PDFDocument.create();
         const bold    = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
@@ -1125,21 +1142,15 @@ export default function Reports() {
 
   return (
     <div className="p-6 pb-24 min-h-screen bg-surface-50 print:bg-white print:p-0 print:min-h-0 print:h-auto print:block">
-      <div className="flex justify-between items-center mb-6 print:mb-2">
+      <div className="mb-2 print:mb-2">
         <div>
           <h1 className="text-2xl font-bold text-text-primary">Relatórios</h1>
           <p className="text-text-secondary text-sm">Inteligência Estratégica — Visão Global</p>
         </div>
-        <button
-          onClick={() => setIsExportModalOpen(true)}
-          className="p-2 bg-white dark:bg-surface-100 border border-surface-200 rounded-lg text-text-secondary hover:text-gold-600 shadow-sm print:hidden"
-        >
-          <Download size={20} />
-        </button>
       </div>
 
       {/* ── Period Filters ── */}
-      <div className="flex gap-2 mb-6 overflow-x-auto no-scrollbar pb-2 print:hidden">
+      <div className="flex gap-2 mb-3 overflow-x-auto no-scrollbar pb-2 print:hidden">
         {['30 dias', '60 dias', '90 dias', 'Personalizado'].map((p) => (
           <button
             key={p}
@@ -1152,6 +1163,38 @@ export default function Reports() {
             {p}
           </button>
         ))}
+      </div>
+
+      <div className="print:hidden flex justify-end mb-6 relative">
+        <button
+          onClick={() => setIsExportMenuOpen(v => !v)}
+          className="h-9 w-9 flex items-center justify-center rounded-lg border border-surface-200 bg-white dark:bg-surface-100 text-text-secondary hover:text-gold-700 hover:border-gold-300 shadow-sm transition-all"
+        >
+          <MoreHorizontal size={18} />
+        </button>
+
+        {isExportMenuOpen && (
+          <>
+            <div className="fixed inset-0 z-10" onClick={() => setIsExportMenuOpen(false)} />
+            <div className="absolute right-0 top-full mt-2 z-20 w-56 bg-white dark:bg-surface-100 border border-surface-200 rounded-xl shadow-xl overflow-hidden p-2">
+              <p className="px-2 pb-2 text-[10px] font-bold uppercase tracking-wider text-text-secondary">Exportar relatório</p>
+              <div className="space-y-1.5">
+                <button
+                  onClick={() => { setIsExportMenuOpen(false); handleExport('pdf'); }}
+                  className="w-full flex items-center gap-2 px-2.5 py-2 border border-surface-200 rounded-lg text-text-secondary text-[11px] font-semibold hover:text-gold-700 hover:bg-gold-50 transition-colors"
+                >
+                  <FileText size={14} /> PDF
+                </button>
+                <button
+                  onClick={() => { setIsExportMenuOpen(false); handleExport('excel'); }}
+                  className="w-full flex items-center gap-2 px-2.5 py-2 border border-surface-200 rounded-lg text-text-secondary text-[11px] font-semibold hover:text-gold-700 hover:bg-gold-50 transition-colors"
+                >
+                  <FileSpreadsheet size={14} /> CSV
+                </button>
+              </div>
+            </div>
+          </>
+        )}
       </div>
 
       {/* ── Metric Cards ── */}
@@ -1320,19 +1363,6 @@ export default function Reports() {
         </section>
         );
       })()}
-
-      {/* ── Export Modal ── */}
-      <Modal isOpen={isExportModalOpen} onClose={() => setIsExportModalOpen(false)} title="Exportar Relatório">
-        <div className="space-y-4">
-          <p className="text-sm text-text-secondary text-center">Exportar relatório em PDF ({period}).</p>
-          <div className="flex justify-center">
-            <button onClick={() => handleExport('pdf')} className="flex flex-col items-center justify-center p-6 w-full max-w-xs bg-surface-50 hover:bg-surface-100 rounded-xl transition-all">
-              <FileText size={24} className="text-red-600 mb-2" />
-              <span className="text-sm font-medium">Baixar PDF</span>
-            </button>
-          </div>
-        </div>
-      </Modal>
 
       {/* ── Custom Date Modal ── */}
       <Modal isOpen={isDateModalOpen} onClose={() => setIsDateModalOpen(false)} title="Período Personalizado">
