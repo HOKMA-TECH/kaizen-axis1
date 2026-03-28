@@ -320,6 +320,9 @@ export default function AdminPanel() {
     setPdfExportType('geral');
     try {
       const resumo = reportData.resumo_geral || {};
+      const totalClientes = Number(resumo.C || 0);
+      const totalVendas = Number(resumo.V || 0);
+      const taxaConversaoReal = totalClientes > 0 ? Number(((totalVendas / totalClientes) * 100).toFixed(1)) : 0;
       await buildPdfReport({
         filename: `relatorio-geral-${reportDateRange.start}-${reportDateRange.end}.pdf`,
         title: 'Relatorio Geral de Performance',
@@ -328,7 +331,7 @@ export default function AdminPanel() {
           { label: 'Leads', value: String(resumo.L || 0) },
           { label: 'Clientes', value: String(resumo.C || 0) },
           { label: 'Vendas concluidas', value: String(resumo.V || 0) },
-          { label: 'Taxa de conversao', value: `${resumo.Taxa_Conversao || 0}%` },
+          { label: 'Taxa de conversao', value: `${taxaConversaoReal}%` },
           { label: 'Receita total', value: new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(resumo.R || 0)) },
           { label: 'VGV concluido', value: new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(vgvLocal) },
         ],
