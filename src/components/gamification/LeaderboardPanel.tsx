@@ -5,6 +5,11 @@ import { useGamification } from '../../hooks/useGamification';
 export function LeaderboardPanel() {
     const { leaderboard, loading } = useGamification();
 
+    const toSafeNumber = (value: unknown): number => {
+        const num = Number(value);
+        return Number.isFinite(num) ? num : 0;
+    };
+
     if (loading) {
         return (
             <div className="bg-white/80 backdrop-blur-md rounded-2xl shadow-xl border border-gray-100 p-6 flex items-center justify-center min-h-[400px]">
@@ -36,6 +41,10 @@ export function LeaderboardPanel() {
                 ) : (
                     leaderboard.map((entry, index) => {
                         const isTop3 = index < 3;
+                        const totalPoints = toSafeNumber(entry.total_points);
+                        const streak = toSafeNumber(entry.current_streak);
+                        const rankingScore = toSafeNumber(entry.ranking_score);
+                        const totalValue = toSafeNumber(entry.total_value);
                         return (
                             <div
                                 key={entry.user_id}
@@ -69,11 +78,11 @@ export function LeaderboardPanel() {
                                         </p>
                                         <div className="flex items-center text-xs space-x-3 mt-0.5">
                                             <span className="flex items-center text-emerald-600 font-medium bg-emerald-50 px-1.5 py-0.5 rounded-md">
-                                                {(entry.total_points ?? 0).toLocaleString()} pts
+                                                {totalPoints.toLocaleString('pt-BR')} pts
                                             </span>
-                                            {(entry.current_streak ?? 0) > 1 && (
-                                                <span className="flex items-center text-orange-600 font-medium bg-orange-50 px-1.5 py-0.5 rounded-md" title={`Streak de ${entry.current_streak} dias diretos!`}>
-                                                    <Flame className="w-3 h-3 mr-1" /> {entry.current_streak} dias
+                                            {streak > 1 && (
+                                                <span className="flex items-center text-orange-600 font-medium bg-orange-50 px-1.5 py-0.5 rounded-md" title={`Streak de ${streak} dias diretos!`}>
+                                                    <Flame className="w-3 h-3 mr-1" /> {streak} dias
                                                 </span>
                                             )}
                                         </div>
@@ -83,11 +92,11 @@ export function LeaderboardPanel() {
                                 {/* Score & Volume */}
                                 <div className="text-right flex-shrink-0">
                                     <p className="text-sm font-bold text-indigo-700">
-                                        {Math.floor(entry.ranking_score).toLocaleString()} Score
+                                        {Math.floor(rankingScore).toLocaleString('pt-BR')} Score
                                     </p>
                                     <p className="text-xs text-gray-500 mt-1 flex items-center justify-end">
                                         <TrendingUp className="w-3 h-3 mr-1" />
-                                        R$ {(entry.total_value / 1000).toFixed(0)}k vol.
+                                        R$ {(totalValue / 1000).toFixed(0)}k vol.
                                     </p>
                                 </div>
                             </div>

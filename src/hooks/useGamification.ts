@@ -57,7 +57,7 @@ export function useGamification() {
     useEffect(() => {
         if (!user) return;
 
-        // Subscribe to user_points — any INSERT means XP was awarded
+        // Subscribe to user_points globally so ranking updates for everyone
         const pointsChannel = supabase
             .channel('gamification:user_points')
             .on(
@@ -66,7 +66,6 @@ export function useGamification() {
                     event: 'INSERT',
                     schema: 'public',
                     table: 'user_points',
-                    filter: `user_id=eq.${user.id}`,
                 },
                 () => { fetchGamificationData(); }
             )
@@ -87,8 +86,7 @@ export function useGamification() {
             )
             .subscribe();
 
-        // Subscribe to system_events for goal/mission completion
-        // (so leaderboard score updates even when XP goes to another user via global goals)
+        // Subscribe to system_events globally so leaderboard stays fresh
         const eventsChannel = supabase
             .channel('gamification:system_events')
             .on(
@@ -97,7 +95,6 @@ export function useGamification() {
                     event: 'INSERT',
                     schema: 'public',
                     table: 'system_events',
-                    filter: `user_id=eq.${user.id}`,
                 },
                 (payload: any) => {
                     const t = payload.new?.type;
