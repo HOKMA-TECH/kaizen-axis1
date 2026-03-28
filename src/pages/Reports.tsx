@@ -686,6 +686,8 @@ function DiretoriaReportView({
 }: { dirId: string; dirName: string; startDate: string; endDate: string }) {
   const navigate = useNavigate();
   const { clients, teams, allProfiles } = useApp();
+  const [pdfLoading, setPdfLoading] = useState(false);
+  const [isActionsMenuOpen, setIsActionsMenuOpen] = useState(false);
 
   // Clients belonging to this directorate, filtered by date range
   const dirClients = useMemo(() =>
@@ -751,10 +753,153 @@ function DiretoriaReportView({
     return { weightedPipeline: pipeline, forecastTotal: totalWeightedBRL };
   }, [dirClients]);
 
+  const handleDownloadPdf = async () => {
+    setPdfLoading(true);
+    try {
+      const pdfDoc = await PDFDocument.create();
+      const bold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+      const regular = await pdfDoc.embedFont(StandardFonts.Helvetica);
+
+      const PAGE_W = 595;
+      const PAGE_H = 842;
+      const MARGIN = 36;
+      const TABLE_W = PAGE_W - MARGIN * 2;
+      const ROW_H = 18;
+      const HDR_H = 20;
+      const gold = rgb(0.82, 0.66, 0.18);
+      const dark = rgb(0.1, 0.1, 0.1);
+      const gray = rgb(0.45, 0.45, 0.45);
+      const light = rgb(0.96, 0.96, 0.96);
+      const white = rgb(1, 1, 1);
+
+      let page = pdfDoc.addPage([PAGE_W, PAGE_H]);
+      let y = PAGE_H - MARGIN;
+
+      const addContinuationPage = (label: string) => {
+        page = pdfDoc.addPage([PAGE_W, PAGE_H]);
+        y = PAGE_H - MARGIN;
+        page.drawText(label, { x: MARGIN, y, size: 8, font: regular, color: gray });
+        y -= 14;
+      };
+
+      const ensureSpace = (needed: number, continuationLabel = 'Relatorio por Diretoria (continuacao)') => {
+        if (y < MARGIN + needed) addContinuationPage(continuationLabel);
+      };
+
+      const rows = dirTeams
+        .map((team) => {
+          const memberIds = Array.from(new Set([
+            ...(team.members ?? []),
+            ...allProfiles.filter((p) => p.team === team.id || p.team_id === team.id).map((p) => p.id),
+            ...(team.manager_id ? [team.manager_id] : []),
+          ]));
+          const teamClients = dirClients.filter((c) => memberIds.includes((c as any).owner_id));
+          const vendasEquipe = teamClients.filter((c) => c.stage === 'Concluído');
+          const vgvEquipe = vendasEquipe.reduce((acc, c) => acc + parseValue(c.intendedValue), 0);
+          return {
+            equipe: team.name,
+            clientes: teamClients.length,
+            vendas: vendasEquipe.length,
+            conversao: teamClients.length > 0 ? Math.round((vendasEquipe.length / teamClients.length) * 100) : 0,
+            receita: vgvEquipe,
+          };
+        })
+        .sort((a, b) => b.vendas - a.vendas || b.receita - a.receita);
+
+      page.drawRectangle({ x: 0, y: PAGE_H - 70, width: PAGE_W, height: 70, color: dark });
+      page.drawText('Relatorio por Diretoria', { x: MARGIN, y: PAGE_H - 30, size: 16, font: bold, color: gold });
+      page.drawText(`Diretoria: ${dirName}`, { x: MARGIN, y: PAGE_H - 48, size: 10, font: regular, color: white });
+      page.drawText(`Periodo: ${new Date(startDate).toLocaleDateString('pt-BR')} a ${new Date(endDate).toLocaleDateString('pt-BR')}`, { x: MARGIN, y: PAGE_H - 63, size: 9, font: regular, color: rgb(0.75, 0.75, 0.75) });
+      y = PAGE_H - 90;
+
+      page.drawText('RESUMO', { x: MARGIN, y, size: 10, font: bold, color: gold });
+      y -= 18;
+      for (const [label, value] of [
+        ['Vendas Totais', String(totalVendas)],
+        ['Total de Clientes', String(totalClientes)],
+        ['Taxa de Conversao', `${taxaConversao}%`],
+        ['Ciclo de Vendas', cicloMedioDias ? `${cicloMedioDias} dias` : '—'],
+        ['Receita Ponderada (Pipeline)', brl(forecastTotal)],
+      ] as [string, string][]) {
+        page.drawText(`${label}:`, { x: MARGIN, y, size: 9, font: bold, color: dark });
+        page.drawText(value, { x: MARGIN + 190, y, size: 9, font: regular, color: dark });
+        y -= 14;
+      }
+
+      y -= 8;
+      page.drawRectangle({ x: MARGIN, y, width: TABLE_W, height: 0.5, color: rgb(0.85, 0.85, 0.85) });
+      y -= 16;
+
+      const columns = [
+        { header: 'Equipe', width: 220 },
+        { header: 'Clientes', width: 75 },
+        { header: 'Vendas', width: 70 },
+        { header: 'Conv.%', width: 65 },
+        { header: 'Receita', width: 125 },
+      ];
+
+      const drawTableHeader = () => {
+        page.drawRectangle({ x: MARGIN, y: y - HDR_H, width: TABLE_W, height: HDR_H, color: dark });
+        let cx = MARGIN + 4;
+        columns.forEach((col) => {
+          page.drawText(col.header, { x: cx, y: y - HDR_H + 6, size: 7, font: bold, color: white });
+          cx += col.width;
+        });
+        y -= HDR_H;
+      };
+
+      page.drawText('DESEMPENHO POR EQUIPE', { x: MARGIN, y, size: 10, font: bold, color: gold });
+      y -= 16;
+      drawTableHeader();
+
+      rows.forEach((row, i) => {
+        ensureSpace(ROW_H + 10, 'Relatorio por Diretoria (continuacao)');
+        if (y > PAGE_H - MARGIN - 20) {
+          page.drawText('DESEMPENHO POR EQUIPE (continuacao)', { x: MARGIN, y, size: 10, font: bold, color: gold });
+          y -= 16;
+          drawTableHeader();
+        }
+
+        const isEven = i % 2 === 0;
+        page.drawRectangle({ x: MARGIN, y: y - ROW_H, width: TABLE_W, height: ROW_H, color: isEven ? white : light });
+
+        const cells = [row.equipe, String(row.clientes), String(row.vendas), `${row.conversao}%`, brl(row.receita)];
+        let cx = MARGIN + 4;
+        cells.forEach((cell, idx) => {
+          const maxChars = Math.max(8, Math.floor(columns[idx].width / 4.5));
+          const text = cell.length > maxChars ? `${cell.slice(0, maxChars - 1)}…` : cell;
+          page.drawText(text, { x: cx, y: y - ROW_H + 6, size: 7, font: regular, color: dark });
+          cx += columns[idx].width;
+        });
+        y -= ROW_H;
+      });
+
+      const pages = pdfDoc.getPages();
+      pages.forEach((pg, idx) => {
+        pg.drawText(`Kaizen Axis - Confidencial  |  Pagina ${idx + 1} de ${pages.length}`, { x: MARGIN, y: 18, size: 7, font: regular, color: gray });
+      });
+
+      const pdfBytes = await pdfDoc.save();
+      const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `relatorio-diretoria-${dirName.replace(/\s+/g, '-')}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+
+      logAuditEvent({ action: 'document_downloaded', entity: 'report', entityId: `relatorio-diretoria-${dirName}`, metadata: { type: 'relatorio_diretoria', diretoria: dirName } });
+    } catch (err: any) {
+      alert(`Erro ao gerar PDF: ${err.message}`);
+    } finally {
+      setPdfLoading(false);
+    }
+  };
+
   return (
     <div className="p-6 pb-24 min-h-screen bg-surface-50">
       {/* ── Header ── */}
-      <div className="flex items-start justify-between mb-6 gap-3">
+      <div className="flex items-start justify-between mb-4 gap-3">
         <div>
           <button
             onClick={() => navigate('/reports')}
@@ -1147,6 +1292,31 @@ export default function Reports() {
           <h1 className="text-2xl font-bold text-text-primary">Relatórios</h1>
           <p className="text-text-secondary text-sm">Inteligência Estratégica — Visão Global</p>
         </div>
+      </div>
+
+      <div className="print:hidden flex justify-end mb-4 relative">
+        <button
+          onClick={() => setIsActionsMenuOpen(v => !v)}
+          className="h-9 w-9 flex items-center justify-center rounded-lg border border-surface-200 bg-white dark:bg-surface-100 text-text-secondary hover:text-gold-700 hover:border-gold-300 shadow-sm transition-all"
+        >
+          <MoreHorizontal size={18} />
+        </button>
+
+        {isActionsMenuOpen && (
+          <>
+            <div className="fixed inset-0 z-10" onClick={() => setIsActionsMenuOpen(false)} />
+            <div className="absolute right-0 top-full mt-2 z-20 w-56 bg-white dark:bg-surface-100 border border-surface-200 rounded-xl shadow-xl overflow-hidden p-2">
+              <p className="px-2 pb-2 text-[10px] font-bold uppercase tracking-wider text-text-secondary">Exportar relatório</p>
+              <button
+                onClick={() => { setIsActionsMenuOpen(false); handleDownloadPdf(); }}
+                disabled={pdfLoading}
+                className="w-full flex items-center gap-2 px-2.5 py-2 border border-surface-200 rounded-lg text-text-secondary text-[11px] font-semibold hover:text-gold-700 hover:bg-gold-50 transition-colors disabled:opacity-50"
+              >
+                {pdfLoading ? <Loader2 size={14} className="animate-spin" /> : <FileText size={14} />} PDF da Diretoria
+              </button>
+            </div>
+          </>
+        )}
       </div>
 
       {/* ── Period Filters ── */}
