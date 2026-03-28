@@ -1586,7 +1586,7 @@ export default function AdminPanel() {
 
 
   return (
-    <div className="p-6 pb-24 min-h-screen bg-surface-50 print:p-0 print:bg-white overflow-x-hidden">
+    <div className="p-6 pb-24 min-h-screen bg-surface-50 print:p-0 print:bg-white">
       <div className="print:hidden">
         <SectionHeader title="Painel Administrativo" subtitle="Governança e Estratégia" />
       </div>
