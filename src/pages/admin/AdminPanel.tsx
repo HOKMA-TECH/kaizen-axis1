@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { SectionHeader, PremiumCard, RoundedButton } from '@/components/ui/PremiumComponents';
 import { Users, Shield, ShieldCheck, Target, Megaphone, BarChart3, Plus, Search, Trophy, Download, FileSpreadsheet, FileText, Trash2, Edit2, ChevronDown, Calendar, Loader2, Building2, TrendingUp, Printer, Star, Award, Zap, Flame, MoreHorizontal, FileDown } from 'lucide-react';
 import { Modal } from '@/components/ui/Modal';
@@ -76,8 +76,6 @@ export default function AdminPanel() {
   const [reportLoading, setReportLoading] = useState(false);
   const [isGeneratingCSV, setIsGeneratingCSV] = useState(false);
   const [pdfExportType, setPdfExportType] = useState<'geral' | 'equipe' | 'coordenacao' | null>(null);
-  const [isReportsPdfMenuOpen, setIsReportsPdfMenuOpen] = useState(false);
-  const reportsPdfMenuRef = useRef<HTMLDivElement | null>(null);
 
   // XP Report
   const [xpDateRange, setXpDateRange] = useState({
@@ -88,20 +86,6 @@ export default function AdminPanel() {
   const [xpReportLoading, setXpReportLoading] = useState(false);
 
   const navigate = useNavigate();
-
-  useEffect(() => {
-    if (!isReportsPdfMenuOpen) return;
-
-    const handleOutsideClick = (event: MouseEvent) => {
-      if (!reportsPdfMenuRef.current) return;
-      if (!reportsPdfMenuRef.current.contains(event.target as Node)) {
-        setIsReportsPdfMenuOpen(false);
-      }
-    };
-
-    document.addEventListener('mousedown', handleOutsideClick);
-    return () => document.removeEventListener('mousedown', handleOutsideClick);
-  }, [isReportsPdfMenuOpen]);
 
   // ── Client-side metrics (reliable, bypass broken RPC fields) ───────────────
   const { globalMetrics } = useReportsData({ startDate: reportDateRange.start, endDate: reportDateRange.end });
@@ -1004,7 +988,37 @@ export default function AdminPanel() {
                 <>
                   {/* backdrop */}
                   <div className="fixed inset-0 z-10" onClick={() => setIsToolsMenuOpen(false)} />
-                  <div className="absolute right-0 top-full mt-1.5 z-20 w-64 bg-white dark:bg-surface-100 border border-surface-200 rounded-xl shadow-xl overflow-hidden">
+                  <div className="absolute right-0 top-full mt-1.5 z-20 w-72 bg-white dark:bg-surface-100 border border-surface-200 rounded-xl shadow-xl overflow-hidden">
+                    <div className="px-4 pt-3 pb-2 text-[10px] font-bold uppercase tracking-wider text-text-secondary">Exportar relatórios</div>
+                    <div className="px-3 pb-3 space-y-1.5">
+                      <button
+                        onClick={() => { setIsToolsMenuOpen(false); handleExportGeneralPdf(); }}
+                        disabled={reportLoading || !reportData || pdfExportType !== null}
+                        className="w-full flex items-center gap-2 px-2.5 py-2 border border-surface-200 rounded-lg text-text-secondary text-[11px] font-semibold hover:text-gold-700 hover:bg-gold-50 transition-colors disabled:opacity-50"
+                        title="Gerar PDF geral"
+                      >
+                        {pdfExportType === 'geral' ? <Loader2 size={14} className="animate-spin" /> : <Printer size={14} />} PDF Geral
+                      </button>
+                      <button
+                        onClick={() => { setIsToolsMenuOpen(false); handleExportTeamPdf(); }}
+                        disabled={reportLoading || !reportData || pdfExportType !== null}
+                        className="w-full flex items-center gap-2 px-2.5 py-2 border border-surface-200 rounded-lg text-text-secondary text-[11px] font-semibold hover:text-gold-700 hover:bg-gold-50 transition-colors disabled:opacity-50"
+                        title="Gerar PDF por equipe"
+                      >
+                        {pdfExportType === 'equipe' ? <Loader2 size={14} className="animate-spin" /> : <FileDown size={14} />} PDF Equipe
+                      </button>
+                      <button
+                        onClick={() => { setIsToolsMenuOpen(false); handleExportCoordinationPdf(); }}
+                        disabled={reportLoading || !reportData || pdfExportType !== null}
+                        className="w-full flex items-center gap-2 px-2.5 py-2 border border-surface-200 rounded-lg text-text-secondary text-[11px] font-semibold hover:text-gold-700 hover:bg-gold-50 transition-colors disabled:opacity-50"
+                        title="Gerar PDF por coordenacao"
+                      >
+                        {pdfExportType === 'coordenacao' ? <Loader2 size={14} className="animate-spin" /> : <FileText size={14} />} PDF Coordenacao
+                      </button>
+                    </div>
+
+                    <div className="border-t border-surface-100" />
+                    <div className="px-4 pt-3 pb-2 text-[10px] font-bold uppercase tracking-wider text-text-secondary">Ferramentas</div>
                     <button
                       onClick={() => { setIsToolsMenuOpen(false); setIsPipelineModalOpen(true); }}
                       className="w-full flex items-center gap-3 px-4 py-3 hover:bg-surface-50 dark:hover:bg-surface-200 transition-colors text-left"
@@ -1017,7 +1031,6 @@ export default function AdminPanel() {
                         <p className="text-[11px] text-text-secondary">Exportar PDF dos leads ativos</p>
                       </div>
                     </button>
-                    <div className="border-t border-surface-100" />
                     <button
                       onClick={() => { setIsToolsMenuOpen(false); navigate('/admin/reports/presence'); }}
                       className="w-full flex items-center gap-3 px-4 py-3 hover:bg-surface-50 dark:hover:bg-surface-200 transition-colors text-left"
@@ -1069,50 +1082,6 @@ export default function AdminPanel() {
                   <div className="flex gap-2">
                     <button onClick={() => setReportDateRange({ start: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().slice(0, 10), end: new Date().toISOString().slice(0, 10) })} className="px-3 py-1.5 bg-surface-100 text-[11px] font-semibold text-text-secondary rounded-lg hover:bg-gold-50 hover:text-gold-700 transition-colors">Este Mês</button>
                     <button onClick={() => { const today = new Date(); const m30 = new Date(); m30.setDate(today.getDate() - 30); setReportDateRange({ start: m30.toISOString().slice(0, 10), end: today.toISOString().slice(0, 10) }) }} className="px-3 py-1.5 bg-surface-100 text-[11px] font-semibold text-text-secondary rounded-lg hover:bg-gold-50 hover:text-gold-700 transition-colors">30 Dias</button>
-                  </div>
-
-                  <div ref={reportsPdfMenuRef} className="relative">
-                    <button
-                      type="button"
-                      onClick={() => setIsReportsPdfMenuOpen((prev) => !prev)}
-                      className="h-8 w-8 flex items-center justify-center border border-surface-200 rounded-lg text-text-secondary bg-white hover:bg-surface-50 hover:text-gold-700 transition-colors shadow-sm disabled:opacity-50"
-                      disabled={reportLoading || !reportData}
-                      title="Baixar relatórios"
-                    >
-                      <MoreHorizontal size={16} />
-                    </button>
-
-                    {isReportsPdfMenuOpen && (
-                      <div className="absolute right-0 top-10 min-w-52 p-2 bg-white border border-surface-200 rounded-xl shadow-lg z-20">
-                        <p className="px-2 pb-2 text-[10px] font-bold uppercase tracking-wider text-text-secondary">Exportar PDF</p>
-                        <div className="space-y-1">
-                          <button
-                            onClick={() => { setIsReportsPdfMenuOpen(false); handleExportGeneralPdf(); }}
-                            disabled={reportLoading || !reportData || pdfExportType !== null}
-                            className="w-full flex items-center gap-2 px-2.5 py-2 border border-surface-200 rounded-lg text-text-secondary text-[11px] font-semibold hover:text-gold-700 hover:bg-gold-50 transition-colors disabled:opacity-50"
-                            title="Gerar PDF geral"
-                          >
-                            {pdfExportType === 'geral' ? <Loader2 size={14} className="animate-spin" /> : <Printer size={14} />} PDF Geral
-                          </button>
-                          <button
-                            onClick={() => { setIsReportsPdfMenuOpen(false); handleExportTeamPdf(); }}
-                            disabled={reportLoading || !reportData || pdfExportType !== null}
-                            className="w-full flex items-center gap-2 px-2.5 py-2 border border-surface-200 rounded-lg text-text-secondary text-[11px] font-semibold hover:text-gold-700 hover:bg-gold-50 transition-colors disabled:opacity-50"
-                            title="Gerar PDF por equipe"
-                          >
-                            {pdfExportType === 'equipe' ? <Loader2 size={14} className="animate-spin" /> : <FileDown size={14} />} PDF Equipe
-                          </button>
-                          <button
-                            onClick={() => { setIsReportsPdfMenuOpen(false); handleExportCoordinationPdf(); }}
-                            disabled={reportLoading || !reportData || pdfExportType !== null}
-                            className="w-full flex items-center gap-2 px-2.5 py-2 border border-surface-200 rounded-lg text-text-secondary text-[11px] font-semibold hover:text-gold-700 hover:bg-gold-50 transition-colors disabled:opacity-50"
-                            title="Gerar PDF por coordenacao"
-                          >
-                            {pdfExportType === 'coordenacao' ? <Loader2 size={14} className="animate-spin" /> : <FileText size={14} />} PDF Coordenacao
-                          </button>
-                        </div>
-                      </div>
-                    )}
                   </div>
                 </div>
               </div>
