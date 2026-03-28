@@ -128,8 +128,35 @@ function TeamReportView({
       const white  = rgb(1, 1, 1);
       const brlFmt = (n: number) => n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 });
 
-      const page = pdfDoc.addPage([PAGE_W, PAGE_H]);
+      let page = pdfDoc.addPage([PAGE_W, PAGE_H]);
       let y = PAGE_H - MARGIN;
+
+      const addContinuationPage = (label: string) => {
+        page = pdfDoc.addPage([PAGE_W, PAGE_H]);
+        y = PAGE_H - MARGIN;
+        page.drawText(label, { x: MARGIN, y, size: 8, font: regular, color: gray });
+        y -= 14;
+      };
+
+      const ensureSpace = (needed: number, continuationLabel = 'Relatorio por Equipe (continuacao)') => {
+        if (y < MARGIN + needed) addContinuationPage(continuationLabel);
+      };
+
+      const drawPipelineHeader = () => {
+        page.drawRectangle({ x: MARGIN, y: y - 14 + 4, width: COL_W, height: 18, color: dark });
+        for (const [txt, px] of [['Etapa', MARGIN + 4], ['Clientes', MARGIN + 260], ['%', MARGIN + 360]] as [string, number][]) {
+          page.drawText(txt, { x: px, y: y - 9, size: 7, font: bold, color: white });
+        }
+        y -= 14;
+      };
+
+      const drawRankingHeader = () => {
+        page.drawRectangle({ x: MARGIN, y: y - 14 + 4, width: COL_W, height: 18, color: dark });
+        for (const [txt, px] of [['Pos.', MARGIN + 4], ['Nome', MARGIN + 30], ['Clientes', MARGIN + 280], ['Vendas', MARGIN + 350], ['Conv.%', MARGIN + 420]] as [string, number][]) {
+          page.drawText(txt, { x: px, y: y - 9, size: 7, font: bold, color: white });
+        }
+        y -= 14;
+      };
 
       page.drawRectangle({ x: 0, y: PAGE_H - 70, width: PAGE_W, height: 70, color: dark });
       page.drawText('Relatorio por Equipe', { x: MARGIN, y: PAGE_H - 30, size: 16, font: bold, color: gold });
@@ -156,13 +183,15 @@ function TeamReportView({
 
       page.drawText('PIPELINE POR ETAPA', { x: MARGIN, y, size: 10, font: bold, color: gold });
       y -= 16;
-      page.drawRectangle({ x: MARGIN, y: y - 14 + 4, width: COL_W, height: 18, color: dark });
-      for (const [txt, px] of [['Etapa', MARGIN + 4], ['Clientes', MARGIN + 260], ['%', MARGIN + 360]] as [string, number][]) {
-        page.drawText(txt, { x: px, y: y - 9, size: 7, font: bold, color: white });
-      }
-      y -= 14;
+      drawPipelineHeader();
       let rowIdx = 0;
       for (const [stage, count] of Object.entries(byStage).sort((a, b) => (b[1] as number) - (a[1] as number))) {
+        ensureSpace(28, 'Relatorio por Equipe (continuacao)');
+        if (y > PAGE_H - MARGIN - 20) {
+          page.drawText('PIPELINE POR ETAPA (continuacao)', { x: MARGIN, y, size: 10, font: bold, color: gold });
+          y -= 16;
+          drawPipelineHeader();
+        }
         const pct = totalClientes > 0 ? Math.round(((count as number) / totalClientes) * 100) : 0;
         const rc = rowIdx % 2 === 0 ? white : light;
         page.drawRectangle({ x: MARGIN, y: y - 14 + 5, width: COL_W, height: 16, color: rc });
@@ -176,15 +205,18 @@ function TeamReportView({
       page.drawRectangle({ x: MARGIN, y, width: COL_W, height: 0.5, color: rgb(0.85, 0.85, 0.85) });
       y -= 16;
 
+      ensureSpace(64, 'Relatorio por Equipe (continuacao)');
       page.drawText('RANKING DE CORRETORES', { x: MARGIN, y, size: 10, font: bold, color: gold });
       y -= 16;
-      page.drawRectangle({ x: MARGIN, y: y - 14 + 4, width: COL_W, height: 18, color: dark });
-      for (const [txt, px] of [['Pos.', MARGIN + 4], ['Nome', MARGIN + 30], ['Clientes', MARGIN + 280], ['Vendas', MARGIN + 350], ['Conv.%', MARGIN + 420]] as [string, number][]) {
-        page.drawText(txt, { x: px, y: y - 9, size: 7, font: bold, color: white });
-      }
-      y -= 14;
+      drawRankingHeader();
       rowIdx = 0;
       for (const [i, broker] of brokerRanking.entries()) {
+        ensureSpace(28, 'Relatorio por Equipe (continuacao)');
+        if (y > PAGE_H - MARGIN - 20) {
+          page.drawText('RANKING DE CORRETORES (continuacao)', { x: MARGIN, y, size: 10, font: bold, color: gold });
+          y -= 16;
+          drawRankingHeader();
+        }
         const conv = broker.total > 0 ? Math.round((broker.vendas / broker.total) * 100) : 0;
         const rc = rowIdx % 2 === 0 ? white : light;
         page.drawRectangle({ x: MARGIN, y: y - 14 + 5, width: COL_W, height: 16, color: rc });
@@ -196,7 +228,11 @@ function TeamReportView({
         y -= 14;
         rowIdx++;
       }
-      page.drawText('Kaizen Axis - Confidencial  |  Pagina 1 de 1', { x: MARGIN, y: 18, size: 7, font: regular, color: gray });
+
+      const pages = pdfDoc.getPages();
+      pages.forEach((pg, idx) => {
+        pg.drawText(`Kaizen Axis - Confidencial  |  Pagina ${idx + 1} de ${pages.length}`, { x: MARGIN, y: 18, size: 7, font: regular, color: gray });
+      });
 
       const pdfBytes = await pdfDoc.save();
       const blob = new Blob([pdfBytes], { type: 'application/pdf' });
@@ -977,8 +1013,27 @@ export default function Reports() {
         const white  = rgb(1, 1, 1);
         const brlFmt = (n: number) => n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 });
 
-        const page = pdfDoc.addPage([PAGE_W, PAGE_H]);
+        let page = pdfDoc.addPage([PAGE_W, PAGE_H]);
         let y = PAGE_H - MARGIN;
+
+        const addContinuationPage = (label: string) => {
+          page = pdfDoc.addPage([PAGE_W, PAGE_H]);
+          y = PAGE_H - MARGIN;
+          page.drawText(label, { x: MARGIN, y, size: 8, font: regular, color: gray });
+          y -= 14;
+        };
+
+        const ensureSpace = (needed: number, continuationLabel = 'Relatorio Estrategico (continuacao)') => {
+          if (y < MARGIN + needed) addContinuationPage(continuationLabel);
+        };
+
+        const drawHealthHeader = () => {
+          page.drawRectangle({ x: MARGIN, y: y - 14 + 4, width: COL_W, height: 18, color: dark });
+          for (const [txt, px] of [['Cliente', MARGIN + 4], ['Etapa', MARGIN + 250], ['Score', MARGIN + 430]] as [string, number][]) {
+            page.drawText(txt, { x: px, y: y - 9, size: 7, font: bold, color: white });
+          }
+          y -= 14;
+        };
 
         // Cabeçalho
         page.drawRectangle({ x: 0, y: PAGE_H - 70, width: PAGE_W, height: 70, color: dark });
@@ -1014,17 +1069,20 @@ export default function Reports() {
         page.drawRectangle({ x: MARGIN, y, width: COL_W, height: 0.5, color: rgb(0.85, 0.85, 0.85) });
         y -= 16;
 
+        ensureSpace(64, 'Relatorio Estrategico (continuacao)');
         // Health Score
         page.drawText('HEALTH SCORE — TOP CLIENTES', { x: MARGIN, y, size: 10, font: bold, color: gold });
         y -= 16;
         if (healthScores.length > 0) {
-          page.drawRectangle({ x: MARGIN, y: y - 14 + 4, width: COL_W, height: 18, color: dark });
-          for (const [txt, px] of [['Cliente', MARGIN + 4], ['Etapa', MARGIN + 250], ['Score', MARGIN + 430]] as [string, number][]) {
-            page.drawText(txt, { x: px, y: y - 9, size: 7, font: bold, color: white });
-          }
-          y -= 14;
+          drawHealthHeader();
           let rowIdx = 0;
           for (const hs of healthScores) {
+            ensureSpace(28, 'Relatorio Estrategico (continuacao)');
+            if (y > PAGE_H - MARGIN - 20) {
+              page.drawText('HEALTH SCORE — TOP CLIENTES (continuacao)', { x: MARGIN, y, size: 10, font: bold, color: gold });
+              y -= 16;
+              drawHealthHeader();
+            }
             const rc = rowIdx % 2 === 0 ? white : light;
             page.drawRectangle({ x: MARGIN, y: y - 14 + 5, width: COL_W, height: 16, color: rc });
             page.drawText((hs.name ?? '—').slice(0, 45), { x: MARGIN + 4, y: y - 8, size: 7, font: regular, color: dark });
@@ -1035,8 +1093,10 @@ export default function Reports() {
           }
         }
 
-        // Rodapé
-        page.drawText('Kaizen Axis - Confidencial  |  Pagina 1 de 1', { x: MARGIN, y: 18, size: 7, font: regular, color: gray });
+        const pages = pdfDoc.getPages();
+        pages.forEach((pg, idx) => {
+          pg.drawText(`Kaizen Axis - Confidencial  |  Pagina ${idx + 1} de ${pages.length}`, { x: MARGIN, y: 18, size: 7, font: regular, color: gray });
+        });
 
         const pdfBytes = await pdfDoc.save();
         const blob = new Blob([pdfBytes], { type: 'application/pdf' });
