@@ -154,6 +154,14 @@ export default function ClientDetails() {
       entityId: storagePath,
       metadata: { client_id: id }
     });
+    logAuditEvent({
+      action: 'document_downloaded',
+      entity: 'client_document',
+      entityId: storagePath,
+      userId: session?.user?.id ?? null,
+      metadata: { clientId: id, path: storagePath },
+    });
+
     window.open(signedUrl, '_blank');
   };
 
