@@ -99,6 +99,12 @@
   }
 }
 
+/* iOS Safari ignores overflow-x on body alone — must set on html too */
+html {
+  overflow-x: hidden;
+  overscroll-behavior-x: none;
+}
+
 body {
   background-color: var(--bg-app);
   color: var(--text-primary);
@@ -107,6 +113,7 @@ body {
   min-height: 100dvh;
   /* Prevent horizontal scroll/bounce on mobile PWA */
   overflow-x: hidden;
+  overscroll-behavior-x: none;
 }
 
 /* iOS Safari: prevent auto-zoom on input focus.
