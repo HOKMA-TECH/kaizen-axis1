@@ -32,6 +32,12 @@
   --color-surface-100: var(--bg-subtle);
   --color-surface-200: var(--border-subtle);
   --color-surface-300: var(--border-strong);
+  --color-surface-400: var(--surface-400);
+  --color-surface-500: var(--surface-500);
+  --color-surface-600: var(--surface-600);
+  --color-surface-700: var(--surface-700);
+  --color-surface-800: var(--surface-800);
+  --color-surface-900: var(--surface-900);
 
   --color-text-primary: var(--text-primary);
   --color-text-secondary: var(--text-secondary);
@@ -43,6 +49,14 @@
   --bg-app: #FAFAFA;
   --bg-card: #FFFFFF;
   --bg-subtle: #F3F4F6;
+
+  /* Extended surface scale (compat with legacy classes) */
+  --surface-400: #9CA3AF;
+  --surface-500: #6B7280;
+  --surface-600: #4B5563;
+  --surface-700: #374151;
+  --surface-800: #1F2937;
+  --surface-900: #111827;
 
   /* Border Colors */
   --border-subtle: #E5E7EB;
@@ -74,6 +88,13 @@
   --text-primary: #eef3fb;
   --text-secondary: #9eabc0;
 
+  --surface-400: #6f7f97;
+  --surface-500: #5a6a83;
+  --surface-600: #4a5a73;
+  --surface-700: #3a4961;
+  --surface-800: #2a374a;
+  --surface-900: #1e2938;
+
   /* Primary Theme Colors - Dark Mode */
   --color-primary: #4d8fff;
   --color-primary-dark: #2d6fd9;
@@ -90,6 +111,13 @@
     --border-strong: #3a4a61;
     --text-primary: #eef3fb;
     --text-secondary: #9eabc0;
+
+    --surface-400: #6f7f97;
+    --surface-500: #5a6a83;
+    --surface-600: #4a5a73;
+    --surface-700: #3a4961;
+    --surface-800: #2a374a;
+    --surface-900: #1e2938;
 
     /* Primary Theme Colors - Dark Mode */
     --color-primary: #4d8fff;
