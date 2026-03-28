@@ -109,22 +109,32 @@ export default function AdminPanel() {
   const localBrokerRanking = (() => {
     const start = new Date(reportDateRange.start);
     const end = new Date(reportDateRange.end + 'T23:59:59');
-    const periodClients = clients.filter(c => {
+
+    const periodCreatedClients = clients.filter((c) => {
       const created = new Date(c.createdAt);
       return created >= start && created <= end;
     });
+
+    const periodClosedClients = clients.filter((c) => {
+      if (c.stage !== 'Concluído') return false;
+      const closedDate = new Date((c as any).closed_at || (c as any).updated_at || c.createdAt);
+      return closedDate >= start && closedDate <= end;
+    });
+
     return allProfiles
       .map(p => {
-        const bc = periodClients.filter(c => (c as any).owner_id === p.id);
-        if (bc.length === 0) return null;
-        const vi = bc.filter(c => c.stage === 'Concluído').length;
-        const ri = bc.filter(c => c.stage === 'Concluído').reduce((acc, c) => acc + parseCurrencyLocal(c.intendedValue), 0);
+        const createdByBroker = periodCreatedClients.filter(c => (c as any).owner_id === p.id);
+        const closedByBroker = periodClosedClients.filter(c => (c as any).owner_id === p.id);
+        if (createdByBroker.length === 0 && closedByBroker.length === 0) return null;
+
+        const vi = closedByBroker.length;
+        const ri = closedByBroker.reduce((acc, c) => acc + parseCurrencyLocal(c.intendedValue), 0);
         return {
           corretor_id: p.id,
           nome: p.name,
-          Li: bc.length,
+          Li: createdByBroker.length,
           Vi: vi,
-          Taxa_Conversao_i: Math.round((vi / bc.length) * 100),
+          Taxa_Conversao_i: createdByBroker.length > 0 ? Math.round((vi / createdByBroker.length) * 100) : 0,
           Ri: ri,
         };
       })
