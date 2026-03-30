@@ -51,8 +51,6 @@ Deno.serve(async (req: Request) => {
   const rawPath = String(body.path || '');
   const path = rawPath.replace(/^\/+/, '').trim();
   if (!bucket || !path) return errJson('bucket e path são obrigatórios');
-
-  // Restrict this endpoint to client documents only.
   if (bucket !== 'client-documents') return errJson('Bucket não permitido', 403);
 
   const userClient = createClient(supabaseUrl, anonKey, {
@@ -63,12 +61,14 @@ Deno.serve(async (req: Request) => {
   const { data: authData, error: authError } = await userClient.auth.getUser(token);
   if (authError || !authData?.user) return errJson('Sessão inválida', 401);
 
+  const adminClient = createClient(supabaseUrl, serviceKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+
   const root = path.split('/')[0] || '';
 
-  // Policy mirror:
-  // - <client_id>/<file> requires access to that client (via clients RLS)
-  // - general_audits/<file> only if file owner is the requesting user
   if (isUuid(root)) {
+    // Access check is delegated to clients RLS.
     const { data: clientRow, error: clientErr } = await userClient
       .from('clients')
       .select('id')
@@ -77,26 +77,24 @@ Deno.serve(async (req: Request) => {
 
     if (clientErr || !clientRow) return errJson('Acesso negado ao documento', 403);
   } else if (root === 'general_audits') {
-    const { data: objRow, error: objErr } = await userClient
+    // Verify ownership server-side (no direct Storage SELECT policy is exposed to users).
+    const { data: objRow, error: objErr } = await adminClient
       .schema('storage')
       .from('objects')
-      .select('id')
+      .select('owner')
       .eq('bucket_id', 'client-documents')
       .eq('name', path)
-      .eq('owner', authData.user.id)
       .maybeSingle();
 
-    if (objErr || !objRow) return errJson('Acesso negado ao documento', 403);
+    if (objErr || !objRow || objRow.owner !== authData.user.id) {
+      return errJson('Acesso negado ao documento', 403);
+    }
   } else {
     return errJson('Path inválido', 403);
   }
 
   const ttlRaw = typeof body.expiresIn === 'number' ? body.expiresIn : 120;
   const ttl = Math.min(Math.max(ttlRaw, 30), 600);
-
-  const adminClient = createClient(supabaseUrl, serviceKey, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
 
   const { data: signedData, error: signError } = await adminClient.storage
     .from(bucket)
