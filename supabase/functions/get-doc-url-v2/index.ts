@@ -46,6 +46,45 @@ function normalizeStoragePath(rawPath: string): string {
   return path.replace(/^\/+/, "");
 }
 
+async function signFirstExistingPath(
+  adminClient: any,
+  bucket: string,
+  rawPath: string,
+  clientId: string,
+  ttl: number,
+) {
+  const base = normalizeStoragePath(rawPath);
+  const candidates = new Set<string>();
+
+  if (base) candidates.add(base);
+  try {
+    const decoded = decodeURIComponent(base);
+    if (decoded) candidates.add(decoded);
+  } catch {
+    // ignore malformed URI sequences
+  }
+
+  // Backward compatibility: some legacy rows may store only the filename.
+  if (base && !base.includes("/") && clientId) {
+    candidates.add(`${clientId}/${base}`);
+    try {
+      const decoded = decodeURIComponent(base);
+      if (decoded) candidates.add(`${clientId}/${decoded}`);
+    } catch {
+      // ignore malformed URI sequences
+    }
+  }
+
+  for (const candidate of candidates) {
+    const { data, error } = await adminClient.storage.from(bucket).createSignedUrl(candidate, ttl);
+    if (!error && data?.signedUrl) {
+      return { signedUrl: data.signedUrl, path: candidate };
+    }
+  }
+
+  return null;
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -103,7 +142,7 @@ Deno.serve(async (req: Request) => {
   // 3) Authorization gate: query through RLS.
   const { data: allowedDoc, error: allowedDocError } = await userClient
     .from("client_documents")
-    .select("id, url")
+    .select("id, client_id, url")
     .eq("id", documentId)
     .maybeSingle();
 
@@ -136,7 +175,8 @@ Deno.serve(async (req: Request) => {
   }
 
   const bucket = "client-documents";
-  const path = normalizeStoragePath(String((allowedDoc as any).url || ""));
+  const path = String((allowedDoc as any).url || "").trim();
+  const clientId = String((allowedDoc as any).client_id || "").trim();
 
   if (!bucket || !path) {
     // Data integrity issue; keep output generic.
@@ -148,13 +188,10 @@ Deno.serve(async (req: Request) => {
     auth: { persistSession: false, autoRefreshToken: false },
   });
 
-  const { data: signedData, error: signError } = await adminClient.storage
-    .from(bucket)
-    .createSignedUrl(path, ttl);
-
-  if (signError || !signedData?.signedUrl) {
+  const signedResult = await signFirstExistingPath(adminClient, bucket, path, clientId, ttl);
+  if (!signedResult?.signedUrl) {
     return jsonResponse({ error: "Não foi possível gerar o link do documento" }, 500);
   }
 
-  return jsonResponse({ signedUrl: signedData.signedUrl }, 200);
+  return jsonResponse({ signedUrl: signedResult.signedUrl }, 200);
 });
