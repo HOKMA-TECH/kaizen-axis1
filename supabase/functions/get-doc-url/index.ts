@@ -2,9 +2,8 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 
-// ── CORS ──────────────────────────────────────────────────────────────────────
 const corsHeaders = {
-  'Access-Control-Allow-Origin':  '*',
+  'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type, Authorization, apikey, x-client-info',
 };
@@ -16,35 +15,31 @@ function errJson(msg: string, status = 400) {
   });
 }
 
-// ── Edge Function ─────────────────────────────────────────────────────────────
-// Gera uma signed URL para um arquivo no Storage usando a service role.
-// Isso ignora completamente as políticas RLS do Storage, resolvendo o bug
-// recorrente de "Erro ao abrir documento" causado por políticas perdidas.
-//
-// Body: { bucket: string; path: string; expiresIn?: number }
-// Auth: apikey: <SUPABASE_ANON_KEY>  (não depende de JWT do usuário — sem expiração)
-// Returns: { signedUrl: string }
-// ─────────────────────────────────────────────────────────────────────────────
-Deno.serve(async (req: Request) => {
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
-  }
+function getBearerToken(authHeader: string | null): string | null {
+  if (!authHeader) return null;
+  const match = authHeader.match(/^Bearer\s+(.+)$/i);
+  return match?.[1] ?? null;
+}
 
+function isUuid(value: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+}
+
+Deno.serve(async (req: Request) => {
+  if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
   if (req.method !== 'POST') return errJson('Método não permitido', 405);
 
-  // Valida a apikey (anon key) — não depende de JWT do usuário que expira a cada 1h
+  const supabaseUrl = Deno.env.get('SUPABASE_URL');
+  const anonKey = Deno.env.get('SUPABASE_ANON_KEY');
+  const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+  if (!supabaseUrl || !anonKey || !serviceKey) return errJson('Configuração do servidor inválida', 500);
+
   const apiKey = req.headers.get('apikey');
-  const expectedKey = Deno.env.get('SUPABASE_ANON_KEY');
-  if (!apiKey || !expectedKey || apiKey !== expectedKey) {
-    return errJson('Não autorizado', 401);
-  }
+  if (!apiKey || apiKey !== anonKey) return errJson('Não autorizado', 401);
 
-  const supabaseAdmin = createClient(
-    Deno.env.get('SUPABASE_URL')!,
-    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
-  );
+  const token = getBearerToken(req.headers.get('Authorization'));
+  if (!token) return errJson('Token ausente', 401);
 
-  // Lê o body
   let body: { bucket?: string; path?: string; expiresIn?: number };
   try {
     body = await req.json();
@@ -52,22 +47,67 @@ Deno.serve(async (req: Request) => {
     return errJson('Body inválido');
   }
 
-  const expiresRaw = typeof body.expiresIn === 'number' ? body.expiresIn : 120;
-  const ttl = Math.min(Math.max(expiresRaw, 30), 600);
-  const { bucket, path } = body;
+  const bucket = String(body.bucket || '');
+  const rawPath = String(body.path || '');
+  const path = rawPath.replace(/^\/+/, '').trim();
   if (!bucket || !path) return errJson('bucket e path são obrigatórios');
 
-  // Gera a signed URL usando service role (ignora RLS)
-  const { data, error } = await supabaseAdmin.storage
+  // Restrict this endpoint to client documents only.
+  if (bucket !== 'client-documents') return errJson('Bucket não permitido', 403);
+
+  const userClient = createClient(supabaseUrl, anonKey, {
+    global: { headers: { Authorization: `Bearer ${token}` } },
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+
+  const { data: authData, error: authError } = await userClient.auth.getUser(token);
+  if (authError || !authData?.user) return errJson('Sessão inválida', 401);
+
+  const root = path.split('/')[0] || '';
+
+  // Policy mirror:
+  // - <client_id>/<file> requires access to that client (via clients RLS)
+  // - general_audits/<file> only if file owner is the requesting user
+  if (isUuid(root)) {
+    const { data: clientRow, error: clientErr } = await userClient
+      .from('clients')
+      .select('id')
+      .eq('id', root)
+      .maybeSingle();
+
+    if (clientErr || !clientRow) return errJson('Acesso negado ao documento', 403);
+  } else if (root === 'general_audits') {
+    const { data: objRow, error: objErr } = await userClient
+      .schema('storage')
+      .from('objects')
+      .select('id')
+      .eq('bucket_id', 'client-documents')
+      .eq('name', path)
+      .eq('owner', authData.user.id)
+      .maybeSingle();
+
+    if (objErr || !objRow) return errJson('Acesso negado ao documento', 403);
+  } else {
+    return errJson('Path inválido', 403);
+  }
+
+  const ttlRaw = typeof body.expiresIn === 'number' ? body.expiresIn : 120;
+  const ttl = Math.min(Math.max(ttlRaw, 30), 600);
+
+  const adminClient = createClient(supabaseUrl, serviceKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+
+  const { data: signedData, error: signError } = await adminClient.storage
     .from(bucket)
     .createSignedUrl(path, ttl);
 
-  if (error || !data?.signedUrl) {
-    console.error('Erro ao gerar signed URL:', error);
-    return errJson('Não foi possível gerar o link do documento. Verifique se o arquivo existe.', 500);
+  if (signError || !signedData?.signedUrl) {
+    console.error('Erro ao gerar signed URL:', signError);
+    return errJson('Não foi possível gerar o link do documento', 500);
   }
 
-  return new Response(JSON.stringify({ signedUrl: data.signedUrl }), {
+  return new Response(JSON.stringify({ signedUrl: signedData.signedUrl }), {
     status: 200,
     headers: { ...corsHeaders, 'Content-Type': 'application/json' },
   });
