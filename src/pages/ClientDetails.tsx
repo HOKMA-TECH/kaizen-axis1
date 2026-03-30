@@ -95,7 +95,7 @@ export default function ClientDetails() {
     }
   };
 
-  const handleOpenDocument = async (rawPath: string) => {
+  const handleOpenDocument = async (rawPath: string, documentId?: string) => {
     if (!rawPath) return;
 
     // Extrai o path relativo (remove prefixos de URL pública ou signed URL)
@@ -118,21 +118,40 @@ export default function ClientDetails() {
     const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
     const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-    // Tenta via edge function (service role, imune a RLS)
+    // Tenta primeiro via função segura v2 (documentId + RLS).
     let signedUrl: string | null = null;
     try {
-      const res = await fetch(`${SUPABASE_URL}/functions/v1/get-doc-url`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'apikey': SUPABASE_ANON_KEY,
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify({ bucket: 'client-documents', path: storagePath }),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        signedUrl = data.signedUrl ?? null;
+      if (documentId) {
+        const v2Res = await fetch(`${SUPABASE_URL}/functions/v1/get-doc-url-v2`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'apikey': SUPABASE_ANON_KEY,
+            'Authorization': `Bearer ${token}`,
+          },
+          body: JSON.stringify({ documentId, expiresIn: 300 }),
+        });
+        if (v2Res.ok) {
+          const v2Data = await v2Res.json();
+          signedUrl = v2Data.signedUrl ?? null;
+        }
+      }
+
+      // Fallback temporário de migração: função legada (mantida para não quebrar produção).
+      if (!signedUrl) {
+        const res = await fetch(`${SUPABASE_URL}/functions/v1/get-doc-url`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'apikey': SUPABASE_ANON_KEY,
+            'Authorization': `Bearer ${token}`,
+          },
+          body: JSON.stringify({ bucket: 'client-documents', path: storagePath }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          signedUrl = data.signedUrl ?? null;
+        }
       }
     } catch { /* ignora — usa fallback abaixo */ }
 
@@ -505,7 +524,7 @@ export default function ClientDetails() {
                 <PremiumCard
                   key={doc.id}
                   className="flex items-center justify-between p-3 cursor-pointer hover:border-gold-300 transition-all"
-                  onClick={() => handleOpenDocument((doc as any).file_path)}
+                  onClick={() => handleOpenDocument((doc as any).file_path, (doc as any).id)}
                 >
                   <div className="flex items-center gap-3">
                     <div className="p-2 bg-red-50 dark:bg-red-900/20 text-red-500 rounded-lg">

@@ -10,6 +10,7 @@ import { logAuditEvent } from '@/services/auditLogger';
 
 interface Attachment {
   name: string;
+  document_id?: string;
   file_path?: string; // Supabase Storage path
   file?: File;       // manually added file
 }
@@ -96,6 +97,7 @@ PROFISSÃO: ${found.profession || 'Não informado'}`;
       if (found.documents && found.documents.length > 0) {
         setAttachments(found.documents.map((d: any) => ({
           name: d.name,
+          document_id: d.id,
           file_path: d.file_path
         })));
       }
@@ -156,24 +158,43 @@ PROFISSÃO: ${found.profession || 'Não informado'}`;
             }
             storagePath = storagePath.startsWith('/') ? storagePath.slice(1) : storagePath;
 
-            // Tenta via edge function (service role, imune a RLS)
+            // Tenta primeiro via função segura v2 (documentId + RLS)
             let attachSignedUrl: string | null = null;
             const { data: { session } } = await supabase.auth.getSession();
             const token = session?.access_token;
             if (token) {
               try {
-                const docRes = await fetch(`${SUPABASE_URL}/functions/v1/get-doc-url`, {
-                  method: 'POST',
-                  headers: {
-                    'Content-Type': 'application/json',
-                    'apikey': SUPABASE_ANON_KEY,
-                    'Authorization': `Bearer ${token}`,
-                  },
-                  body: JSON.stringify({ bucket: 'client-documents', path: storagePath, expiresIn: 300 }),
-                });
-                if (docRes.ok) {
-                  const docData = await docRes.json();
-                  attachSignedUrl = docData.signedUrl ?? null;
+                if (att.document_id) {
+                  const v2Res = await fetch(`${SUPABASE_URL}/functions/v1/get-doc-url-v2`, {
+                    method: 'POST',
+                    headers: {
+                      'Content-Type': 'application/json',
+                      'apikey': SUPABASE_ANON_KEY,
+                      'Authorization': `Bearer ${token}`,
+                    },
+                    body: JSON.stringify({ documentId: att.document_id, expiresIn: 300 }),
+                  });
+                  if (v2Res.ok) {
+                    const v2Data = await v2Res.json();
+                    attachSignedUrl = v2Data.signedUrl ?? null;
+                  }
+                }
+
+                // Fallback temporário de migração: função legada.
+                if (!attachSignedUrl) {
+                  const docRes = await fetch(`${SUPABASE_URL}/functions/v1/get-doc-url`, {
+                    method: 'POST',
+                    headers: {
+                      'Content-Type': 'application/json',
+                      'apikey': SUPABASE_ANON_KEY,
+                      'Authorization': `Bearer ${token}`,
+                    },
+                    body: JSON.stringify({ bucket: 'client-documents', path: storagePath, expiresIn: 300 }),
+                  });
+                  if (docRes.ok) {
+                    const docData = await docRes.json();
+                    attachSignedUrl = docData.signedUrl ?? null;
+                  }
                 }
               } catch { /* ignora — usa fallback */ }
             }
