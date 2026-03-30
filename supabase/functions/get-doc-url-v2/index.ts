@@ -34,6 +34,18 @@ function normalizeTtl(expiresIn?: number): number {
   return Math.min(Math.max(Math.floor(expiresIn), 30), 300);
 }
 
+function normalizeStoragePath(rawPath: string): string {
+  const PUBLIC_MARKER = "/object/public/client-documents/";
+  const SIGN_MARKER = "/object/sign/client-documents/";
+  let path = String(rawPath || "").trim();
+  if (path.includes(PUBLIC_MARKER)) {
+    path = path.split(PUBLIC_MARKER)[1] || "";
+  } else if (path.includes(SIGN_MARKER)) {
+    path = (path.split(SIGN_MARKER)[1] || "").split("?")[0] || "";
+  }
+  return path.replace(/^\/+/, "");
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -91,7 +103,7 @@ Deno.serve(async (req: Request) => {
   // 3) Authorization gate: query through RLS.
   const { data: allowedDoc, error: allowedDocError } = await userClient
     .from("client_documents")
-    .select("id, bucket, path")
+    .select("id, url")
     .eq("id", documentId)
     .maybeSingle();
 
@@ -123,8 +135,8 @@ Deno.serve(async (req: Request) => {
     return jsonResponse({ error: "Documento não encontrado" }, 404);
   }
 
-  const bucket = String((allowedDoc as any).bucket || "").trim();
-  const path = String((allowedDoc as any).path || "").trim();
+  const bucket = "client-documents";
+  const path = normalizeStoragePath(String((allowedDoc as any).url || ""));
 
   if (!bucket || !path) {
     // Data integrity issue; keep output generic.
