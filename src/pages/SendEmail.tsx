@@ -165,6 +165,10 @@ PROFISSÃO: ${found.profession || 'Não informado'}`;
               try {
                 if (att.document_id) {
                   const { data: v2Data, error: v2Error } = await supabase.functions.invoke('get-doc-url-v2', {
+                    headers: {
+                      Authorization: `Bearer ${session.access_token}`,
+                      apikey: SUPABASE_ANON_KEY,
+                    },
                     body: { documentId: att.document_id, expiresIn: 300 },
                   });
                   if (!v2Error) {
@@ -175,6 +179,10 @@ PROFISSÃO: ${found.profession || 'Não informado'}`;
                 // Fallback temporário de migração: função legada.
                 if (!attachSignedUrl) {
                   const { data: docData, error: docError } = await supabase.functions.invoke('get-doc-url', {
+                    headers: {
+                      Authorization: `Bearer ${session.access_token}`,
+                      apikey: SUPABASE_ANON_KEY,
+                    },
                     body: { bucket: 'client-documents', path: storagePath, expiresIn: 300 },
                   });
                   if (!docError) {

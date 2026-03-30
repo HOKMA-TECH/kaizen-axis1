@@ -113,12 +113,17 @@ export default function ClientDetails() {
     // Isso garante que funciona independente das políticas RLS do Storage.
     const { data: { session } } = await supabase.auth.getSession();
     if (!session?.access_token) { alert('Sessão expirada. Faça login novamente.'); return; }
+    const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
     // Tenta primeiro via função segura v2 (documentId + RLS).
     let signedUrl: string | null = null;
     try {
       if (documentId) {
         const { data: v2Data, error: v2Error } = await supabase.functions.invoke('get-doc-url-v2', {
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+            apikey: SUPABASE_ANON_KEY,
+          },
           body: { documentId, expiresIn: 300 },
         });
         if (!v2Error) {
@@ -129,6 +134,10 @@ export default function ClientDetails() {
       // Fallback temporário de migração: função legada (mantida para não quebrar produção).
       if (!signedUrl) {
         const { data, error } = await supabase.functions.invoke('get-doc-url', {
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+            apikey: SUPABASE_ANON_KEY,
+          },
           body: { bucket: 'client-documents', path: storagePath, expiresIn: 300 },
         });
         if (!error) {
