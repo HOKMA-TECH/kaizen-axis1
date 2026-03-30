@@ -112,44 +112,26 @@ export default function ClientDetails() {
     // Usa a edge function get-doc-url (service role) para gerar a signed URL.
     // Isso garante que funciona independente das políticas RLS do Storage.
     const { data: { session } } = await supabase.auth.getSession();
-    const token = session?.access_token;
-    if (!token) { alert('Sessão expirada. Faça login novamente.'); return; }
-
-    const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
-    const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
+    if (!session?.access_token) { alert('Sessão expirada. Faça login novamente.'); return; }
 
     // Tenta primeiro via função segura v2 (documentId + RLS).
     let signedUrl: string | null = null;
     try {
       if (documentId) {
-        const v2Res = await fetch(`${SUPABASE_URL}/functions/v1/get-doc-url-v2`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'apikey': SUPABASE_ANON_KEY,
-            'Authorization': `Bearer ${token}`,
-          },
-          body: JSON.stringify({ documentId, expiresIn: 300 }),
+        const { data: v2Data, error: v2Error } = await supabase.functions.invoke('get-doc-url-v2', {
+          body: { documentId, expiresIn: 300 },
         });
-        if (v2Res.ok) {
-          const v2Data = await v2Res.json();
-          signedUrl = v2Data.signedUrl ?? null;
+        if (!v2Error) {
+          signedUrl = v2Data?.signedUrl ?? null;
         }
       }
 
       // Fallback temporário de migração: função legada (mantida para não quebrar produção).
       if (!signedUrl) {
-        const res = await fetch(`${SUPABASE_URL}/functions/v1/get-doc-url`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'apikey': SUPABASE_ANON_KEY,
-            'Authorization': `Bearer ${token}`,
-          },
-          body: JSON.stringify({ bucket: 'client-documents', path: storagePath }),
+        const { data, error } = await supabase.functions.invoke('get-doc-url', {
+          body: { bucket: 'client-documents', path: storagePath, expiresIn: 300 },
         });
-        if (res.ok) {
-          const data = await res.json();
+        if (!error) {
           signedUrl = data.signedUrl ?? null;
         }
       }

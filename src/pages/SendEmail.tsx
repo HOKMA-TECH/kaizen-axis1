@@ -161,38 +161,23 @@ PROFISSÃO: ${found.profession || 'Não informado'}`;
             // Tenta primeiro via função segura v2 (documentId + RLS)
             let attachSignedUrl: string | null = null;
             const { data: { session } } = await supabase.auth.getSession();
-            const token = session?.access_token;
-            if (token) {
+            if (session?.access_token) {
               try {
                 if (att.document_id) {
-                  const v2Res = await fetch(`${SUPABASE_URL}/functions/v1/get-doc-url-v2`, {
-                    method: 'POST',
-                    headers: {
-                      'Content-Type': 'application/json',
-                      'apikey': SUPABASE_ANON_KEY,
-                      'Authorization': `Bearer ${token}`,
-                    },
-                    body: JSON.stringify({ documentId: att.document_id, expiresIn: 300 }),
+                  const { data: v2Data, error: v2Error } = await supabase.functions.invoke('get-doc-url-v2', {
+                    body: { documentId: att.document_id, expiresIn: 300 },
                   });
-                  if (v2Res.ok) {
-                    const v2Data = await v2Res.json();
+                  if (!v2Error) {
                     attachSignedUrl = v2Data.signedUrl ?? null;
                   }
                 }
 
                 // Fallback temporário de migração: função legada.
                 if (!attachSignedUrl) {
-                  const docRes = await fetch(`${SUPABASE_URL}/functions/v1/get-doc-url`, {
-                    method: 'POST',
-                    headers: {
-                      'Content-Type': 'application/json',
-                      'apikey': SUPABASE_ANON_KEY,
-                      'Authorization': `Bearer ${token}`,
-                    },
-                    body: JSON.stringify({ bucket: 'client-documents', path: storagePath, expiresIn: 300 }),
+                  const { data: docData, error: docError } = await supabase.functions.invoke('get-doc-url', {
+                    body: { bucket: 'client-documents', path: storagePath, expiresIn: 300 },
                   });
-                  if (docRes.ok) {
-                    const docData = await docRes.json();
+                  if (!docError) {
                     attachSignedUrl = docData.signedUrl ?? null;
                   }
                 }
