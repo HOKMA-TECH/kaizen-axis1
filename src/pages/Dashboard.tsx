@@ -1,3 +1,4 @@
+import { useMemo, useState } from 'react';
 import { PremiumCard, SectionHeader } from '@/components/ui/PremiumComponents';
 import { Loader2, Users, TrendingUp, Target, Calendar, Building2 } from 'lucide-react';
 import { SalesProgressCard } from '@/components/dashboard/SalesProgressCard';
@@ -16,6 +17,52 @@ export default function Dashboard() {
   const { clients, appointments, goals, announcements, userName, loading, directorates, allProfiles, profile, user, teams } = useApp();
   const { isAdmin, isDirector, isManager, isCoordinator, isBroker, directorateId, role } = useAuthorization();
 
+  const [period, setPeriod] = useState<'este_mes' | '30_dias' | '60_dias' | '90_dias' | 'custom'>('30_dias');
+  const [customStartDate, setCustomStartDate] = useState('');
+  const [customEndDate, setCustomEndDate] = useState('');
+
+  const { periodStart, periodEnd, periodLabel } = useMemo(() => {
+    const end = new Date();
+    end.setHours(23, 59, 59, 999);
+    const start = new Date(end);
+
+    if (period === 'este_mes') {
+      start.setDate(1);
+      start.setHours(0, 0, 0, 0);
+    } else if (period === '30_dias') {
+      start.setDate(end.getDate() - 30);
+      start.setHours(0, 0, 0, 0);
+    } else if (period === '60_dias') {
+      start.setDate(end.getDate() - 60);
+      start.setHours(0, 0, 0, 0);
+    } else if (period === '90_dias') {
+      start.setDate(end.getDate() - 90);
+      start.setHours(0, 0, 0, 0);
+    } else if (period === 'custom') {
+      if (customStartDate && customEndDate) {
+        const cs = new Date(customStartDate);
+        const ce = new Date(`${customEndDate}T23:59:59`);
+        return {
+          periodStart: cs,
+          periodEnd: ce,
+          periodLabel: `${new Date(customStartDate).toLocaleDateString('pt-BR')} - ${new Date(customEndDate).toLocaleDateString('pt-BR')}`,
+        };
+      }
+      start.setDate(end.getDate() - 30);
+      start.setHours(0, 0, 0, 0);
+      return { periodStart: start, periodEnd: end, periodLabel: 'Personalizado (30 dias até definir datas)' };
+    }
+
+    const labels: Record<string, string> = {
+      este_mes: 'Este mês',
+      '30_dias': '30 dias',
+      '60_dias': '60 dias',
+      '90_dias': '90 dias',
+      custom: 'Personalizado',
+    };
+    return { periodStart: start, periodEnd: end, periodLabel: labels[period] || '30 dias' };
+  }, [period, customStartDate, customEndDate]);
+
   // Active announcements from the real database
   const today = new Date().toISOString().slice(0, 10);
   const activeAnnouncements = announcements.filter(a => {
@@ -25,11 +72,23 @@ export default function Dashboard() {
 
   // ── Data is already scoped by RLS on the backend ──────────────────────────
   const scopedClients = clients;
+  const inSelectedPeriod = (isoLike?: string | null) => {
+    if (!isoLike) return false;
+    const d = new Date(isoLike);
+    return d >= periodStart && d <= periodEnd;
+  };
 
-  const totalSales = scopedClients.filter(c => c.stage === 'Concluído').length;
-  const emAnalise = scopedClients.filter(c => c.stage === 'Em Análise').length;
-  const aprovados = scopedClients.filter(c => c.stage === 'Aprovado').length;
-  const totalClients = scopedClients.length;
+  const periodClients = scopedClients.filter(c => inSelectedPeriod(c.createdAt));
+  const periodSales = scopedClients.filter(c => {
+    if (c.stage !== 'Concluído') return false;
+    const closedAt = (c as any).closed_at || (c as any).updated_at || c.createdAt;
+    return inSelectedPeriod(closedAt);
+  });
+
+  const totalSales = periodSales.length;
+  const emAnalise = periodClients.filter(c => c.stage === 'Em Análise').length;
+  const aprovados = periodClients.filter(c => c.stage === 'Aprovado').length;
+  const totalClients = periodClients.length;
 
   // Upcoming appointments for this user's scope
   const todayStr = new Date().toISOString().slice(0, 10);
@@ -74,6 +133,45 @@ export default function Dashboard() {
         </section>
       )}
 
+      <section className="space-y-3">
+        <div className="flex flex-wrap gap-2">
+          {[
+            { id: 'este_mes', label: 'Este mês' },
+            { id: '30_dias', label: '30 dias' },
+            { id: '60_dias', label: '60 dias' },
+            { id: '90_dias', label: '90 dias' },
+            { id: 'custom', label: 'Personalizado' },
+          ].map(opt => (
+            <button
+              key={opt.id}
+              onClick={() => setPeriod(opt.id as typeof period)}
+              className={`px-4 py-2 rounded-full text-xs font-semibold border transition-all ${period === opt.id
+                ? 'bg-gold-500 text-white border-gold-500 shadow-sm'
+                : 'bg-card-bg text-text-secondary border-surface-200 hover:border-gold-300'
+                }`}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+        {period === 'custom' && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-xl">
+            <input
+              type="date"
+              value={customStartDate}
+              onChange={(e) => setCustomStartDate(e.target.value)}
+              className="w-full p-2.5 bg-surface-50 rounded-xl border border-surface-200 focus:ring-2 focus:ring-gold-300 text-sm text-text-primary"
+            />
+            <input
+              type="date"
+              value={customEndDate}
+              onChange={(e) => setCustomEndDate(e.target.value)}
+              className="w-full p-2.5 bg-surface-50 rounded-xl border border-surface-200 focus:ring-2 focus:ring-gold-300 text-sm text-text-primary"
+            />
+          </div>
+        )}
+      </section>
+
       {/* ── ADMIN ONLY: Global Metrics ─────────────────────────────────────── */}
       {isAdmin && (
         <>
@@ -83,7 +181,7 @@ export default function Dashboard() {
               <div>
                 <p className="text-sm text-gold-700 dark:text-gold-400 font-medium uppercase tracking-wider">Vendas Globais Concluídas</p>
                 <h3 className="text-3xl font-bold text-text-primary mt-1">{totalSales}</h3>
-                <p className="text-xs text-green-600 dark:text-green-400 mt-1 font-medium">{totalClients} clientes totais</p>
+                <p className="text-xs text-green-600 dark:text-green-400 mt-1 font-medium">{totalClients} clientes no período ({periodLabel})</p>
               </div>
               <div className="h-12 w-12 rounded-full bg-gold-100 dark:bg-gold-900/40 flex items-center justify-center text-gold-600 font-bold text-xl">{totalSales}</div>
             </PremiumCard>
@@ -102,8 +200,8 @@ export default function Dashboard() {
               <SectionHeader title="Visão por Diretoria" />
               <div className="space-y-2">
                 {directorates.map(d => {
-                  const dClients = clients.filter(c => (c as any).directorate_id === d.id);
-                  const dSales = dClients.filter(c => c.stage === 'Concluído').length;
+                  const dClients = periodClients.filter(c => (c as any).directorate_id === d.id);
+                  const dSales = periodSales.filter(c => (c as any).directorate_id === d.id).length;
                   return (
                     <PremiumCard
                       key={d.id}
@@ -129,7 +227,7 @@ export default function Dashboard() {
               </div>
             </section>
           )}
-          <section><FunnelChart /></section>
+          <section><FunnelChart clientsData={periodClients} /></section>
         </>
       )}
 
@@ -142,7 +240,7 @@ export default function Dashboard() {
               <div>
                 <p className="text-sm text-gold-700 dark:text-gold-400 font-medium uppercase tracking-wider">Vendas da Diretoria</p>
                 <h3 className="text-3xl font-bold text-text-primary mt-1">{totalSales}</h3>
-                <p className="text-xs text-green-600 mt-1 font-medium">{totalClients} clientes</p>
+                <p className="text-xs text-green-600 mt-1 font-medium">{totalClients} clientes no período ({periodLabel})</p>
               </div>
               <div className="h-12 w-12 rounded-full bg-gold-100 dark:bg-gold-900/40 flex items-center justify-center text-gold-600 font-bold text-xl">{totalSales}</div>
             </PremiumCard>
@@ -156,7 +254,7 @@ export default function Dashboard() {
             </PremiumCard>
           </div>
           <SalesProgressCard />
-          <section><FunnelChart /></section>
+          <section><FunnelChart clientsData={periodClients} /></section>
         </>
       )}
 
@@ -169,7 +267,7 @@ export default function Dashboard() {
               <div>
                 <p className="text-sm text-gold-700 dark:text-gold-400 font-medium uppercase tracking-wider">Vendas Concluídas</p>
                 <h3 className="text-3xl font-bold text-text-primary mt-1">{totalSales}</h3>
-                <p className="text-xs text-green-600 dark:text-green-400 mt-1 font-medium">{totalClients} clientes totais</p>
+                <p className="text-xs text-green-600 dark:text-green-400 mt-1 font-medium">{totalClients} clientes no período ({periodLabel})</p>
               </div>
               <div className="h-12 w-12 rounded-full bg-gold-100 dark:bg-gold-900/40 flex items-center justify-center text-gold-600 font-bold text-xl">{totalSales}</div>
             </PremiumCard>
@@ -188,7 +286,7 @@ export default function Dashboard() {
           <div className="mt-8 grid grid-cols-1 xl:grid-cols-3 gap-6">
             <div className="xl:col-span-2 flex flex-col gap-6">
               <GamificationProfile />
-              <section><FunnelChart /></section>
+              <section><FunnelChart clientsData={periodClients} /></section>
             </div>
             <div className="xl:col-span-1 h-[600px] xl:h-[auto]">
               <LeaderboardPanel />
@@ -408,7 +506,7 @@ export default function Dashboard() {
             >
               <Users size={22} className="text-gold-500" />
               <h3 className="text-2xl font-bold text-text-primary">{totalClients}</h3>
-              <p className="text-xs text-text-secondary">Clientes da Equipe</p>
+              <p className="text-xs text-text-secondary">Clientes no período</p>
             </PremiumCard>
             <PremiumCard
               className="flex flex-col items-center gap-1 cursor-pointer hover:border-gold-300 transition-colors"
@@ -416,7 +514,7 @@ export default function Dashboard() {
             >
               <TrendingUp size={22} className="text-green-500" />
               <h3 className="text-2xl font-bold text-text-primary">{totalSales}</h3>
-              <p className="text-xs text-text-secondary">Vendas Concluídas</p>
+              <p className="text-xs text-text-secondary">Vendas no período</p>
             </PremiumCard>
             <PremiumCard
               className="flex flex-col items-center gap-1 cursor-pointer hover:border-gold-300 transition-colors"
@@ -424,7 +522,7 @@ export default function Dashboard() {
             >
               <Target size={22} className="text-blue-500" />
               <h3 className="text-2xl font-bold text-text-primary">{emAnalise}</h3>
-              <p className="text-xs text-text-secondary">Em Análise</p>
+              <p className="text-xs text-text-secondary">Em Análise no período</p>
             </PremiumCard>
             <PremiumCard
               className="flex flex-col items-center gap-1 cursor-pointer hover:border-gold-300 transition-colors"
@@ -437,7 +535,7 @@ export default function Dashboard() {
           </div>
           <SalesProgressCard />
 
-          <section><FunnelChart /></section>
+          <section><FunnelChart clientsData={periodClients} /></section>
 
           {/* Metas and Missions for the team */}
           {goals.length > 0 ? (

@@ -1,16 +1,21 @@
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
 import { PremiumCard } from './PremiumComponents';
-import { useApp } from '@/context/AppContext';
+import { Client, useApp } from '@/context/AppContext';
 
 
-export const FunnelChart = () => {
+interface FunnelChartProps {
+  clientsData?: Client[];
+}
+
+export const FunnelChart = ({ clientsData }: FunnelChartProps) => {
   const { clients } = useApp();
+  const sourceClients = clientsData ?? clients;
 
   const data = [
-    { name: 'Leads', value: clients.filter(c => c.stage === 'Novo Lead').length },
-    { name: 'Análise', value: clients.filter(c => c.stage === 'Em Análise').length },
-    { name: 'Em Trâmite', value: clients.filter(c => ['Aprovado', 'Condicionado', 'Em Tratativa'].includes(c.stage)).length },
-    { name: 'Venda', value: clients.filter(c => c.stage === 'Concluído').length },
+    { name: 'Leads', value: sourceClients.filter(c => c.stage === 'Novo Lead').length },
+    { name: 'Análise', value: sourceClients.filter(c => c.stage === 'Em Análise').length },
+    { name: 'Em Trâmite', value: sourceClients.filter(c => ['Aprovado', 'Condicionado', 'Em Tratativa'].includes(c.stage)).length },
+    { name: 'Venda', value: sourceClients.filter(c => c.stage === 'Concluído').length },
   ];
 
   return (
