@@ -102,13 +102,7 @@ Deno.serve(async (req: Request) => {
     return jsonResponse({ error: "Falha de configuração do servidor" }, 500);
   }
 
-  // 1) Mandatory API key validation.
-  const apikey = req.headers.get("apikey");
-  if (!apikey || apikey !== anonKey) {
-    return jsonResponse({ error: "Não autorizado" }, 401);
-  }
-
-  // 2) Mandatory user JWT validation.
+  // Mandatory user JWT validation.
   const token = getBearerToken(req.headers.get("Authorization"));
   if (!token) {
     return jsonResponse({ error: "Não autorizado" }, 401);
@@ -134,11 +128,6 @@ Deno.serve(async (req: Request) => {
     auth: { persistSession: false, autoRefreshToken: false },
   });
 
-  const { data: authData, error: authError } = await userClient.auth.getUser(token);
-  if (authError || !authData?.user?.id) {
-    return jsonResponse({ error: "Não autorizado" }, 401);
-  }
-
   // 3) Authorization gate: query through RLS.
   const { data: allowedDoc, error: allowedDocError } = await userClient
     .from("client_documents")
@@ -147,6 +136,9 @@ Deno.serve(async (req: Request) => {
     .maybeSingle();
 
   if (allowedDocError) {
+    if (String((allowedDocError as any)?.message || "").toLowerCase().includes("jwt")) {
+      return jsonResponse({ error: "Não autorizado" }, 401);
+    }
     // Keep error generic to avoid information leaks.
     return jsonResponse({ error: "Não foi possível processar a solicitação" }, 500);
   }
