@@ -51,8 +51,18 @@ Deno.serve(async (req: Request) => {
     return jsonResponse({ message: 'Falha de configuração do servidor' }, 500);
   }
 
-  const apiKey = req.headers.get('apikey');
-  if (!apiKey || apiKey !== anonKey) {
+  const apiKey = (req.headers.get('apikey') || '').trim();
+  const allowedApiKeys = [
+    anonKey,
+    Deno.env.get('SUPABASE_PUBLISHABLE_KEY') || '',
+  ].map(k => String(k || '').trim()).filter(Boolean);
+
+  if (!apiKey || (allowedApiKeys.length > 0 && !allowedApiKeys.includes(apiKey))) {
+    console.warn('[secure-login] Invalid apikey received', {
+      hasKey: Boolean(apiKey),
+      keyPrefix: apiKey ? apiKey.slice(0, 6) : 'none',
+      allowedCount: allowedApiKeys.length,
+    });
     return jsonResponse({ message: 'Não autorizado' }, 401);
   }
 
