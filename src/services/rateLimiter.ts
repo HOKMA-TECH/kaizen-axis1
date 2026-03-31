@@ -1,5 +1,6 @@
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || '';
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+import { supabase } from '@/lib/supabase';
 
 export type RateLimitScope = 'login' | 'clients_query' | 'document_upload';
 
@@ -18,12 +19,23 @@ class RateLimiter {
     if (!this.endpoint || !SUPABASE_ANON_KEY) return;
 
     try {
+      let authHeader: string | null = null;
+      if (scope !== 'login') {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.access_token) {
+          authHeader = `Bearer ${session.access_token}`;
+        }
+      }
+
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        apikey: SUPABASE_ANON_KEY,
+      };
+      if (authHeader) headers.Authorization = authHeader;
+
       const res = await fetch(this.endpoint, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          apikey: SUPABASE_ANON_KEY,
-        },
+        headers,
         body: JSON.stringify({
           scope,
           userId: opts?.userId ?? null,
