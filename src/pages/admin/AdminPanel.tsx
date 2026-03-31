@@ -681,6 +681,8 @@ export default function AdminPanel() {
       if (editingGoal) await updateGoal(editingGoal.id, goalForm);
       else await addGoal({ ...goalForm, current_progress: 0 } as Omit<Goal, 'id'>);
       setIsGoalModalOpen(false);
+    } catch (e: any) {
+      alert('Erro ao salvar meta/missao: ' + (e?.message || 'Tente novamente.'));
     } finally { setIsSavingGoal(false); }
   };
 
@@ -697,6 +699,8 @@ export default function AdminPanel() {
       if (editingAnnouncement) await updateAnnouncement(editingAnnouncement.id, announcementForm);
       else await addAnnouncement({ ...announcementForm, author_id: user?.id } as Omit<Announcement, 'id' | 'created_at'>);
       setIsAnnouncementModalOpen(false);
+    } catch (e: any) {
+      alert('Erro ao salvar anuncio: ' + (e?.message || 'Tente novamente.'));
     } finally { setIsSavingAnnouncement(false); }
   };
 

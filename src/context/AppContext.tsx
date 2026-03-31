@@ -945,14 +945,38 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const addGoal = useCallback(async (data: Omit<Goal, 'id'>) => {
     try {
-      const { error } = await supabase.from('goals').insert([{
+      const basePayload = {
         ...data,
-        owner_id: user?.id,
         directorate_id: profile?.directorate_id || null
+      };
+
+      let { error } = await supabase.from('goals').insert([{
+        ...basePayload,
+        owner_id: user?.id
       }]);
+
+      if (error?.message?.toLowerCase().includes('owner_id')) {
+        const retryCreatedBy = await supabase.from('goals').insert([{
+          ...basePayload,
+          created_by: user?.id
+        }]);
+        error = retryCreatedBy.error;
+      }
+
+      if (error?.message?.toLowerCase().includes('created_by')) {
+        const retryUser = await supabase.from('goals').insert([{
+          ...basePayload,
+          user_id: user?.id
+        }]);
+        error = retryUser.error;
+      }
+
       if (error) throw error;
       await refreshGoals();
-    } catch (e) { console.error('Erro ao adicionar meta:', e); }
+    } catch (e: any) {
+      console.error('Erro ao adicionar meta:', e);
+      throw e;
+    }
   }, [refreshGoals, user, profile]);
 
   const updateGoal = useCallback(async (id: string, data: Partial<Goal>) => {
@@ -960,7 +984,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const { error } = await supabase.from('goals').update(data).eq('id', id);
       if (error) throw error;
       await refreshGoals();
-    } catch (e) { console.error('Erro ao atualizar meta:', e); }
+    } catch (e: any) {
+      console.error('Erro ao atualizar meta:', e);
+      throw e;
+    }
   }, [refreshGoals]);
 
   const deleteGoal = useCallback(async (id: string) => {
@@ -968,7 +995,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const { error } = await supabase.from('goals').delete().eq('id', id);
       if (error) throw error;
       await refreshGoals();
-    } catch (e) { console.error('Erro ao deletar meta:', e); }
+    } catch (e: any) {
+      console.error('Erro ao deletar meta:', e);
+      throw e;
+    }
   }, [refreshGoals]);
 
   // ─── Announcements ────────────────────────────────────────────────────────
@@ -983,15 +1013,28 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const addAnnouncement = useCallback(async (data: Omit<Announcement, 'id' | 'created_at'>) => {
     try {
-      const { error } = await supabase.from('announcements').insert([{
+      const basePayload = {
         ...data,
         author_id: user?.id,
-        owner_id: user?.id,
         directorate_id: profile?.directorate_id || null
+      };
+
+      let { error } = await supabase.from('announcements').insert([{
+        ...basePayload,
+        owner_id: user?.id
       }]);
+
+      if (error?.message?.toLowerCase().includes('owner_id')) {
+        const retryNoOwner = await supabase.from('announcements').insert([basePayload]);
+        error = retryNoOwner.error;
+      }
+
       if (error) throw error;
       await refreshAnnouncements();
-    } catch (e) { console.error('Erro ao adicionar anúncio:', e); }
+    } catch (e: any) {
+      console.error('Erro ao adicionar anúncio:', e);
+      throw e;
+    }
   }, [refreshAnnouncements, user, profile]);
 
   const updateAnnouncement = useCallback(async (id: string, data: Partial<Announcement>) => {
@@ -999,7 +1042,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const { error } = await supabase.from('announcements').update(data).eq('id', id);
       if (error) throw error;
       await refreshAnnouncements();
-    } catch (e) { console.error('Erro ao atualizar anúncio:', e); }
+    } catch (e: any) {
+      console.error('Erro ao atualizar anúncio:', e);
+      throw e;
+    }
   }, [refreshAnnouncements]);
 
   const deleteAnnouncement = useCallback(async (id: string) => {
@@ -1007,7 +1053,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const { error } = await supabase.from('announcements').delete().eq('id', id);
       if (error) throw error;
       await refreshAnnouncements();
-    } catch (e) { console.error('Erro ao deletar anúncio:', e); }
+    } catch (e: any) {
+      console.error('Erro ao deletar anúncio:', e);
+      throw e;
+    }
   }, [refreshAnnouncements]);
 
   // ─── Directorates ─────────────────────────────────────────────
