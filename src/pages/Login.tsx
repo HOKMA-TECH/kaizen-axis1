@@ -4,7 +4,6 @@ import { RoundedButton } from '@/components/ui/PremiumComponents';
 import { Building2, Mail, Lock, User, Users, ShieldCheck, Loader2, ArrowLeft } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { logAuditEvent } from '@/services/auditLogger';
-import { rateLimiter } from '@/services/rateLimiter';
 
 export default function Login() {
   const navigate = useNavigate();
@@ -96,27 +95,54 @@ export default function Login() {
         setIsLogin(true);
         setLoading(false);
       } else {
-        // Login Etapa 1: Senha
-        try {
-          await rateLimiter.enforce('login');
-        } catch (err: any) {
-          // Falha no rate limiter: se for limite atingido bloqueia; se for erro de rede bloqueia também (fail-closed)
-          logAuditEvent({ action: 'login_failed', entity: 'auth', metadata: { reason: err?.message || 'rate_limit' } });
-          alert(err?.message || 'Não foi possível validar a requisição. Tente novamente em instantes.');
-          setLoading(false);
-          return;
+        // Login protegido no backend: secure-login aplica rate limit por IP antes de autenticar.
+        const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+        const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
+        if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+          throw new Error('Configuração do Supabase ausente no frontend.');
         }
 
-        const { data, error } = await supabase.auth.signInWithPassword({
-          email: formData.email,
-          password: formData.password
+        const loginRes = await fetch(`${SUPABASE_URL}/functions/v1/secure-login`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            apikey: SUPABASE_ANON_KEY,
+          },
+          body: JSON.stringify({ email: formData.email, password: formData.password }),
         });
 
-        if (error) throw error;
-        setPendingUserId(data.session?.user?.id || null);
+        const loginData = await loginRes.json().catch(() => ({}));
+
+        if (!loginRes.ok) {
+          if (loginRes.status === 429) {
+            throw new Error(loginData?.message || 'Muitas tentativas. Aguarde antes de tentar novamente.');
+          }
+          if (loginRes.status === 400) {
+            throw new Error(loginData?.message || 'Dados de login inválidos.');
+          }
+          if (loginRes.status === 401) {
+            throw new Error(loginData?.message || 'Credenciais inválidas.');
+          }
+          throw new Error(loginData?.message || 'Falha no login seguro. Tente novamente.');
+        }
+
+        const accessToken = loginData?.access_token;
+        const refreshToken = loginData?.refresh_token;
+        if (!accessToken || !refreshToken) {
+          throw new Error('Resposta de autenticação inválida.');
+        }
+
+        const { data: sessionSetData, error: sessionSetError } = await supabase.auth.setSession({
+          access_token: accessToken,
+          refresh_token: refreshToken,
+        });
+        if (sessionSetError) throw sessionSetError;
+
+        const session = sessionSetData?.session;
+        setPendingUserId(session?.user?.id || loginData?.user?.id || null);
 
         // Verificar se requer MFA (Assurance Level AAL2 não atingido)
-        if (data.session && data.session.user) {
+        if (session && session.user) {
           const { data: mfaData, error: mfaError } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
           if (mfaError) throw mfaError;
 
@@ -140,7 +166,7 @@ export default function Login() {
         }
 
         // Login direto bem-sucedido (não tem MFA ativado)
-        finishLogin(data.session?.user?.id || null);
+        finishLogin(session?.user?.id || loginData?.user?.id || null);
         setPendingUserId(null);
       }
     } catch (error: any) {
