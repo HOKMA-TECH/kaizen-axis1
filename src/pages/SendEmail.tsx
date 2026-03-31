@@ -158,46 +158,31 @@ PROFISSÃO: ${found.profession || 'Não informado'}`;
             }
             storagePath = storagePath.startsWith('/') ? storagePath.slice(1) : storagePath;
 
-            // Tenta primeiro via função segura v2 (documentId + RLS)
+            if (!att.document_id) {
+              console.warn(`Anexo sem document_id (legado): ${att.name}`);
+              continue;
+            }
+
+            // Fluxo definitivo: somente função segura v2 (documentId + RLS)
             let attachSignedUrl: string | null = null;
             const { data: { session } } = await supabase.auth.getSession();
             if (session?.access_token) {
               try {
-                if (att.document_id) {
-                  const { data: v2Data, error: v2Error } = await supabase.functions.invoke('get-doc-url-v2', {
-                    headers: {
-                      Authorization: `Bearer ${session.access_token}`,
-                      apikey: SUPABASE_ANON_KEY,
-                    },
-                    body: { documentId: att.document_id, expiresIn: 300 },
-                  });
-                  if (!v2Error) {
-                    attachSignedUrl = v2Data.signedUrl ?? null;
-                  }
+                const { data: v2Data, error: v2Error } = await supabase.functions.invoke('get-doc-url-v2', {
+                  headers: {
+                    Authorization: `Bearer ${session.access_token}`,
+                    apikey: SUPABASE_ANON_KEY,
+                  },
+                  body: { documentId: att.document_id, expiresIn: 300 },
+                });
+                if (!v2Error) {
+                  attachSignedUrl = v2Data.signedUrl ?? null;
                 }
-
-                // Fallback temporário de migração: função legada.
-                if (!attachSignedUrl) {
-                  const { data: docData, error: docError } = await supabase.functions.invoke('get-doc-url', {
-                    headers: {
-                      Authorization: `Bearer ${session.access_token}`,
-                      apikey: SUPABASE_ANON_KEY,
-                    },
-                    body: { bucket: 'client-documents', path: storagePath, expiresIn: 300 },
-                  });
-                  if (!docError) {
-                    attachSignedUrl = docData.signedUrl ?? null;
-                  }
-                }
-              } catch { /* ignora — usa fallback */ }
+              } catch { /* ignora e segue com erro controlado abaixo */ }
             }
 
-            // Fallback: createSignedUrl direto (requer políticas RLS)
             if (!attachSignedUrl) {
-              const { data: signedData } = await supabase.storage
-                .from('client-documents')
-                .createSignedUrl(storagePath, 300);
-              attachSignedUrl = signedData?.signedUrl ?? null;
+              throw new Error(`Falha ao gerar link seguro do anexo: ${att.name}`);
             }
 
             if (attachSignedUrl) {

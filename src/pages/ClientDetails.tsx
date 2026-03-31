@@ -97,82 +97,48 @@ export default function ClientDetails() {
 
   const handleOpenDocument = async (rawPath: string, documentId?: string) => {
     if (!rawPath) return;
-
-    // Extrai o path relativo (remove prefixos de URL pública ou signed URL)
-    let storagePath = rawPath;
-    const PUBLIC_MARKER = '/object/public/client-documents/';
-    const SIGN_MARKER   = '/object/sign/client-documents/';
-    if (rawPath.includes(PUBLIC_MARKER)) {
-      storagePath = rawPath.split(PUBLIC_MARKER)[1];
-    } else if (rawPath.includes(SIGN_MARKER)) {
-      storagePath = rawPath.split(SIGN_MARKER)[1].split('?')[0];
+    if (!documentId) {
+      alert('Documento legado sem identificador. Reenvie o documento para habilitar abertura segura.');
+      return;
     }
-    storagePath = storagePath.startsWith('/') ? storagePath.slice(1) : storagePath;
 
-    // Usa a edge function get-doc-url (service role) para gerar a signed URL.
-    // Isso garante que funciona independente das políticas RLS do Storage.
     const { data: { session } } = await supabase.auth.getSession();
     if (!session?.access_token) { alert('Sessão expirada. Faça login novamente.'); return; }
     const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-    // Tenta primeiro via função segura v2 (documentId + RLS).
-    let signedUrl: string | null = null;
     try {
-      if (documentId) {
-        const { data: v2Data, error: v2Error } = await supabase.functions.invoke('get-doc-url-v2', {
-          headers: {
-            Authorization: `Bearer ${session.access_token}`,
-            apikey: SUPABASE_ANON_KEY,
-          },
-          body: { documentId, expiresIn: 300 },
-        });
-        if (!v2Error) {
-          signedUrl = v2Data?.signedUrl ?? null;
-        }
-      }
+      const { data: v2Data, error: v2Error } = await supabase.functions.invoke('get-doc-url-v2', {
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+          apikey: SUPABASE_ANON_KEY,
+        },
+        body: { documentId, expiresIn: 300 },
+      });
 
-      // Fallback temporário de migração: função legada (mantida para não quebrar produção).
-      if (!signedUrl) {
-        const { data, error } = await supabase.functions.invoke('get-doc-url', {
-          headers: {
-            Authorization: `Bearer ${session.access_token}`,
-            apikey: SUPABASE_ANON_KEY,
-          },
-          body: { bucket: 'client-documents', path: storagePath, expiresIn: 300 },
-        });
-        if (!error) {
-          signedUrl = data.signedUrl ?? null;
-        }
-      }
-    } catch { /* ignora — usa fallback abaixo */ }
-
-    // Fallback: chama createSignedUrl diretamente (requer políticas RLS)
-    if (!signedUrl) {
-      const { data, error } = await supabase.storage
-        .from('client-documents')
-        .createSignedUrl(storagePath, 3600);
-      if (error || !data?.signedUrl) {
+      const signedUrl = v2Data?.signedUrl ?? null;
+      if (v2Error || !signedUrl) {
         alert('Erro ao abrir documento.');
         return;
       }
-      signedUrl = data.signedUrl;
+
+      logAuditEvent({
+        action: 'document_downloaded',
+        entity: 'client_document',
+        entityId: documentId,
+        metadata: { client_id: id }
+      });
+      logAuditEvent({
+        action: 'document_downloaded',
+        entity: 'client_document',
+        entityId: documentId,
+        userId: session?.user?.id ?? null,
+        metadata: { clientId: id, rawPath },
+      });
+
+      window.open(signedUrl, '_blank');
+    } catch {
+      alert('Erro ao abrir documento.');
     }
-
-    logAuditEvent({
-      action: 'document_downloaded',
-      entity: 'client_document',
-      entityId: storagePath,
-      metadata: { client_id: id }
-    });
-    logAuditEvent({
-      action: 'document_downloaded',
-      entity: 'client_document',
-      entityId: storagePath,
-      userId: session?.user?.id ?? null,
-      metadata: { clientId: id, path: storagePath },
-    });
-
-    window.open(signedUrl, '_blank');
   };
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
