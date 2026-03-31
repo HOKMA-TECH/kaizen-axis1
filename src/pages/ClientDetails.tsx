@@ -97,10 +97,6 @@ export default function ClientDetails() {
 
   const handleOpenDocument = async (rawPath: string, documentId?: string) => {
     if (!rawPath) return;
-    if (!documentId) {
-      alert('Documento legado sem identificador. Reenvie o documento para habilitar abertura segura.');
-      return;
-    }
 
     const { data: { session } } = await supabase.auth.getSession();
     if (!session?.access_token) { alert('Sessão expirada. Faça login novamente.'); return; }
@@ -112,7 +108,7 @@ export default function ClientDetails() {
           Authorization: `Bearer ${session.access_token}`,
           apikey: SUPABASE_ANON_KEY,
         },
-        body: { documentId, expiresIn: 300 },
+        body: { documentId: documentId || undefined, rawPath, expiresIn: 300 },
       });
 
       const signedUrl = v2Data?.signedUrl ?? null;
@@ -124,13 +120,13 @@ export default function ClientDetails() {
       logAuditEvent({
         action: 'document_downloaded',
         entity: 'client_document',
-        entityId: documentId,
+        entityId: documentId || rawPath,
         metadata: { client_id: id }
       });
       logAuditEvent({
         action: 'document_downloaded',
         entity: 'client_document',
-        entityId: documentId,
+        entityId: documentId || rawPath,
         userId: session?.user?.id ?? null,
         metadata: { clientId: id, rawPath },
       });

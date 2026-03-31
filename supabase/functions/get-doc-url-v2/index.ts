@@ -11,6 +11,7 @@ const corsHeaders = {
 
 type RequestBody = {
   documentId?: string;
+  rawPath?: string;
   expiresIn?: number;
 };
 
@@ -116,8 +117,9 @@ Deno.serve(async (req: Request) => {
   }
 
   const documentId = String(body.documentId || "").trim();
-  if (!documentId) {
-    return jsonResponse({ error: "documentId é obrigatório" }, 400);
+  const rawPath = String(body.rawPath || "").trim();
+  if (!documentId && !rawPath) {
+    return jsonResponse({ error: "documentId ou rawPath é obrigatório" }, 400);
   }
 
   const ttl = normalizeTtl(body.expiresIn);
@@ -129,11 +131,41 @@ Deno.serve(async (req: Request) => {
   });
 
   // 3) Authorization gate: query through RLS.
-  const { data: allowedDoc, error: allowedDocError } = await userClient
-    .from("client_documents")
-    .select("id, client_id, url")
-    .eq("id", documentId)
-    .maybeSingle();
+  let allowedDoc: any = null;
+  let allowedDocError: any = null;
+
+  if (documentId) {
+    const byId = await userClient
+      .from("client_documents")
+      .select("id, client_id, url")
+      .eq("id", documentId)
+      .maybeSingle();
+    allowedDoc = byId.data;
+    allowedDocError = byId.error;
+  }
+
+  if (!allowedDoc && rawPath) {
+    const normalizedRawPath = normalizeStoragePath(rawPath);
+    const candidates = Array.from(new Set([
+      rawPath,
+      normalizedRawPath,
+      `/object/public/client-documents/${normalizedRawPath}`,
+    ].filter(Boolean)));
+
+    for (const candidate of candidates) {
+      const byPath = await userClient
+        .from("client_documents")
+        .select("id, client_id, url")
+        .eq("url", candidate)
+        .maybeSingle();
+      if (!byPath.error && byPath.data) {
+        allowedDoc = byPath.data;
+        allowedDocError = null;
+        break;
+      }
+      allowedDocError = byPath.error;
+    }
+  }
 
   if (allowedDocError) {
     if (String((allowedDocError as any)?.message || "").toLowerCase().includes("jwt")) {
@@ -149,11 +181,31 @@ Deno.serve(async (req: Request) => {
       auth: { persistSession: false, autoRefreshToken: false },
     });
 
-    const { data: existsDoc, error: existsError } = await adminProbe
-      .from("client_documents")
-      .select("id")
-      .eq("id", documentId)
-      .maybeSingle();
+    let existsDoc: any = null;
+    let existsError: any = null;
+    if (documentId) {
+      const existsById = await adminProbe
+        .from("client_documents")
+        .select("id")
+        .eq("id", documentId)
+        .maybeSingle();
+      existsDoc = existsById.data;
+      existsError = existsById.error;
+    } else {
+      const normalizedRawPath = normalizeStoragePath(rawPath);
+      const existsByPath = await adminProbe
+        .from("client_documents")
+        .select("id")
+        .in("url", [
+          rawPath,
+          normalizedRawPath,
+          `/object/public/client-documents/${normalizedRawPath}`,
+        ])
+        .limit(1)
+        .maybeSingle();
+      existsDoc = existsByPath.data;
+      existsError = existsByPath.error;
+    }
 
     if (existsError) {
       return jsonResponse({ error: "Não foi possível processar a solicitação" }, 500);
