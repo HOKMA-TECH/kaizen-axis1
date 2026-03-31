@@ -487,6 +487,10 @@ export default function ChatDetail() {
       setChatUser({ id: 'kai-agent', name: 'KAI — Assistente IA', isAI: true });
       return;
     }
+    if (!id) {
+      setChatUser(null);
+      return;
+    }
     const found = allProfiles.find(p => p.id === id);
     if (found) {
       setChatUser({
@@ -495,7 +499,10 @@ export default function ChatDetail() {
         avatar: (found as any).avatar_url,
         role: found.role,
       });
+      return;
     }
+    // Fallback when profile is not visible by RLS/scoping, but chat is valid.
+    setChatUser({ id, name: 'Usuario' });
   }, [id, allProfiles, isKAI]);
 
   // ─── Upload to Supabase Storage (public) ─────────────────────────────────
