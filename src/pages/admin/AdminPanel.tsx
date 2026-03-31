@@ -730,7 +730,7 @@ export default function AdminPanel() {
               <div className="grid gap-3">
                 {loading ? <Loader2 size={24} className="animate-spin mx-auto text-gold-400 py-4" /> :
                   activeUsers.map(u => (
-                    <PremiumCard key={u.id} className="p-4">
+                    <PremiumCard key={u.id} className="w-full p-4 overflow-hidden">
                       {/* Linha superior: avatar + nome + botão excluir */}
                       <div className="flex items-center gap-3 mb-3 md:mb-0">
                         <div className="w-10 h-10 rounded-full bg-surface-200 flex items-center justify-center text-text-primary font-bold text-sm flex-shrink-0">
@@ -1590,12 +1590,12 @@ export default function AdminPanel() {
 
 
   return (
-    <div className="p-6 pb-24 min-h-screen bg-surface-50 print:p-0 print:bg-white">
+    <div className="w-full max-w-full px-3 sm:px-6 pb-24 min-h-screen bg-surface-50 overflow-x-hidden print:p-0 print:bg-white">
       <div className="print:hidden">
         <SectionHeader title="Painel Administrativo" subtitle="Governança e Estratégia" />
       </div>
 
-      <div className="flex gap-2 overflow-x-auto no-scrollbar mb-6 pb-2 print:hidden">
+      <div className="w-full flex gap-2 overflow-x-auto no-scrollbar mb-6 pb-2 print:hidden -mx-1 px-1">
         {[
           { id: 'users', label: 'Usuários', icon: Users },
           { id: 'teams', label: 'Equipes', icon: Shield },
@@ -1618,7 +1618,7 @@ export default function AdminPanel() {
         </button>
       </div>
 
-      <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <div className="w-full animate-in fade-in slide-in-from-bottom-4 duration-500">
         {/* GLOBAL PENDING APPROVALS ALERT */}
         {activeTab === 'users' && pendingUsers.length > 0 && (
           <section className="mb-8 print:hidden">
@@ -1636,7 +1636,7 @@ export default function AdminPanel() {
 
             <div className="grid gap-3">
               {pendingUsers.map(u => (
-                <PremiumCard key={u.id} className="p-3 sm:p-4 flex flex-col md:flex-row md:items-center md:flex-wrap justify-between gap-4 border-amber-200/50 dark:border-amber-700/30 overflow-hidden">
+                <PremiumCard key={u.id} className="w-full p-3 sm:p-4 flex flex-col md:flex-row md:items-center md:flex-wrap justify-between gap-4 border-amber-200/50 dark:border-amber-700/30 overflow-hidden">
                   <div className="flex items-center gap-3 min-w-0 flex-1 basis-auto">
                     <div className="w-10 h-10 shrink-0 rounded-full bg-surface-200 dark:bg-surface-800 flex items-center justify-center text-text-primary font-bold text-lg">
                       {(u.name || '?').charAt(0).toUpperCase()}
