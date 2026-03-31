@@ -96,34 +96,28 @@ export default function Login() {
         setLoading(false);
       } else {
         // Login protegido no backend: secure-login aplica rate limit por IP antes de autenticar.
-        const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
-        const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
-        if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
-          throw new Error('Configuração do Supabase ausente no frontend.');
-        }
-
-        const loginRes = await fetch(`${SUPABASE_URL}/functions/v1/secure-login`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            apikey: SUPABASE_ANON_KEY,
-          },
-          body: JSON.stringify({ email: formData.email, password: formData.password }),
+        const { data: loginData, error: loginError } = await supabase.functions.invoke('secure-login', {
+          body: { email: formData.email, password: formData.password },
         });
 
-        const loginData = await loginRes.json().catch(() => ({}));
+        if (loginError) {
+          let status = 500;
+          let message = 'Falha no login seguro. Tente novamente.';
+          try {
+            const response = (loginError as any).context;
+            if (response) {
+              status = response.status || status;
+              const errData = await response.json().catch(() => ({}));
+              message = errData?.message || message;
+            }
+          } catch {
+            // ignore parse failure, keep generic message
+          }
 
-        if (!loginRes.ok) {
-          if (loginRes.status === 429) {
-            throw new Error(loginData?.message || 'Muitas tentativas. Aguarde antes de tentar novamente.');
-          }
-          if (loginRes.status === 400) {
-            throw new Error(loginData?.message || 'Dados de login inválidos.');
-          }
-          if (loginRes.status === 401) {
-            throw new Error(loginData?.message || 'Credenciais inválidas.');
-          }
-          throw new Error(loginData?.message || 'Falha no login seguro. Tente novamente.');
+          if (status === 429) throw new Error(message || 'Muitas tentativas. Aguarde antes de tentar novamente.');
+          if (status === 400) throw new Error(message || 'Dados de login inválidos.');
+          if (status === 401) throw new Error(message || 'Credenciais inválidas.');
+          throw new Error(message);
         }
 
         const accessToken = loginData?.access_token;
