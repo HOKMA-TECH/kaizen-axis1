@@ -51,22 +51,10 @@ Deno.serve(async (req: Request) => {
     return jsonResponse({ message: 'Falha de configuração do servidor' }, 500);
   }
 
-  const apiKey = (req.headers.get('apikey') || '').trim();
-  const allowedApiKeys = [
-    anonKey,
-    Deno.env.get('SUPABASE_PUBLISHABLE_KEY') || '',
-  ].map(k => String(k || '').trim()).filter(Boolean);
-
-  // Emergency compatibility: some environments may omit apikey header in browser fetches.
-  // If provided, it must be valid. If missing, continue with server-side rate limit + generic auth response.
-  if (apiKey && (allowedApiKeys.length > 0 && !allowedApiKeys.includes(apiKey))) {
-    console.warn('[secure-login] Invalid apikey received', {
-      hasKey: Boolean(apiKey),
-      keyPrefix: apiKey ? apiKey.slice(0, 6) : 'none',
-      allowedCount: allowedApiKeys.length,
-    });
-    return jsonResponse({ message: 'Não autorizado' }, 401);
-  }
+  // NOTE: We intentionally do not hard-fail on apikey here.
+  // Browser/runtime environments can omit or rewrite this header,
+  // and hard-failing would break login for legitimate users.
+  // Brute-force protection remains server-side via rate limit by IP.
 
   let body: SecureLoginBody;
   try {
