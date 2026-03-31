@@ -57,7 +57,9 @@ Deno.serve(async (req: Request) => {
     Deno.env.get('SUPABASE_PUBLISHABLE_KEY') || '',
   ].map(k => String(k || '').trim()).filter(Boolean);
 
-  if (!apiKey || (allowedApiKeys.length > 0 && !allowedApiKeys.includes(apiKey))) {
+  // Emergency compatibility: some environments may omit apikey header in browser fetches.
+  // If provided, it must be valid. If missing, continue with server-side rate limit + generic auth response.
+  if (apiKey && (allowedApiKeys.length > 0 && !allowedApiKeys.includes(apiKey))) {
     console.warn('[secure-login] Invalid apikey received', {
       hasKey: Boolean(apiKey),
       keyPrefix: apiKey ? apiKey.slice(0, 6) : 'none',
