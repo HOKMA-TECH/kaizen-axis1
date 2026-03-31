@@ -108,7 +108,7 @@ export default function ClientDetails() {
           Authorization: `Bearer ${session.access_token}`,
           apikey: SUPABASE_ANON_KEY,
         },
-        body: { documentId: documentId || undefined, rawPath, expiresIn: 300 },
+        body: { documentId: documentId || undefined, rawPath, accessToken: session.access_token, expiresIn: 300 },
       });
 
       const signedUrl = v2Data?.signedUrl ?? null;

@@ -173,7 +173,7 @@ PROFISSÃO: ${found.profession || 'Não informado'}`;
                     Authorization: `Bearer ${session.access_token}`,
                     apikey: SUPABASE_ANON_KEY,
                   },
-                  body: { documentId: att.document_id, rawPath: att.file_path, expiresIn: 300 },
+                  body: { documentId: att.document_id, rawPath: att.file_path, accessToken: session.access_token, expiresIn: 300 },
                 });
                 if (!v2Error) {
                   attachSignedUrl = v2Data.signedUrl ?? null;

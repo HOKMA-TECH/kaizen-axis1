@@ -12,6 +12,7 @@ const corsHeaders = {
 type RequestBody = {
   documentId?: string;
   rawPath?: string;
+  accessToken?: string;
   expiresIn?: number;
 };
 
@@ -103,17 +104,19 @@ Deno.serve(async (req: Request) => {
     return jsonResponse({ error: "Falha de configuração do servidor" }, 500);
   }
 
-  // Mandatory user JWT validation.
-  const token = getBearerToken(req.headers.get("Authorization"));
-  if (!token) {
-    return jsonResponse({ error: "Não autorizado" }, 401);
-  }
-
   let body: RequestBody;
   try {
     body = await req.json();
   } catch {
     return jsonResponse({ error: "Body inválido" }, 400);
+  }
+
+  // Mandatory user JWT validation (header preferred, body fallback for runtime compatibility).
+  const headerToken = getBearerToken(req.headers.get("authorization") || req.headers.get("Authorization"));
+  const bodyToken = String(body.accessToken || "").trim();
+  const token = headerToken || bodyToken;
+  if (!token) {
+    return jsonResponse({ error: "Não autorizado" }, 401);
   }
 
   const documentId = String(body.documentId || "").trim();
