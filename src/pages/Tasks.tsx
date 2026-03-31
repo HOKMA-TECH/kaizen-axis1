@@ -34,20 +34,35 @@ export default function Tasks() {
         await addTask({ ...formData, subtasks: formData.subtasks || [] } as Omit<Task, 'id' | 'created_at'>);
       }
       setIsModalOpen(false);
+    } catch (e: any) {
+      alert(e?.message || 'Nao foi possivel salvar a tarefa. Tente novamente.');
     } finally { setIsSaving(false); }
   };
 
   const handleDelete = async (id: string) => {
-    if (confirm('Tem certeza que deseja excluir esta tarefa?')) await deleteTask(id);
+    if (!confirm('Tem certeza que deseja excluir esta tarefa?')) return;
+    try {
+      await deleteTask(id);
+    } catch (e: any) {
+      alert(e?.message || 'Nao foi possivel excluir a tarefa. Tente novamente.');
+    }
   };
 
   const toggleComplete = async (task: Task) => {
-    await updateTask(task.id, { status: task.status === 'Concluída' ? 'Pendente' : 'Concluída' });
+    try {
+      await updateTask(task.id, { status: task.status === 'Concluída' ? 'Pendente' : 'Concluída' });
+    } catch (e: any) {
+      alert(e?.message || 'Nao foi possivel atualizar a tarefa. Tente novamente.');
+    }
   };
 
   const toggleSubtaskCompletion = async (task: Task, subtaskId: string) => {
     const newSubtasks = task.subtasks.map(s => s.id === subtaskId ? { ...s, completed: !s.completed } : s);
-    await updateTask(task.id, { subtasks: newSubtasks });
+    try {
+      await updateTask(task.id, { subtasks: newSubtasks });
+    } catch (e: any) {
+      alert(e?.message || 'Nao foi possivel atualizar subtarefa. Tente novamente.');
+    }
   };
 
   const addSubtask = () => {

@@ -788,14 +788,30 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const addTask = useCallback(async (data: Omit<Task, 'id' | 'created_at'>) => {
     try {
-      const { error } = await supabase.from('tasks').insert([{
+      const basePayload = {
         ...data,
-        owner_id: user?.id,
         directorate_id: profile?.directorate_id || null
+      };
+
+      let { error } = await supabase.from('tasks').insert([{
+        ...basePayload,
+        owner_id: user?.id
       }]);
+
+      if (error?.message?.toLowerCase().includes('owner_id')) {
+        const retry = await supabase.from('tasks').insert([{
+          ...basePayload,
+          user_id: user?.id
+        }]);
+        error = retry.error;
+      }
+
       if (error) throw error;
       await refreshTasks();
-    } catch (e) { console.error('Erro ao adicionar tarefa:', e); }
+    } catch (e: any) {
+      console.error('Erro ao adicionar tarefa:', e);
+      throw e;
+    }
   }, [refreshTasks, user, profile]);
 
   const updateTask = useCallback(async (id: string, data: Partial<Task>) => {
@@ -803,7 +819,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const { error } = await supabase.from('tasks').update(data).eq('id', id);
       if (error) throw error;
       await refreshTasks();
-    } catch (e) { console.error('Erro ao atualizar tarefa:', e); }
+    } catch (e: any) {
+      console.error('Erro ao atualizar tarefa:', e);
+      throw e;
+    }
   }, [refreshTasks]);
 
   const deleteTask = useCallback(async (id: string) => {
@@ -811,7 +830,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const { error } = await supabase.from('tasks').delete().eq('id', id);
       if (error) throw error;
       await refreshTasks();
-    } catch (e) { console.error('Erro ao deletar tarefa:', e); }
+    } catch (e: any) {
+      console.error('Erro ao deletar tarefa:', e);
+      throw e;
+    }
   }, [refreshTasks]);
 
   // ─── Developments ─────────────────────────────────────────────────────────
