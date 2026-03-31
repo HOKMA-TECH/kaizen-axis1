@@ -7,6 +7,8 @@ type RateGuardBody = {
   userId?: string | null;
 };
 
+type Scope = keyof typeof LIMITS;
+
 const LIMITS: Record<string, { limit: number; windowSeconds: number }> = {
   login: { limit: 10, windowSeconds: 60 },
   clients_query: { limit: 60, windowSeconds: 60 },
@@ -24,6 +26,13 @@ function errJson(message: string, status = 400) {
     status,
     headers: { ...corsHeaders, 'Content-Type': 'application/json' }
   });
+}
+
+function getBearerToken(req: Request): string | null {
+  const authHeader = req.headers.get('authorization') || req.headers.get('Authorization');
+  if (!authHeader) return null;
+  const match = authHeader.match(/^Bearer\s+(.+)$/i);
+  return match?.[1] ?? null;
 }
 
 function resolveIp(req: Request) {
@@ -62,16 +71,38 @@ Deno.serve(async (req: Request) => {
     return errJson('Escopo inválido');
   }
 
-  const config = LIMITS[body.scope];
+  const scope = body.scope as Scope;
+  const config = LIMITS[scope];
   const supabaseUrl = Deno.env.get('SUPABASE_URL');
+  const anonKey = Deno.env.get('SUPABASE_ANON_KEY');
   const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-  if (!supabaseUrl || !serviceKey) {
+  if (!supabaseUrl || !anonKey || !serviceKey) {
     return errJson('Configuração do Supabase ausente', 500);
   }
 
-  const identifier = body.scope === 'login'
-    ? resolveIp(req)
-    : (body.userId || resolveIp(req));
+  let identifier: string;
+  if (scope === 'login') {
+    // Pre-auth flow: no JWT required. Rate-limit by source IP.
+    identifier = resolveIp(req);
+  } else {
+    // Authenticated scopes: JWT required, derive user id on backend.
+    const token = getBearerToken(req);
+    if (!token) {
+      return errJson('Não autorizado', 401);
+    }
+
+    const supabaseAuth = createClient(supabaseUrl, anonKey, {
+      auth: { persistSession: false }
+    });
+
+    const { data: userData, error: userError } = await supabaseAuth.auth.getUser(token);
+    if (userError || !userData?.user?.id) {
+      return errJson('Não autorizado', 401);
+    }
+
+    // Never trust body.userId for authenticated scopes.
+    identifier = userData.user.id;
+  }
 
   if (!identifier) {
     return errJson('Identificador inválido', 400);
@@ -84,7 +115,7 @@ Deno.serve(async (req: Request) => {
   });
 
   const { data, error } = await supabaseAdmin.rpc('increment_request_counter', {
-    _scope: body.scope,
+    _scope: scope,
     _identifier: identifier,
     _window_start: windowStart
   });

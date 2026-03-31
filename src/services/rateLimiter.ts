@@ -36,6 +36,9 @@ class RateLimiter {
         if (res.status === 429) {
           throw new Error(message);
         }
+        if (scope === 'login') {
+          throw new Error(message || 'Serviço de segurança indisponível. Tente novamente em instantes.');
+        }
         console.warn('[rate-limit] Falha ao validar limite:', message);
       }
     } catch (err) {
