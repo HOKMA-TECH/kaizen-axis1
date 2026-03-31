@@ -252,7 +252,8 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
                         const newNotif = payload.new as Notification;
 
                         const isForMe          = newNotif.target_user_id === profile.id;
-                        const isForMyRole      = newNotif.target_role    === profile.role;
+                        const isForMyRole      =
+                            (newNotif.target_role || '').toUpperCase() === (profile.role || '').toUpperCase();
                         const isForMyDirectorate = Boolean(newNotif.directorate_id && newNotif.directorate_id === profile.directorate_id);
                         const isAdmin          = profile.role === 'ADMIN';
                         const role             = profile.role?.toUpperCase();
