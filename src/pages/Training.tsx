@@ -419,6 +419,8 @@ export default function Training() {
       setFormData({ title: '', type: 'Vídeo', url: '', duration: '', description: '', xp_reward: 0 });
       setSelectedFile(null);
       resetAutoMeta();
+    } catch (e: any) {
+      setUploadError(e?.message || 'Nao foi possivel salvar o treinamento.');
     } finally {
       setIsSaving(false);
     }
@@ -426,8 +428,11 @@ export default function Training() {
 
   const handleDelete = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (confirm('Tem certeza que deseja excluir este treinamento?')) {
+    if (!confirm('Tem certeza que deseja excluir este treinamento?')) return;
+    try {
       await deleteTraining(id);
+    } catch (e: any) {
+      alert(e?.message || 'Nao foi possivel excluir o treinamento.');
     }
   };
 

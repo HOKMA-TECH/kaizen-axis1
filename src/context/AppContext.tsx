@@ -1122,10 +1122,24 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const addTraining = useCallback(async (data: Omit<TrainingItem, 'id' | 'created_at'>) => {
     try {
-      const { error } = await supabase.from('trainings').insert([{ ...data, created_by: user?.id }]);
+      let { error } = await supabase.from('trainings').insert([{ ...data, created_by: user?.id }]);
+
+      if (error?.message?.toLowerCase().includes('created_by')) {
+        const retryUser = await supabase.from('trainings').insert([{ ...data, user_id: user?.id }]);
+        error = retryUser.error;
+      }
+
+      if (error?.message?.toLowerCase().includes('user_id')) {
+        const retryOwner = await supabase.from('trainings').insert([{ ...data, owner_id: user?.id }]);
+        error = retryOwner.error;
+      }
+
       if (error) throw error;
       await refreshTrainings();
-    } catch (e) { console.error('Erro ao criar treinamento:', e); }
+    } catch (e: any) {
+      console.error('Erro ao criar treinamento:', e);
+      throw e;
+    }
   }, [refreshTrainings, user]);
 
   const updateTraining = useCallback(async (id: string, data: Partial<TrainingItem>) => {
@@ -1133,7 +1147,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const { error } = await supabase.from('trainings').update(data).eq('id', id);
       if (error) throw error;
       await refreshTrainings();
-    } catch (e) { console.error('Erro ao atualizar treinamento:', e); }
+    } catch (e: any) {
+      console.error('Erro ao atualizar treinamento:', e);
+      throw e;
+    }
   }, [refreshTrainings]);
 
   const deleteTraining = useCallback(async (id: string) => {
@@ -1141,7 +1158,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const { error } = await supabase.from('trainings').delete().eq('id', id);
       if (error) throw error;
       await refreshTrainings();
-    } catch (e) { console.error('Erro ao deletar treinamento:', e); }
+    } catch (e: any) {
+      console.error('Erro ao deletar treinamento:', e);
+      throw e;
+    }
   }, [refreshTrainings]);
 
   const completeTraining = useCallback(async (id: string) => {
