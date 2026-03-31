@@ -885,13 +885,22 @@ export default function ChatDetail() {
       reply_to_id: replyingTo?.id || null,
     }).select().single();
 
-    if (error) console.error('Insert error:', error);
+    if (error) {
+      console.error('Insert error:', error);
+      setMessages(prev => prev.filter(m => m.id !== tempId));
+      alert(error.message || 'Nao foi possivel enviar a mensagem.');
+      return;
+    }
 
     // Update temp message to confirmed with real ID + mark sent
     if (inserted) {
       setMessages(prev => prev.map(m =>
         m.id === tempId ? { ...m, id: inserted.id, deliveryStatus: 'sent' } : m
       ));
+    } else {
+      setMessages(prev => prev.filter(m => m.id !== tempId));
+      alert('Nao foi possivel confirmar o envio da mensagem.');
+      return;
     }
 
     setReplyingTo(null);
