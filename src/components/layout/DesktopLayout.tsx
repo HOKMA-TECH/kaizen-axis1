@@ -33,6 +33,7 @@ const NAV_TOOLS: NavItem[] = [
   { icon: Building2,  label: 'Empreendimentos', path: '/developments' },
   { icon: Globe,      label: 'Portais',         path: '/portals' },
   { icon: QrCode,     label: 'Check-in',        path: '/checkin' },
+  { icon: QrCode,     label: 'Tela Check-in',   path: '/checkin/display', leadershipOnly: true },
   { icon: CheckSquare,label: 'Tarefas',         path: '/tasks' },
   { icon: GraduationCap, label: 'Treinamentos', path: '/training' },
   { icon: FileType,   label: 'Conversor PDF',   path: '/pdf-tools' },
@@ -101,12 +102,13 @@ function Sidebar() {
   const isLeadership = !isBroker; // everyone except CORRETOR
   const isAdminOrDirector = isAdmin || isDirector;
 
+  const filteredTools = NAV_TOOLS.filter(item => !item.leadershipOnly || isLeadership);
   const filteredReports = NAV_REPORTS.filter(item => !item.leadershipOnly || isLeadership);
   const filteredAdmin = NAV_ADMIN.filter(item => !item.adminOnly || isAdminOrDirector);
 
   const allGroups = [
     { label: 'Principal',     items: NAV_CORE },
-    { label: 'Ferramentas',   items: NAV_TOOLS },
+    { label: 'Ferramentas',   items: filteredTools },
     { label: 'Análise',       items: filteredReports },
     { label: 'Administrativo',items: filteredAdmin },
   ].filter(g => g.items.length > 0);
