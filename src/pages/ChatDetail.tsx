@@ -420,6 +420,7 @@ export default function ChatDetail() {
   const [isKaiTyping, setIsKaiTyping] = useState(false);
   const [typingUser, setTypingUser] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [isSendingMessage, setIsSendingMessage] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [isViewOnce, setIsViewOnce] = useState(false);
   const [viewOnceModalMsgId, setViewOnceModalMsgId] = useState<string | null>(null);
@@ -782,6 +783,7 @@ export default function ChatDetail() {
     existingUrl?: string,
     viewOnceFlag?: boolean,
   ) => {
+    if (isSendingMessage) return;
     if (!text && !file && !existingUrl) return;
 
     // Prevent sending empty or corrupted files (0 bytes)
@@ -791,6 +793,7 @@ export default function ChatDetail() {
     }
 
     if (!chatUser) return;
+    setIsSendingMessage(true);
     setInputValue('');
     setShowAttachments(false);
 
@@ -808,6 +811,7 @@ export default function ChatDetail() {
         const privatePath = await uploadMediaPrivate(file, type);
         setIsUploading(false);
         if (!privatePath) {
+          setIsSendingMessage(false);
           alert('Falha ao enviar o arquivo. Tente novamente.');
           return;
         }
@@ -817,6 +821,7 @@ export default function ChatDetail() {
         mediaUrl = (await uploadMedia(file, type)) ?? undefined;
         setIsUploading(false);
         if (!mediaUrl && !isKAI) {
+          setIsSendingMessage(false);
           alert('Falha ao enviar o arquivo. Tente novamente.');
           return;
         }
@@ -867,9 +872,13 @@ export default function ChatDetail() {
         } catch {}
         return updated;
       });
+      setIsSendingMessage(false);
       return;
     }
-    if (isKAI) return;
+    if (isKAI) {
+      setIsSendingMessage(false);
+      return;
+    }
 
     // Persist to Supabase (postgres_changes will notify receiver)
     const { data: inserted, error } = await supabase.from('chat_messages').insert({
@@ -889,6 +898,7 @@ export default function ChatDetail() {
       console.error('Insert error:', error);
       setMessages(prev => prev.filter(m => m.id !== tempId));
       alert(error.message || 'Nao foi possivel enviar a mensagem.');
+      setIsSendingMessage(false);
       return;
     }
 
@@ -900,6 +910,7 @@ export default function ChatDetail() {
     } else {
       setMessages(prev => prev.filter(m => m.id !== tempId));
       alert('Nao foi possivel confirmar o envio da mensagem.');
+      setIsSendingMessage(false);
       return;
     }
 
@@ -909,6 +920,7 @@ export default function ChatDetail() {
     const allChannels = supabase.getChannels();
     const ch = allChannels.find(c => c.topic === `realtime:chat:${conversationId}`);
     ch?.track({ userId: myId, name: myName, isTyping: false });
+    setIsSendingMessage(false);
   };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>, type: ChatMessage['type']) => {
@@ -1567,6 +1579,7 @@ export default function ChatDetail() {
               onKeyDown={e => {
                 if (e.key === 'Enter' && !e.shiftKey) {
                   e.preventDefault();
+                  if (isSendingMessage) return;
                   handleSendMessage();
                 }
               }}
@@ -1587,7 +1600,8 @@ export default function ChatDetail() {
 
         <button
           onClick={inputValue ? () => handleSendMessage() : (isRecording ? stopRecordingAndSend : startRecording)}
-          className="p-3 rounded-full shadow-md bg-gold-500 text-white"
+          disabled={isSendingMessage}
+          className="p-3 rounded-full shadow-md bg-gold-500 text-white disabled:opacity-60 disabled:cursor-not-allowed"
         >
           {inputValue || isRecording ? <Send size={20} /> : <Mic size={20} />}
         </button>
