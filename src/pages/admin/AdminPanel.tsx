@@ -535,6 +535,11 @@ export default function AdminPanel() {
 
   const pendingUsers = allProfiles.filter(p => p.status === 'pending' || p.status === 'Pendente');
   const activeUsers = allProfiles.filter(p => (p.status === 'active' || p.status === 'Ativo') && p.name?.toLowerCase().includes(searchTerm.toLowerCase()));
+  const inactiveUsers = allProfiles.filter(p => (p.status === 'inactive' || p.status === 'Inativo') && p.name?.toLowerCase().includes(searchTerm.toLowerCase()));
+  const isProfileActive = (status?: string | null) => {
+    const normalized = String(status || '').toLowerCase();
+    return normalized === 'active' || normalized === 'ativo';
+  };
 
   // ── Users Actions ──────────────────────────────────────────────────────────
   const handleRoleChange = async (id: string, role: string) => {
@@ -551,28 +556,48 @@ export default function AdminPanel() {
   };
 
 
-  const handleDeleteUser = async (userId: string, userName: string) => {
-    const confirmMessage = `⚠️ ATENÇÃO: Esta ação é IRREVERSÍVEL!\n\nVocê está prestes a excluir PERMANENTEMENTE o usuário:\n\n"${userName}"\n\nTODOS os dados relacionados serão deletados:\n- Check-ins\n- Agendamentos\n- Clientes\n- Tarefas\n- Notificações\n- Desenvolvimentos\n- Progressos de treinamento\n\nDigite "CONFIRMAR" para prosseguir:`;
+  const handleDeactivateUser = async (userId: string, userName: string) => {
+    const confirmMessage = `⚠️ Confirmar desativação\n\nVocê está prestes a remover o acesso do usuário:\n\n"${userName}"\n\nEsta ação:\n- bloqueia o acesso do usuário\n- mantém o histórico e as vendas já registradas\n\nDigite "CONFIRMAR" para prosseguir:`;
 
     const userInput = prompt(confirmMessage);
 
     if (userInput !== 'CONFIRMAR') {
-      alert('Exclusão cancelada.');
+      alert('Desativação cancelada.');
       return;
     }
 
     try {
-      const { data, error } = await supabase.rpc('delete_user_permanently', {
-        user_id: userId
-      });
+      const { error } = await supabase
+        .from('profiles')
+        .update({ status: 'Inativo' })
+        .eq('id', userId);
 
       if (error) throw error;
 
-      alert(`✅ Usuário "${userName}" foi excluído permanentemente com sucesso!`);
+      alert(`✅ Usuário "${userName}" foi desativado com sucesso. O histórico foi preservado.`);
       await refreshProfiles();
     } catch (error: any) {
-      console.error('Erro ao excluir usuário:', error);
-      alert(`❌ Erro ao excluir usuário: ${error.message}`);
+      console.error('Erro ao desativar usuário:', error);
+      alert(`❌ Erro ao desativar usuário: ${error.message}`);
+    }
+  };
+
+  const handleReactivateUser = async (userId: string, userName: string) => {
+    if (!confirm(`Reativar o usuário "${userName}"?`)) return;
+
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ status: 'Ativo' })
+        .eq('id', userId);
+
+      if (error) throw error;
+
+      alert(`✅ Usuário "${userName}" foi reativado com sucesso.`);
+      await refreshProfiles();
+    } catch (error: any) {
+      console.error('Erro ao reativar usuário:', error);
+      alert(`❌ Erro ao reativar usuário: ${error.message}`);
     }
   };
   // ── Approval Flow ──────────────────────────────────────────────────────────
@@ -740,17 +765,17 @@ export default function AdminPanel() {
                           <p className="font-semibold text-text-primary truncate">{u.name}</p>
                           <p className="text-xs text-text-secondary">{u.role}</p>
                         </div>
-                        {/* Botão excluir visível no mobile ao lado do nome */}
+                        {/* Botão desativar visível no mobile ao lado do nome */}
                         <button
-                          onClick={() => handleDeleteUser(u.id, u.name || 'Usuário')}
+                          onClick={() => handleDeactivateUser(u.id, u.name || 'Usuário')}
                           className="md:hidden p-2 rounded-lg hover:bg-red-50 text-red-500 transition-colors flex-shrink-0"
-                          title="Excluir usuário permanentemente"
+                          title="Desativar usuário"
                         >
                           <Trash2 size={16} />
                         </button>
                       </div>
 
-                      {/* Dropdowns + botão excluir desktop */}
+                      {/* Dropdowns + botão desativar desktop */}
                       <div className="flex flex-col gap-1.5 md:flex-row md:items-center md:justify-between">
                         <div className="flex flex-col gap-1.5 md:flex-row md:gap-2 md:items-center">
                           <select value={u.role} onChange={e => handleRoleChange(u.id, e.target.value)}
@@ -765,25 +790,61 @@ export default function AdminPanel() {
                           <select value={(u as any).manager_id ?? ''} onChange={e => handleManagerChange(u.id, e.target.value || null)}
                             className="w-full md:w-40 text-xs bg-surface-50 border border-surface-200 rounded-lg p-1.5 focus:outline-none focus:border-gold-400">
                             <option value="">Sem Gestor</option>
-                            {allProfiles.filter(p => p.id !== u.id && p.role?.toUpperCase() === 'GERENTE').map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                            {allProfiles
+                              .filter(p => p.id !== u.id && p.role?.toUpperCase() === 'GERENTE' && isProfileActive((p as any).status))
+                              .map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                           </select>
                           <select value={(u as any).coordinator_id ?? ''} onChange={e => handleCoordinatorChange(u.id, e.target.value || null)}
                             className="w-full md:w-40 text-xs bg-surface-50 border border-surface-200 rounded-lg p-1.5 focus:outline-none focus:border-gold-400">
                             <option value="">Sem Coordenador</option>
-                            {allProfiles.filter(p => p.id !== u.id && p.role?.toUpperCase() === 'COORDENADOR').map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                            {allProfiles
+                              .filter(p => p.id !== u.id && p.role?.toUpperCase() === 'COORDENADOR' && isProfileActive((p as any).status))
+                              .map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                           </select>
                         </div>
-                        {/* Botão excluir visível só no desktop */}
+                        {/* Botão desativar visível só no desktop */}
                         <button
-                          onClick={() => handleDeleteUser(u.id, u.name || 'Usuário')}
+                          onClick={() => handleDeactivateUser(u.id, u.name || 'Usuário')}
                           className="hidden md:flex p-2 rounded-lg hover:bg-red-50 text-red-500 transition-colors flex-shrink-0"
-                          title="Excluir usuário permanentemente"
+                          title="Desativar usuário"
                         >
                           <Trash2 size={16} />
                         </button>
                       </div>
                     </PremiumCard>
                   ))}
+              </div>
+            </section>
+
+            <section>
+              <div className="flex flex-col md:flex-row md:justify-between md:items-center mb-3 gap-2">
+                <h3 className="text-sm font-bold text-text-secondary uppercase">Usuários Inativos ({inactiveUsers.length})</h3>
+              </div>
+              <div className="grid gap-3">
+                {inactiveUsers.length === 0 ? (
+                  <p className="text-xs text-text-secondary">Nenhum usuário inativo encontrado.</p>
+                ) : (
+                  inactiveUsers.map(u => (
+                    <PremiumCard key={u.id} className="w-full p-4 overflow-hidden opacity-80">
+                      <div className="flex items-center gap-3 mb-3 md:mb-0">
+                        <div className="w-10 h-10 rounded-full bg-surface-200 flex items-center justify-center text-text-primary font-bold text-sm flex-shrink-0">
+                          {(u.name || '?').charAt(0)}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-semibold text-text-primary truncate">{u.name}</p>
+                          <p className="text-xs text-text-secondary">{u.role}</p>
+                        </div>
+                        <RoundedButton
+                          size="sm"
+                          onClick={() => handleReactivateUser(u.id, u.name || 'Usuário')}
+                          className="bg-green-500 hover:bg-green-600 text-white border-0"
+                        >
+                          Reativar
+                        </RoundedButton>
+                      </div>
+                    </PremiumCard>
+                  ))
+                )}
               </div>
             </section>
           </div>
@@ -1706,7 +1767,9 @@ export default function AdminPanel() {
               <select value={approvalForm.coordinator_id} onChange={e => setApprovalForm(p => ({ ...p, coordinator_id: e.target.value }))}
                 className="w-full p-3 bg-surface-50 rounded-xl border-none focus:ring-2 focus:ring-gold-200 text-text-primary">
                 <option value="">Sem Coordenador</option>
-                {allProfiles.filter(p => p.role?.toUpperCase() === 'COORDENADOR').map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                {allProfiles
+                  .filter(p => p.role?.toUpperCase() === 'COORDENADOR' && isProfileActive((p as any).status))
+                  .map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
               </select>
             </div>
           )}

@@ -65,6 +65,22 @@ export default function Login() {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
+  const ensureUserIsActive = async (userId?: string | null) => {
+    if (!userId) return;
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('status')
+      .eq('id', userId)
+      .single();
+    if (error) throw error;
+
+    const status = String(data?.status || '').toLowerCase();
+    if (status === 'inativo' || status === 'inactive') {
+      await supabase.auth.signOut();
+      throw new Error('Sua conta está inativa. Fale com o administrador para reativação.');
+    }
+  };
+
 
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -135,6 +151,8 @@ export default function Login() {
         const session = sessionSetData?.session;
         setPendingUserId(session?.user?.id || loginData?.user?.id || null);
 
+        await ensureUserIsActive(session?.user?.id || loginData?.user?.id || null);
+
         // Verificar se requer MFA (Assurance Level AAL2 não atingido)
         if (session && session.user) {
           const { data: mfaData, error: mfaError } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
@@ -195,6 +213,8 @@ export default function Login() {
 
       if (verifyError) throw verifyError;
 
+      await ensureUserIsActive(pendingUserId || verifyData?.user?.id || null);
+
       // Código verificado com sucesso, entra no sistema
       finishLogin(pendingUserId || verifyData?.user?.id || null);
       setPendingUserId(null);
@@ -205,7 +225,7 @@ export default function Login() {
         entity: 'auth',
         metadata: { email: formData.email, stage: 'mfa', reason: error.message }
       });
-      alert('Código inválido. Tente novamente.');
+      alert(error.message || 'Código inválido. Tente novamente.');
       setLoading(false);
     }
   };

@@ -35,6 +35,16 @@ import PendingApproval from '@/pages/PendingApproval';
 import CheckIn from '@/pages/CheckIn';
 import CheckInDisplay from '@/pages/CheckInDisplay';
 
+const isPendingProfile = (status?: string) => {
+  const normalized = (status || '').toLowerCase();
+  return normalized === 'pendente' || normalized === 'pending';
+};
+
+const isInactiveProfile = (status?: string) => {
+  const normalized = (status || '').toLowerCase();
+  return normalized === 'inativo' || normalized === 'inactive';
+};
+
 // ─── Auth guard (all authenticated users) ───────────────────────────────────
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { profile, loading, session } = useApp();
@@ -52,8 +62,12 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
     return <Navigate to="/login" replace />;
   }
 
-  if (profile && (profile.status === 'Pendente' || profile.status === 'pending')) {
+  if (profile && isPendingProfile(profile.status)) {
     return <Navigate to="/pending" replace />;
+  }
+
+  if (profile && isInactiveProfile(profile.status)) {
+    return <Navigate to="/login" replace />;
   }
 
   return <ResponsiveLayout>{children}</ResponsiveLayout>;
@@ -84,8 +98,11 @@ function RoleRoute({
     return <Navigate to="/login" replace />;
   }
 
-  if (profile && (profile.status === 'Pendente' || profile.status === 'pending')) {
+  if (profile && isPendingProfile(profile.status)) {
     return <Navigate to="/pending" replace />;
+  }
+  if (profile && isInactiveProfile(profile.status)) {
+    return <Navigate to="/login" replace />;
   }
   if (!allowed.includes(role)) return <Navigate to="/" replace />;
 
