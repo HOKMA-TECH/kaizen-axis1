@@ -1,9 +1,9 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   QrCode, MapPin, CheckCircle, AlertCircle,
-  Loader2, Clock, Users, Trophy, ScanLine, Sparkles,
+  Loader2, Clock, Users, Trophy, ScanLine, Sparkles, Camera, X,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useApp } from '@/context/AppContext';
@@ -50,11 +50,120 @@ export default function CheckIn() {
   const [result, setResult]   = useState<CheckinResult | null>(null);
   const [queue, setQueue]     = useState<CheckinRecord[]>([]);
   const [brtHour, setBrtHour] = useState(getBRTHour());
+  const [scannerOpen, setScannerOpen] = useState(false);
+  const [scannerError, setScannerError] = useState<string | null>(null);
+
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const scanIntervalRef = useRef<number | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+
+  const stopScanner = useCallback(() => {
+    if (scanIntervalRef.current !== null) {
+      window.clearInterval(scanIntervalRef.current);
+      scanIntervalRef.current = null;
+    }
+
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current = null;
+    }
+
+    if (videoRef.current) {
+      videoRef.current.pause();
+      videoRef.current.srcObject = null;
+    }
+  }, []);
+
+  const applyScannedValue = useCallback((rawValue: string) => {
+    const raw = rawValue.trim();
+    if (!raw) return false;
+
+    let token = '';
+    try {
+      const url = new URL(raw);
+      token = (url.searchParams.get('token') || '').trim();
+    } catch {
+      token = raw;
+    }
+
+    if (!token) return false;
+
+    setScannerOpen(false);
+    setScannerError(null);
+    stopScanner();
+    navigate(`/checkin?token=${encodeURIComponent(token)}`, { replace: true });
+    return true;
+  }, [navigate, stopScanner]);
+
+  const startScanner = useCallback(async () => {
+    setScannerError(null);
+    stopScanner();
+
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setScannerError('Seu dispositivo não permite leitura de câmera neste navegador.');
+      return;
+    }
+
+    const BarcodeDetectorCtor = (window as unknown as {
+      BarcodeDetector?: new (opts?: { formats?: string[] }) => {
+        detect: (source: ImageBitmapSource) => Promise<Array<{ rawValue?: string }>>;
+      };
+    }).BarcodeDetector;
+
+    if (!BarcodeDetectorCtor) {
+      setScannerError('Leitor nativo indisponível neste aparelho. Use Chrome no Android ou escaneie pelo link da câmera.');
+      return;
+    }
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: { ideal: 'environment' },
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+        },
+        audio: false,
+      });
+
+      streamRef.current = stream;
+
+      if (!videoRef.current) return;
+      videoRef.current.srcObject = stream;
+      videoRef.current.setAttribute('playsinline', 'true');
+      await videoRef.current.play();
+
+      const detector = new BarcodeDetectorCtor({ formats: ['qr_code'] });
+
+      scanIntervalRef.current = window.setInterval(async () => {
+        if (!videoRef.current) return;
+        try {
+          const barcodes = await detector.detect(videoRef.current);
+          if (!barcodes.length) return;
+          const rawValue = (barcodes[0]?.rawValue || '').trim();
+          if (rawValue) applyScannedValue(rawValue);
+        } catch {
+          // Ignora erro intermitente de frame e mantém scanner ativo.
+        }
+      }, 300);
+    } catch {
+      setScannerError('Não foi possível acessar a câmera. Verifique a permissão e tente novamente.');
+    }
+  }, [applyScannedValue, stopScanner]);
 
   useEffect(() => {
     const t = setInterval(() => setBrtHour(getBRTHour()), 30_000);
     return () => clearInterval(t);
   }, []);
+
+  useEffect(() => {
+    if (!scannerOpen) {
+      stopScanner();
+      return;
+    }
+    void startScanner();
+  }, [scannerOpen, startScanner, stopScanner]);
+
+  useEffect(() => () => stopScanner(), [stopScanner]);
 
   // Bloqueio de horário: Check-in disponível das 08:00 às 17:00
   const isOpen = brtHour >= 8 && brtHour < 17;
@@ -272,6 +381,26 @@ export default function CheckIn() {
           )}
         </AnimatePresence>
 
+        {!cameFromQR && !alreadyDone && (
+          <div className="rounded-2xl border border-surface-100 bg-card-bg p-4">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-gold-400/10 flex items-center justify-center">
+                <Camera size={18} className="text-gold-500" />
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-semibold text-text-primary">Abra pelo PWA e escaneie por aqui</p>
+                <p className="text-xs text-text-secondary">Isso evita abrir o navegador externo após ler o QR pela câmera do celular.</p>
+              </div>
+            </div>
+            <button
+              onClick={() => setScannerOpen(true)}
+              className="mt-3 w-full rounded-xl bg-gold-400 text-white py-2.5 text-sm font-semibold"
+            >
+              Escanear QR no app
+            </button>
+          </div>
+        )}
+
         {/* ── Button area ───────────────────────────────────────────────── */}
         <div className="flex flex-col items-center py-6 gap-5">
 
@@ -474,6 +603,64 @@ export default function CheckIn() {
           </div>
         )}
       </div>
+
+      <AnimatePresence>
+        {scannerOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-black/85 flex items-center justify-center p-4"
+          >
+            <motion.div
+              initial={{ opacity: 0, y: 14 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 8 }}
+              className="w-full max-w-sm rounded-2xl bg-gray-950 border border-gray-800 p-4"
+            >
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-sm font-semibold text-white">Escanear QR Code</p>
+                <button
+                  onClick={() => setScannerOpen(false)}
+                  className="w-8 h-8 rounded-full bg-white/10 text-white flex items-center justify-center"
+                  aria-label="Fechar scanner"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+
+              <div className="rounded-xl overflow-hidden border border-gray-800 bg-black aspect-[3/4] flex items-center justify-center">
+                <video ref={videoRef} autoPlay muted playsInline className="w-full h-full object-cover" />
+              </div>
+
+              <p className="text-xs text-gray-300 mt-3">
+                Aponte a câmera para o QR da recepção. Ao reconhecer, o token será preenchido automaticamente.
+              </p>
+
+              {scannerError && (
+                <div className="mt-3 rounded-lg bg-red-900/25 border border-red-800 px-3 py-2 text-xs text-red-300">
+                  {scannerError}
+                </div>
+              )}
+
+              <div className="mt-3 flex gap-2">
+                <button
+                  onClick={() => setScannerOpen(false)}
+                  className="flex-1 rounded-lg bg-surface-200 text-text-primary py-2 text-sm font-medium"
+                >
+                  Fechar
+                </button>
+                <button
+                  onClick={() => void startScanner()}
+                  className="flex-1 rounded-lg bg-gold-400 text-white py-2 text-sm font-semibold"
+                >
+                  Tentar novamente
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

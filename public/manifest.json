@@ -5,6 +5,14 @@
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
+  "launch_handler": {
+    "client_mode": "navigate-existing"
+  },
+  "url_handlers": [
+    {
+      "origin": "https://kaizen-axis.space"
+    }
+  ],
   "orientation": "portrait-primary",
   "background_color": "#FFFFFF",
   "theme_color": "#1F6FE5",
