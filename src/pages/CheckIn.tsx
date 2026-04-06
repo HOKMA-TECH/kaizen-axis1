@@ -344,10 +344,10 @@ export default function CheckIn() {
 
   function handleButtonClick() {
     if (step === 'error') { setStep('idle'); setResult(null); return; }
-    if (!isOpen || step !== 'idle') return;
+    if (!isOpen || step !== 'idle' || alreadyDone || isLoading) return;
     if (!cameFromQR || !qrToken) {
-      setStep('error');
-      setResult({ message: 'Leitura do QR Code é obrigatória para fazer check-in. Escaneie o QR exibido na recepção.' });
+      setScannerError(null);
+      setScannerOpen(true);
       return;
     }
     submitCheckin(qrToken);
@@ -362,20 +362,35 @@ export default function CheckIn() {
 
   const btnColor = !isOpen
     ? 'bg-surface-200 text-text-secondary cursor-not-allowed'
-    : !cameFromQR
-    ? 'bg-surface-200 text-text-secondary cursor-not-allowed'
     : alreadyDone
     ? 'bg-green-500 text-white shadow-green-400/30'
     : step === 'error'
     ? 'bg-red-500 text-white shadow-red-400/30 cursor-pointer'
-    : 'bg-gold-400 text-white shadow-gold-400/40 cursor-pointer';
+    : scannerOpen
+    ? 'bg-blue-500 text-white shadow-blue-400/35 cursor-pointer'
+    : cameFromQR
+    ? 'bg-gold-400 text-white shadow-gold-400/40 cursor-pointer'
+    : 'bg-blue-500 text-white shadow-blue-400/35 cursor-pointer';
 
   const btnLabel = isLoading
     ? (step === 'locating' ? 'Localizando...' : 'Verificando...')
     : alreadyDone ? 'Feito!'
     : step === 'error' ? 'Tentar novamente'
+    : scannerOpen ? 'Lendo QR...'
     : cameFromQR ? 'Confirmar check-in'
-    : 'Escaneie o QR';
+    : 'Escanear QR';
+
+  const btnHint = alreadyDone
+    ? 'Check-in concluído com sucesso.'
+    : isLoading
+    ? 'Aguarde, estamos confirmando sua localização.'
+    : step === 'error'
+    ? 'Houve um erro. Toque para tentar novamente.'
+    : scannerOpen
+    ? 'Aponte a câmera para o QR da recepção.'
+    : cameFromQR
+    ? 'QR lido. Toque para confirmar o check-in.'
+    : 'Toque no botão para abrir a câmera e ler o QR.';
 
   return (
     <div className="flex flex-col min-h-screen bg-surface-50 pb-24">
@@ -410,26 +425,6 @@ export default function CheckIn() {
           )}
         </AnimatePresence>
 
-        {!cameFromQR && !alreadyDone && (
-          <div className="rounded-2xl border border-surface-100 bg-card-bg p-4">
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-gold-400/10 flex items-center justify-center">
-                <Camera size={18} className="text-gold-500" />
-              </div>
-              <div className="flex-1">
-                <p className="text-sm font-semibold text-text-primary">Abra pelo PWA e escaneie por aqui</p>
-                <p className="text-xs text-text-secondary">Isso evita abrir o navegador externo após ler o QR pela câmera do celular.</p>
-              </div>
-            </div>
-            <button
-              onClick={() => setScannerOpen(true)}
-              className="mt-3 w-full rounded-xl bg-gold-400 text-white py-2.5 text-sm font-semibold"
-            >
-              Escanear QR no app
-            </button>
-          </div>
-        )}
-
         {/* ── Button area ───────────────────────────────────────────────── */}
         <div className="flex flex-col items-center py-6 gap-5">
 
@@ -445,46 +440,93 @@ export default function CheckIn() {
           </div>
 
           {/* Main button */}
-          <motion.button
-            whileTap={isOpen && !alreadyDone && !isLoading ? { scale: 0.96 } as any : undefined}
-            onClick={handleButtonClick}
-            disabled={isLoading || (!isOpen && step !== 'error') || (!cameFromQR && step !== 'error')}
-            className={cn(
-              'w-40 h-40 rounded-full flex flex-col items-center justify-center gap-2',
-              'shadow-lg transition-all duration-300',
-              btnColor,
-            )}
-          >
-            <AnimatePresence mode="wait">
-              {isLoading ? (
-                <motion.div key="loading"
-                  initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }}>
-                  <Loader2 size={36} className="animate-spin" />
-                </motion.div>
-              ) : alreadyDone ? (
-                <motion.div key="ok"
-                  initial={{ opacity: 0, scale: 0.5 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }}>
-                  <CheckCircle size={36} />
-                </motion.div>
-              ) : step === 'error' ? (
-                <motion.div key="err"
-                  initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-                  <AlertCircle size={36} />
-                </motion.div>
-              ) : cameFromQR ? (
-                <motion.div key="qr"
-                  initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-                  <ScanLine size={36} />
-                </motion.div>
-              ) : (
-                <motion.div key="idle"
-                  initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-                  <QrCode size={36} />
-                </motion.div>
+          <div className="relative">
+            <AnimatePresence>
+              {scannerOpen && !alreadyDone && !isLoading && (
+                <motion.span
+                  initial={{ opacity: 0.65, scale: 0.95 }}
+                  animate={{ opacity: [0.65, 0.2, 0.65], scale: [0.95, 1.08, 0.95] }}
+                  exit={{ opacity: 0, scale: 0.9 }}
+                  transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut' }}
+                  className="pointer-events-none absolute -inset-2 rounded-full border-2 border-blue-300/70"
+                />
               )}
             </AnimatePresence>
-            <span className="text-sm font-semibold text-center leading-tight px-3">{btnLabel}</span>
-          </motion.button>
+
+            <AnimatePresence>
+              {cameFromQR && !alreadyDone && !scannerOpen && !isLoading && (
+                <motion.span
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: [0.5, 0.15, 0.5], scale: [0.94, 1.06, 0.94] }}
+                  exit={{ opacity: 0, scale: 0.9 }}
+                  transition={{ duration: 2.2, repeat: Infinity, ease: 'easeInOut' }}
+                  className="pointer-events-none absolute -inset-2 rounded-full border-2 border-gold-300/70"
+                />
+              )}
+            </AnimatePresence>
+
+            <motion.button
+              whileTap={isOpen && !alreadyDone && !isLoading ? { scale: 0.96 } as any : undefined}
+              onClick={handleButtonClick}
+              disabled={isLoading || alreadyDone || (!isOpen && step !== 'error')}
+              className={cn(
+                'relative overflow-hidden w-44 h-44 rounded-full flex flex-col items-center justify-center gap-2',
+                'shadow-xl transition-all duration-300',
+                !alreadyDone && isOpen && !isLoading && 'hover:scale-[1.02] hover:shadow-2xl',
+                btnColor,
+              )}
+            >
+              <span
+                className={cn(
+                  'pointer-events-none absolute inset-0',
+                  scannerOpen
+                    ? 'bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.35),transparent_55%)]'
+                    : cameFromQR
+                    ? 'bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.28),transparent_55%)]'
+                    : 'bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.22),transparent_55%)]',
+                )}
+              />
+
+              <span className="relative z-10 flex flex-col items-center justify-center gap-2">
+                <AnimatePresence mode="wait">
+                  {isLoading ? (
+                    <motion.div key="loading"
+                      initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }}>
+                      <Loader2 size={38} className="animate-spin" />
+                    </motion.div>
+                  ) : alreadyDone ? (
+                    <motion.div key="ok"
+                      initial={{ opacity: 0, scale: 0.5 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }}>
+                      <CheckCircle size={38} />
+                    </motion.div>
+                  ) : step === 'error' ? (
+                    <motion.div key="err"
+                      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                      <AlertCircle size={38} />
+                    </motion.div>
+                  ) : scannerOpen ? (
+                    <motion.div key="scan"
+                      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                      <Camera size={38} className="animate-pulse" />
+                    </motion.div>
+                  ) : cameFromQR ? (
+                    <motion.div key="qr"
+                      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                      <ScanLine size={38} />
+                    </motion.div>
+                  ) : (
+                    <motion.div key="idle"
+                      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                      <QrCode size={38} />
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+                <span className="text-sm font-semibold text-center leading-tight px-3">{btnLabel}</span>
+              </span>
+            </motion.button>
+          </div>
+
+          <p className="text-xs text-text-secondary text-center max-w-xs -mt-1">{btnHint}</p>
 
           {/* Result card */}
           <AnimatePresence>
