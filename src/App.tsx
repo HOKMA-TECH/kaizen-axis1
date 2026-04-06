@@ -156,7 +156,11 @@ export default function App() {
         <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
         <Route path="/pdf-tools" element={<ProtectedRoute><PdfTools /></ProtectedRoute>} />
         <Route path="/checkin" element={<ProtectedRoute><CheckIn /></ProtectedRoute>} />
-        <Route path="/checkin/display" element={<ProtectedRoute><CheckInDisplay /></ProtectedRoute>} />
+        <Route path="/checkin/display" element={
+          <RoleRoute allowed={['ADMIN', 'DIRETOR']}>
+            <CheckInDisplay />
+          </RoleRoute>
+        } />
         <Route path="/portals" element={<ProtectedRoute><Portals /></ProtectedRoute>} />
 
         {/* Reports: accessible to all — RLS scopes data by role */}

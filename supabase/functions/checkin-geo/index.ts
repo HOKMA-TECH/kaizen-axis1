@@ -120,15 +120,26 @@ Deno.serve(async (req: Request) => {
     }, 403);
   }
 
-  // ── 5. Validar token do QR (se fornecido) ────────────────────────────────
-  if (qrToken !== undefined) {
-    const { data: valid } = await supabase.rpc('validate_daily_qr', { p_token: qrToken });
-    if (!valid) {
-      return json({
-        error:   'token_invalido',
-        message: 'QR Code inválido ou de outro dia. Peça ao gestor para exibir o QR atual.',
-      }, 403);
-    }
+  // ── 5. Validar token do QR (obrigatório) ─────────────────────────────────
+  if (typeof qrToken !== 'string' || qrToken.trim().length === 0) {
+    return json({
+      error: 'qr_obrigatorio',
+      message: 'Leitura do QR Code é obrigatória para realizar check-in.',
+    }, 403);
+  }
+
+  const normalizedQrToken = qrToken.trim();
+  const { data: valid, error: qrErr } = await supabase.rpc('validate_daily_qr', { p_token: normalizedQrToken });
+  if (qrErr) {
+    console.error('[checkin-geo] validate_daily_qr error:', qrErr);
+    return json({ error: 'db_error', message: 'Falha ao validar QR Code.' }, 500);
+  }
+
+  if (!valid) {
+    return json({
+      error:   'token_invalido',
+      message: 'QR Code inválido ou de outro dia. Peça ao gestor para exibir o QR atual.',
+    }, 403);
   }
 
   // ── 6. Janela de horário: 08:00–14:00 BRT ────────────────────────────────

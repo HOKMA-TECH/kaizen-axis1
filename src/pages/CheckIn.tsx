@@ -79,7 +79,13 @@ export default function CheckIn() {
   // (o useEffect anterior que fazia auto-submit foi removido intencionalmente)
 
   // ── Lógica de check-in ────────────────────────────────────────────────────
-  async function submitCheckin(token?: string) {
+  async function submitCheckin(token: string) {
+    if (!token.trim()) {
+      setStep('error');
+      setResult({ message: 'Leitura do QR Code é obrigatória. Escaneie o QR exibido na recepção e tente novamente.' });
+      return;
+    }
+
     setStep('locating');
     setResult(null);
 
@@ -151,7 +157,7 @@ export default function CheckIn() {
           latitude:  pos.coords.latitude,
           longitude: pos.coords.longitude,
           accuracy:  pos.coords.accuracy,
-          ...(token ? { qrToken: token } : {}),
+          qrToken: token.trim(),
         },
         signal: abortCtrl.signal,
       });
@@ -201,7 +207,12 @@ export default function CheckIn() {
   function handleButtonClick() {
     if (step === 'error') { setStep('idle'); setResult(null); return; }
     if (!isOpen || step !== 'idle') return;
-    submitCheckin(qrToken ?? undefined);
+    if (!cameFromQR || !qrToken) {
+      setStep('error');
+      setResult({ message: 'Leitura do QR Code é obrigatória para fazer check-in. Escaneie o QR exibido na recepção.' });
+      return;
+    }
+    submitCheckin(qrToken);
   }
 
   // ── Derived ───────────────────────────────────────────────────────────────
@@ -209,9 +220,11 @@ export default function CheckIn() {
   const alreadyDone     = !!myCheckin || step === 'already' || step === 'success';
   const isLoading       = step === 'locating' || step === 'sending';
   const displayPosition = result?.position ?? myCheckin?.position_in_queue;
-  const cameFromQR      = !!qrToken;
+  const cameFromQR      = typeof qrToken === 'string' && qrToken.trim().length > 0;
 
   const btnColor = !isOpen
+    ? 'bg-surface-200 text-text-secondary cursor-not-allowed'
+    : !cameFromQR
     ? 'bg-surface-200 text-text-secondary cursor-not-allowed'
     : alreadyDone
     ? 'bg-green-500 text-white shadow-green-400/30'
@@ -224,7 +237,7 @@ export default function CheckIn() {
     : alreadyDone ? 'Feito!'
     : step === 'error' ? 'Tentar novamente'
     : cameFromQR ? 'Confirmar check-in'
-    : 'Fazer Check-in';
+    : 'Escaneie o QR';
 
   return (
     <div className="flex flex-col min-h-screen bg-surface-50 pb-24">
@@ -277,7 +290,7 @@ export default function CheckIn() {
           <motion.button
             whileTap={isOpen && !alreadyDone && !isLoading ? { scale: 0.96 } as any : undefined}
             onClick={handleButtonClick}
-            disabled={isLoading || (!isOpen && step !== 'error')}
+            disabled={isLoading || (!isOpen && step !== 'error') || (!cameFromQR && step !== 'error')}
             className={cn(
               'w-40 h-40 rounded-full flex flex-col items-center justify-center gap-2',
               'shadow-lg transition-all duration-300',
@@ -443,9 +456,10 @@ export default function CheckIn() {
         {!alreadyDone && step === 'idle' && queue.length === 0 && (
           <div className="space-y-2.5 pt-2">
             {[
-              { icon: Clock,    label: 'Horário de check-in', value: '08:00 – 14:00' },
-              { icon: MapPin,   label: 'Raio permitido',      value: '50m da imobiliária' },
-              { icon: Users,    label: 'Distribuição ativa',  value: '08:00 – 22:00, Round-Robin' },
+               { icon: QrCode,   label: 'Leitura obrigatória', value: 'QR Code da recepção' },
+               { icon: Clock,    label: 'Horário de check-in', value: '08:00 – 14:00' },
+               { icon: MapPin,   label: 'Raio permitido',      value: '50m da imobiliária' },
+               { icon: Users,    label: 'Distribuição ativa',  value: '08:00 – 22:00, Round-Robin' },
             ].map(({ icon: Icon, label, value }) => (
               <div key={label} className="flex items-center gap-3 bg-card-bg rounded-xl p-4 border border-surface-100">
                 <div className="w-8 h-8 rounded-full bg-gold-400/10 flex items-center justify-center flex-shrink-0">

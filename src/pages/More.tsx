@@ -19,6 +19,7 @@ const menuItems = [
 export default function More() {
   const navigate = useNavigate();
   const { isAdmin, isManager, isCoordinator, isDirector } = useAuthorization();
+  const isAdminOrDirector = isAdmin || isDirector;
 
   return (
     <div className="p-6 pb-24 min-h-screen bg-surface-50">
@@ -29,7 +30,7 @@ export default function More() {
         <div className="mb-6">
           <h3 className="text-xs font-bold text-text-secondary uppercase mb-2 px-2">Administrativo</h3>
           <div className="space-y-3">
-            {(isAdmin || isDirector) && (
+            {isAdminOrDirector && (
               <PremiumCard
                 className="flex items-center gap-4 p-4 bg-gradient-to-r from-gray-900 to-gray-800 text-white border-none cursor-pointer"
                 onClick={() => navigate('/admin')}
@@ -44,19 +45,21 @@ export default function More() {
                 <ChevronRight size={20} className="text-gray-400" />
               </PremiumCard>
             )}
-            <PremiumCard
-              className="flex items-center gap-4 p-4 bg-gradient-to-r from-gray-900 to-gray-800 text-white border-none cursor-pointer"
-              onClick={() => navigate('/checkin/display')}
-            >
-              <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center backdrop-blur-sm">
-                <QrCode size={20} className="text-gold-400" />
-              </div>
-              <div className="flex-1">
-                <h3 className="font-bold text-white">Tela de Check-in</h3>
-                <p className="text-xs text-gray-300">QR diário para a recepção</p>
-              </div>
-              <ChevronRight size={20} className="text-gray-400" />
-            </PremiumCard>
+            {isAdminOrDirector && (
+              <PremiumCard
+                className="flex items-center gap-4 p-4 bg-gradient-to-r from-gray-900 to-gray-800 text-white border-none cursor-pointer"
+                onClick={() => navigate('/checkin/display')}
+              >
+                <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center backdrop-blur-sm">
+                  <QrCode size={20} className="text-gold-400" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-bold text-white">Tela de Check-in</h3>
+                  <p className="text-xs text-gray-300">QR diário para a recepção</p>
+                </div>
+                <ChevronRight size={20} className="text-gray-400" />
+              </PremiumCard>
+            )}
           </div>
         </div>
       )}
