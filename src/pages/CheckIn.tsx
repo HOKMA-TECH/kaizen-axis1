@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
+import jsQR from 'jsqr';
 import {
   QrCode, MapPin, CheckCircle, AlertCircle,
   Loader2, Clock, Users, Trophy, ScanLine, Sparkles, Camera, X,
@@ -54,6 +55,7 @@ export default function CheckIn() {
   const [scannerError, setScannerError] = useState<string | null>(null);
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const scanCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const scanIntervalRef = useRef<number | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
 
@@ -104,16 +106,11 @@ export default function CheckIn() {
       return;
     }
 
-    const BarcodeDetectorCtor = (window as unknown as {
+    const NativeBarcodeDetector = (window as unknown as {
       BarcodeDetector?: new (opts?: { formats?: string[] }) => {
         detect: (source: ImageBitmapSource) => Promise<Array<{ rawValue?: string }>>;
       };
     }).BarcodeDetector;
-
-    if (!BarcodeDetectorCtor) {
-      setScannerError('Leitor nativo indisponível neste aparelho. Use Chrome no Android ou escaneie pelo link da câmera.');
-      return;
-    }
 
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
@@ -132,15 +129,47 @@ export default function CheckIn() {
       videoRef.current.setAttribute('playsinline', 'true');
       await videoRef.current.play();
 
-      const detector = new BarcodeDetectorCtor({ formats: ['qr_code'] });
+      const detector = NativeBarcodeDetector ? new NativeBarcodeDetector({ formats: ['qr_code'] }) : null;
 
       scanIntervalRef.current = window.setInterval(async () => {
-        if (!videoRef.current) return;
+        const video = videoRef.current;
+        if (!video) return;
+
         try {
-          const barcodes = await detector.detect(videoRef.current);
-          if (!barcodes.length) return;
-          const rawValue = (barcodes[0]?.rawValue || '').trim();
-          if (rawValue) applyScannedValue(rawValue);
+          if (detector) {
+            const barcodes = await detector.detect(video);
+            if (!barcodes.length) return;
+            const rawValue = (barcodes[0]?.rawValue || '').trim();
+            if (rawValue) applyScannedValue(rawValue);
+            return;
+          }
+
+          if (video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA) return;
+          const width = video.videoWidth;
+          const height = video.videoHeight;
+          if (!width || !height) return;
+
+          if (!scanCanvasRef.current) {
+            scanCanvasRef.current = document.createElement('canvas');
+          }
+
+          const canvas = scanCanvasRef.current;
+          if (!canvas) return;
+
+          if (canvas.width !== width || canvas.height !== height) {
+            canvas.width = width;
+            canvas.height = height;
+          }
+
+          const ctx = canvas.getContext('2d', { willReadFrequently: true });
+          if (!ctx) return;
+
+          ctx.drawImage(video, 0, 0, width, height);
+          const imageData = ctx.getImageData(0, 0, width, height);
+          const qr = jsQR(imageData.data, width, height, { inversionAttempts: 'attemptBoth' });
+          if (qr?.data) {
+            applyScannedValue(qr.data);
+          }
         } catch {
           // Ignora erro intermitente de frame e mantém scanner ativo.
         }
