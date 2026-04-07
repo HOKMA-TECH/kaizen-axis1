@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import QRCode from 'react-qr-code';
 import { motion, AnimatePresence } from 'motion/react';
-import { RefreshCw, Clock, Users, Shield, Wifi, WifiOff } from 'lucide-react';
+import { RefreshCw, Clock, Users, Wifi, WifiOff } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -194,12 +194,7 @@ export default function CheckInDisplay() {
         </div>
 
         {/* Footer info bar */}
-        <div className="border-t border-gray-800 px-8 py-4 grid grid-cols-3 gap-4">
-          <div className="flex flex-col items-center text-center">
-            <Shield size={16} className="text-gold-400 mb-1" />
-            <p className="text-[10px] text-gray-500 uppercase tracking-wide">Validação</p>
-            <p className="text-xs text-gray-300 font-medium">GPS ≤ 100m</p>
-          </div>
+        <div className="border-t border-gray-800 px-8 py-4 grid grid-cols-2 gap-4">
           <div className="flex flex-col items-center text-center">
             <Clock size={16} className="text-gold-400 mb-1" />
             <p className="text-[10px] text-gray-500 uppercase tracking-wide">Horário</p>

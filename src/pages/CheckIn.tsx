@@ -316,8 +316,14 @@ export default function CheckIn() {
             return;
           }
 
+          const safeMessage = body?.error === 'fora_do_raio'
+            ? 'Não foi possível validar sua presença neste local.'
+            : body?.error === 'gps_impreciso'
+            ? 'Não foi possível validar sua localização. Tente novamente.'
+            : body?.message || body?.error || `Erro ${status}`;
+
           setStep('error');
-          setResult({ message: body?.message || body?.error || `Erro ${status}`, distance: body?.distance });
+          setResult({ message: safeMessage });
           return;
         }
         setStep('error');
@@ -330,7 +336,6 @@ export default function CheckIn() {
       setResult({
         position: data.position,
         message: data.message,
-        distance: data.distance,
         xp_earned: data.xp_earned
       });
       fetchQueue();
@@ -561,17 +566,6 @@ export default function CheckIn() {
                 )}>
                   {result?.message || 'Check-in registrado!'}
                 </p>
-                {result?.distance !== undefined && (
-                  <p className={cn(
-                    'text-xs mt-1 flex items-center justify-center gap-1',
-                    step === 'error' ? 'text-red-500/70' : 'text-green-500/70',
-                  )}>
-                    <MapPin size={11} />
-                    {step === 'error'
-                      ? `${result.distance}m da imobiliária (máximo: 100m)`
-                      : `${result.distance}m da imobiliária`}
-                  </p>
-                )}
                 {result?.xp_earned !== undefined && alreadyDone && (
                   <motion.div
                     initial={{ opacity: 0, scale: 0.8 }}
@@ -658,7 +652,7 @@ export default function CheckIn() {
             {[
                { icon: QrCode,   label: 'Leitura obrigatória', value: 'QR Code da recepção' },
                { icon: Clock,    label: 'Horário de check-in', value: '08:00 – 17:00' },
-               { icon: MapPin,   label: 'Raio permitido',      value: '50m da imobiliária' },
+               { icon: MapPin,   label: 'Validação ativa',     value: 'Presença no local' },
                { icon: Users,    label: 'Distribuição ativa',  value: '08:00 – 22:00, Round-Robin' },
             ].map(({ icon: Icon, label, value }) => (
               <div key={label} className="flex items-center gap-3 bg-card-bg rounded-xl p-4 border border-surface-100">
