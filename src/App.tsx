@@ -157,7 +157,7 @@ export default function App() {
         <Route path="/pdf-tools" element={<ProtectedRoute><PdfTools /></ProtectedRoute>} />
         <Route path="/checkin" element={<ProtectedRoute><CheckIn /></ProtectedRoute>} />
         <Route path="/checkin/display" element={
-          <RoleRoute allowed={['ADMIN', 'DIRETOR']}>
+          <RoleRoute allowed={['ADMIN', 'DIRETOR', 'GERENTE']}>
             <CheckInDisplay />
           </RoleRoute>
         } />
