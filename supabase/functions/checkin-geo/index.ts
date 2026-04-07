@@ -27,15 +27,17 @@ function haversineMeters(
 }
 
 // ── Hora BRT via Intl (correto para horário de verão e ajustes futuros) ──────
-function getBRTHour(): number {
-  return parseInt(
-    new Intl.DateTimeFormat('pt-BR', {
-      timeZone: 'America/Sao_Paulo',
-      hour:     'numeric',
-      hour12:   false,
-    }).format(new Date()),
-    10,
-  );
+function getBRTMinutes(): number {
+  const parts = new Intl.DateTimeFormat('pt-BR', {
+    timeZone: 'America/Sao_Paulo',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).formatToParts(new Date());
+
+  const hour = parseInt(parts.find((p) => p.type === 'hour')?.value ?? '0', 10);
+  const minute = parseInt(parts.find((p) => p.type === 'minute')?.value ?? '0', 10);
+  return hour * 60 + minute;
 }
 
 // ── CORS ──────────────────────────────────────────────────────────────────────
@@ -142,10 +144,10 @@ Deno.serve(async (req: Request) => {
     }, 403);
   }
 
-  // ── 6. Janela de horário: 08:00–14:00 BRT ────────────────────────────────
-  const brtHour = getBRTHour();
-  if (brtHour < 8 || brtHour >= 14) {
-    return json({ error: 'fora_do_horario', message: 'Check-in permitido apenas entre 08:00 e 14:00.', brt_hour: brtHour }, 403);
+  // ── 6. Janela de horário: 08:00–15:30 BRT ────────────────────────────────
+  const brtMinutes = getBRTMinutes();
+  if (brtMinutes < (8 * 60) || brtMinutes > (15 * 60 + 30)) {
+    return json({ error: 'fora_do_horario', message: 'Check-in permitido apenas entre 08:00 e 15:30.', brt_minutes: brtMinutes }, 403);
   }
 
   // ── 7. Geolocalização (Haversine) ─────────────────────────────────────────
