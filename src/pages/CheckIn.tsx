@@ -196,8 +196,8 @@ export default function CheckIn() {
 
   useEffect(() => () => stopScanner(), [stopScanner]);
 
-  // Bloqueio de horário: Check-in disponível das 08:00 às 15:30
-  const isOpen = brtMinutes >= (8 * 60) && brtMinutes <= (15 * 60 + 30);
+  // Bloqueio de horário: Check-in disponível das 08:00 às 16:00
+  const isOpen = brtMinutes >= (8 * 60) && brtMinutes <= (16 * 60);
 
   // ── Fila do dia ───────────────────────────────────────────────────────────
   const fetchQueue = useCallback(async () => {
@@ -406,7 +406,7 @@ export default function CheckIn() {
       <div className="bg-card-bg border-b border-surface-100 px-5 pt-10 pb-5">
         <h1 className="text-2xl font-bold text-text-primary tracking-tight">Check-in</h1>
         <p className="text-sm text-text-secondary mt-1">
-          {isOpen ? 'Janela de check-in aberta' : 'Disponível das 08:00 às 15:30'}
+          {isOpen ? 'Janela de check-in aberta' : 'Disponível das 08:00 às 16:00'}
         </p>
       </div>
 
@@ -443,7 +443,7 @@ export default function CheckIn() {
               : 'bg-surface-100 text-text-secondary',
           )}>
             <Clock size={13} />
-            {isOpen ? 'Aberto · 08:00–15:30' : 'Fechado · abre às 08:00'}
+            {isOpen ? 'Aberto · 08:00–16:00' : 'Fechado · abre às 08:00'}
           </div>
 
           {/* Main button */}
@@ -653,7 +653,7 @@ export default function CheckIn() {
           <div className="space-y-2.5 pt-2">
             {[
                { icon: QrCode,   label: 'Leitura obrigatória', value: 'QR Code da recepção' },
-               { icon: Clock,    label: 'Horário de check-in', value: '08:00 – 15:30' },
+               { icon: Clock,    label: 'Horário de check-in', value: '08:00 – 16:00' },
                { icon: MapPin,   label: 'Validação ativa',     value: 'Presença no local' },
                { icon: Users,    label: 'Distribuição ativa',  value: '08:00 – 22:00, Round-Robin' },
             ].map(({ icon: Icon, label, value }) => (
