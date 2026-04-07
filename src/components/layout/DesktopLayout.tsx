@@ -102,7 +102,12 @@ function Sidebar() {
   const isLeadership = !isBroker; // everyone except CORRETOR
   const isAdminOrDirector = isAdmin || isDirector;
 
-  const filteredTools = NAV_TOOLS.filter(item => (!item.leadershipOnly || isLeadership) && (!item.adminOnly || isAdminOrDirector));
+  const canAccessCheckInDisplay = isAdmin || isDirector || isManager;
+
+  const filteredTools = NAV_TOOLS.filter(item => {
+    if (item.path === '/checkin/display') return canAccessCheckInDisplay;
+    return (!item.leadershipOnly || isLeadership) && (!item.adminOnly || isAdminOrDirector);
+  });
   const filteredReports = NAV_REPORTS.filter(item => !item.leadershipOnly || isLeadership);
   const filteredAdmin = NAV_ADMIN.filter(item => !item.adminOnly || isAdminOrDirector);
 
