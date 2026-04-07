@@ -144,10 +144,10 @@ Deno.serve(async (req: Request) => {
     }, 403);
   }
 
-  // ── 6. Janela de horário: 08:00–15:30 BRT ────────────────────────────────
+  // ── 6. Janela de horário: 08:00–14:00 BRT ────────────────────────────────
   const brtMinutes = getBRTMinutes();
-  if (brtMinutes < (8 * 60) || brtMinutes > (15 * 60 + 30)) {
-    return json({ error: 'fora_do_horario', message: 'Check-in permitido apenas entre 08:00 e 15:30.', brt_minutes: brtMinutes }, 403);
+  if (brtMinutes < (8 * 60) || brtMinutes > (14 * 60)) {
+    return json({ error: 'fora_do_horario', message: 'Check-in permitido apenas entre 08:00 e 14:00.', brt_minutes: brtMinutes }, 403);
   }
 
   // ── 7. Geolocalização (Haversine) ─────────────────────────────────────────
