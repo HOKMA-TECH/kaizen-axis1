@@ -180,6 +180,14 @@ export default function ClientDetails() {
     const { success, error } = await deleteDocumentFromClient(docTarget.id, docTarget.file_path);
 
     if (success) {
+      const { error: historyError } = await supabase
+        .from('client_history')
+        .insert([{ client_id: id, action: `Documento excluído: ${docTarget.name}`, user_name: userName }]);
+
+      if (historyError) {
+        console.error('Erro ao registrar histórico de exclusão de documento:', historyError);
+      }
+
       const newHistory = [
         {
           id: Date.now().toString(),
@@ -194,7 +202,6 @@ export default function ClientDetails() {
       const updated: Client = { ...client, documents: updatedDocs, history: newHistory };
 
       setClient(updated);
-      updateClient(id, { history: newHistory }); // The rest of the `documents` sync happens via context refresh
       alert('Documento excluído com sucesso!');
     } else {
       alert(`Erro ao excluir documento: ${error}`);
@@ -512,7 +519,9 @@ export default function ClientDetails() {
             {client.history.map((item) => (
               <div key={item.id} className="relative pl-6 pb-2">
                 <div className="absolute -left-[9px] top-1 w-4 h-4 rounded-full bg-gold-400 border-2 border-surface-50"></div>
-                <p className="text-xs text-text-secondary mb-0.5">{item.date} • {item.user}</p>
+                <p className="text-xs text-text-secondary mb-0.5">
+                  {item.date || ((item as any).created_at ? new Date((item as any).created_at).toLocaleDateString('pt-BR') : '—')} • {item.user}
+                </p>
                 <p className="text-sm text-text-primary font-medium">{item.action}</p>
               </div>
             ))}

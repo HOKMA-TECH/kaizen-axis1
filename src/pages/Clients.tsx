@@ -44,6 +44,10 @@ function formatPhone(phone: string) {
 // ─── Urgency indicator ────────────────────────────────────────────────────────
 
 function getClientUrgency(client: Client): { days: number; level: 'critical' | 'urgent' | 'warning' | null } {
+  if (client.stage === 'Concluído') {
+    return { days: 0, level: null };
+  }
+
   const stageEntries = (client.history || []).filter(
     h => h.action === `Estágio alterado para ${client.stage}`
   );
@@ -666,7 +670,7 @@ export default function Clients() {
                   >
                     <Mail size={14} /> Email
                   </RoundedButton>
-                  {(isAdmin || isDirector) && (
+                  {(isAdmin || isDirector) && urgency.level && (
                     <RoundedButton
                       variant="secondary" size="sm"
                       className={`h-9 px-3 text-xs ${

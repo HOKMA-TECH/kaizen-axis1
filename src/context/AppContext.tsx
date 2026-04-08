@@ -504,6 +504,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         closed_at: client.closed_at,
         updated_at: client.updated_at,
         history: (client.history || []).map((h: any) => ({ ...h, user: h.user_name }))
+          .map((h: any) => ({
+            ...h,
+            date: h.date || (h.created_at ? new Date(h.created_at).toLocaleDateString('pt-BR') : ''),
+          }))
           .sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()),
         documents: (client.documents || []).map((d: any) => ({ ...d, file_path: d.url || d.file_path, uploadDate: d.upload_date }))
       }));
@@ -616,7 +620,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         throw new Error('Sem permissão para alterar este cliente. Verifique suas permissões de acesso.');
       }
       if (data.stage) {
-        await supabase.from('client_history').insert([{ client_id: id, action: `Estágio alterado para ${data.stage}`, user_name: userName }]);
+        const { error: historyError } = await supabase
+          .from('client_history')
+          .insert([{ client_id: id, action: `Estágio alterado para ${data.stage}`, user_name: userName }]);
+
+        if (historyError) {
+          console.error('Erro ao registrar histórico do cliente:', historyError);
+        }
       }
       await refreshClients();
       logAuditEvent({
