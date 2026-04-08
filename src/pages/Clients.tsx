@@ -18,6 +18,12 @@ import { supabase } from '@/lib/supabase';
 
 type MainTab = 'clientes' | 'documentacao';
 
+type ClientHierarchyResolved = {
+  ownerName: string | null;
+  coordinatorName: string | null;
+  teamName: string | null;
+};
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function timeAgo(isoDate: string) {
@@ -314,6 +320,7 @@ export default function Clients() {
   const [searchTerm, setSearchTerm] = useState('');
   const [convertSuccess, setConvertSuccess] = useState(false);
   const [stageDropdownOpen, setStageDropdownOpen] = useState(false);
+  const [clientHierarchy, setClientHierarchy] = useState<Record<string, ClientHierarchyResolved>>({});
 
   // Estágios principais (visíveis) e secundários (dropdown "Outros")
   const PRIMARY_STAGES = CLIENT_STAGES.slice(0, 8); // até "Contrato"
@@ -333,6 +340,54 @@ export default function Clients() {
       setMainTab('documentacao');
     }
   }, [location.state]);
+
+  useEffect(() => {
+    if (!canViewAllClients || clients.length === 0) {
+      setClientHierarchy({});
+      return;
+    }
+
+    const clientIds = Array.from(new Set(clients.map(c => c.id).filter(Boolean)));
+    if (clientIds.length === 0) {
+      setClientHierarchy({});
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadHierarchy = async () => {
+      const { data, error } = await supabase.rpc('get_clients_hierarchy_tags', {
+        p_client_ids: clientIds,
+      });
+
+      if (cancelled) return;
+
+      if (error) {
+        console.error('Erro ao carregar tags de hierarquia:', error);
+        return;
+      }
+
+      const nextMap: Record<string, ClientHierarchyResolved> = {};
+      for (const row of (data || []) as Array<any>) {
+        const clientId = row?.client_id as string | undefined;
+        if (!clientId) continue;
+
+        nextMap[clientId] = {
+          ownerName: row?.owner_name ?? null,
+          coordinatorName: row?.coordinator_name ?? null,
+          teamName: row?.team_name ?? null,
+        };
+      }
+
+      setClientHierarchy(nextMap);
+    };
+
+    void loadHierarchy();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [canViewAllClients, clients]);
 
   const handleSendManagerAlert = async (client: Client) => {
     const ownerId = (client as any).owner_id;
@@ -592,6 +647,7 @@ export default function Clients() {
                     ownerId={ownerId}
                     allProfiles={allProfiles}
                     teams={teams}
+                    resolved={clientHierarchy[client.id]}
                     className="mb-2"
                   />
                 )}
