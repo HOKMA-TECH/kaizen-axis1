@@ -41,10 +41,16 @@ function getBRTMinutes() {
   return brt.getUTCHours() * 60 + brt.getUTCMinutes();
 }
 
+const LEAD_ELIGIBLE_ROLES = new Set(['CORRETOR', 'COORDENADOR', 'GERENTE']);
+
+function normalizeRole(role?: string | null) {
+  return (role || '').trim().toUpperCase();
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function CheckIn() {
-  const { user, signOut } = useApp();
+  const { user, profile, signOut } = useApp();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const qrToken = searchParams.get('token'); // token vindo do QR scan
@@ -380,9 +386,11 @@ export default function CheckIn() {
 
   // ── Derived ───────────────────────────────────────────────────────────────
   const myCheckin       = queue.find(c => c.user_id === user?.id);
+  const eligibleQueue   = queue.filter(c => LEAD_ELIGIBLE_ROLES.has(normalizeRole(c.profiles?.role)));
+  const canReceiveLeads = LEAD_ELIGIBLE_ROLES.has(normalizeRole(profile?.role));
   const alreadyDone     = !!myCheckin || step === 'already' || step === 'success';
   const isLoading       = step === 'locating' || step === 'sending';
-  const displayPosition = result?.position ?? myCheckin?.position_in_queue;
+  const displayPosition = canReceiveLeads ? (result?.position ?? myCheckin?.position_in_queue) : undefined;
   const cameFromQR      = typeof qrToken === 'string' && qrToken.trim().length > 0;
 
   const btnColor = !isOpen
@@ -627,16 +635,16 @@ export default function CheckIn() {
         </div>
 
         {/* ── Fila do dia ───────────────────────────────────────────────── */}
-        {queue.length > 0 && (
+        {eligibleQueue.length > 0 && (
           <div>
             <div className="flex items-center gap-2 mb-3 px-1">
               <Users size={14} className="text-text-secondary" />
               <p className="text-[10px] font-semibold text-text-secondary uppercase tracking-widest">
-                Fila de hoje · {queue.length} {queue.length === 1 ? 'corretor' : 'corretores'}
+                Fila de hoje · {eligibleQueue.length} {eligibleQueue.length === 1 ? 'profissional' : 'profissionais'}
               </p>
             </div>
             <div className="bg-card-bg rounded-2xl border border-surface-100 overflow-hidden divide-y divide-surface-50">
-              {queue.map((c) => {
+              {eligibleQueue.map((c) => {
                 const isMe = c.user_id === user?.id;
                 const p    = c.profiles as { name: string | null; role: string | null } | null;
                 return (
@@ -667,7 +675,7 @@ export default function CheckIn() {
         )}
 
         {/* ── Info cards (só quando idle e fila vazia) ──────────────────── */}
-        {!alreadyDone && step === 'idle' && queue.length === 0 && (
+        {!alreadyDone && step === 'idle' && eligibleQueue.length === 0 && (
           <div className="space-y-2.5 pt-2">
             {[
                { icon: QrCode,   label: 'Leitura obrigatória', value: 'QR Code da recepção' },
