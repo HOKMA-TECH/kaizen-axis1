@@ -304,7 +304,9 @@ export default function CheckIn() {
       clearTimeout(timeoutId);
 
       if (error) {
-        if (error.name === 'FunctionsHttpError') {
+        const errName = (error as { name?: string }).name;
+
+        if (errName === 'FunctionsHttpError') {
           const status = (error as any).context?.status as number | undefined;
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const body: any = await (error as any).context?.json().catch(() => ({}));
@@ -328,8 +330,24 @@ export default function CheckIn() {
           setResult({ message: safeMessage });
           return;
         }
+
+        if (errName === 'FunctionsRelayError') {
+          console.error('[checkin] FunctionsRelayError:', error);
+          setStep('error');
+          setResult({ message: 'Servidor de check-in indisponível no momento. Tente novamente em instantes.' });
+          return;
+        }
+
+        if (errName === 'FunctionsFetchError') {
+          console.error('[checkin] FunctionsFetchError:', error);
+          setStep('error');
+          setResult({ message: 'Não foi possível conectar ao servidor de check-in. Tente trocar de rede e tente novamente.' });
+          return;
+        }
+
+        console.error('[checkin] Unknown function error:', error);
         setStep('error');
-        setResult({ message: 'Erro de conexão. Verifique sua internet.' });
+        setResult({ message: (error as { message?: string })?.message || 'Falha ao validar check-in. Tente novamente.' });
         return;
       }
 
