@@ -1578,16 +1578,19 @@ export default function Reports() {
 
       {/* ── Por Equipe ── */}
       {canViewAllClients && (() => {
-        const visibleTeams = (isAdmin || isDirector)
+        const myDirectorateId = profile?.directorate_id || allProfiles.find(p => p.id === profile?.id)?.directorate_id;
+        const visibleTeams = isAdmin
           ? teams
-          : isManager
-            ? teams.filter(t => t.manager_id === profile?.id)
-            : // COORDENADOR: só a equipe a que pertence
-              teams.filter(t =>
-                t.members?.includes(profile?.id ?? '') ||
-                allProfiles.find(p => p.id === profile?.id)?.team_id === t.id ||
-                allProfiles.find(p => p.id === profile?.id)?.team === t.id
-              );
+          : isDirector
+            ? teams.filter(t => t.directorate_id && t.directorate_id === myDirectorateId)
+            : isManager
+              ? teams.filter(t => t.manager_id === profile?.id)
+              : // COORDENADOR: só a equipe a que pertence
+                teams.filter(t =>
+                  t.members?.includes(profile?.id ?? '') ||
+                  allProfiles.find(p => p.id === profile?.id)?.team_id === t.id ||
+                  allProfiles.find(p => p.id === profile?.id)?.team === t.id
+                );
         if (visibleTeams.length === 0) return null;
         return (
         <section className="mt-8 print:hidden">
