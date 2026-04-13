@@ -22,7 +22,10 @@ const brl = (n: number) =>
 function periodToDates(period: string): { start: string; end: string } {
   const end = new Date();
   const start = new Date();
-  if (period === '30 dias') start.setDate(end.getDate() - 30);
+  if (period === 'Mês vigente') {
+    start.setDate(1);
+  }
+  else if (period === '30 dias') start.setDate(end.getDate() - 30);
   else if (period === '60 dias') start.setDate(end.getDate() - 60);
   else if (period === '90 dias') start.setDate(end.getDate() - 90);
   else {
@@ -40,6 +43,31 @@ function periodToDates(period: string): { start: string; end: string } {
   };
 }
 
+function PeriodFilters({
+  period,
+  onPeriodChange,
+}: {
+  period: string;
+  onPeriodChange: (period: string) => void;
+}) {
+  return (
+    <div className="flex gap-2 mb-3 overflow-x-auto no-scrollbar pb-2 print:hidden">
+      {['Mês vigente', '30 dias', '60 dias', '90 dias', 'Personalizado'].map((p) => (
+        <button
+          key={p}
+          onClick={() => onPeriodChange(p)}
+          className={`px-4 py-2 rounded-full text-xs font-medium whitespace-nowrap transition-all ${period === p || (p === 'Personalizado' && period.includes('/'))
+            ? 'bg-gold-500 text-white shadow-md'
+            : 'bg-card-bg text-text-secondary border border-surface-200'
+            }`}
+        >
+          {p}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 /** Parse "R$ 200.000,00" → 200000 */
 function parseValue(v: string): number {
   if (!v) return 0;
@@ -50,8 +78,8 @@ function parseValue(v: string): number {
 // ─── Sub-view: Equipe Report ────────────────────────────────────────────────────
 
 function TeamReportView({
-  team, startDate, endDate,
-}: { team: Team; startDate: string; endDate: string }) {
+  team, startDate, endDate, period, onPeriodChange,
+}: { team: Team; startDate: string; endDate: string; period: string; onPeriodChange: (period: string) => void }) {
   const navigate = useNavigate();
   const { allProfiles, clients } = useApp();
   const [selectedBrokerId, setSelectedBrokerId] = useState<string | null>(null);
@@ -276,6 +304,8 @@ function TeamReportView({
         </div>
       </div>
 
+      <PeriodFilters period={period} onPeriodChange={onPeriodChange} />
+
       <div className="print:hidden flex justify-end mb-4 relative">
         <button
           onClick={() => setIsActionsMenuOpen(v => !v)}
@@ -455,8 +485,8 @@ function TeamReportView({
 // ─── Sub-view: Coordenação Report ─────────────────────────────────────────────
 
 function CoordReportView({
-  coordId, coordName, startDate, endDate,
-}: { coordId: string; coordName: string; startDate: string; endDate: string }) {
+  coordId, coordName, startDate, endDate, period, onPeriodChange,
+}: { coordId: string; coordName: string; startDate: string; endDate: string; period: string; onPeriodChange: (period: string) => void }) {
   const navigate = useNavigate();
   const { allProfiles, clients } = useApp();
   const [selectedBrokerId, setSelectedBrokerId] = useState<string | null>(null);
@@ -528,6 +558,8 @@ function CoordReportView({
           </div>
         </div>
       </div>
+
+      <PeriodFilters period={period} onPeriodChange={onPeriodChange} />
 
       {/* Summary cards */}
       <section className="grid grid-cols-2 gap-3 mb-6">
@@ -682,8 +714,8 @@ function CoordReportView({
 // ─── Sub-view: Diretoria Report ────────────────────────────────────────────────
 
 function DiretoriaReportView({
-  dirId, dirName, startDate, endDate,
-}: { dirId: string; dirName: string; startDate: string; endDate: string }) {
+  dirId, dirName, startDate, endDate, period, onPeriodChange,
+}: { dirId: string; dirName: string; startDate: string; endDate: string; period: string; onPeriodChange: (period: string) => void }) {
   const navigate = useNavigate();
   const { clients, teams, allProfiles } = useApp();
   const [pdfLoading, setPdfLoading] = useState(false);
@@ -919,6 +951,8 @@ function DiretoriaReportView({
         </div>
       </div>
 
+      <PeriodFilters period={period} onPeriodChange={onPeriodChange} />
+
       <div className="print:hidden flex justify-end mb-4 relative">
         <button
           onClick={() => setIsActionsMenuOpen(v => !v)}
@@ -1043,7 +1077,7 @@ function DiretoriaReportView({
                 <PremiumCard
                   key={team.id}
                   className="flex items-center justify-between p-4 cursor-pointer hover:border-gold-300 transition-colors"
-                  onClick={() => navigate(`/reports?scope=equipe&id=${team.id}&name=${encodeURIComponent(team.name)}`)}
+                  onClick={() => navigate(`/reports?scope=equipe&id=${team.id}&name=${encodeURIComponent(team.name)}&period=${encodeURIComponent(period)}`)}
                 >
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-xl bg-gold-50 dark:bg-gold-900/20 flex items-center justify-center">
@@ -1075,12 +1109,11 @@ function DiretoriaReportView({
 
 export default function Reports() {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { loading, teams, allProfiles, profile } = useApp();
   const { isAdmin, isDirector, isManager, isCoordinator, canViewAllClients } = useAuthorization();
 
   // ── Period state
-  const [period, setPeriod] = useState('30 dias');
   const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
   const [isDateModalOpen, setIsDateModalOpen] = useState(false);
   const [startDateInput, setStartDateInput] = useState('');
@@ -1090,6 +1123,8 @@ export default function Reports() {
   const scope = searchParams.get('scope') ?? 'global';
   const scopeId = searchParams.get('id') ?? '';
   const scopeName = decodeURIComponent(searchParams.get('name') ?? '');
+  const defaultPeriod = scope === 'global' ? '30 dias' : 'Mês vigente';
+  const period = searchParams.get('period') ?? defaultPeriod;
 
   // ── Derive ISO dates from selected period
   const { start: startDate, end: endDate } = periodToDates(period);
@@ -1138,7 +1173,31 @@ export default function Reports() {
 
   // ── Delegate to diretoria sub-view (ADMIN only)
   if (scope === 'diretoria' && scopeId && isAdmin) {
-    return <DiretoriaReportView dirId={scopeId} dirName={scopeName || 'Diretoria'} startDate={startDate} endDate={endDate} />;
+    return (
+      <>
+        <DiretoriaReportView
+          dirId={scopeId}
+          dirName={scopeName || 'Diretoria'}
+          startDate={startDate}
+          endDate={endDate}
+          period={period}
+          onPeriodChange={handlePeriodChange}
+        />
+        <Modal isOpen={isDateModalOpen} onClose={() => setIsDateModalOpen(false)} title="Período Personalizado">
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-text-secondary mb-1">Início</label>
+              <input type="date" value={startDateInput} onChange={e => setStartDateInput(e.target.value)} className="w-full p-3 bg-surface-50 rounded-xl border-none focus:ring-2 focus:ring-gold-200 text-text-primary" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-text-secondary mb-1">Fim</label>
+              <input type="date" value={endDateInput} onChange={e => setEndDateInput(e.target.value)} className="w-full p-3 bg-surface-50 rounded-xl border-none focus:ring-2 focus:ring-gold-200 text-text-primary" />
+            </div>
+            <RoundedButton fullWidth onClick={applyCustomDate}>Aplicar Filtro</RoundedButton>
+          </div>
+        </Modal>
+      </>
+    );
   }
 
   // ── Delegate to equipe sub-view
@@ -1154,27 +1213,78 @@ export default function Reports() {
         allProfiles.find(p => p.id === profile?.id)?.team === teamObj?.id
       ));
     if (teamObj && canViewThisTeam) {
-      return <TeamReportView team={teamObj} startDate={startDate} endDate={endDate} />;
+      return (
+        <>
+          <TeamReportView team={teamObj} startDate={startDate} endDate={endDate} period={period} onPeriodChange={handlePeriodChange} />
+          <Modal isOpen={isDateModalOpen} onClose={() => setIsDateModalOpen(false)} title="Período Personalizado">
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-text-secondary mb-1">Início</label>
+                <input type="date" value={startDateInput} onChange={e => setStartDateInput(e.target.value)} className="w-full p-3 bg-surface-50 rounded-xl border-none focus:ring-2 focus:ring-gold-200 text-text-primary" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-text-secondary mb-1">Fim</label>
+                <input type="date" value={endDateInput} onChange={e => setEndDateInput(e.target.value)} className="w-full p-3 bg-surface-50 rounded-xl border-none focus:ring-2 focus:ring-gold-200 text-text-primary" />
+              </div>
+              <RoundedButton fullWidth onClick={applyCustomDate}>Aplicar Filtro</RoundedButton>
+            </div>
+          </Modal>
+        </>
+      );
     }
   }
 
   // ── Delegate to coordenação sub-view (GERENTE + ADMIN)
   if (scope === 'coordenacao' && scopeId && (isManager || isAdmin)) {
-    return <CoordReportView coordId={scopeId} coordName={scopeName || 'Coordenação'} startDate={startDate} endDate={endDate} />;
+    return (
+      <>
+        <CoordReportView
+          coordId={scopeId}
+          coordName={scopeName || 'Coordenação'}
+          startDate={startDate}
+          endDate={endDate}
+          period={period}
+          onPeriodChange={handlePeriodChange}
+        />
+        <Modal isOpen={isDateModalOpen} onClose={() => setIsDateModalOpen(false)} title="Período Personalizado">
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-text-secondary mb-1">Início</label>
+              <input type="date" value={startDateInput} onChange={e => setStartDateInput(e.target.value)} className="w-full p-3 bg-surface-50 rounded-xl border-none focus:ring-2 focus:ring-gold-200 text-text-primary" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-text-secondary mb-1">Fim</label>
+              <input type="date" value={endDateInput} onChange={e => setEndDateInput(e.target.value)} className="w-full p-3 bg-surface-50 rounded-xl border-none focus:ring-2 focus:ring-gold-200 text-text-primary" />
+            </div>
+            <RoundedButton fullWidth onClick={applyCustomDate}>Aplicar Filtro</RoundedButton>
+          </div>
+        </Modal>
+      </>
+    );
   }
 
-  const handlePeriodChange = (p: string) => {
-    if (p === 'Personalizado') setIsDateModalOpen(true);
-    else setPeriod(p);
-  };
+  function handlePeriodChange(p: string) {
+    if (p === 'Personalizado') {
+      setStartDateInput(startDate);
+      setEndDateInput(endDate);
+      setIsDateModalOpen(true);
+      return;
+    }
+    const params = new URLSearchParams(searchParams);
+    params.set('period', p);
+    setSearchParams(params);
+  }
 
-  const applyCustomDate = () => {
+  function applyCustomDate() {
     if (startDateInput && endDateInput) {
       const fmt = (d: string) => d.split('-').reverse().join('/');
-      setPeriod(`${fmt(startDateInput)} - ${fmt(endDateInput)}`);
+      const customPeriod = `${fmt(startDateInput)} - ${fmt(endDateInput)}`;
+      const params = new URLSearchParams(searchParams);
+      params.set('period', customPeriod);
+      setSearchParams(params);
       setIsDateModalOpen(false);
     } else alert('Por favor, selecione as datas de início e fim.');
-  };
+  }
 
   const handleExport = async (format: 'pdf' | 'excel') => {
     const fileName = `relatorio_estrategico_${new Date().toISOString().split('T')[0]}.${format === 'excel' ? 'csv' : 'pdf'}`;
@@ -1320,20 +1430,7 @@ export default function Reports() {
       </div>
 
       {/* ── Period Filters ── */}
-      <div className="flex gap-2 mb-3 overflow-x-auto no-scrollbar pb-2 print:hidden">
-        {['30 dias', '60 dias', '90 dias', 'Personalizado'].map((p) => (
-          <button
-            key={p}
-            onClick={() => handlePeriodChange(p)}
-            className={`px-4 py-2 rounded-full text-xs font-medium whitespace-nowrap transition-all ${period === p || (p === 'Personalizado' && period.includes('/'))
-              ? 'bg-gold-500 text-white shadow-md'
-              : 'bg-card-bg text-text-secondary border border-surface-200'
-              }`}
-          >
-            {p}
-          </button>
-        ))}
-      </div>
+      <PeriodFilters period={period} onPeriodChange={handlePeriodChange} />
 
       <div className="print:hidden flex justify-end mb-6 relative">
         <button
@@ -1459,7 +1556,7 @@ export default function Reports() {
                   <PremiumCard
                     key={coord.id}
                     className="flex items-center justify-between p-4 cursor-pointer hover:border-purple-300 transition-colors"
-                    onClick={() => navigate(`/reports?scope=coordenacao&id=${coord.id}&name=${encodeURIComponent(coord.name)}`)}
+                    onClick={() => navigate(`/reports?scope=coordenacao&id=${coord.id}&name=${encodeURIComponent(coord.name)}&period=${encodeURIComponent(period)}`)}
                   >
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-xl bg-purple-50 dark:bg-purple-900/20 flex items-center justify-center">
@@ -1506,7 +1603,7 @@ export default function Reports() {
                 <PremiumCard
                   key={team.id}
                   className="flex items-center justify-between p-4 cursor-pointer hover:border-gold-300 transition-colors"
-                  onClick={() => navigate(`/reports?scope=equipe&id=${team.id}&name=${encodeURIComponent(team.name)}`)}
+                  onClick={() => navigate(`/reports?scope=equipe&id=${team.id}&name=${encodeURIComponent(team.name)}&period=${encodeURIComponent(period)}`)}
                 >
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-xl bg-gold-50 dark:bg-gold-900/20 flex items-center justify-center">

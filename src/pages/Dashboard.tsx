@@ -206,7 +206,7 @@ export default function Dashboard() {
                     <PremiumCard
                       key={d.id}
                       className="flex items-center justify-between cursor-pointer hover:border-gold-400 hover:shadow-md transition-all"
-                      onClick={() => navigate(`/reports?scope=diretoria&id=${d.id}&name=${encodeURIComponent(d.name)}`)}
+                      onClick={() => navigate(`/reports?scope=diretoria&id=${d.id}&name=${encodeURIComponent(d.name)}&period=${encodeURIComponent('Mês vigente')}`)}
                     >
                       <div className="flex items-center gap-3">
                         <div className="w-8 h-8 rounded-lg bg-gold-100 dark:bg-gold-900/30 flex items-center justify-center">
