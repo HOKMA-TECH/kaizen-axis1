@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import QRCode from 'react-qr-code';
 import { motion, AnimatePresence } from 'motion/react';
-import { RefreshCw, Clock, Users, Wifi, WifiOff } from 'lucide-react';
+import { RefreshCw, Clock, Users, Wifi, WifiOff, LogOut } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { useApp } from '@/context/AppContext';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -35,6 +36,7 @@ function formatCountdown(secs: number) {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function CheckInDisplay() {
+  const { signOut } = useApp();
   const [qrUrl, setQrUrl]         = useState<string | null>(null);
   const [loading, setLoading]     = useState(true);
   const [error, setError]         = useState<string | null>(null);
@@ -42,6 +44,7 @@ export default function CheckInDisplay() {
   const [countdown, setCountdown] = useState(secondsUntilMidnight());
   const [checkins, setCheckins]   = useState(0);
   const [online, setOnline]       = useState(navigator.onLine);
+  const [signingOut, setSigningOut] = useState(false);
 
   // ── Carregar token diário ──────────────────────────────────────────────────
   const loadToken = useCallback(async () => {
@@ -106,6 +109,16 @@ export default function CheckInDisplay() {
   const nowMinutes = clock.h * 60 + clock.m;
   const isOpen = nowMinutes >= (8 * 60) && nowMinutes <= (13 * 60 + 30);
 
+  const handleSignOut = async () => {
+    if (signingOut) return;
+    setSigningOut(true);
+    try {
+      await signOut();
+    } finally {
+      setSigningOut(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-950 flex flex-col items-center justify-center p-8 select-none">
 
@@ -126,6 +139,14 @@ export default function CheckInDisplay() {
             <Users size={13} className="text-gray-400" />
             <span className="text-xs font-semibold text-white">{checkins} check-in{checkins !== 1 ? 's' : ''} hoje</span>
           </div>
+          <button
+            onClick={handleSignOut}
+            disabled={signingOut}
+            className="inline-flex items-center gap-1.5 rounded-full border border-gray-700 bg-gray-900 px-3 py-1.5 text-xs font-semibold text-gray-200 transition-colors hover:border-gray-600 hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            <LogOut size={13} />
+            {signingOut ? 'Saindo...' : 'Sair'}
+          </button>
         </div>
       </div>
 
