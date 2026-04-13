@@ -1,6 +1,6 @@
 import { useApp } from '@/context/AppContext';
 
-export type UserRole = 'ADMIN' | 'DIRETOR' | 'GERENTE' | 'COORDENADOR' | 'CORRETOR';
+export type UserRole = 'ADMIN' | 'DIRETOR' | 'GERENTE' | 'COORDENADOR' | 'CORRETOR' | 'RECEPCAO';
 
 export function useAuthorization() {
     const { profile } = useApp();
@@ -14,6 +14,7 @@ export function useAuthorization() {
     const isManager = role === 'GERENTE';
     const isCoordinator = role === 'COORDENADOR';
     const isBroker = role === 'CORRETOR';
+    const isReception = role === 'RECEPCAO';
 
     // Strategic roles that can see org-wide data in their scope
     const isLeadership = isAdmin || isDirector;
@@ -37,7 +38,7 @@ export function useAuthorization() {
 
         // Strategic creation routes — Admin + Director
         if (['/developments', '/portals', '/training', '/reports'].includes(path)) {
-            return !isBroker;
+            return isAdmin || isDirector || isManager || isCoordinator;
         }
 
         // All authenticated users can access these
@@ -51,6 +52,7 @@ export function useAuthorization() {
         isManager,
         isCoordinator,
         isBroker,
+        isReception,
         isLeadership,
         isTeamLead,
         canCreateStrategicResources,

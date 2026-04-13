@@ -94,12 +94,12 @@ function NavGroup({ label, items, chatUnread }: { label: string; items: NavItem[
 // ─── Sidebar ─────────────────────────────────────────────────────────────────
 
 function Sidebar() {
-  const { isBroker, isAdmin, isDirector, isManager, isCoordinator } = useAuthorization();
+  const { isAdmin, isDirector, isManager, isCoordinator } = useAuthorization();
   const { userName, profile, signOut } = useApp();
   const { totalUnread } = useChatUnread();
   const navigate = useNavigate();
 
-  const isLeadership = !isBroker; // everyone except CORRETOR
+  const isLeadership = isAdmin || isDirector || isManager || isCoordinator;
   const isAdminOrDirector = isAdmin || isDirector;
 
   const canAccessCheckInDisplay = isAdmin || isDirector || isManager;
