@@ -7,11 +7,11 @@ export type ClientStage =
   | "Agendamento"
   | "Em Tratativa"
   | "Contrato"
+  | "Desistência"
   | "Formulários"
   | "Conformidade"
   | "Abertura de Conta"
   | "Repasse"
-  | "Desistência"
   | "Concluído"
   | "Novo Lead";
 
@@ -24,11 +24,11 @@ export const CLIENT_STAGES: ClientStage[] = [
   "Agendamento",
   "Em Tratativa",
   "Contrato",
+  "Desistência",
   "Formulários",
   "Conformidade",
   "Abertura de Conta",
   "Repasse",
-  "Desistência",
   "Concluído"
 ];
 
