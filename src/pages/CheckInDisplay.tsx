@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { RefreshCw, Clock, Users, Wifi, WifiOff, LogOut } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useApp } from '@/context/AppContext';
+import { useAuthorization } from '@/hooks/useAuthorization';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -37,6 +38,7 @@ function formatCountdown(secs: number) {
 
 export default function CheckInDisplay() {
   const { signOut } = useApp();
+  const { role } = useAuthorization();
   const [qrUrl, setQrUrl]         = useState<string | null>(null);
   const [loading, setLoading]     = useState(true);
   const [error, setError]         = useState<string | null>(null);
@@ -139,14 +141,16 @@ export default function CheckInDisplay() {
             <Users size={13} className="text-gray-400" />
             <span className="text-xs font-semibold text-white">{checkins} check-in{checkins !== 1 ? 's' : ''} hoje</span>
           </div>
-          <button
-            onClick={handleSignOut}
-            disabled={signingOut}
-            className="inline-flex items-center gap-1.5 rounded-full border border-gray-700 bg-gray-900 px-3 py-1.5 text-xs font-semibold text-gray-200 transition-colors hover:border-gray-600 hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            <LogOut size={13} />
-            {signingOut ? 'Saindo...' : 'Sair'}
-          </button>
+          {role === 'RECEPCAO' && (
+            <button
+              onClick={handleSignOut}
+              disabled={signingOut}
+              className="inline-flex items-center gap-1.5 rounded-full border border-gray-700 bg-gray-900 px-3 py-1.5 text-xs font-semibold text-gray-200 transition-colors hover:border-gray-600 hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              <LogOut size={13} />
+              {signingOut ? 'Saindo...' : 'Sair'}
+            </button>
+          )}
         </div>
       </div>
 
