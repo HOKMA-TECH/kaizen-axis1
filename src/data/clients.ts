@@ -11,6 +11,7 @@ export type ClientStage =
   | "Conformidade"
   | "Abertura de Conta"
   | "Repasse"
+  | "Desistência"
   | "Concluído"
   | "Novo Lead";
 
@@ -27,6 +28,7 @@ export const CLIENT_STAGES: ClientStage[] = [
   "Conformidade",
   "Abertura de Conta",
   "Repasse",
+  "Desistência",
   "Concluído"
 ];
 

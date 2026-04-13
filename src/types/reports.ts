@@ -10,6 +10,7 @@ export const STAGE_WEIGHTS: Record<string, number> = {
     'Contrato': 0.70,
     'Aprovado': 0.85,
     'Concluído': 1.00,
+    'Desistência': 0.00,
     'Reprovado': 0.00,
 };
 

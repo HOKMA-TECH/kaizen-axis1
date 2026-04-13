@@ -725,7 +725,7 @@ function DiretoriaReportView({
     dirClients.slice(0, 5).map(c => {
       const stageBase: Record<string, number> = {
         'Aprovado': 85, 'Contrato': 80, 'Em Tratativa': 65, 'Condicionado': 55,
-        'Em Análise': 50, 'Documentação': 40, 'Novo Lead': 35, 'Reprovado': 10, 'Concluído': 100,
+        'Em Análise': 50, 'Documentação': 40, 'Novo Lead': 35, 'Desistência': 0, 'Reprovado': 10, 'Concluído': 100,
       };
       let score = stageBase[c.stage] ?? 50;
       if (parseValue(c.intendedValue ?? '') > 0) score += 10;

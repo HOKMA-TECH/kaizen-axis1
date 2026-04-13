@@ -29,6 +29,7 @@ function computeHealthScore(client: {
         'Em Análise': 50,
         'Documentação': 40,
         'Novo Lead': 35,
+        'Desistência': 0,
         'Reprovado': 10,
         'Concluído': 100,
     };
