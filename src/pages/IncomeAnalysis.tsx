@@ -63,6 +63,12 @@ const brl = (c: number) =>
 
 const API_URL = '/api/apuracao';
 const MAX_WORKERS = 4;
+const CALCULABLE_CLASSIFICATIONS = new Set([
+  'credito_valido', 'possivel_vinculo_familiar', 'possivel_renda_familiar', 'ignorar_aposta', 'ignorar_autotransferencia',
+]);
+
+const isCalculableTransacao = (t: TransacaoDetalhada) =>
+  t.valor > 0 && CALCULABLE_CLASSIFICATIONS.has(t.classificacao);
 
 const TAG_CONFIG: Record<NonNullable<ClassTag>, { label: string; color: string; icon: string }> = {
   aposta: { label: '🚫 Aposta', color: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400', icon: '🚫' },
@@ -252,6 +258,12 @@ function AccordionMes({
               {transacoes.map(t => {
                 const ativa = validadas.has(t.id);
                 const tagCfg = t.custom_tag ? TAG_CONFIG[t.custom_tag] : null;
+                const canToggle = isCalculableTransacao(t);
+                const statusBadge = t.classificacao === 'debito'
+                  ? { label: 'Debito', color: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' }
+                  : (t.classificacao === 'ignorar_estorno' || t.classificacao === 'ignorar_sem_keyword')
+                    ? { label: 'Ignorado', color: 'bg-surface-200 text-surface-700 dark:bg-surface-300 dark:text-surface-800' }
+                    : null;
                 return (
                   <div
                     key={t.id}
@@ -260,9 +272,10 @@ function AccordionMes({
                   >
                     <div className="flex items-center gap-2.5 flex-1 min-w-0">
                       <button
-                        onClick={() => onToggle(t.id)}
-                        className="flex-shrink-0 text-gold-500 hover:text-gold-700 transition-colors"
-                        title={ativa ? 'Excluir do cálculo' : 'Incluir no cálculo'}
+                        onClick={() => canToggle && onToggle(t.id)}
+                        disabled={!canToggle}
+                        className="flex-shrink-0 text-gold-500 hover:text-gold-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                        title={canToggle ? (ativa ? 'Excluir do cálculo' : 'Incluir no cálculo') : 'Movimentação informativa (não entra no cálculo)'}
                       >
                         {ativa
                           ? <ToggleRight size={22} className="text-green-500" />
@@ -279,7 +292,12 @@ function AccordionMes({
                           {tagCfg.label}
                         </span>
                       )}
-                      <span className={`font-mono text-xs font-medium ${ativa ? 'text-green-600' : 'text-surface-400'}`}>
+                      {statusBadge && (
+                        <span className={`text-[9px] font-medium px-1.5 py-0.5 rounded-full ${statusBadge.color}`}>
+                          {statusBadge.label}
+                        </span>
+                      )}
+                      <span className={`font-mono text-xs font-medium ${t.classificacao === 'debito' || t.valor < 0 ? 'text-red-500' : (ativa ? 'text-green-600' : 'text-surface-400')}`}>
                         {brl(t.valor)}
                       </span>
                     </div>
@@ -351,8 +369,7 @@ export default function IncomeAnalysis() {
     const normalize = (str: string) => str.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
 
     for (const t of resultado.transacoesDetalhadas) {
-      // Filtrar estritamente apenas os créditos
-      if (t.valor <= 0) continue;
+      if (!isCalculableTransacao(t)) continue;
 
       let isAtiva = t.is_validated;
       const descNorm = normalize(t.descricao);
@@ -419,13 +436,7 @@ export default function IncomeAnalysis() {
     if (!resultado) return {};
     const grupos: Record<string, TransacaoDetalhada[]> = {};
     for (const t of resultado.transacoesDetalhadas) {
-      // Garantir estritamente entradas no Accordion (valor > 0)
-      if (t.valor <= 0) continue;
-
-      // Oculta entradas genéricas, duplicadas, de lixo bancário e estornos do Accordion.
-      // Mantemos apenas: credito_valido, possivel_vinculo_familiar, ignorar_aposta, ignorar_autotransferencia
-      if (t.classificacao === 'ignorar_sem_keyword') continue;
-      if (t.classificacao === 'ignorar_estorno') continue;
+      if (!/^\d{4}-\d{2}$/.test(t.mes)) continue;
       if (!grupos[t.mes]) grupos[t.mes] = [];
       grupos[t.mes].push(t);
     }
