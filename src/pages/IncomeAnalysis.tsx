@@ -70,6 +70,18 @@ const CALCULABLE_CLASSIFICATIONS = new Set([
 const isCalculableTransacao = (t: TransacaoDetalhada) =>
   t.valor > 0 && CALCULABLE_CLASSIFICATIONS.has(t.classificacao);
 
+const isResumoLinha = (descricao: string) => {
+  const d = descricao
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toUpperCase()
+    .trim();
+  return /^TOTAL\b/.test(d)
+    || /^SUBTOTAL\b/.test(d)
+    || /\bMOVIMENTACAO(?:ES)?\s+DO\s+MES\b/.test(d)
+    || /\bTOTAL\s+MOVIMENTACAO(?:ES)?\b/.test(d);
+};
+
 const TAG_CONFIG: Record<NonNullable<ClassTag>, { label: string; color: string; icon: string }> = {
   aposta: { label: '🚫 Aposta', color: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400', icon: '🚫' },
   washtrading: { label: '🔄 Passagem', color: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400', icon: '🔄' },
@@ -437,6 +449,7 @@ export default function IncomeAnalysis() {
     const grupos: Record<string, TransacaoDetalhada[]> = {};
     for (const t of resultado.transacoesDetalhadas) {
       if (!/^\d{4}-\d{2}$/.test(t.mes)) continue;
+      if (isResumoLinha(t.descricao)) continue;
       if (!grupos[t.mes]) grupos[t.mes] = [];
       grupos[t.mes].push(t);
     }
