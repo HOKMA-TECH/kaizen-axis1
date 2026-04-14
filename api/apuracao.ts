@@ -229,6 +229,8 @@ const DESC_GENERICAS_SEM_ORIGEM = [
     /^PAGAMENTOS TRANSFERENCIAS$/, /^DEPOSITOS TRANSFERENCIAS$/, /^SAQUES TRANSFERENCIAS$/,
     /^TRANSFERENCIA RECEBIDA$/, /^RECEBIMENTO$/, /^CREDITO(?: EM CONTA)?$/,
     /^SALARIO E PROVENTOS$/, /^SALARIO MINIMO$/,
+    /^TRANSFERENCIA PIX\s+\d+$/,
+    /^PAGAMENTO DE BENEFICIOS(?:\s+\d+)?$/,
 ];
 
 const DESC_RUIDO_EXTRATO_RE = /\b(PAGINA\s*\d+\/?\d*|EXTRATO[_\s-]?PF|BRADESCARD|EXTRATO\s+CONSOLIDADO\s+INTELIGENTE)\b/;
@@ -236,6 +238,35 @@ const DESC_RUIDO_EXTRATO_RE = /\b(PAGINA\s*\d+\/?\d*|EXTRATO[_\s-]?PF|BRADESCARD
 function ehDescricaoGenericaOuRuido(descNorm: string): boolean {
     if (DESC_RUIDO_EXTRATO_RE.test(descNorm)) return true;
     return DESC_GENERICAS_SEM_ORIGEM.some(re => re.test(descNorm));
+}
+
+function ehLinhaResumoMensal(descNorm: string): boolean {
+    return /^(TOTAL|SUBTOTAL)\b/.test(descNorm)
+        || /\bMOVIMENTACAO(?:ES)?\s+DO\s+MES\b/.test(descNorm)
+        || /\bTOTAL\s+MOVIMENTACAO(?:ES)?\b/.test(descNorm);
+}
+
+function ehDebitoPorContextoDescricao(descNorm: string): boolean {
+    if (/\bCOMPRA\b|\bPAGAMENTO\b|\bSAQUE\b|\bQR\s*CODE\b/.test(descNorm)) return true;
+    if (/\bDES\b/.test(descNorm) && /\b(PIX|TRANSFERENCIA|TED|DOC|TEV)\b/.test(descNorm)) return true;
+    return false;
+}
+
+function ehEntradaValidaBradesco(descNorm: string): boolean {
+    // 1) Depósitos em conta (ATM/caixa/envelope)
+    if (/\bDEP\b|\bDEPOSITO\b/.test(descNorm)) return true;
+
+    // 2) PIX recebido (Bradesco usa muito "REM:" para remetente)
+    const temPix = /\bPIX\b|\bTRANSFERENCIA\s+PIX\b/.test(descNorm);
+    const temIndicadorRecebimento = /\bREM\b|\bRECEB\b|\bRECEBIDO\b|\bCREDITO\b/.test(descNorm);
+    const temIndicadorSaida = /\bDES\b|\bENVIADO\b/.test(descNorm);
+    if (temPix && temIndicadorRecebimento && !temIndicadorSaida) return true;
+
+    // 3) TED/DOC/TEV recebida
+    const temTedDocTev = /\bTED\b|\bDOC\b|\bTEV\b/.test(descNorm);
+    if (temTedDocTev && /\bRECEB\b|\bRECEBIDA\b|\bCREDITO\b/.test(descNorm) && !temIndicadorSaida) return true;
+
+    return false;
 }
 
 function ehAutotransferenciaProvavelPorNome(nomeCliente: string, descNorm: string): boolean {
@@ -256,11 +287,12 @@ function ehAutotransferenciaProvavelPorNome(nomeCliente: string, descNorm: strin
 }
 
 // ── v3: RENDIMENTO contextual — só ignora com CDB/POUPANCA/FUNDO ─────────────
-const RENDIMENTO_EXCLUSAO_CONTEXTO = ['CDB', 'POUPANCA', 'FUNDO', 'RESGATE'];
+const RENDIMENTO_EXCLUSAO_CONTEXTO = ['CDB', 'POUPANCA', 'POUP', 'FUNDO', 'RESGATE', 'INVEST', 'FACILCRED', 'RENTAB'];
 const RENDIMENTO_INCLUSAO_CONTEXTO = ['GRATIFICACAO', 'SALARIO', 'PREMIO', 'TRABALHO'];
 
 function deveIgnorarRendimento(descNorm: string): boolean {
-    if (!descNorm.includes('RENDIMENTO')) return false;
+    const temRendimento = descNorm.includes('RENDIMENTO') || descNorm.includes('RENDIMENTOS') || descNorm.includes('RENTAB');
+    if (!temRendimento) return false;
     // Se combinado com inclusão → não ignora (renda laboral)
     if (RENDIMENTO_INCLUSAO_CONTEXTO.some(k => descNorm.includes(k))) return false;
     // Se combinado com exclusão → ignora (investimento)
@@ -358,6 +390,16 @@ function classificar(
     // 2c. Linhas genéricas/resumo (sem contraparte identificável) e ruído de cabeçalho
     if (ehDescricaoGenericaOuRuido(descNorm)) {
         return { ...base, classificacao: 'ignorar_sem_keyword', motivoExclusao: 'Linha genérica ou ruído de extrato', is_validated: false, custom_tag: null };
+    }
+
+    // 2d. Resumos mensais e totais agregados do banco
+    if (ehLinhaResumoMensal(descNorm)) {
+        return { ...base, classificacao: 'ignorar_estorno', motivoExclusao: 'Resumo/totais do extrato', is_validated: false, custom_tag: null };
+    }
+
+    // 2e. Débito inferido por contexto textual (especialmente Bradesco com "DES")
+    if (ehDebitoPorContextoDescricao(descNorm)) {
+        return { ...base, classificacao: 'debito', motivoExclusao: 'Contexto textual de débito', is_validated: false, custom_tag: null };
     }
 
     // 3. Sem keyword de crédito
@@ -924,6 +966,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             nomeCliente: nomeCliente.trim(),
             cpf: cpf?.trim(),
         };
+        const isBradescoExtrato = /bradesco/i.test(textoExtrato.substring(0, 6000));
         const mesesReferencia = extrairMesesReferencia(textoExtrato);
 
         // ── Parsear e classificar ──────────────────────────────────────────────
@@ -963,6 +1006,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             const antesFiltroPeriodo = transacoes.length;
             transacoes = transacoes.filter(t => mesesReferencia.has(t.mes));
             removidasPorPeriodo = antesFiltroPeriodo - transacoes.length;
+        }
+
+        // Regra específica Bradesco: considerar apenas depósito, PIX recebido e TED/DOC/TEV recebida.
+        // Evita inflar renda com linhas "DES" (destinatário/saída), resumos e lançamentos ambíguos.
+        if (isBradescoExtrato) {
+            transacoes = transacoes.map(t => {
+                if (t.classificacao === 'debito') return t;
+                const descNorm = normalizar(t.descricao);
+                if (ehEntradaValidaBradesco(descNorm)) return t;
+                return {
+                    ...t,
+                    classificacao: 'ignorar_sem_keyword' as ClassificacaoTransacao,
+                    motivoExclusao: 'Bradesco: apenas entradas recebidas (depósito/PIX REM/TED-DOC recebida)',
+                    is_validated: false,
+                };
+            });
         }
 
         // v3: pós-processamentos determinísticos
