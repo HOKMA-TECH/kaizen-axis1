@@ -269,6 +269,11 @@ function ehEntradaValidaBradesco(descNorm: string): boolean {
     return false;
 }
 
+function ehInicioNovoLancamento(linha: string): boolean {
+    const up = normalizar(linha);
+    return /^(TRANSFERENCIA\s+PIX|PIX\s+QR\s+CODE|PIX\s+QR\s+CODE\s+DINAMICO|PIX\s+QR\s+CODE\s+ESTATICO|COMPRA\b|DEP\b|DEPOSITO\b|PAGTO\b|PAGAMENTO\b|TED\b|DOC\b|TEV\b|RENTAB\b)/.test(up);
+}
+
 function ehAutotransferenciaProvavelPorNome(nomeCliente: string, descNorm: string): boolean {
     if (!/(PIX RECEBIDO|PIXRECEBIDO|RECEBIMENTO PIX|TRANSFERENCIA RECEBIDA)/.test(descNorm)) return false;
 
@@ -924,8 +929,17 @@ function extrair(texto: string): Array<{ dataRaw: string; descricaoRaw: string; 
                 // Linha sem valor financeiro e não é cabeçalho ou saldo.
                 // É continuação de descrição! Ex: "REM: Matheus Rodrigues 03/01"
                 // Limite de segurança: buffer enorme = lixo de cabeçalho (ex: disclaimer Santander/Nubank) — zera
-                const novaAcumuladaElse = `${descAcumulada} ${linha}`.trim();
-                descAcumulada = novaAcumuladaElse.length > 300 ? '' : novaAcumuladaElse;
+                const linhaTrim = linha.trim();
+                const deveReiniciar =
+                    ehInicioNovoLancamento(linhaTrim) ||
+                    (/\b(REM|DES)\b/.test(normalizar(descAcumulada)) && ehInicioNovoLancamento(linhaTrim));
+
+                if (deveReiniciar) {
+                    descAcumulada = linhaTrim;
+                } else {
+                    const novaAcumuladaElse = `${descAcumulada} ${linhaTrim}`.trim();
+                    descAcumulada = novaAcumuladaElse.length > 300 ? '' : novaAcumuladaElse;
+                }
             }
         }
     }
