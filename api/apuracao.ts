@@ -430,6 +430,50 @@ const MESES_EXTENSO_API: Record<string, string> = {
     setembro: 'SET', outubro: 'OUT', novembro: 'NOV', dezembro: 'DEZ',
 };
 
+const MES_ABREV_NUM: Record<string, string> = {
+    JAN: '01', FEV: '02', MAR: '03', ABR: '04', MAI: '05', JUN: '06',
+    JUL: '07', AGO: '08', SET: '09', OUT: '10', NOV: '11', DEZ: '12',
+};
+
+function obterMesNumerico(dataRaw: string): number | null {
+    const raw = dataRaw.trim().toUpperCase();
+    const mNum = raw.match(/^\d{2}[\/\-\.\s](\d{2})/);
+    if (mNum) {
+        const n = parseInt(mNum[1], 10);
+        return n >= 1 && n <= 12 ? n : null;
+    }
+    const mTxt = raw.match(/^\d{2}[\/\-\.\s]+([A-Z]{3,9})/);
+    if (!mTxt) return null;
+    const key = normalizar(mTxt[1]).substring(0, 3);
+    const mes = MES_ABREV_NUM[key];
+    return mes ? parseInt(mes, 10) : null;
+}
+
+function extrairMesesReferencia(texto: string): Set<string> {
+    const meses = new Set<string>();
+
+    const limpo = removerAcentos(texto).toUpperCase();
+
+    const reMesTexto = /(JAN(?:EIRO)?|FEV(?:EREIRO)?|MAR(?:CO)?|ABR(?:IL)?|MAI(?:O)?|JUN(?:HO)?|JUL(?:HO)?|AGO(?:STO)?|SET(?:EMBRO)?|OUT(?:UBRO)?|NOV(?:EMBRO)?|DEZ(?:EMBRO)?)\s*\/?\s*(20\d{2})/g;
+    let mt: RegExpExecArray | null;
+    while ((mt = reMesTexto.exec(limpo)) !== null) {
+        const abrev = mt[1].substring(0, 3);
+        const ano = mt[2];
+        const mes = MES_ABREV_NUM[abrev];
+        if (mes) meses.add(`${ano}-${mes}`);
+    }
+
+    const reMesNum = /\b(0[1-9]|1[0-2])\s*\/\s*(20\d{2})\b/g;
+    let mn: RegExpExecArray | null;
+    while ((mn = reMesNum.exec(limpo)) !== null) {
+        const mes = mn[1];
+        const ano = mn[2];
+        meses.add(`${ano}-${mes}`);
+    }
+
+    return meses;
+}
+
 
 // ─── NEON BANK: formato específico ───────────────────────────────────────────
 // Formato: "DESCRIÇÃO   DD/MM/YYYY   HH:MM   [±]R$ VALOR   R$ SALDO   -"
@@ -602,6 +646,7 @@ function extrair(texto: string): Array<{ dataRaw: string; descricaoRaw: string; 
     let dataContextual = '';
     const mAnoInicial = limpo.match(/\b(20\d{2})\b/);
     let anoContextual = mAnoInicial ? mAnoInicial[1] : String(new Date().getFullYear());
+    let ultimoMesContextual: number | null = null;
 
     // Regex para detectar cabeçalho de mês do C6 Bank: "Maio 2025", "Agosto 2025"
     const C6_MES_RE = /^(janeiro|fevereiro|mar[çc]o|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro)\s+(20\d{2})/i;
@@ -665,8 +710,17 @@ function extrair(texto: string): Array<{ dataRaw: string; descricaoRaw: string; 
             let dataCandidata = mData[1];
             const mAno = dataCandidata.match(/\b(20\d{2})\b/);
             if (mAno) { anoContextual = mAno[1]; }
-            else { dataCandidata = `${dataCandidata}/${anoContextual}`; }
+            else {
+                const mesAtual = obterMesNumerico(dataCandidata);
+                if (mesAtual !== null && ultimoMesContextual !== null && mesAtual < (ultimoMesContextual - 6)) {
+                    anoContextual = String(parseInt(anoContextual, 10) + 1);
+                }
+                dataCandidata = `${dataCandidata}/${anoContextual}`;
+            }
             dataContextual = dataCandidata;
+
+            const mesCtx = obterMesNumerico(dataContextual);
+            if (mesCtx !== null) ultimoMesContextual = mesCtx;
 
             let descSemData = linha.substring(mData[0].length).trim();
             if (/^saldo\s+(do\s+dia|anterior|final|bloqueado)/i.test(descSemData)) {
@@ -870,6 +924,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             nomeCliente: nomeCliente.trim(),
             cpf: cpf?.trim(),
         };
+        const mesesReferencia = extrairMesesReferencia(textoExtrato);
 
         // ── Parsear e classificar ──────────────────────────────────────────────
         const ehNeon = isNeonBank(textoExtrato);
@@ -901,6 +956,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
         transacoes = transacoesUnicas;
 
+        let removidasPorPeriodo = 0;
+
+        // Remove meses fora do período explícito do extrato (ex.: meses fantasmas gerados por ruído OCR/PDF)
+        if (mesesReferencia.size >= 2) {
+            const antesFiltroPeriodo = transacoes.length;
+            transacoes = transacoes.filter(t => mesesReferencia.has(t.mes));
+            removidasPorPeriodo = antesFiltroPeriodo - transacoes.length;
+        }
+
         // v3: pós-processamentos determinísticos
         transacoes = detectarWashTrading(transacoes);
 
@@ -919,6 +983,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
 
         const avisos: string[] = [];
+
+        if (removidasPorPeriodo > 0) {
+            avisos.push(`${removidasPorPeriodo} transação(ões) fora do período do extrato foram removidas automaticamente.`);
+        }
         const mesesConsiderados = Object.keys(totalPorMes).length;
 
         if (mesesConsiderados === 0) {
