@@ -749,6 +749,10 @@ function extrair(texto: string): Array<{ dataRaw: string; descricaoRaw: string; 
         const mData = linhaProcessada.match(DATA_RE);
 
         if (mData) {
+            // Nova linha com data = início de novo lançamento.
+            // Zera buffer para não misturar descrição da movimentação anterior.
+            descAcumulada = '';
+
             let dataCandidata = mData[1];
             const mAno = dataCandidata.match(/\b(20\d{2})\b/);
             if (mAno) { anoContextual = mAno[1]; }
@@ -783,8 +787,7 @@ function extrair(texto: string): Array<{ dataRaw: string; descricaoRaw: string; 
                 valoresLine.forEach(m => {
                     descPura = descPura.replace(m[0], '');
                 });
-                descPura = `${descAcumulada} ${descPura}`.trim();
-                descAcumulada = ''; // limpa o buffer após uso
+                descPura = descPura.trim();
 
                 // Nubank: pdfjs pode mesclar "Total de entradas/saídas +X,XX" com a linha real
                 // da transação. Quando detectado, stripamos o resumo e usamos o ÚLTIMO valor
@@ -842,7 +845,7 @@ function extrair(texto: string): Array<{ dataRaw: string; descricaoRaw: string; 
             const mValorProximo = proxLinha.match(/^(?:R\$?\s*|[A-Z]{0,3}\$?\s*)?([+-]?\s*\d{1,3}(?:[.,]\d{3})*[.,]\d{2})\s*([CD]|\(\+\)|\(-\)|\+|-)?$/i);
             if (mValorProximo && descSemData.length > 0 && !/^saldo\s+/i.test(descSemData)) {
                 const dc = mValorProximo[2]?.trim() ?? '';
-                let descPura = `${descAcumulada} ${descSemData}`.trim();
+                let descPura = descSemData.trim();
                 add(dataContextual, descPura, mValorProximo[1] + dc);
                 descAcumulada = '';
                 i++;
@@ -853,8 +856,8 @@ function extrair(texto: string): Array<{ dataRaw: string; descricaoRaw: string; 
 
             // Linha com DATA, mas SEM VALOR. Ex: "03/01/2025 TRANSFERENCIA PIX". Acumula.
             // Limite de segurança: se o buffer ficar enorme, é lixo de cabeçalho — descarta o lixo e mantém só o trecho atual
-            const novaAcumuladaData = `${descAcumulada} ${descSemData}`.trim();
-            descAcumulada = novaAcumuladaData.length > 300 ? descSemData.trim() : novaAcumuladaData;
+            const novaAcumuladaData = descSemData.trim();
+            descAcumulada = novaAcumuladaData.length > 300 ? '' : novaAcumuladaData;
 
         } else if (dataContextual) {
             if (
