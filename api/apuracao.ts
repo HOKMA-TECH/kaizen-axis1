@@ -224,9 +224,11 @@ const KEYWORDS_IGNORAR_NORM = Array.from(new Set(KEYWORDS_IGNORAR.map(normalizar
 const INCOME_KEYWORDS_NOMES_NORM = Array.from(new Set([...INCOME_KEYWORDS_NOMES].map(normalizar)));
 
 const DESC_GENERICAS_SEM_ORIGEM = [
-    /^PIX$/, /^PIX RECEBIDO(?:\s+\d+)?$/, /^RECEBIMENTO(?: DE)? PIX$/, /^TRANSFERENCIA PIX RECEBIDA$/,
+    /^PIX$/, /^(?:\d{1,2}\s+\d{2}\s+)?PIX RECEBIDO(?:\s+\d+)?$/, /^RECEBIMENTO(?: DE)? PIX$/, /^TRANSFERENCIA PIX RECEBIDA$/,
+    /^MOVIMENTACAO PIX RECEBIDO$/,
     /^PAGAMENTOS TRANSFERENCIAS$/, /^DEPOSITOS TRANSFERENCIAS$/, /^SAQUES TRANSFERENCIAS$/,
     /^TRANSFERENCIA RECEBIDA$/, /^RECEBIMENTO$/, /^CREDITO(?: EM CONTA)?$/,
+    /^SALARIO E PROVENTOS$/, /^SALARIO MINIMO$/,
 ];
 
 const DESC_RUIDO_EXTRATO_RE = /\b(PAGINA\s*\d+\/?\d*|EXTRATO[_\s-]?PF|BRADESCARD|EXTRATO\s+CONSOLIDADO\s+INTELIGENTE)\b/;
@@ -234,6 +236,23 @@ const DESC_RUIDO_EXTRATO_RE = /\b(PAGINA\s*\d+\/?\d*|EXTRATO[_\s-]?PF|BRADESCARD
 function ehDescricaoGenericaOuRuido(descNorm: string): boolean {
     if (DESC_RUIDO_EXTRATO_RE.test(descNorm)) return true;
     return DESC_GENERICAS_SEM_ORIGEM.some(re => re.test(descNorm));
+}
+
+function ehAutotransferenciaProvavelPorNome(nomeCliente: string, descNorm: string): boolean {
+    if (!/(PIX RECEBIDO|PIXRECEBIDO|RECEBIMENTO PIX|TRANSFERENCIA RECEBIDA)/.test(descNorm)) return false;
+
+    const tokens = tokenizar(nomeCliente);
+    if (tokens.length < 2) return false;
+
+    const encontrados = tokens.filter(t => {
+        if (t.length <= 4) {
+            return new RegExp(`(?:^|\\s)${t}(?:\\s|$)`).test(descNorm);
+        }
+        const base = t.slice(0, -1);
+        return new RegExp(`(?:^|\\s)(?:${t}|${base})(?:\\s|$)`).test(descNorm);
+    }).length;
+
+    return encontrados >= 2;
 }
 
 // ── v3: RENDIMENTO contextual — só ignora com CDB/POUPANCA/FUNDO ─────────────
@@ -281,11 +300,16 @@ function normalizarData(dataRaw: string): { data: string; mes: string } {
             ano = String(new Date().getFullYear());
         }
 
+        const diaNum = parseInt(dia, 10);
+        const mesNum = parseInt(mes, 10);
+        if (isNaN(diaNum) || isNaN(mesNum) || diaNum < 1 || diaNum > 31 || mesNum < 1 || mesNum > 12) {
+            return { data: '', mes: '' };
+        }
+
         return { data: `${ano}-${mes}-${dia}`, mes: `${ano}-${mes}` };
     }
 
-    const fallback = new Date().toISOString().split('T')[0];
-    return { data: fallback, mes: fallback.substring(0, 7) };
+    return { data: '', mes: '' };
 }
 
 let _idCounter = 0;
@@ -300,6 +324,13 @@ function classificar(
     const { data, mes } = normalizarData(dataRaw);
     const valor = parseMoeda(valorRaw);
     const descNorm = normalizar(descricaoRaw);
+
+    if (!/^\d{4}-(0[1-9]|1[0-2])-\d{2}$/.test(data) || !/^\d{4}-(0[1-9]|1[0-2])$/.test(mes)) {
+        return {
+            id: nextId(), data: '', mes: '', descricao: descricaoRaw, valor,
+            classificacao: 'ignorar_sem_keyword', motivoExclusao: 'Data inválida ou não reconhecida', is_validated: false, custom_tag: null,
+        };
+    }
 
     const base: Omit<Transacao, 'classificacao' | 'motivoExclusao' | 'is_validated' | 'custom_tag'> = {
         id: nextId(), data, mes, descricao: descricaoRaw, valor,
@@ -340,12 +371,13 @@ function classificar(
 
     if (!ehRendaLaboral) {
         // 4. Autotransferência (match forte cliente)
-        if (calcularMatch(ctx.nomeCliente, descricaoRaw, ctx.cpf) === 'forte') {
+        const matchCliente = calcularMatch(ctx.nomeCliente, descricaoRaw, ctx.cpf);
+        if (matchCliente === 'forte' || ehAutotransferenciaProvavelPorNome(ctx.nomeCliente, descNorm)) {
             return { ...base, classificacao: 'ignorar_autotransferencia', motivoExclusao: 'Autotransferência', is_validated: false, custom_tag: null };
         }
 
         // 5. Match fraco cliente → sinalizar ('possivel_vinculo_familiar'), incluído por padrão
-        const fracoCliente = calcularMatch(ctx.nomeCliente, descricaoRaw, ctx.cpf) === 'fraco';
+        const fracoCliente = matchCliente === 'fraco';
         if (fracoCliente) {
             return { ...base, classificacao: 'possivel_vinculo_familiar', motivoExclusao: 'Match fraco — revisão manual', is_validated: true, custom_tag: 'renda_familiar' };
         }
