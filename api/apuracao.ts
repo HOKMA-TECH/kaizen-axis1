@@ -219,6 +219,23 @@ const INCOME_KEYWORDS_NOMES = new Set([
     '13 SALARIO', 'ADIANTAMENTO SALARIAL', 'CRED SAL', 'CRED FGTS',
 ]);
 
+const KEYWORDS_CREDITO_NORM = Array.from(new Set(KEYWORDS_CREDITO.map(normalizar)));
+const KEYWORDS_IGNORAR_NORM = Array.from(new Set(KEYWORDS_IGNORAR.map(normalizar)));
+const INCOME_KEYWORDS_NOMES_NORM = Array.from(new Set([...INCOME_KEYWORDS_NOMES].map(normalizar)));
+
+const DESC_GENERICAS_SEM_ORIGEM = [
+    /^PIX$/, /^PIX RECEBIDO(?:\s+\d+)?$/, /^RECEBIMENTO(?: DE)? PIX$/, /^TRANSFERENCIA PIX RECEBIDA$/,
+    /^PAGAMENTOS TRANSFERENCIAS$/, /^DEPOSITOS TRANSFERENCIAS$/, /^SAQUES TRANSFERENCIAS$/,
+    /^TRANSFERENCIA RECEBIDA$/, /^RECEBIMENTO$/, /^CREDITO(?: EM CONTA)?$/,
+];
+
+const DESC_RUIDO_EXTRATO_RE = /\b(PAGINA\s*\d+\/?\d*|EXTRATO[_\s-]?PF|BRADESCARD|EXTRATO\s+CONSOLIDADO\s+INTELIGENTE)\b/;
+
+function ehDescricaoGenericaOuRuido(descNorm: string): boolean {
+    if (DESC_RUIDO_EXTRATO_RE.test(descNorm)) return true;
+    return DESC_GENERICAS_SEM_ORIGEM.some(re => re.test(descNorm));
+}
+
 // ── v3: RENDIMENTO contextual — só ignora com CDB/POUPANCA/FUNDO ─────────────
 const RENDIMENTO_EXCLUSAO_CONTEXTO = ['CDB', 'POUPANCA', 'FUNDO', 'RESGATE'];
 const RENDIMENTO_INCLUSAO_CONTEXTO = ['GRATIFICACAO', 'SALARIO', 'PREMIO', 'TRABALHO'];
@@ -301,20 +318,25 @@ function classificar(
     }
 
     // 2b. Estorno + v3: RENDIMENTO contextual
-    const temIgnorar = KEYWORDS_IGNORAR.some(k => descNorm.includes(k));
+    const temIgnorar = KEYWORDS_IGNORAR_NORM.some(k => k && descNorm.includes(k));
     const temRendimento = deveIgnorarRendimento(descNorm);
     if (temIgnorar || temRendimento) {
         return { ...base, classificacao: 'ignorar_estorno', motivoExclusao: 'Estorno/investimento', is_validated: false, custom_tag: null };
     }
 
+    // 2c. Linhas genéricas/resumo (sem contraparte identificável) e ruído de cabeçalho
+    if (ehDescricaoGenericaOuRuido(descNorm)) {
+        return { ...base, classificacao: 'ignorar_sem_keyword', motivoExclusao: 'Linha genérica ou ruído de extrato', is_validated: false, custom_tag: null };
+    }
+
     // 3. Sem keyword de crédito
-    const temCredito = KEYWORDS_CREDITO.some(k => descNorm.includes(k));
+    const temCredito = KEYWORDS_CREDITO_NORM.some(k => k && descNorm.includes(k));
     if (!temCredito) {
         return { ...base, classificacao: 'ignorar_sem_keyword', motivoExclusao: 'Sem keyword de crédito', is_validated: false, custom_tag: null };
     }
 
     // Proteção: renda laboral comprovada → pula verificação de nome/CPF
-    const ehRendaLaboral = [...INCOME_KEYWORDS_NOMES].some(k => descNorm.includes(k));
+    const ehRendaLaboral = INCOME_KEYWORDS_NOMES_NORM.some(k => k && descNorm.includes(k));
 
     if (!ehRendaLaboral) {
         // 4. Autotransferência (match forte cliente)
