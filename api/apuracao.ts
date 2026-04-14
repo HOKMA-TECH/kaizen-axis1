@@ -567,18 +567,26 @@ function extrair(texto: string): Array<{ dataRaw: string; descricaoRaw: string; 
     const isItauMensal = /ita[uú]/i.test(limpo.substring(0, 500)) && /entradas.*cr[eé]ditos/i.test(limpo.substring(0, 3000));
     if (isItauMensal) isIgnoredSection = true; // Começa ignorando até a seção de transações
 
-    const SECTIONS_IGNORE = /^(comprovantes? de|pacote de servi[çc]os|[íi]ndices econ[óo]micos|resumo consolidado|demonstrativo de|posi[çc][ãa]o de|investimentos|t[íi]tulos? de capitaliza[çc][ãa]o|fundos? de investimento|cr[ée]dito pessoal|poupan[çc]a|cart[ãa]o de cr[ée]dito|seguros|prote[çc][ãa]o)/i;
+    const SECTIONS_IGNORE = /^(comprovantes? de|pacote de servi[çc]os|[íi]ndices econ[óo]micos|resumo consolidado|resumo\s*[-:]|fale conosco|demonstrativo de|posi[çc][ãa]o de|investimentos|t[íi]tulos? de capitaliza[çc][ãa]o|fundos? de investimento|cr[ée]dito pessoal|poupan[çc]a|cart[ãa]o de cr[ée]dito|seguros|prote[çc][ãa]o|extrato consolidado inteligente)/i;
     // Remove the ^ anchor for CONTA CORRENTE because it can be indented or have dashes attached 
     const SECTIONS_VALID = /(conta corrente|movimenta[çc]|lan[çc]amentos|hist[óo]rico(?! de)|transa[çc][ão][ãe]es da conta|extrato( de( conta| transa))?|data\s+descri[çc][ãa]o)/i;
+    const SANTANDER_SECTIONS_VALID = /(conta corrente|movimenta[çc][õo]es? de conta|lan[çc]amentos da conta|extrato\s+de\s+conta\s+corrente|data\s+descri[çc][ãa]o)/i;
 
     for (let i = 0; i < linhas.length; i++) {
         const linha = linhas[i];
 
         // Verifica mudança de sessão (apenas se a linha for curta para evitar falsos positivos no meio de descrições)
-        if (linha.length < 80) {
+        if (linha.length < 120) {
             if (SECTIONS_IGNORE.test(linha)) {
                 isIgnoredSection = true;
                 continue;
+            }
+
+            if (isSantander) {
+                if (SANTANDER_SECTIONS_VALID.test(linha)) {
+                    isIgnoredSection = false;
+                    continue;
+                }
             } else if (SECTIONS_VALID.test(linha)) {
                 isIgnoredSection = false;
                 continue;
