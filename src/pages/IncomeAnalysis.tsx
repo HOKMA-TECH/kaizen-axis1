@@ -424,15 +424,33 @@ export default function IncomeAnalysis() {
   // ── Recálculo reativo baseado nos toggles ──────────────────────────────────
   const { totalPorMesAtivo, totalApuradoAtivo, mediaMensalAtiva, maiorMesAtivo, menorMesAtivo, mesesAtivos } = useMemo(() => {
     if (!resultado) return { totalPorMesAtivo: {}, totalApuradoAtivo: 0, mediaMensalAtiva: 0, maiorMesAtivo: 0, menorMesAtivo: 0, mesesAtivos: 0 };
+
+    const mesesBase = (() => {
+      const doBackend = Object.keys(resultado.totalPorMes ?? {})
+        .filter(m => /^\d{4}-(0[1-9]|1[0-2])$/.test(m))
+        .sort((a, b) => a.localeCompare(b));
+      if (doBackend.length > 0) return doBackend;
+
+      const detectados = new Set<string>();
+      for (const t of resultado.transacoesDetalhadas) {
+        if (/^\d{4}-(0[1-9]|1[0-2])$/.test(t.mes)) detectados.add(t.mes);
+      }
+      return Array.from(detectados).sort((a, b) => a.localeCompare(b));
+    })();
+
     const porMes: Record<string, number> = {};
+    for (const mes of mesesBase) porMes[mes] = 0;
+
     for (const t of resultado.transacoesDetalhadas) {
       if (t.valor > 0 && validadas.has(t.id)) {
+        if (!(t.mes in porMes) && /^\d{4}-(0[1-9]|1[0-2])$/.test(t.mes)) porMes[t.mes] = 0;
         porMes[t.mes] = (porMes[t.mes] ?? 0) + t.valor;
       }
     }
+
     const vals = Object.values(porMes);
     const total = vals.reduce((a, b) => a + b, 0);
-    const meses = vals.length;
+    const meses = Object.keys(porMes).length;
     return {
       totalPorMesAtivo: porMes,
       totalApuradoAtivo: total,
@@ -447,6 +465,11 @@ export default function IncomeAnalysis() {
   const transacoesPorMes = useMemo(() => {
     if (!resultado) return {};
     const grupos: Record<string, TransacaoDetalhada[]> = {};
+
+    for (const mes of Object.keys(totalPorMesAtivo)) {
+      grupos[mes] = [];
+    }
+
     for (const t of resultado.transacoesDetalhadas) {
       if (!/^\d{4}-\d{2}$/.test(t.mes)) continue;
       if (isResumoLinha(t.descricao)) continue;
@@ -454,7 +477,7 @@ export default function IncomeAnalysis() {
       grupos[t.mes].push(t);
     }
     return grupos;
-  }, [resultado]);
+  }, [resultado, totalPorMesAtivo]);
 
   // ── CPF mask ──────────────────────────────────────────────────────────────
   const handleCpf = (v: string) => {
