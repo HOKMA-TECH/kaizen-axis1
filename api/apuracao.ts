@@ -493,12 +493,11 @@ const MES_ABREV_NUM: Record<string, string> = {
 };
 
 function parseDataBR(data: string): Date | null {
-    const m = data.match(/^(\d{2})[\/.-](\d{2})[\/.-](\d{2}|\d{4})$/);
+    const m = data.match(/^(\d{2})\s*[\/.-]\s*(\d{2})\s*[\/.-]\s*(\d{4})$/);
     if (!m) return null;
     const dia = parseInt(m[1], 10);
     const mes = parseInt(m[2], 10);
-    const anoRaw = m[3];
-    const ano = anoRaw.length === 2 ? (2000 + parseInt(anoRaw, 10)) : parseInt(anoRaw, 10);
+    const ano = parseInt(m[3], 10);
     if (dia < 1 || dia > 31 || mes < 1 || mes > 12 || ano < 2020 || ano > 2035) return null;
     return new Date(Date.UTC(ano, mes - 1, dia));
 }
@@ -539,19 +538,24 @@ function extrairMesesReferencia(texto: string): Set<string> {
 
     const limpo = removerAcentos(texto).toUpperCase();
 
-    // Inter e bancos similares podem ter vários blocos "Período" no mesmo PDF mesclado.
-    // Ex.: 01/04/2025-31/12/2025 + 01/01/2026-14/04/2026.
-    // Precisamos unir TODOS os intervalos para não perder meses no meio.
-    const RANGE_RE = /PERIODO[^\n\r]{0,120}?(\d{2}[\/.-]\d{2}[\/.-](?:\d{2}|\d{4}))\s*(?:A|ATE|-)\s*(\d{2}[\/.-]\d{2}[\/.-](?:\d{2}|\d{4}))/g;
-    let mr: RegExpExecArray | null;
-    while ((mr = RANGE_RE.exec(limpo)) !== null) {
-        const d1 = parseDataBR(mr[1]);
-        const d2 = parseDataBR(mr[2]);
+    // Inter e bancos similares podem ter vários blocos "PERIODO" no mesmo PDF mesclado.
+    // Extraímos por linha e exigimos ano com 4 dígitos para evitar truncamentos como "31/12/20".
+    const linhas = limpo.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+    const PERIOD_LINE_RE = /\bPERIODO\b[^0-9]{0,40}(\d{2}\s*[\/.-]\s*\d{2}\s*[\/.-]\s*\d{4})\s*(?:A|ATE|\s-\s)\s*(\d{2}\s*[\/.-]\s*\d{2}\s*[\/.-]\s*\d{4})/i;
+
+    for (const linha of linhas) {
+        if (!linha.includes('PERIODO')) continue;
+        const m = linha.match(PERIOD_LINE_RE);
+        if (!m) continue;
+
+        const d1 = parseDataBR(m[1]);
+        const d2 = parseDataBR(m[2]);
         if (!d1 || !d2) continue;
+
         const inicio = d1 <= d2 ? d1 : d2;
         const fim = d1 <= d2 ? d2 : d1;
         const mesesDoPeriodo = gerarMesesNoIntervalo(inicio, fim);
-        for (const m of mesesDoPeriodo) meses.add(m);
+        for (const mes of mesesDoPeriodo) meses.add(mes);
     }
 
     if (meses.size >= 2) {
@@ -1127,11 +1131,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             }
             return Array.from(mesesDetectados).sort();
         })();
+        const usarBaseFechadaPorPeriodo = mesesReferencia.size >= 2;
 
         const totalPorMes: Record<string, number> = {};
         for (const mes of mesesBaseOrdenados) totalPorMes[mes] = 0;
         for (const c of creditosValidos) {
-            if (!(c.mes in totalPorMes)) totalPorMes[c.mes] = 0;
+            if (!(c.mes in totalPorMes)) {
+                if (usarBaseFechadaPorPeriodo) continue;
+                totalPorMes[c.mes] = 0;
+            }
             totalPorMes[c.mes] += c.valor;
         }
 
@@ -1140,7 +1148,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (removidasPorPeriodo > 0) {
             avisos.push(`${removidasPorPeriodo} transação(ões) fora do período do extrato foram removidas automaticamente.`);
         }
-        const mesesComCredito = new Set(creditosValidos.map(c => c.mes)).size;
+        const mesesComCredito = new Set(
+            creditosValidos
+                .map(c => c.mes)
+                .filter(mes => !usarBaseFechadaPorPeriodo || (mes in totalPorMes))
+        ).size;
         const mesesConsiderados = Object.keys(totalPorMes).length;
 
         if (mesesComCredito === 0) {
