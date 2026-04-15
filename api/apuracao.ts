@@ -1193,8 +1193,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         let removidasPorPeriodo = 0;
 
-        // Remove meses fora do período explícito do extrato (ex.: meses fantasmas gerados por ruído OCR/PDF)
-        if (mesesReferencia.size >= 2) {
+        // Remove meses fora do período explícito do extrato (ex.: meses fantasmas gerados por ruído OCR/PDF).
+        // Para Inter usamos parser dedicado e NÃO forçamos esse corte aqui,
+        // pois OCR pode truncar o "Período" e reduzir indevidamente a janela.
+        if (!ehInter && mesesReferencia.size >= 2) {
             const antesFiltroPeriodo = transacoes.length;
             transacoes = transacoes.filter(t => mesesReferencia.has(t.mes));
             removidasPorPeriodo = antesFiltroPeriodo - transacoes.length;
@@ -1232,20 +1234,53 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         // - Se houver período explícito no extrato, usa esse período (preenchendo meses sem crédito com 0).
         // - Caso contrário, usa os meses observados nas transações parseadas.
         const mesesBaseOrdenados: string[] = (() => {
+            const mesesDetectados = new Set<string>();
+            for (const t of transacoes) {
+                if (/^\d{4}-(0[1-9]|1[0-2])$/.test(t.mes)) mesesDetectados.add(t.mes);
+            }
+
+            if (ehInter) {
+                const mesesDoTexto = new Set<string>();
+                const txtInter = removerAcentos(textoExtrato).toUpperCase();
+
+                // Datas numéricas no Inter aparecem em cabeçalhos e metadados (ex.: "Solicitado em").
+                // Consideramos apenas linhas com contexto transacional.
+                const linhasInter = txtInter.split(/\r?\n/);
+                const reDataNumLinha = /\b(\d{2})\/(\d{2})\/(20\d{2})\b/;
+                for (const linha of linhasInter) {
+                    if (!/\b(SALDO DO DIA|PIX|COMPRA|TRANSFERENCIA|SEGURO|RECARGA|ESTORNO|PAGAMENTO)\b/.test(linha)) continue;
+                    const md = linha.match(reDataNumLinha);
+                    if (!md) continue;
+                    const mes = md[2];
+                    const ano = md[3];
+                    if (/^(0[1-9]|1[0-2])$/.test(mes)) mesesDoTexto.add(`${ano}-${mes}`);
+                }
+
+                const reDataExt = /\b\d{1,2}\s+DE\s+(JANEIRO|FEVEREIRO|MARCO|ABRIL|MAIO|JUNHO|JULHO|AGOSTO|SETEMBRO|OUTUBRO|NOVEMBRO|DEZEMBRO)\s+DE\s+(20\d{2})\b/g;
+                let me: RegExpExecArray | null;
+                while ((me = reDataExt.exec(txtInter)) !== null) {
+                    const mes = MES_ABREV_NUM[me[1].substring(0, 3)] ?? null;
+                    if (mes) mesesDoTexto.add(`${me[2]}-${mes}`);
+                }
+
+                // No Inter, juntamos o período reconhecido + meses realmente detectados.
+                // Isso evita perder meses quando o OCR falha parcialmente no cabeçalho de período.
+                const baseInter = new Set<string>([...mesesReferencia, ...mesesDetectados, ...mesesDoTexto]);
+                const ordenadaInter = Array.from(baseInter).sort();
+                return ordenadaInter.length > 12 ? ordenadaInter.slice(ordenadaInter.length - 12) : ordenadaInter;
+            }
+
             if (mesesReferencia.size >= 2) {
                 const refOrdenada = Array.from(mesesReferencia).sort();
                 // Alguns bancos (ex.: Inter) em "12 meses" podem expor mês inicial e final parciais,
                 // resultando em 13 rótulos de mês. Mantemos a janela mais recente de 12 para apuração.
                 return refOrdenada.length > 12 ? refOrdenada.slice(refOrdenada.length - 12) : refOrdenada;
             }
-
-            const mesesDetectados = new Set<string>();
-            for (const t of transacoes) {
-                if (/^\d{4}-(0[1-9]|1[0-2])$/.test(t.mes)) mesesDetectados.add(t.mes);
-            }
             return Array.from(mesesDetectados).sort();
         })();
-        const usarBaseFechadaPorPeriodo = mesesReferencia.size >= 2;
+        const usarBaseFechadaPorPeriodo = ehInter
+            ? mesesBaseOrdenados.length > 0
+            : mesesReferencia.size >= 2;
 
         const totalPorMes: Record<string, number> = {};
         for (const mes of mesesBaseOrdenados) totalPorMes[mes] = 0;
