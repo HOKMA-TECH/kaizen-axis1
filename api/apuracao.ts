@@ -1252,32 +1252,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             }
 
             if (ehInter) {
-                const mesesDoTexto = new Set<string>();
-                const txtInter = removerAcentos(textoExtrato).toUpperCase();
-
-                // Datas numéricas no Inter aparecem em cabeçalhos e metadados (ex.: "Solicitado em").
-                // Consideramos apenas linhas com contexto transacional.
-                const linhasInter = txtInter.split(/\r?\n/);
-                const reDataNumLinha = /\b(\d{2})\/(\d{2})\/(20\d{2})\b/;
-                for (const linha of linhasInter) {
-                    if (!/\b(SALDO DO DIA|PIX|COMPRA|TRANSFERENCIA|SEGURO|RECARGA|ESTORNO|PAGAMENTO)\b/.test(linha)) continue;
-                    const md = linha.match(reDataNumLinha);
-                    if (!md) continue;
-                    const mes = md[2];
-                    const ano = md[3];
-                    if (/^(0[1-9]|1[0-2])$/.test(mes)) mesesDoTexto.add(`${ano}-${mes}`);
-                }
-
-                const reDataExt = /\b\d{1,2}\s+DE\s+(JANEIRO|FEVEREIRO|MARCO|ABRIL|MAIO|JUNHO|JULHO|AGOSTO|SETEMBRO|OUTUBRO|NOVEMBRO|DEZEMBRO)\s+DE\s+(20\d{2})\b/g;
-                let me: RegExpExecArray | null;
-                while ((me = reDataExt.exec(txtInter)) !== null) {
-                    const mes = MES_ABREV_NUM[me[1].substring(0, 3)] ?? null;
-                    if (mes) mesesDoTexto.add(`${me[2]}-${mes}`);
-                }
-
                 // No Inter, juntamos o período reconhecido + meses realmente detectados.
                 // Isso evita perder meses quando o OCR falha parcialmente no cabeçalho de período.
-                const baseInter = new Set<string>([...mesesReferencia, ...mesesDetectados, ...mesesDoTexto]);
+                const baseInter = new Set<string>([...mesesReferencia, ...mesesDetectados]);
                 const ordenadaInter = Array.from(baseInter).sort();
 
                 // Alguns PDFs divididos do Inter trazem "Período" truncado (ex.: 4 meses)
