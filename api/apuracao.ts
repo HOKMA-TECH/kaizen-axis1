@@ -1109,9 +1109,29 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             !['credito_valido', 'possivel_vinculo_familiar', 'possivel_renda_familiar', 'debito'].includes(t.classificacao)
         );
 
+        // Base de meses para exibição/cálculo:
+        // - Se houver período explícito no extrato, usa esse período (preenchendo meses sem crédito com 0).
+        // - Caso contrário, usa os meses observados nas transações parseadas.
+        const mesesBaseOrdenados: string[] = (() => {
+            if (mesesReferencia.size >= 2) {
+                const refOrdenada = Array.from(mesesReferencia).sort();
+                // Alguns bancos (ex.: Inter) em "12 meses" podem expor mês inicial e final parciais,
+                // resultando em 13 rótulos de mês. Mantemos a janela mais recente de 12 para apuração.
+                return refOrdenada.length > 12 ? refOrdenada.slice(refOrdenada.length - 12) : refOrdenada;
+            }
+
+            const mesesDetectados = new Set<string>();
+            for (const t of transacoes) {
+                if (/^\d{4}-(0[1-9]|1[0-2])$/.test(t.mes)) mesesDetectados.add(t.mes);
+            }
+            return Array.from(mesesDetectados).sort();
+        })();
+
         const totalPorMes: Record<string, number> = {};
+        for (const mes of mesesBaseOrdenados) totalPorMes[mes] = 0;
         for (const c of creditosValidos) {
-            totalPorMes[c.mes] = (totalPorMes[c.mes] ?? 0) + c.valor;
+            if (!(c.mes in totalPorMes)) totalPorMes[c.mes] = 0;
+            totalPorMes[c.mes] += c.valor;
         }
 
         const avisos: string[] = [];
@@ -1119,9 +1139,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (removidasPorPeriodo > 0) {
             avisos.push(`${removidasPorPeriodo} transação(ões) fora do período do extrato foram removidas automaticamente.`);
         }
+        const mesesComCredito = new Set(creditosValidos.map(c => c.mes)).size;
         const mesesConsiderados = Object.keys(totalPorMes).length;
 
-        if (mesesConsiderados === 0) {
+        if (mesesComCredito === 0) {
             const amostraDebug = transacoes.slice(0, 20).map(t => ({
                 descricao: t.descricao, valor: t.valor, classificacao: t.classificacao, motivo: t.motivoExclusao,
             }));
@@ -1134,8 +1155,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             return;
         }
 
-        if (mesesConsiderados < 2) {
-            avisos.push(`Apenas ${mesesConsiderados} mês(es) com créditos válidos. Resultado pode não ser representativo.`);
+        if (mesesComCredito < 2) {
+            avisos.push(`Apenas ${mesesComCredito} mês(es) com créditos válidos. Resultado pode não ser representativo.`);
         }
         const qtdApostas = transacoes.filter(t => t.classificacao === 'ignorar_aposta').length;
         if (qtdApostas > 0) {
