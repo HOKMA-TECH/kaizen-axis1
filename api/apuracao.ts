@@ -493,11 +493,12 @@ const MES_ABREV_NUM: Record<string, string> = {
 };
 
 function parseDataBR(data: string): Date | null {
-    const m = data.match(/^(\d{2})[\/.-](\d{2})[\/.-](\d{4})$/);
+    const m = data.match(/^(\d{2})[\/.-](\d{2})[\/.-](\d{2}|\d{4})$/);
     if (!m) return null;
     const dia = parseInt(m[1], 10);
     const mes = parseInt(m[2], 10);
-    const ano = parseInt(m[3], 10);
+    const anoRaw = m[3];
+    const ano = anoRaw.length === 2 ? (2000 + parseInt(anoRaw, 10)) : parseInt(anoRaw, 10);
     if (dia < 1 || dia > 31 || mes < 1 || mes > 12 || ano < 2020 || ano > 2035) return null;
     return new Date(Date.UTC(ano, mes - 1, dia));
 }
@@ -538,23 +539,23 @@ function extrairMesesReferencia(texto: string): Set<string> {
 
     const limpo = removerAcentos(texto).toUpperCase();
 
-    // Inter e bancos similares: "Período: 15/04/2025 a 15/04/2026".
-    // Sem essa expansão, só abril/2025 e abril/2026 entram no filtro e os meses intermediários somem.
-    const rangeMatch =
-        limpo.match(/PERIODO[^0-9]*(\d{2}[\/.-]\d{2}[\/.-]\d{4})\s*(?:A|ATE|-)\s*(\d{2}[\/.-]\d{2}[\/.-]\d{4})/) ||
-        limpo.match(/\bDE\s+(\d{2}[\/.-]\d{2}[\/.-]\d{4})\s+(?:A|ATE)\s+(\d{2}[\/.-]\d{2}[\/.-]\d{4})/);
+    // Inter e bancos similares podem ter vários blocos "Período" no mesmo PDF mesclado.
+    // Ex.: 01/04/2025-31/12/2025 + 01/01/2026-14/04/2026.
+    // Precisamos unir TODOS os intervalos para não perder meses no meio.
+    const RANGE_RE = /PERIODO[^\n\r]{0,120}?(\d{2}[\/.-]\d{2}[\/.-](?:\d{2}|\d{4}))\s*(?:A|ATE|-)\s*(\d{2}[\/.-]\d{2}[\/.-](?:\d{2}|\d{4}))/g;
+    let mr: RegExpExecArray | null;
+    while ((mr = RANGE_RE.exec(limpo)) !== null) {
+        const d1 = parseDataBR(mr[1]);
+        const d2 = parseDataBR(mr[2]);
+        if (!d1 || !d2) continue;
+        const inicio = d1 <= d2 ? d1 : d2;
+        const fim = d1 <= d2 ? d2 : d1;
+        const mesesDoPeriodo = gerarMesesNoIntervalo(inicio, fim);
+        for (const m of mesesDoPeriodo) meses.add(m);
+    }
 
-    if (rangeMatch) {
-        const d1 = parseDataBR(rangeMatch[1]);
-        const d2 = parseDataBR(rangeMatch[2]);
-        if (d1 && d2) {
-            const inicio = d1 <= d2 ? d1 : d2;
-            const fim = d1 <= d2 ? d2 : d1;
-            const mesesDoPeriodo = gerarMesesNoIntervalo(inicio, fim);
-            if (mesesDoPeriodo.size >= 2) {
-                return mesesDoPeriodo;
-            }
-        }
+    if (meses.size >= 2) {
+        return meses;
     }
 
     const reMesTexto = /(JAN(?:EIRO)?|FEV(?:EREIRO)?|MAR(?:CO)?|ABR(?:IL)?|MAI(?:O)?|JUN(?:HO)?|JUL(?:HO)?|AGO(?:STO)?|SET(?:EMBRO)?|OUT(?:UBRO)?|NOV(?:EMBRO)?|DEZ(?:EMBRO)?)\s*\/?\s*(20\d{2})/g;
