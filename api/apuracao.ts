@@ -492,6 +492,33 @@ const MES_ABREV_NUM: Record<string, string> = {
     JUL: '07', AGO: '08', SET: '09', OUT: '10', NOV: '11', DEZ: '12',
 };
 
+function parseDataBR(data: string): Date | null {
+    const m = data.match(/^(\d{2})[\/.-](\d{2})[\/.-](\d{4})$/);
+    if (!m) return null;
+    const dia = parseInt(m[1], 10);
+    const mes = parseInt(m[2], 10);
+    const ano = parseInt(m[3], 10);
+    if (dia < 1 || dia > 31 || mes < 1 || mes > 12 || ano < 2020 || ano > 2035) return null;
+    return new Date(Date.UTC(ano, mes - 1, dia));
+}
+
+function gerarMesesNoIntervalo(inicio: Date, fim: Date): Set<string> {
+    const meses = new Set<string>();
+    const cursor = new Date(Date.UTC(inicio.getUTCFullYear(), inicio.getUTCMonth(), 1));
+    const limite = new Date(Date.UTC(fim.getUTCFullYear(), fim.getUTCMonth(), 1));
+
+    // Limite de segurança para evitar loops em entrada corrompida.
+    let guard = 0;
+    while (cursor <= limite && guard < 60) {
+        const ano = cursor.getUTCFullYear();
+        const mes = String(cursor.getUTCMonth() + 1).padStart(2, '0');
+        meses.add(`${ano}-${mes}`);
+        cursor.setUTCMonth(cursor.getUTCMonth() + 1);
+        guard++;
+    }
+    return meses;
+}
+
 function obterMesNumerico(dataRaw: string): number | null {
     const raw = dataRaw.trim().toUpperCase();
     const mNum = raw.match(/^\d{2}[\/\-\.\s](\d{2})/);
@@ -510,6 +537,25 @@ function extrairMesesReferencia(texto: string): Set<string> {
     const meses = new Set<string>();
 
     const limpo = removerAcentos(texto).toUpperCase();
+
+    // Inter e bancos similares: "Período: 15/04/2025 a 15/04/2026".
+    // Sem essa expansão, só abril/2025 e abril/2026 entram no filtro e os meses intermediários somem.
+    const rangeMatch =
+        limpo.match(/PERIODO[^0-9]*(\d{2}[\/.-]\d{2}[\/.-]\d{4})\s*(?:A|ATE|-)\s*(\d{2}[\/.-]\d{2}[\/.-]\d{4})/) ||
+        limpo.match(/\bDE\s+(\d{2}[\/.-]\d{2}[\/.-]\d{4})\s+(?:A|ATE)\s+(\d{2}[\/.-]\d{2}[\/.-]\d{4})/);
+
+    if (rangeMatch) {
+        const d1 = parseDataBR(rangeMatch[1]);
+        const d2 = parseDataBR(rangeMatch[2]);
+        if (d1 && d2) {
+            const inicio = d1 <= d2 ? d1 : d2;
+            const fim = d1 <= d2 ? d2 : d1;
+            const mesesDoPeriodo = gerarMesesNoIntervalo(inicio, fim);
+            if (mesesDoPeriodo.size >= 2) {
+                return mesesDoPeriodo;
+            }
+        }
+    }
 
     const reMesTexto = /(JAN(?:EIRO)?|FEV(?:EREIRO)?|MAR(?:CO)?|ABR(?:IL)?|MAI(?:O)?|JUN(?:HO)?|JUL(?:HO)?|AGO(?:STO)?|SET(?:EMBRO)?|OUT(?:UBRO)?|NOV(?:EMBRO)?|DEZ(?:EMBRO)?)\s*\/?\s*(20\d{2})/g;
     let mt: RegExpExecArray | null;
