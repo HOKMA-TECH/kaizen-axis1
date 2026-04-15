@@ -671,9 +671,21 @@ function extrairNeon(texto: string): Array<{ dataRaw: string; descricaoRaw: stri
 }
 
 function isInterBank(texto: string): boolean {
-    const cabecalho = removerAcentos(texto.substring(0, 1200)).toUpperCase();
-    return /BANCO\s+INTER/.test(cabecalho)
-        || (/PERIODO\s*:\s*\d{2}\/\d{2}\/\d{4}\s*A\s*\d{2}\/\d{2}\/\d{4}/.test(cabecalho) && /SALDO\s+DO\s+DIA/.test(removerAcentos(texto.substring(0, 8000)).toUpperCase()));
+    const norm = removerAcentos(texto).toUpperCase();
+    const cabecalho = norm.substring(0, 20000);
+
+    if (/BANCO\s+INTER/.test(cabecalho)) return true;
+
+    // Heurísticas estruturais do extrato Inter (inclusive PDFs divididos sem capa).
+    const temPeriodoInter = /PERIODO\s*:\s*\d{2}\/\d{2}\/\d{4}\s*A\s*\d{2}\/\d{2}\/\d{4}/.test(cabecalho);
+    const temSaldoDoDia = /SALDO\s+DO\s+DIA/.test(norm);
+    const temSaldoPorTransacao = /SALDO\s+POR\s+TRANSACAO/.test(norm);
+    const temRodapeInter = /SAC\s*:\s*0800\s*940\s*9999/.test(norm) || /OUVIDORIA\s*:\s*0800\s*940\s*7772/.test(norm);
+    const temFormatoPixInter = /PIX\s+(RECEBIDO|ENVIADO)\s*:\s*"/.test(norm);
+
+    return (temPeriodoInter && temSaldoDoDia)
+        || (temRodapeInter && temSaldoDoDia)
+        || (temFormatoPixInter && temSaldoPorTransacao);
 }
 
 function extrairInter(texto: string): Array<{ dataRaw: string; descricaoRaw: string; valorRaw: string }> {
@@ -1267,6 +1279,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 // Isso evita perder meses quando o OCR falha parcialmente no cabeçalho de período.
                 const baseInter = new Set<string>([...mesesReferencia, ...mesesDetectados, ...mesesDoTexto]);
                 const ordenadaInter = Array.from(baseInter).sort();
+
+                // Alguns PDFs divididos do Inter trazem "Período" truncado (ex.: 4 meses)
+                // mas o corpo contém de fato uma janela semestral. Nesses casos,
+                // priorizamos os 6 meses mais recentes para refletir o extrato enviado.
+                if (mesesReferencia.size <= 4 && ordenadaInter.length >= 6 && ordenadaInter.length <= 8) {
+                    return ordenadaInter.slice(ordenadaInter.length - 6);
+                }
+
                 return ordenadaInter.length > 12 ? ordenadaInter.slice(ordenadaInter.length - 12) : ordenadaInter;
             }
 
