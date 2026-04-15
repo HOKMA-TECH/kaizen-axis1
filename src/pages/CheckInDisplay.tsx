@@ -109,7 +109,7 @@ export default function CheckInDisplay() {
   }, []);
 
   const nowMinutes = clock.h * 60 + clock.m;
-  const isOpen = nowMinutes >= (8 * 60) && nowMinutes <= (13 * 60 + 30);
+  const isOpen = nowMinutes >= (8 * 60) && nowMinutes <= (16 * 60 + 30);
 
   const handleSignOut = async () => {
     if (signingOut) return;
@@ -167,7 +167,7 @@ export default function CheckInDisplay() {
             <p className="text-white font-mono text-3xl font-bold tracking-tight">{clock.time}</p>
             <div className={`flex items-center justify-end gap-1.5 mt-1 ${isOpen ? 'text-green-400' : 'text-gray-500'}`}>
               <div className={`w-2 h-2 rounded-full ${isOpen ? 'bg-green-400 animate-pulse' : 'bg-gray-600'}`} />
-              <span className="text-xs font-medium">{isOpen ? 'Aberto · 08:00–13:30' : 'Fechado · abre às 08:00'}</span>
+              <span className="text-xs font-medium">{isOpen ? 'Aberto · 08:00–16:30' : 'Fechado · abre às 08:00'}</span>
             </div>
           </div>
         </div>
@@ -224,7 +224,7 @@ export default function CheckInDisplay() {
           <div className="flex flex-col items-center text-center">
             <Clock size={16} className="text-gold-400 mb-1" />
             <p className="text-[10px] text-gray-500 uppercase tracking-wide">Horário</p>
-            <p className="text-xs text-gray-300 font-medium">08:00 – 13:30</p>
+            <p className="text-xs text-gray-300 font-medium">08:00 – 16:30</p>
           </div>
           <div className="flex flex-col items-center text-center">
             <RefreshCw size={16} className="text-gold-400 mb-1" />
