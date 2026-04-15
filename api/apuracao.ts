@@ -247,7 +247,17 @@ function ehLinhaResumoMensal(descNorm: string): boolean {
 }
 
 function ehDebitoPorContextoDescricao(descNorm: string): boolean {
-    if (/\bCOMPRA\b|\bPAGAMENTO\b|\bSAQUE\b|\bQR\s*CODE\b/.test(descNorm)) return true;
+    // Não pode tratar "PAGAMENTO RECEBIDO" como débito (regressão global).
+    if (/\bPAGAMENTO\s+RECEBID[OA]\b/.test(descNorm)) return false;
+
+    // Débitos textualmente inequívocos.
+    if (/\bCOMPRA\b|\bSAQUE\b/.test(descNorm)) return true;
+    if (/\b(PIX|TRANSFERENCIA|TED|DOC|TEV)\s+ENVIAD[OA]\b/.test(descNorm)) return true;
+
+    // "PAGAMENTO" sem contexto de recebimento/crédito tende a ser saída.
+    if (/\bPAGAMENTO\b|\bPAGTO\b/.test(descNorm) && !/\b(RECEB|CREDITO)\b/.test(descNorm)) return true;
+
+    // Bradesco: marcador "DES" (destinatário) combinado com método de transferência.
     if (/\bDES\b/.test(descNorm) && /\b(PIX|TRANSFERENCIA|TED|DOC|TEV)\b/.test(descNorm)) return true;
     return false;
 }
