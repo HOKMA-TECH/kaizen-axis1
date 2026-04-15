@@ -504,6 +504,23 @@ function parseDataBR(data: string): Date | null {
     return new Date(Date.UTC(ano, mes - 1, dia));
 }
 
+function normalizarAnoOCR(anoToken: string): string {
+    // OCR de PDF pode trocar 0/1 por O/I/L.
+    return anoToken
+        .replace(/[Oo]/g, '0')
+        .replace(/[Il]/g, '1');
+}
+
+function parseDataBROCR(data: string): Date | null {
+    const m = data.match(/^(\d{2})\s*[\/.-]\s*(\d{2})\s*[\/.-]\s*([0-9OILoil]{4})$/);
+    if (!m) return null;
+    const dia = parseInt(m[1], 10);
+    const mes = parseInt(m[2], 10);
+    const ano = parseInt(normalizarAnoOCR(m[3]), 10);
+    if (dia < 1 || dia > 31 || mes < 1 || mes > 12 || ano < 2020 || ano > 2035) return null;
+    return new Date(Date.UTC(ano, mes - 1, dia));
+}
+
 function gerarMesesNoIntervalo(inicio: Date, fim: Date): Set<string> {
     const meses = new Set<string>();
     const cursor = new Date(Date.UTC(inicio.getUTCFullYear(), inicio.getUTCMonth(), 1));
@@ -543,15 +560,19 @@ function extrairMesesReferencia(texto: string): Set<string> {
     // Inter e bancos similares podem ter vários blocos "PERIODO" no mesmo PDF mesclado.
     // Extraímos por linha e exigimos ano com 4 dígitos para evitar truncamentos como "31/12/20".
     const linhas = limpo.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
-    const PERIOD_LINE_RE = /\bPERIODO\b[^0-9]{0,40}(\d{2}\s*[\/.-]\s*\d{2}\s*[\/.-]\s*\d{4})\s*(?:A|ATE|\s-\s)\s*(\d{2}\s*[\/.-]\s*\d{2}\s*[\/.-]\s*\d{4})/i;
+    const PERIOD_LINE_RE = /\bPERIODO\b[^0-9]{0,60}(\d{2}\s*[\/.-]\s*\d{2}\s*[\/.-]\s*[0-9OILoil]{4})\s*(?:A|ATE|\s-\s)\s*(\d{2}\s*[\/.-]\s*\d{2}\s*[\/.-]\s*[0-9OILoil]{4})/i;
 
-    for (const linha of linhas) {
+    for (let i = 0; i < linhas.length; i++) {
+        const linha = linhas[i];
         if (!linha.includes('PERIODO')) continue;
-        const m = linha.match(PERIOD_LINE_RE);
+
+        // Alguns PDFs quebram o período em mais de uma linha.
+        const candidato = `${linha} ${linhas[i + 1] ?? ''} ${linhas[i + 2] ?? ''}`.replace(/\s+/g, ' ').trim();
+        const m = candidato.match(PERIOD_LINE_RE);
         if (!m) continue;
 
-        const d1 = parseDataBR(m[1]);
-        const d2 = parseDataBR(m[2]);
+        const d1 = parseDataBROCR(m[1]);
+        const d2 = parseDataBROCR(m[2]);
         if (!d1 || !d2) continue;
 
         const inicio = d1 <= d2 ? d1 : d2;
