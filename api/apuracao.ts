@@ -254,8 +254,10 @@ function ehDebitoPorContextoDescricao(descNorm: string): boolean {
     if (/\bCOMPRA\b|\bSAQUE\b/.test(descNorm)) return true;
     if (/\b(PIX|TRANSFERENCIA|TED|DOC|TEV)\s+ENVIAD[OA]\b/.test(descNorm)) return true;
 
-    // "PAGAMENTO" sem contexto de recebimento/crédito tende a ser saída.
-    if (/\bPAGAMENTO\b|\bPAGTO\b/.test(descNorm) && !/\b(RECEB|CREDITO)\b/.test(descNorm)) return true;
+    // "PAGAMENTO" é ambíguo em muitos bancos (ex.: "pagamento recebido").
+    // Para manter o comportamento conservador anterior, só marcamos débito quando houver
+    // contexto explícito de saída/pagamento efetuado.
+    if (/\b(PAGAMENTO\s+EFETUADO|PAGTO\s+EFETUADO|PAGAMENTO\s+DE\s+FATURA|FATURA\s+CARTAO|BOLETO\s+PAGO)\b/.test(descNorm)) return true;
 
     // Bradesco: marcador "DES" (destinatário) combinado com método de transferência.
     if (/\bDES\b/.test(descNorm) && /\b(PIX|TRANSFERENCIA|TED|DOC|TEV)\b/.test(descNorm)) return true;
@@ -880,7 +882,11 @@ function extrair(texto: string): Array<{ dataRaw: string; descricaoRaw: string; 
                         const saldoAtual = parseMoeda(ult[1]);
                         const valorTransacaoNum = parseMoeda(penult[1]);
 
-                        const strMod = penult[2] ?? '';
+                        const rawMod = (penult[2] ?? '').toUpperCase();
+                        // Quando há valor+saldo na mesma linha (muito comum no Inter),
+                        // ignoramos sufixo +/− do penúltimo valor para não herdar o sinal
+                        // do saldo seguinte (ex.: "R$ 200,00 -R$ 0,00").
+                        const strMod = (rawMod === 'C' || rawMod === 'D' || rawMod === '(+)' || rawMod === '(-)') ? rawMod : '';
 
                         let isCreditInferred: boolean | undefined = undefined;
 
@@ -965,7 +971,10 @@ function extrair(texto: string): Array<{ dataRaw: string; descricaoRaw: string; 
                 }
 
                 const valorRealNum = targetMatch[1];
-                const suf = targetMatch[2] ?? '';
+                const rawSuf = (targetMatch[2] ?? '').toUpperCase();
+                const suf = (valoresMatches.length >= 2)
+                    ? ((rawSuf === 'C' || rawSuf === 'D' || rawSuf === '(+)' || rawSuf === '(-)') ? rawSuf : '')
+                    : (targetMatch[2] ?? '');
 
                 const descParts = linha.split(valorRealNum);
                 let descPura = descParts[0].trim();
