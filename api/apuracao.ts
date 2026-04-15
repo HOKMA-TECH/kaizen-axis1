@@ -649,6 +649,89 @@ function extrairNeon(texto: string): Array<{ dataRaw: string; descricaoRaw: stri
     return todos;
 }
 
+function isInterBank(texto: string): boolean {
+    const cabecalho = removerAcentos(texto.substring(0, 1200)).toUpperCase();
+    return /BANCO\s+INTER/.test(cabecalho)
+        || (/PERIODO\s*:\s*\d{2}\/\d{2}\/\d{4}\s*A\s*\d{2}\/\d{2}\/\d{4}/.test(cabecalho) && /SALDO\s+DO\s+DIA/.test(removerAcentos(texto.substring(0, 8000)).toUpperCase()));
+}
+
+function extrairInter(texto: string): Array<{ dataRaw: string; descricaoRaw: string; valorRaw: string }> {
+    const linhas = texto
+        .replace(/\r\n/g, '\n')
+        .replace(/\r/g, '\n')
+        .split('\n')
+        .map((l) => l.trim())
+        .filter(Boolean);
+
+    const mesesExtensoNum: Record<string, string> = {
+        JANEIRO: '01', FEVEREIRO: '02', MARCO: '03', ABRIL: '04', MAIO: '05', JUNHO: '06',
+        JULHO: '07', AGOSTO: '08', SETEMBRO: '09', OUTUBRO: '10', NOVEMBRO: '11', DEZEMBRO: '12',
+    };
+
+    const transacaoInicioRe = /(PIX\s+RECEBIDO|PIX\s+ENVIADO\s+DEVOLVIDO|PIX\s+ENVIADO|TRANSFERENCIA\s+RECEBIDA|TRANSFERENCIA\s+ENVIADA|COMPRA\s+NO\s+DEBITO|COMPRA\s+SEGURO|SEGURO\s*:|RECARGA\s*:|PAGAMENTO\s+EFETUADO|ESTORNO\s*:|DEB\s+CARTAO)/i;
+    const valorRe = /[-+]?\s*(?:R\$\s*)?\d{1,3}(?:\.\d{3})*,\d{2}/g;
+
+    let dataContextual = '';
+    const vistas = new Set<string>();
+    const todos: Array<{ dataRaw: string; descricaoRaw: string; valorRaw: string }> = [];
+
+    for (const linhaOriginal of linhas) {
+        const linhaSemAcento = removerAcentos(linhaOriginal).toUpperCase();
+
+        // Atualiza data contextual a partir dos cabeçalhos de dia do Inter.
+        const mDia = linhaSemAcento.match(/^(\d{1,2})\s+DE\s+(JANEIRO|FEVEREIRO|MARCO|ABRIL|MAIO|JUNHO|JULHO|AGOSTO|SETEMBRO|OUTUBRO|NOVEMBRO|DEZEMBRO)\s+DE\s+(20\d{2})\b/);
+        if (mDia) {
+            const dia = mDia[1].padStart(2, '0');
+            const mes = mesesExtensoNum[mDia[2]];
+            const ano = mDia[3];
+            dataContextual = `${dia}/${mes}/${ano}`;
+        }
+
+        if (!dataContextual) continue;
+
+        // Remove boilerplate de rodapé/cabeçalhos sem transação.
+        if (/^(FALE\s+COM\s+A\s+GENTE|SAC\s*:|OUVIDORIA\s*:|DEFICIENCIA\s+DE\s+FALA)/.test(linhaSemAcento)) {
+            continue;
+        }
+
+        // Alguns PDFs colam rodapé + transação na mesma linha: cortamos a partir da 1a transação.
+        const idxTransacao = linhaSemAcento.search(transacaoInicioRe);
+        if (idxTransacao < 0) continue;
+        let linha = linhaOriginal.substring(idxTransacao).trim();
+        if (!linha) continue;
+
+        const valores = linha.match(valorRe);
+        if (!valores || valores.length === 0) continue;
+
+        // Valor da transação = primeiro valor; demais costumam ser saldo por transação.
+        const valorPrincipal = valores[0].replace(/\s+/g, '');
+        const posValor = linha.search(valorRe);
+        const descricao = (posValor >= 0 ? linha.substring(0, posValor) : linha)
+            .replace(/\s+/g, ' ')
+            .trim();
+        if (descricao.length < 3) continue;
+
+        const descNorm = normalizar(descricao);
+        const ehCreditoExplicito = /(PIX RECEBIDO|TRANSFERENCIA RECEBIDA|PIX ENVIADO DEVOLVIDO|ESTORNO)/.test(descNorm);
+        const ehDebitoExplicito = /(PIX ENVIADO|TRANSFERENCIA ENVIADA|COMPRA NO DEBITO|COMPRA SEGURO|SEGURO|RECARGA|PAGAMENTO EFETUADO|DEB CARTAO)/.test(descNorm);
+
+        let valorRaw = valorPrincipal.replace(/^R\$/i, '');
+        if (ehCreditoExplicito) {
+            valorRaw = valorRaw.replace(/^-/, '');
+        } else if (ehDebitoExplicito) {
+            valorRaw = '-' + valorRaw.replace(/^-/, '');
+        }
+
+        const chave = `${dataContextual}|${descricao}|${valorRaw}`;
+        if (!vistas.has(chave)) {
+            vistas.add(chave);
+            todos.push({ dataRaw: dataContextual, descricaoRaw: descricao, valorRaw });
+        }
+    }
+
+    return todos;
+}
+
 function extrair(texto: string): Array<{ dataRaw: string; descricaoRaw: string; valorRaw: string }> {
     const normalizado = texto
         .replace(/\r\n/g, '\n').replace(/\r/g, '\n')
@@ -1057,12 +1140,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const mesesReferencia = extrairMesesReferencia(textoExtrato);
 
         // ── Parsear e classificar ──────────────────────────────────────────────
-        const ehNeon = isNeonBank(textoExtrato);
-        const brutas = ehNeon ? extrairNeon(textoExtrato) : extrair(textoExtrato);
+        const ehInter = isInterBank(textoExtrato);
+        const ehNeon = !ehInter && isNeonBank(textoExtrato);
+        const brutas = ehInter ? extrairInter(textoExtrato) : (ehNeon ? extrairNeon(textoExtrato) : extrair(textoExtrato));
 
         if (brutas.length === 0) {
             const amostra = textoExtrato.slice(0, 2500).replace(/\n+/g, ' | ');
-            res.status(422).json({ erro: 'Nenhuma transação reconhecida.', debug_texto_extraido: amostra, debug_eh_neon: ehNeon });
+            res.status(422).json({ erro: 'Nenhuma transação reconhecida.', debug_texto_extraido: amostra, debug_eh_inter: ehInter, debug_eh_neon: ehNeon });
             return;
         }
 
