@@ -765,6 +765,27 @@ function extrairInter(texto: string): Array<{ dataRaw: string; descricaoRaw: str
     return todos;
 }
 
+function extrairMesesCabecalhoInter(texto: string): Set<string> {
+    const norm = removerAcentos(texto).toUpperCase();
+    const linhas = norm.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+    const meses = new Set<string>();
+    const mesesExtensoNum: Record<string, string> = {
+        JANEIRO: '01', FEVEREIRO: '02', MARCO: '03', ABRIL: '04', MAIO: '05', JUNHO: '06',
+        JULHO: '07', AGOSTO: '08', SETEMBRO: '09', OUTUBRO: '10', NOVEMBRO: '11', DEZEMBRO: '12',
+    };
+
+    const reCab = /^(\d{1,2})\s+DE\s+(JANEIRO|FEVEREIRO|MARCO|ABRIL|MAIO|JUNHO|JULHO|AGOSTO|SETEMBRO|OUTUBRO|NOVEMBRO|DEZEMBRO)\s+DE\s+(20\d{2})\b/;
+    for (const linha of linhas) {
+        if (!/SALDO\s+DO\s+DIA/.test(linha)) continue;
+        const m = linha.match(reCab);
+        if (!m) continue;
+        const mes = mesesExtensoNum[m[2]];
+        if (mes) meses.add(`${m[3]}-${mes}`);
+    }
+
+    return meses;
+}
+
 function extrair(texto: string): Array<{ dataRaw: string; descricaoRaw: string; valorRaw: string }> {
     const normalizado = texto
         .replace(/\r\n/g, '\n').replace(/\r/g, '\n')
@@ -1254,6 +1275,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             if (ehInter) {
                 const refOrdenada = Array.from(mesesReferencia).sort();
                 const detOrdenada = Array.from(mesesDetectados).sort();
+                const cabOrdenada = Array.from(extrairMesesCabecalhoInter(textoExtrato)).sort();
+
+                // Extratos Inter de 6 meses (PDF dividido) devem respeitar exatamente
+                // os meses do cabeçalho "Saldo do dia" e não inflar para 12.
+                if (cabOrdenada.length >= 5 && cabOrdenada.length <= 8) {
+                    return cabOrdenada;
+                }
 
                 // Quando o "Período" do Inter é reconhecido como janela semestral,
                 // respeitamos essa janela exatamente para não inflar para 12 meses.
