@@ -229,7 +229,9 @@ const MERCADO_PAGO_KEYWORDS_CREDITO_NORM = [
     'DINHEIRO RECEBIDO',
     'PAGAMENTO RECEBIDO',
     'PIX RECEBIDO',
+    'PIX RECEBIDA',
     'TRANSFERENCIA RECEBIDA',
+    'TRANSFERENCIA PIX RECEBIDA',
     'TRANSFERENCIA RECEBIDA VIA PIX',
     'RECEBIMENTO',
     'REEMBOLSO RECEBIDO',
@@ -466,8 +468,11 @@ function classificar(
 
     // Proteção: renda laboral comprovada → pula verificação de nome/CPF
     const ehRendaLaboral = INCOME_KEYWORDS_NOMES_NORM.some(k => k && descNorm.includes(k));
+    const pularAutoTransferMercadoPago =
+        bankDetected === 'mercadopago' &&
+        /TRANSFERENCIA\s+PIX\s+RECEBIDA|DINHEIRO\s+RECEBIDO|PAGAMENTO\s+RECEBIDO|QR\s+RECEBIDO/.test(descNorm);
 
-    if (!ehRendaLaboral) {
+    if (!ehRendaLaboral && !pularAutoTransferMercadoPago) {
         // 4. Autotransferência (match forte cliente)
         const matchCliente = calcularMatch(ctx.nomeCliente, descricaoRaw, ctx.cpf);
         if (matchCliente === 'forte' || ehAutotransferenciaProvavelPorNome(ctx.nomeCliente, descNorm)) {
