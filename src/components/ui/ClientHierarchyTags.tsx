@@ -30,6 +30,13 @@ export function ClientHierarchyTags({
   const ownerProfile = ownerId ? allProfiles.find(p => p.id === ownerId) : null;
   const isUuid = (value?: string | null) =>
     !!value && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+  const sanitizeLabel = (value?: string | null) => {
+    const normalized = String(value || '').trim();
+    if (!normalized) return null;
+    if (normalized === '-' || normalized === '—') return null;
+    if (normalized.toLowerCase() === 'n/a') return null;
+    return normalized;
+  };
 
   const rawTeamRef = ownerProfile?.team_id || ownerProfile?.team || null;
 
@@ -52,9 +59,22 @@ export function ClientHierarchyTags({
       ? teams.find(t => t.name.trim().toLowerCase() === legacyNameSource.trim().toLowerCase()) ?? null
       : null;
 
-    // Prioriza team_id (fonte oficial), depois membership (estado atual),
-    // e por ultimo compatibilidade com dado legado em profile.team por nome.
-    return directById ?? byMembership ?? byLegacyName;
+    const byManagerAndDirectorate = (() => {
+      const managerId = ownerProfile.manager_id || null;
+      const directorateId = ownerProfile.directorate_id || null;
+      if (!managerId && !directorateId) return null;
+
+      const candidates = teams.filter((t) => {
+        const managerMatches = managerId ? t.manager_id === managerId : true;
+        const directorateMatches = directorateId ? t.directorate_id === directorateId : true;
+        return managerMatches && directorateMatches;
+      });
+
+      return candidates.length === 1 ? candidates[0] : null;
+    })();
+
+    // Prioridade: FK oficial -> membership -> legado por nome -> inferencia unica por gestor/diretoria.
+    return directById ?? byMembership ?? byLegacyName ?? byManagerAndDirectorate;
   })();
 
   const explicitCoordinator = ownerProfile?.coordinator_id
@@ -76,16 +96,16 @@ export function ClientHierarchyTags({
 
   const coordProfile = explicitCoordinator ?? fallbackCoordinator;
 
-  const teamName = resolvedTeam?.name ?? null;
+  const teamName = sanitizeLabel(resolvedTeam?.name ?? null);
   const resolvedDirectorateId = resolvedTeam?.directorate_id || ownerProfile?.directorate_id || null;
   const directorateName = resolvedDirectorateId
     ? directorates?.find(d => d.id === resolvedDirectorateId)?.name ?? null
     : null;
 
-  const ownerName = ownerProfile?.name ?? resolved?.ownerName ?? null;
-  const coordinatorName = coordProfile?.name ?? resolved?.coordinatorName ?? null;
-  const finalTeamName = teamName ?? resolved?.teamName ?? null;
-  const finalDirectorateName = directorateName ?? resolved?.directorateName ?? null;
+  const ownerName = sanitizeLabel(ownerProfile?.name ?? resolved?.ownerName ?? null);
+  const coordinatorName = sanitizeLabel(coordProfile?.name ?? resolved?.coordinatorName ?? null);
+  const finalTeamName = teamName ?? sanitizeLabel(resolved?.teamName ?? null);
+  const finalDirectorateName = sanitizeLabel(directorateName ?? resolved?.directorateName ?? null);
 
   if (!ownerName && !coordinatorName && !finalTeamName && !finalDirectorateName) return null;
 
