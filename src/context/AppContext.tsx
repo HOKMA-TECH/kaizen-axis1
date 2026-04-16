@@ -470,8 +470,41 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             }
           };
 
+          const cleanupDuplicatedMemberships = async (targetTeamId: string | null) => {
+            const { data: teamRows, error: teamRowsError } = await supabase
+              .from('teams')
+              .select('id, members');
+
+            if (teamRowsError) {
+              console.warn('Nao foi possivel validar membros duplicados em equipes:', teamRowsError.message);
+              return;
+            }
+
+            for (const row of (teamRows || []) as Array<any>) {
+              const teamId = row?.id as string | undefined;
+              if (!teamId || teamId === targetTeamId) continue;
+
+              const members: string[] = Array.isArray(row?.members)
+                ? row.members.filter((member: any) => typeof member === 'string')
+                : [];
+
+              if (!members.includes(id)) continue;
+
+              const nextMembers = members.filter(memberId => memberId !== id);
+              const { error: removeError } = await supabase
+                .from('teams')
+                .update({ members: nextMembers })
+                .eq('id', teamId);
+
+              if (removeError) {
+                console.warn(`Nao foi possivel remover usuario da equipe antiga ${teamId}:`, removeError.message);
+              }
+            }
+          };
+
           await syncTeamMember(previousTeamId, false);
           await syncTeamMember(nextTeamId, true);
+          await cleanupDuplicatedMemberships(nextTeamId);
         }
 
         if (touchesDirectorate && previousDirectorateId !== nextDirectorateId) {

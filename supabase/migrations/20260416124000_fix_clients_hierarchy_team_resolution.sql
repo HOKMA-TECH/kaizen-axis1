@@ -23,21 +23,26 @@ AS $$
   LEFT JOIN LATERAL (
     SELECT t.name
     FROM public.teams t
-    WHERE (
-      c.owner_id IS NOT NULL
-      AND COALESCE(t.members, '[]'::jsonb) ? c.owner_id::text
-    )
-    OR t.id = owner_p.team_id
+    WHERE t.id = owner_p.team_id
     OR t.id = CASE
       WHEN owner_p.team ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
         THEN owner_p.team::uuid
       ELSE NULL
     END
+    OR (
+      c.owner_id IS NOT NULL
+      AND COALESCE(t.members, '[]'::jsonb) ? c.owner_id::text
+    )
     ORDER BY
       CASE
-        WHEN c.owner_id IS NOT NULL AND COALESCE(t.members, '[]'::jsonb) ? c.owner_id::text THEN 0
-        WHEN t.id = owner_p.team_id THEN 1
-        ELSE 2
+        WHEN t.id = owner_p.team_id THEN 0
+        WHEN t.id = CASE
+          WHEN owner_p.team ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
+            THEN owner_p.team::uuid
+          ELSE NULL
+        END THEN 1
+        WHEN c.owner_id IS NOT NULL AND COALESCE(t.members, '[]'::jsonb) ? c.owner_id::text THEN 2
+        ELSE 3
       END,
       t.name ASC
     LIMIT 1

@@ -45,9 +45,9 @@ export function ClientHierarchyTags({
       ? teams.find(t => Array.isArray(t.members) && t.members.includes(ownerId)) ?? null
       : null;
 
-    // Prefer membership because it reflects the latest team assignment
-    // even when legacy profile fields are temporarily inconsistent.
-    return byMembership?.name ?? directById?.name ?? directByLegacy?.name ?? null;
+    // team_id/team no profile sao a fonte principal para evitar mostrar
+    // equipe antiga caso o usuario ainda esteja em members legado.
+    return directById?.name ?? directByLegacy?.name ?? byMembership?.name ?? null;
   };
 
   const teamName = resolveTeamName();
