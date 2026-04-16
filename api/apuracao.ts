@@ -715,8 +715,9 @@ function isMercadoPagoBank(texto: string): boolean {
 
     const temMarcaMercadoPago = /MERCADO\s+PAGO|MERCADOPAGO|MERCADO\s*LIVRE\s+PAGOS/.test(cabecalho);
     const temContextoExtrato = /EXTRATO|ATIVIDADE|MOVIMENTACAO|MOVIMENTACOES|DINHEIRO\s+EM\s+CONTA|DINHEIRO\s+RECEBIDO/.test(norm);
+    const temPadraoForteMercadoPago = /DINHEIRO\s+RECEBIDO|SEU\s+DINHEIRO\s+RENDEU|PAGAMENTO\s+RECEBIDO|QR\s+RECEBIDO/.test(norm);
 
-    return temMarcaMercadoPago && temContextoExtrato;
+    return (temMarcaMercadoPago && temContextoExtrato) || (temMarcaMercadoPago && temPadraoForteMercadoPago);
 }
 
 function extrairMercadoPago(texto: string): Array<{ dataRaw: string; descricaoRaw: string; valorRaw: string }> {
@@ -744,12 +745,30 @@ function extrairMercadoPago(texto: string): Array<{ dataRaw: string; descricaoRa
     const dataNoInicioRe = /^(\d{2}\/\d{2}(?:\/\d{2,4})?)\s+(.+)$/;
     const linhaCompletaRe = /^(\d{2}\/\d{2}(?:\/\d{2,4})?)\s+(.+?)\s+([+-]?\s*(?:R\$\s*)?\d{1,3}(?:\.\d{3})*,\d{2})$/i;
     const valorInlineRe = /([+-]?\s*(?:R\$\s*)?\d{1,3}(?:\.\d{3})*,\d{2})(?!.*\d{1,3}(?:\.\d{3})*,\d{2})/i;
+    const dataPtBrExtensoRe = /(\d{1,2})\s+(?:DE\s+)?(JAN(?:EIRO)?|FEV(?:EREIRO)?|MAR(?:CO)?|ABR(?:IL)?|MAI(?:O)?|JUN(?:HO)?|JUL(?:HO)?|AGO(?:STO)?|SET(?:EMBRO)?|OUT(?:UBRO)?|NOV(?:EMBRO)?|DEZ(?:EMBRO)?)(?:\s+(?:DE\s+)?)?(20\d{2})?/i;
+
+    const MESES_MP: Record<string, string> = {
+        JAN: '01', FEV: '02', MAR: '03', ABR: '04', MAI: '05', JUN: '06',
+        JUL: '07', AGO: '08', SET: '09', OUT: '10', NOV: '11', DEZ: '12',
+    };
 
     const withContextYear = (raw: string): string => {
         const m = raw.match(/^(\d{2})\/(\d{2})(?:\/(\d{2,4}))?$/);
         if (!m) return raw;
         const dia = m[1];
         const mes = m[2];
+        let ano = m[3] || anoContextual;
+        if (ano.length === 2) ano = `20${ano}`;
+        return `${dia}/${mes}/${ano}`;
+    };
+
+    const parseDataExtenso = (raw: string): string | null => {
+        const m = removerAcentos(raw).toUpperCase().match(dataPtBrExtensoRe);
+        if (!m) return null;
+        const dia = String(parseInt(m[1], 10)).padStart(2, '0');
+        const mesKey = m[2].substring(0, 3);
+        const mes = MESES_MP[mesKey];
+        if (!mes) return null;
         let ano = m[3] || anoContextual;
         if (ano.length === 2) ano = `20${ano}`;
         return `${dia}/${mes}/${ano}`;
@@ -765,6 +784,14 @@ function extrairMercadoPago(texto: string): Array<{ dataRaw: string; descricaoRa
         const mDataApenas = linha.match(dataApenasRe);
         if (mDataApenas) {
             dataContextual = withContextYear(linha);
+            const ano = dataContextual.split('/')[2];
+            if (ano) anoContextual = ano;
+            continue;
+        }
+
+        const dataExtenso = parseDataExtenso(linha);
+        if (dataExtenso && linha.trim().length <= 28) {
+            dataContextual = dataExtenso;
             const ano = dataContextual.split('/')[2];
             if (ano) anoContextual = ano;
             continue;
@@ -817,6 +844,35 @@ function extrairMercadoPago(texto: string): Array<{ dataRaw: string; descricaoRa
                 todos.push({ dataRaw: dataContextual, descricaoRaw, valorRaw });
             }
             continue;
+        }
+
+        // Padrão comum de OCR no Mercado Pago:
+        // linha A: "12/03" (ou "12 MAR 2025")
+        // linha B: "Dinheiro recebido"
+        // linha C: "R$ 1.250,00"
+        const dataLinhaAtual = parseDataExtenso(linha) || (linha.match(dataApenasRe) ? withContextYear(linha) : '');
+        if (dataLinhaAtual) {
+            const prox1 = linhas[i + 1] || '';
+            const prox2 = linhas[i + 2] || '';
+            const val1 = prox1.match(valorInlineRe);
+            const val2 = prox2.match(valorInlineRe);
+            const valorEscolhido = val1 ? val1[1] : (val2 ? val2[1] : '');
+            const descEscolhida = val1 ? prox2 : prox1;
+
+            if (valorEscolhido && descEscolhida && descEscolhida.length >= 3) {
+                let valorRaw = valorEscolhido.replace(/\s+/g, '');
+                const descricaoRaw = descEscolhida.replace(/\s+/g, ' ').trim();
+                const descNorm = normalizar(descricaoRaw);
+                if (!valorRaw.startsWith('-') && isDebitoMercadoPago(descNorm)) {
+                    valorRaw = `-${valorRaw}`;
+                }
+
+                const chave = `${dataLinhaAtual}|${descricaoRaw}|${valorRaw}`;
+                if (!vistas.has(chave)) {
+                    vistas.add(chave);
+                    todos.push({ dataRaw: dataLinhaAtual, descricaoRaw, valorRaw });
+                }
+            }
         }
 
         if (!dataContextual) continue;
@@ -1524,16 +1580,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const bankDetected: BancoDetectado = ehMercadoPago
             ? 'mercadopago'
             : (ehNubank ? 'nubank' : (ehInter ? 'inter' : (ehNeon ? 'neon' : (isBradescoExtrato ? 'bradesco' : 'generic'))));
-        const brutas = ehMercadoPago
+        let brutas = ehMercadoPago
             ? extrairMercadoPago(textoExtrato)
             : (ehNubank
                 ? extrairNubank(textoExtrato)
                 : (ehInter ? extrairInter(textoExtrato) : (ehNeon ? extrairNeon(textoExtrato) : extrair(textoExtrato))));
 
+        if (ehMercadoPago && brutas.length === 0) {
+            // fallback de segurança: alguns PDFs do Mercado Pago chegam com OCR irregular
+            // e podem aderir melhor ao parser genérico.
+            brutas = extrair(textoExtrato);
+        }
+
         if (brutas.length === 0) {
             const amostra = textoExtrato.slice(0, 2500).replace(/\n+/g, ' | ');
             res.status(422).json({
                 erro: 'Nenhuma transação reconhecida.',
+                bankDetected,
                 debug_texto_extraido: amostra,
                 debug_eh_mercadopago: ehMercadoPago,
                 debug_eh_nubank: ehNubank,
