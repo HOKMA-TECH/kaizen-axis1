@@ -670,11 +670,114 @@ function extrairNeon(texto: string): Array<{ dataRaw: string; descricaoRaw: stri
     return todos;
 }
 
+function isNubankBank(texto: string): boolean {
+    const norm = removerAcentos(texto)
+        .replace(/[\x00-\x1F]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .toUpperCase();
+    const cabecalho = norm.substring(0, 12000);
+
+    const temNuPagamentos = /NU\s*PAGAMENTOS\s*-\s*IP\s*\(0260\)/.test(norm);
+    const temOuvidoriaNubank = /NUBANK\.COM\.BR\/CONTATOS#OUVIDORIA/.test(norm) || /EXTRATO\s+GERADO\s+DIA/.test(norm);
+    const temPadraoLinhaNubank = /TRANSFERENCIA\s+RECEBIDA|TRANSFERENCIA\s+ENVIADA\s+PELO\s+PIX|MOVIMENTACOES\s+\d{2}\s+(JAN|FEV|MAR|ABR|MAI|JUN|JUL|AGO|SET|OUT|NOV|DEZ)/.test(norm);
+
+    return (temNuPagamentos && temPadraoLinhaNubank)
+        || (temOuvidoriaNubank && temPadraoLinhaNubank)
+        || (/\bNUBANK\b/.test(cabecalho) && temPadraoLinhaNubank);
+}
+
+function extrairNubank(texto: string): Array<{ dataRaw: string; descricaoRaw: string; valorRaw: string }> {
+    const linhas = texto
+        .replace(/\r\n/g, '\n')
+        .replace(/\r/g, '\n')
+        .replace(/[\x00-\x09\x0B-\x1F]/g, ' ')
+        .split(/[\n|]/)
+        .map((l) => l.replace(/\s+/g, ' ').trim())
+        .filter(Boolean);
+
+    const mesesAbrev: Record<string, string> = {
+        JAN: '01', FEV: '02', MAR: '03', ABR: '04', MAI: '05', JUN: '06',
+        JUL: '07', AGO: '08', SET: '09', OUT: '10', NOV: '11', DEZ: '12',
+    };
+
+    const dateRe = /(\d{2})\s+(JAN|FEV|MAR|ABR|MAI|JUN|JUL|AGO|SET|OUT|NOV|DEZ)\s+(20\d{2})/i;
+    const valorRe = /^([+-]?\s*(?:R\$\s*)?\d{1,3}(?:\.\d{3})*,\d{2})$/i;
+    const totalResumoRe = /\bTOTAL\s+DE\s+(ENTRADAS|SAIDAS)\b/i;
+    const inicioTransacaoRe = /(TRANSFERENCIA\s+RECEBIDA|TRANSFERENCIA\s+ENVIADA\s+PELO\s+PIX|TRANSFERENCIA\s+ENVIADA|PIX\s+RECEBIDO|PIX\s+ENVIADO|COMPRA\s+NO\s+DEBITO|PAGAMENTO\b)/i;
+
+    let dataContextual = '';
+    const vistas = new Set<string>();
+    const todos: Array<{ dataRaw: string; descricaoRaw: string; valorRaw: string }> = [];
+
+    for (let i = 0; i < linhas.length; i++) {
+        const linha = linhas[i];
+        const linhaNorm = normalizar(linha);
+
+        const md = linhaNorm.match(dateRe);
+        if (md) {
+            const dia = md[1];
+            const mes = mesesAbrev[md[2].toUpperCase()];
+            const ano = md[3];
+            if (mes) dataContextual = `${dia}/${mes}/${ano}`;
+        }
+
+        if (!dataContextual) continue;
+        if (totalResumoRe.test(linhaNorm)) continue;
+        const mIni = linhaNorm.match(inicioTransacaoRe);
+        if (!mIni) continue;
+
+        let descricao = linha;
+        const key = mIni[1];
+        const linhaBusca = removerAcentos(linha).toUpperCase();
+        const idxReal = linhaBusca.indexOf(key);
+        if (idxReal >= 0) descricao = linha.substring(idxReal).trim();
+        if (/RECEBIDA[A-Z]/i.test(descricao)) {
+            descricao = descricao.replace(/RECEBIDA(?=[A-Z])/i, 'RECEBIDA ');
+        }
+        if (/PIX[A-Z]/i.test(descricao)) {
+            descricao = descricao.replace(/PIX(?=[A-Z])/i, 'PIX ');
+        }
+
+        let valorRaw = '';
+        for (let j = i + 1; j < Math.min(i + 8, linhas.length); j++) {
+            const cand = linhas[j];
+            if (dateRe.test(normalizar(cand))) break;
+            if (totalResumoRe.test(normalizar(cand))) break;
+            const mv = cand.match(valorRe);
+            if (mv) {
+                valorRaw = mv[1].replace(/\s+/g, '');
+                i = j;
+                break;
+            }
+            if (cand.length > 2 && !/AGENCIA|CONTA|NU PAGAMENTOS|BANCO|BCO/i.test(cand)) {
+                descricao = `${descricao} ${cand}`.replace(/\s+/g, ' ').trim();
+            }
+        }
+
+        if (!valorRaw) continue;
+
+        const descNorm = normalizar(descricao);
+        const entradaExplicita = /TRANSFERENCIA RECEBIDA|PIX RECEBIDO/.test(descNorm);
+        const saidaExplicita = /TRANSFERENCIA ENVIADA|PIX ENVIADO|COMPRA NO DEBITO|PAGAMENTO/.test(descNorm);
+
+        if (entradaExplicita) valorRaw = valorRaw.replace(/^-/, '');
+        if (saidaExplicita) valorRaw = '-' + valorRaw.replace(/^-/, '');
+
+        const chave = `${dataContextual}|${descricao}|${valorRaw}`;
+        if (!vistas.has(chave)) {
+            vistas.add(chave);
+            todos.push({ dataRaw: dataContextual, descricaoRaw: descricao, valorRaw });
+        }
+    }
+
+    return todos;
+}
+
 function isInterBank(texto: string): boolean {
     const norm = removerAcentos(texto).toUpperCase();
     const cabecalho = norm.substring(0, 20000);
 
-    if (/BANCO\s+INTER/.test(cabecalho)) return true;
+    if (/BANCO\s+INTER/.test(cabecalho) && /SALDO\s+DO\s+DIA|SALDO\s+POR\s+TRANSACAO|PIX\s+RECEBIDO\s*:\s*"/.test(norm)) return true;
 
     // Heurísticas estruturais do extrato Inter (inclusive PDFs divididos sem capa).
     const temPeriodoInter = /PERIODO\s*:\s*\d{2}\/\d{2}\/\d{4}\s*A\s*\d{2}\/\d{2}\/\d{4}/.test(cabecalho);
@@ -784,6 +887,14 @@ function extrairMesesCabecalhoInter(texto: string): Set<string> {
     }
 
     return meses;
+}
+
+function isBradescoBank(texto: string): boolean {
+    const norm = removerAcentos(texto).toUpperCase();
+    const cab = norm.substring(0, 8000);
+    const temMarcaBradesco = /BANCO\s+BRADESCO|EXTRATO\s+BRADESCO|BRADESCO\s+S\.?A\.?/.test(cab);
+    const temEstruturaConta = /AGENCIA|CONTA|SALDO\s+(ANTERIOR|DO\s+DIA|FINAL)/.test(cab);
+    return temMarcaBradesco && temEstruturaConta;
 }
 
 function extrair(texto: string): Array<{ dataRaw: string; descricaoRaw: string; valorRaw: string }> {
@@ -1190,17 +1301,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             nomeCliente: nomeCliente.trim(),
             cpf: cpf?.trim(),
         };
-        const isBradescoExtrato = /bradesco/i.test(textoExtrato.substring(0, 6000));
         const mesesReferencia = extrairMesesReferencia(textoExtrato);
 
         // ── Parsear e classificar ──────────────────────────────────────────────
-        const ehInter = isInterBank(textoExtrato);
-        const ehNeon = !ehInter && isNeonBank(textoExtrato);
-        const brutas = ehInter ? extrairInter(textoExtrato) : (ehNeon ? extrairNeon(textoExtrato) : extrair(textoExtrato));
+        const ehNubank = isNubankBank(textoExtrato);
+        const ehInter = !ehNubank && isInterBank(textoExtrato);
+        const ehNeon = !ehNubank && !ehInter && isNeonBank(textoExtrato);
+        const isBradescoExtrato = !ehNubank && !ehInter && !ehNeon && isBradescoBank(textoExtrato);
+        const brutas = ehNubank
+            ? extrairNubank(textoExtrato)
+            : (ehInter ? extrairInter(textoExtrato) : (ehNeon ? extrairNeon(textoExtrato) : extrair(textoExtrato)));
 
         if (brutas.length === 0) {
             const amostra = textoExtrato.slice(0, 2500).replace(/\n+/g, ' | ');
-            res.status(422).json({ erro: 'Nenhuma transação reconhecida.', debug_texto_extraido: amostra, debug_eh_inter: ehInter, debug_eh_neon: ehNeon });
+            res.status(422).json({ erro: 'Nenhuma transação reconhecida.', debug_texto_extraido: amostra, debug_eh_nubank: ehNubank, debug_eh_inter: ehInter, debug_eh_neon: ehNeon });
             return;
         }
 
