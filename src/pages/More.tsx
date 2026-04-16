@@ -20,6 +20,7 @@ export default function More() {
   const navigate = useNavigate();
   const { isAdmin, isManager, isCoordinator, isDirector } = useAuthorization();
   const isAdminOrDirector = isAdmin || isDirector;
+  const canAccessIncome = isAdmin;
 
   return (
     <div className="p-6 pb-24 min-h-screen bg-surface-50">
@@ -69,24 +70,41 @@ export default function More() {
         {menuItems
           .filter(item => {
             const leadershipOnly = !isAdmin && !isDirector && !isManager && !isCoordinator;
-            if (item.path === '/income' && leadershipOnly) return false;
             if (item.path === '/amortization' && leadershipOnly) return false;
             return true;
           })
-          .map((item) => (
-            <Link key={item.path} to={item.path}>
-              <PremiumCard className="flex items-center gap-4 hover:bg-surface-50 dark:hover:bg-surface-100/10 transition-colors py-4">
-                <div className="w-10 h-10 rounded-full bg-surface-100 flex items-center justify-center text-text-secondary">
-                  <item.icon size={20} />
-                </div>
-                <div className="flex-1">
-                  <h4 className="font-semibold text-text-primary">{item.label}</h4>
-                  <p className="text-xs text-text-secondary">{item.desc}</p>
-                </div>
-                <ChevronRight size={18} className="text-surface-300" />
-              </PremiumCard>
-            </Link>
-          ))}
+          .map((item) => {
+            const incomeLocked = item.path === '/income' && !canAccessIncome;
+
+            if (incomeLocked) {
+              return (
+                <PremiumCard key={item.path} className="flex items-center gap-4 py-4 bg-surface-100/70 border border-surface-200 cursor-not-allowed">
+                  <div className="w-10 h-10 rounded-full bg-surface-200 flex items-center justify-center text-text-secondary">
+                    <Lock size={18} />
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="font-semibold text-text-primary">{item.label}</h4>
+                    <p className="text-xs text-text-secondary">Temporariamente disponível apenas para administrador</p>
+                  </div>
+                </PremiumCard>
+              );
+            }
+
+            return (
+              <Link key={item.path} to={item.path}>
+                <PremiumCard className="flex items-center gap-4 hover:bg-surface-50 dark:hover:bg-surface-100/10 transition-colors py-4">
+                  <div className="w-10 h-10 rounded-full bg-surface-100 flex items-center justify-center text-text-secondary">
+                    <item.icon size={20} />
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="font-semibold text-text-primary">{item.label}</h4>
+                    <p className="text-xs text-text-secondary">{item.desc}</p>
+                  </div>
+                  <ChevronRight size={18} className="text-surface-300" />
+                </PremiumCard>
+              </Link>
+            );
+          })}
       </div>
     </div>
   );

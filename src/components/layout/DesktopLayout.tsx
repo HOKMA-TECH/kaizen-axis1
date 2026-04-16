@@ -20,6 +20,7 @@ interface NavItem {
   path: string;
   leadershipOnly?: boolean;
   adminOnly?: boolean;
+  locked?: boolean;
 }
 
 const NAV_CORE: NavItem[] = [
@@ -56,6 +57,16 @@ function SideNavLink({ item, unreadCount = 0 }: { item: NavItem; unreadCount?: n
   const isActive = item.path === '/'
     ? location.pathname === '/'
     : location.pathname.startsWith(item.path);
+
+  if (item.locked) {
+    return (
+      <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-text-secondary/70 bg-surface-100/60 cursor-not-allowed">
+        <item.icon size={18} strokeWidth={2} />
+        <span>{item.label}</span>
+        <Lock size={14} className="ml-auto text-text-secondary/70" />
+      </div>
+    );
+  }
 
   return (
     <NavLink
@@ -108,7 +119,17 @@ function Sidebar() {
     if (item.path === '/checkin/display') return canAccessCheckInDisplay;
     return (!item.leadershipOnly || isLeadership) && (!item.adminOnly || isAdminOrDirector);
   });
-  const filteredReports = NAV_REPORTS.filter(item => !item.leadershipOnly || isLeadership);
+  const filteredReports = NAV_REPORTS
+    .filter(item => {
+      if (item.path === '/income') return true;
+      return !item.leadershipOnly || isLeadership;
+    })
+    .map(item => {
+      if (item.path === '/income' && !isAdmin) {
+        return { ...item, locked: true };
+      }
+      return item;
+    });
   const filteredAdmin = NAV_ADMIN.filter(item => !item.adminOnly || isAdminOrDirector);
 
   const allGroups = [
