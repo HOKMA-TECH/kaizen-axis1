@@ -48,6 +48,8 @@ interface ContextoNomes {
     cpf?: string;
 }
 
+type BancoDetectado = 'generic' | 'nubank' | 'inter' | 'neon' | 'bradesco' | 'mercadopago';
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // UTILS — MOEDA
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -223,6 +225,38 @@ const KEYWORDS_CREDITO_NORM = Array.from(new Set(KEYWORDS_CREDITO.map(normalizar
 const KEYWORDS_IGNORAR_NORM = Array.from(new Set(KEYWORDS_IGNORAR.map(normalizar)));
 const INCOME_KEYWORDS_NOMES_NORM = Array.from(new Set([...INCOME_KEYWORDS_NOMES].map(normalizar)));
 
+const MERCADO_PAGO_KEYWORDS_CREDITO_NORM = [
+    'DINHEIRO RECEBIDO',
+    'PAGAMENTO RECEBIDO',
+    'PIX RECEBIDO',
+    'TRANSFERENCIA RECEBIDA',
+    'TRANSFERENCIA RECEBIDA VIA PIX',
+    'RECEBIMENTO',
+    'REEMBOLSO RECEBIDO',
+    'ESTORNO RECEBIDO',
+    'VENDA',
+    'QR RECEBIDO',
+].map(normalizar);
+
+const MERCADO_PAGO_KEYWORDS_IGNORAR_NORM = [
+    'SEU DINHEIRO RENDEU',
+    'RENDIMENTO',
+    'RENDIMENTOS',
+    'RESGATE',
+    'INVESTIMENTO',
+    'APLICACAO',
+    'PAGAMENTO APROVADO',
+    'PAGAMENTO ENVIADO',
+].map(normalizar);
+
+function isMercadoPagoCredito(descNorm: string): boolean {
+    return MERCADO_PAGO_KEYWORDS_CREDITO_NORM.some(k => k && descNorm.includes(k));
+}
+
+function isMercadoPagoIgnorar(descNorm: string): boolean {
+    return MERCADO_PAGO_KEYWORDS_IGNORAR_NORM.some(k => k && descNorm.includes(k));
+}
+
 const DESC_GENERICAS_SEM_ORIGEM = [
     /^PIX$/, /^(?:\d{1,2}\s+\d{2}\s+)?PIX RECEBIDO(?:\s+\d+)?$/, /^RECEBIMENTO(?: DE)? PIX$/, /^TRANSFERENCIA PIX RECEBIDA$/,
     /^MOVIMENTACAO PIX RECEBIDO$/,
@@ -368,7 +402,8 @@ function classificar(
     dataRaw: string,
     descricaoRaw: string,
     valorRaw: string,
-    ctx: ContextoNomes
+    ctx: ContextoNomes,
+    bankDetected: BancoDetectado = 'generic'
 ): Transacao {
     const { data, mes } = normalizarData(dataRaw);
     const valor = parseMoeda(valorRaw);
@@ -398,7 +433,9 @@ function classificar(
     }
 
     // 2b. Estorno + v3: RENDIMENTO contextual
-    const temIgnorar = KEYWORDS_IGNORAR_NORM.some(k => k && descNorm.includes(k));
+    const temIgnorar = bankDetected === 'mercadopago'
+        ? isMercadoPagoIgnorar(descNorm)
+        : KEYWORDS_IGNORAR_NORM.some(k => k && descNorm.includes(k));
     const temRendimento = deveIgnorarRendimento(descNorm);
     if (temIgnorar || temRendimento) {
         return { ...base, classificacao: 'ignorar_estorno', motivoExclusao: 'Estorno/investimento', is_validated: false, custom_tag: null };
@@ -420,7 +457,9 @@ function classificar(
     }
 
     // 3. Sem keyword de crédito
-    const temCredito = KEYWORDS_CREDITO_NORM.some(k => k && descNorm.includes(k));
+    const temCredito = bankDetected === 'mercadopago'
+        ? isMercadoPagoCredito(descNorm)
+        : KEYWORDS_CREDITO_NORM.some(k => k && descNorm.includes(k));
     if (!temCredito) {
         return { ...base, classificacao: 'ignorar_sem_keyword', motivoExclusao: 'Sem keyword de crédito', is_validated: false, custom_tag: null };
     }
@@ -667,6 +706,140 @@ function extrairNeon(texto: string): Array<{ dataRaw: string; descricaoRaw: stri
             todos.push({ dataRaw, descricaoRaw: desc, valorRaw });
         }
     }
+    return todos;
+}
+
+function isMercadoPagoBank(texto: string): boolean {
+    const norm = removerAcentos(texto).toUpperCase();
+    const cabecalho = norm.substring(0, 12000);
+
+    const temMarcaMercadoPago = /MERCADO\s+PAGO|MERCADOPAGO|MERCADO\s*LIVRE\s+PAGOS/.test(cabecalho);
+    const temContextoExtrato = /EXTRATO|ATIVIDADE|MOVIMENTACAO|MOVIMENTACOES|DINHEIRO\s+EM\s+CONTA|DINHEIRO\s+RECEBIDO/.test(norm);
+
+    return temMarcaMercadoPago && temContextoExtrato;
+}
+
+function extrairMercadoPago(texto: string): Array<{ dataRaw: string; descricaoRaw: string; valorRaw: string }> {
+    const linhas = texto
+        .replace(/\r\n/g, '\n')
+        .replace(/\r/g, '\n')
+        .replace(/[\x00-\x08\x0B-\x1F]/g, ' ')
+        .split(/[\n|]/)
+        .map((l) => l.replace(/\s+/g, ' ').trim())
+        .filter(Boolean);
+
+    const vistas = new Set<string>();
+    const todos: Array<{ dataRaw: string; descricaoRaw: string; valorRaw: string }> = [];
+
+    const anoFromPeriodo = (() => {
+        const periodo = removerAcentos(texto).toUpperCase().match(/\b(20\d{2})\b/g);
+        if (!periodo || periodo.length === 0) return String(new Date().getFullYear());
+        return periodo[periodo.length - 1];
+    })();
+
+    let anoContextual = anoFromPeriodo;
+    let dataContextual = '';
+
+    const dataApenasRe = /^(\d{2})\/(\d{2})(?:\/(\d{2,4}))?$/;
+    const dataNoInicioRe = /^(\d{2}\/\d{2}(?:\/\d{2,4})?)\s+(.+)$/;
+    const linhaCompletaRe = /^(\d{2}\/\d{2}(?:\/\d{2,4})?)\s+(.+?)\s+([+-]?\s*(?:R\$\s*)?\d{1,3}(?:\.\d{3})*,\d{2})$/i;
+    const valorInlineRe = /([+-]?\s*(?:R\$\s*)?\d{1,3}(?:\.\d{3})*,\d{2})(?!.*\d{1,3}(?:\.\d{3})*,\d{2})/i;
+
+    const withContextYear = (raw: string): string => {
+        const m = raw.match(/^(\d{2})\/(\d{2})(?:\/(\d{2,4}))?$/);
+        if (!m) return raw;
+        const dia = m[1];
+        const mes = m[2];
+        let ano = m[3] || anoContextual;
+        if (ano.length === 2) ano = `20${ano}`;
+        return `${dia}/${mes}/${ano}`;
+    };
+
+    const isDebitoMercadoPago = (descNorm: string): boolean => {
+        return /PAGAMENTO\s+ENVIADO|TRANSFERENCIA\s+ENVIADA|PIX\s+ENVIADO|COMPRA|SAQUE|RETIRADA/.test(descNorm);
+    };
+
+    for (let i = 0; i < linhas.length; i++) {
+        const linha = linhas[i];
+
+        const mDataApenas = linha.match(dataApenasRe);
+        if (mDataApenas) {
+            dataContextual = withContextYear(linha);
+            const ano = dataContextual.split('/')[2];
+            if (ano) anoContextual = ano;
+            continue;
+        }
+
+        const mLinhaCompleta = linha.match(linhaCompletaRe);
+        if (mLinhaCompleta) {
+            const dataRaw = withContextYear(mLinhaCompleta[1]);
+            const descricaoRaw = mLinhaCompleta[2].trim();
+            let valorRaw = mLinhaCompleta[3].replace(/\s+/g, '');
+
+            const ano = dataRaw.split('/')[2];
+            if (ano) anoContextual = ano;
+
+            const descNorm = normalizar(descricaoRaw);
+            if (!valorRaw.startsWith('-') && isDebitoMercadoPago(descNorm)) {
+                valorRaw = `-${valorRaw}`;
+            }
+
+            const chave = `${dataRaw}|${descricaoRaw}|${valorRaw}`;
+            if (!vistas.has(chave)) {
+                vistas.add(chave);
+                todos.push({ dataRaw, descricaoRaw, valorRaw });
+            }
+            continue;
+        }
+
+        const mDataInicio = linha.match(dataNoInicioRe);
+        if (mDataInicio) {
+            dataContextual = withContextYear(mDataInicio[1]);
+            const ano = dataContextual.split('/')[2];
+            if (ano) anoContextual = ano;
+
+            const restoLinha = mDataInicio[2].trim();
+            const mValorResto = restoLinha.match(valorInlineRe);
+            if (!mValorResto) continue;
+
+            let valorRaw = mValorResto[1].replace(/\s+/g, '');
+            const descricaoRaw = restoLinha.replace(mValorResto[1], ' ').replace(/\s+/g, ' ').trim();
+            if (!descricaoRaw || descricaoRaw.length < 3) continue;
+
+            const descNorm = normalizar(descricaoRaw);
+            if (!valorRaw.startsWith('-') && isDebitoMercadoPago(descNorm)) {
+                valorRaw = `-${valorRaw}`;
+            }
+
+            const chave = `${dataContextual}|${descricaoRaw}|${valorRaw}`;
+            if (!vistas.has(chave)) {
+                vistas.add(chave);
+                todos.push({ dataRaw: dataContextual, descricaoRaw, valorRaw });
+            }
+            continue;
+        }
+
+        if (!dataContextual) continue;
+
+        const mValorInline = linha.match(valorInlineRe);
+        if (!mValorInline) continue;
+
+        let valorRaw = mValorInline[1].replace(/\s+/g, '');
+        const descricaoRaw = linha.replace(mValorInline[1], ' ').replace(/\s+/g, ' ').trim();
+        if (!descricaoRaw || descricaoRaw.length < 3) continue;
+
+        const descNorm = normalizar(descricaoRaw);
+        if (!valorRaw.startsWith('-') && isDebitoMercadoPago(descNorm)) {
+            valorRaw = `-${valorRaw}`;
+        }
+
+        const chave = `${dataContextual}|${descricaoRaw}|${valorRaw}`;
+        if (!vistas.has(chave)) {
+            vistas.add(chave);
+            todos.push({ dataRaw: dataContextual, descricaoRaw, valorRaw });
+        }
+    }
+
     return todos;
 }
 
@@ -1343,22 +1516,34 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const mesesReferencia = extrairMesesReferencia(textoExtrato);
 
         // ── Parsear e classificar ──────────────────────────────────────────────
-        const ehNubank = isNubankBank(textoExtrato);
-        const ehInter = !ehNubank && isInterBank(textoExtrato);
-        const ehNeon = !ehNubank && !ehInter && isNeonBank(textoExtrato);
-        const isBradescoExtrato = !ehNubank && !ehInter && !ehNeon && isBradescoBank(textoExtrato);
-        const bankDetected = ehNubank ? 'nubank' : (ehInter ? 'inter' : (ehNeon ? 'neon' : (isBradescoExtrato ? 'bradesco' : 'generic')));
-        const brutas = ehNubank
-            ? extrairNubank(textoExtrato)
-            : (ehInter ? extrairInter(textoExtrato) : (ehNeon ? extrairNeon(textoExtrato) : extrair(textoExtrato)));
+        const ehMercadoPago = isMercadoPagoBank(textoExtrato);
+        const ehNubank = !ehMercadoPago && isNubankBank(textoExtrato);
+        const ehInter = !ehMercadoPago && !ehNubank && isInterBank(textoExtrato);
+        const ehNeon = !ehMercadoPago && !ehNubank && !ehInter && isNeonBank(textoExtrato);
+        const isBradescoExtrato = !ehMercadoPago && !ehNubank && !ehInter && !ehNeon && isBradescoBank(textoExtrato);
+        const bankDetected: BancoDetectado = ehMercadoPago
+            ? 'mercadopago'
+            : (ehNubank ? 'nubank' : (ehInter ? 'inter' : (ehNeon ? 'neon' : (isBradescoExtrato ? 'bradesco' : 'generic'))));
+        const brutas = ehMercadoPago
+            ? extrairMercadoPago(textoExtrato)
+            : (ehNubank
+                ? extrairNubank(textoExtrato)
+                : (ehInter ? extrairInter(textoExtrato) : (ehNeon ? extrairNeon(textoExtrato) : extrair(textoExtrato))));
 
         if (brutas.length === 0) {
             const amostra = textoExtrato.slice(0, 2500).replace(/\n+/g, ' | ');
-            res.status(422).json({ erro: 'Nenhuma transação reconhecida.', debug_texto_extraido: amostra, debug_eh_nubank: ehNubank, debug_eh_inter: ehInter, debug_eh_neon: ehNeon });
+            res.status(422).json({
+                erro: 'Nenhuma transação reconhecida.',
+                debug_texto_extraido: amostra,
+                debug_eh_mercadopago: ehMercadoPago,
+                debug_eh_nubank: ehNubank,
+                debug_eh_inter: ehInter,
+                debug_eh_neon: ehNeon,
+            });
             return;
         }
 
-        let transacoes: Transacao[] = brutas.map(b => classificar(b.dataRaw, b.descricaoRaw, b.valorRaw, ctx));
+        let transacoes: Transacao[] = brutas.map(b => classificar(b.dataRaw, b.descricaoRaw, b.valorRaw, ctx, bankDetected));
 
         // v3: Defesa extra - Deduplicação Exata (Data + Valor + Descrição normalizada)
         // Evita que anexos de "Comprovantes" (ex: Santander) que vazem pelo filtro de seção 
