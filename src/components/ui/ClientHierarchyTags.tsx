@@ -31,21 +31,25 @@ export function ClientHierarchyTags({
   const isUuid = (value?: string | null) =>
     !!value && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
 
-  const resolvedTeamId = ownerProfile?.team_id || ownerProfile?.team || null;
+  const rawTeamRef = ownerProfile?.team_id || ownerProfile?.team || null;
 
   const resolvedTeam = (() => {
     if (!teams || !ownerProfile) return null;
 
-    const directById = resolvedTeamId && isUuid(resolvedTeamId)
-      ? teams.find(t => t.id === resolvedTeamId) ?? null
+    const directById = rawTeamRef && isUuid(rawTeamRef)
+      ? teams.find(t => t.id === rawTeamRef) ?? null
       : null;
 
     const byMembership = ownerId
       ? teams.find(t => Array.isArray(t.members) && t.members.includes(ownerId)) ?? null
       : null;
 
-    const byLegacyName = ownerProfile.team && !isUuid(ownerProfile.team)
-      ? teams.find(t => t.name.trim().toLowerCase() === ownerProfile.team!.trim().toLowerCase()) ?? null
+    const legacyNameSource = rawTeamRef && !isUuid(rawTeamRef)
+      ? rawTeamRef
+      : (ownerProfile.team && !isUuid(ownerProfile.team) ? ownerProfile.team : null);
+
+    const byLegacyName = legacyNameSource
+      ? teams.find(t => t.name.trim().toLowerCase() === legacyNameSource.trim().toLowerCase()) ?? null
       : null;
 
     // Prioriza team_id (fonte oficial), depois membership (estado atual),
@@ -60,7 +64,13 @@ export function ClientHierarchyTags({
   const fallbackCoordinator = !explicitCoordinator && resolvedTeam
     ? allProfiles.find((p) => {
       const role = String(p.role || '').toUpperCase();
-      return role === 'COORDENADOR' && (p.team_id === resolvedTeam.id || p.team === resolvedTeam.id);
+      const profileTeamRef = p.team_id || p.team || null;
+      if (!profileTeamRef) return false;
+
+      const sameTeamById = profileTeamRef === resolvedTeam.id;
+      const sameTeamByName = profileTeamRef.trim().toLowerCase() === resolvedTeam.name.trim().toLowerCase();
+
+      return role === 'COORDENADOR' && (sameTeamById || sameTeamByName);
     }) ?? null
     : null;
 
