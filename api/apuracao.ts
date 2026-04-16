@@ -715,9 +715,46 @@ function isMercadoPagoBank(texto: string): boolean {
 
     const temMarcaMercadoPago = /MERCADO\s+PAGO|MERCADOPAGO|MERCADO\s*LIVRE\s+PAGOS/.test(cabecalho);
     const temContextoExtrato = /EXTRATO|ATIVIDADE|MOVIMENTACAO|MOVIMENTACOES|DINHEIRO\s+EM\s+CONTA|DINHEIRO\s+RECEBIDO/.test(norm);
-    const temPadraoForteMercadoPago = /DINHEIRO\s+RECEBIDO|SEU\s+DINHEIRO\s+RENDEU|PAGAMENTO\s+RECEBIDO|QR\s+RECEBIDO/.test(norm);
+    const temPadraoForteMercadoPago = /DINHEIRO\s+RECEBIDO|SEU\s+DINHEIRO\s+RENDEU|PAGAMENTO\s+RECEBIDO|QR\s+RECEBIDO|DETALHE\s+DOS\s+MOVIMENTOS/.test(norm);
 
     return (temMarcaMercadoPago && temContextoExtrato) || (temMarcaMercadoPago && temPadraoForteMercadoPago);
+}
+
+function extrairMercadoPagoPorBloco(texto: string): Array<{ dataRaw: string; descricaoRaw: string; valorRaw: string }> {
+    const compact = removerAcentos(texto)
+        .replace(/[–—−]/g, '-')
+        .replace(/\s+/g, ' ')
+        .trim();
+
+    const vistas = new Set<string>();
+    const todos: Array<{ dataRaw: string; descricaoRaw: string; valorRaw: string }> = [];
+
+    // Captura linhas de tabela mesmo quando o PDF/OCR colapsa quebras de linha/colunas.
+    // Exemplo esperado:
+    // 17-04-2025 Transferencia Pix recebida ... 108728... R$ 35,00 R$ 35,00
+    const rowRe = /(\d{2}[\/-]\d{2}[\/-]\d{4})\s+(.{3,240}?)\s+(?:\d{8,20}\s+)?(?:R\$\s*)?([+-]?\d{1,3}(?:[.,]\d{3})*[.,]\d{2})\s+(?:R\$\s*)?([+-]?\d{1,3}(?:[.,]\d{3})*[.,]\d{2})(?=\s+\d{2}[\/-]\d{2}[\/-]\d{4}|$)/gi;
+
+    let m: RegExpExecArray | null;
+    while ((m = rowRe.exec(compact)) !== null) {
+        const dataRaw = m[1].replace(/-/g, '/');
+        const descricaoRaw = m[2].replace(/\s+/g, ' ').trim();
+        let valorRaw = m[3].replace(/\s+/g, '');
+
+        if (!descricaoRaw || descricaoRaw.length < 3) continue;
+
+        const descNorm = normalizar(descricaoRaw);
+        if (!valorRaw.startsWith('-') && /PAGAMENTO\s+ENVIADO|TRANSFERENCIA\s+ENVIADA|PIX\s+ENVIADO|COMPRA|SAQUE|RETIRADA/.test(descNorm)) {
+            valorRaw = `-${valorRaw}`;
+        }
+
+        const chave = `${dataRaw}|${descricaoRaw}|${valorRaw}`;
+        if (!vistas.has(chave)) {
+            vistas.add(chave);
+            todos.push({ dataRaw, descricaoRaw, valorRaw });
+        }
+    }
+
+    return todos;
 }
 
 function extrairMercadoPago(texto: string): Array<{ dataRaw: string; descricaoRaw: string; valorRaw: string }> {
@@ -894,6 +931,10 @@ function extrairMercadoPago(texto: string): Array<{ dataRaw: string; descricaoRa
             vistas.add(chave);
             todos.push({ dataRaw: dataContextual, descricaoRaw, valorRaw });
         }
+    }
+
+    if (todos.length === 0) {
+        return extrairMercadoPagoPorBloco(texto);
     }
 
     return todos;
