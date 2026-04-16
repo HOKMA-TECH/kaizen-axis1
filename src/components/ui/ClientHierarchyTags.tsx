@@ -28,26 +28,29 @@ export function ClientHierarchyTags({
   className,
 }: ClientHierarchyTagsProps) {
   const ownerProfile = ownerId ? allProfiles.find(p => p.id === ownerId) : null;
+  const isUuid = (value?: string | null) =>
+    !!value && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
 
   const resolvedTeamId = ownerProfile?.team_id || ownerProfile?.team || null;
 
   const resolvedTeam = (() => {
     if (!teams || !ownerProfile) return null;
 
-    const directById = resolvedTeamId
+    const directById = resolvedTeamId && isUuid(resolvedTeamId)
       ? teams.find(t => t.id === resolvedTeamId) ?? null
-      : null;
-
-    const directByLegacy = ownerProfile.team
-      ? teams.find(t => t.id === ownerProfile.team) ?? null
       : null;
 
     const byMembership = ownerId
       ? teams.find(t => Array.isArray(t.members) && t.members.includes(ownerId)) ?? null
       : null;
 
-    // profile.team_id/team e a fonte principal para evitar tag antiga.
-    return directById ?? directByLegacy ?? byMembership;
+    const byLegacyName = ownerProfile.team && !isUuid(ownerProfile.team)
+      ? teams.find(t => t.name.trim().toLowerCase() === ownerProfile.team!.trim().toLowerCase()) ?? null
+      : null;
+
+    // Prioriza team_id (fonte oficial), depois membership (estado atual),
+    // e por ultimo compatibilidade com dado legado em profile.team por nome.
+    return directById ?? byMembership ?? byLegacyName;
   })();
 
   const explicitCoordinator = ownerProfile?.coordinator_id
@@ -64,7 +67,7 @@ export function ClientHierarchyTags({
   const coordProfile = explicitCoordinator ?? fallbackCoordinator;
 
   const teamName = resolvedTeam?.name ?? null;
-  const resolvedDirectorateId = ownerProfile?.directorate_id || resolvedTeam?.directorate_id || null;
+  const resolvedDirectorateId = resolvedTeam?.directorate_id || ownerProfile?.directorate_id || null;
   const directorateName = resolvedDirectorateId
     ? directorates?.find(d => d.id === resolvedDirectorateId)?.name ?? null
     : null;
