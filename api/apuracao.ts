@@ -706,6 +706,23 @@ function extrairNubank(texto: string): Array<{ dataRaw: string; descricaoRaw: st
     const totalResumoRe = /\bTOTAL\s+DE\s+(ENTRADAS|SAIDAS)\b/i;
     const inicioTransacaoRe = /(TRANSFERENCIA\s+RECEBIDA|TRANSFERENCIA\s+ENVIADA\s+PELO\s+PIX|TRANSFERENCIA\s+ENVIADA|PIX\s+RECEBIDO|PIX\s+ENVIADO|COMPRA\s+NO\s+DEBITO|PAGAMENTO\b)/i;
 
+    const isNubankBoilerplate = (s: string): boolean => {
+        const n = normalizar(s);
+        return /TEM ALGUMA DUVIDA|ATENDIMENTO 24H|OUVIDORIA|EXTRATO GERADO DIA|NUBANK COM BR CONTATOS|VALORES EM R|CPFAGENCIA|SALDO FINAL DO PERIODO|SALDO INICIAL/.test(n)
+            || /^\d+\s+DE\s+\d+$/.test(n);
+    };
+
+    const stripNubankBoilerplate = (s: string): string => {
+        return s
+            .replace(/(Tem alguma d[uú]vida\?.*)$/i, '')
+            .replace(/(Ouvidoria:.*)$/i, '')
+            .replace(/(Extrato gerado dia.*)$/i, '')
+            .replace(/(VALORES\s+EM\s+R\$.*)$/i, '')
+            .replace(/(CPF\s*Ag[êe]ncia.*)$/i, '')
+            .replace(/\s+/g, ' ')
+            .trim();
+    };
+
     let dataContextual = '';
     const vistas = new Set<string>();
     const todos: Array<{ dataRaw: string; descricaoRaw: string; valorRaw: string }> = [];
@@ -738,6 +755,7 @@ function extrairNubank(texto: string): Array<{ dataRaw: string; descricaoRaw: st
         if (/PIX[A-Z]/i.test(descricao)) {
             descricao = descricao.replace(/PIX(?=[A-Z])/i, 'PIX ');
         }
+        descricao = stripNubankBoilerplate(descricao);
 
         let valorRaw = '';
 
@@ -753,6 +771,7 @@ function extrairNubank(texto: string): Array<{ dataRaw: string; descricaoRaw: st
             const cand = linhas[j];
             if (dateRe.test(normalizar(cand))) break;
             if (totalResumoRe.test(normalizar(cand))) break;
+            if (isNubankBoilerplate(cand)) break;
             const mv = cand.match(valorRe);
             if (mv) {
                 valorRaw = mv[1].replace(/\s+/g, '');
@@ -769,10 +788,12 @@ function extrairNubank(texto: string): Array<{ dataRaw: string; descricaoRaw: st
 
             if (cand.length > 2 && !/AGENCIA|CONTA|NU PAGAMENTOS|BANCO|BCO/i.test(cand)) {
                 descricao = `${descricao} ${cand}`.replace(/\s+/g, ' ').trim();
+                descricao = stripNubankBoilerplate(descricao);
             }
         }
 
         if (!valorRaw) continue;
+        if (!descricao || descricao.length < 3 || isNubankBoilerplate(descricao)) continue;
 
         const descNorm = normalizar(descricao);
         const entradaExplicita = /TRANSFERENCIA RECEBIDA|PIX RECEBIDO/.test(descNorm);
