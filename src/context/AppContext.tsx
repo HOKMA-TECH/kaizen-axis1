@@ -378,26 +378,44 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const hasOwnField = (field: keyof Profile) => Object.prototype.hasOwnProperty.call(data, field);
       const touchesTeam = hasOwnField('team') || hasOwnField('team_id');
       const touchesDirectorate = hasOwnField('directorate_id');
+      const touchesManager = hasOwnField('manager_id');
+      const touchesCoordinator = hasOwnField('coordinator_id');
 
-      let previousScope: { team: string | null; team_id: string | null; directorate_id: string | null } | null = null;
-      if (touchesTeam || touchesDirectorate) {
+      let previousScope: {
+        team: string | null;
+        team_id: string | null;
+        directorate_id: string | null;
+        manager_id: string | null;
+        coordinator_id: string | null;
+      } | null = null;
+
+      if (touchesTeam || touchesDirectorate || touchesManager || touchesCoordinator) {
         const { data: previousData, error: previousError } = await supabase
           .from('profiles')
-          .select('team, team_id, directorate_id')
+          .select('team, team_id, directorate_id, manager_id, coordinator_id')
           .eq('id', id)
           .single();
         if (previousError) throw previousError;
+
         previousScope = {
           team: previousData?.team ?? null,
           team_id: previousData?.team_id ?? null,
           directorate_id: previousData?.directorate_id ?? null,
+          manager_id: previousData?.manager_id ?? null,
+          coordinator_id: previousData?.coordinator_id ?? null,
         };
       }
 
       const updatePayload: any = { ...data };
+      let resolvedTouchesDirectorate = touchesDirectorate;
+      let resolvedTouchesManager = touchesManager;
+      let resolvedTouchesCoordinator = touchesCoordinator;
+
+      let nextTeamMeta: { name: string | null; directorate_id: string | null; manager_id: string | null } | null = null;
 
       if (touchesTeam) {
         const rawTeam = hasOwnField('team_id') ? data.team_id : data.team;
+
         if (rawTeam === undefined) {
           delete updatePayload.team;
           delete updatePayload.team_id;
@@ -405,20 +423,68 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           const normalizedTeam = rawTeam || null;
           updatePayload.team = normalizedTeam;
           updatePayload.team_id = normalizedTeam;
+
+          if (normalizedTeam) {
+            const { data: teamMeta, error: teamMetaError } = await supabase
+              .from('teams')
+              .select('name, directorate_id, manager_id')
+              .eq('id', normalizedTeam)
+              .single();
+            if (teamMetaError) throw teamMetaError;
+
+            nextTeamMeta = {
+              name: teamMeta?.name ?? null,
+              directorate_id: teamMeta?.directorate_id ?? null,
+              manager_id: teamMeta?.manager_id ?? null,
+            };
+
+            if (!resolvedTouchesDirectorate) {
+              updatePayload.directorate_id = nextTeamMeta.directorate_id;
+              resolvedTouchesDirectorate = true;
+            }
+
+            if (!resolvedTouchesManager) {
+              updatePayload.manager_id = nextTeamMeta.manager_id;
+              resolvedTouchesManager = true;
+            }
+
+            if (!resolvedTouchesCoordinator) {
+              const { data: coordinatorRows } = await supabase
+                .from('profiles')
+                .select('id, status, role')
+                .or(`team.eq.${normalizedTeam},team_id.eq.${normalizedTeam}`);
+
+              const activeCoordinator = (coordinatorRows || []).find((row: any) => {
+                const role = String(row?.role || '').toUpperCase();
+                if (role !== 'COORDENADOR') return false;
+                const status = String(row?.status || '').toLowerCase();
+                return status === 'ativo' || status === 'active' || status === '';
+              });
+
+              updatePayload.coordinator_id = activeCoordinator?.id || null;
+              resolvedTouchesCoordinator = true;
+            }
+          } else {
+            if (!resolvedTouchesManager) {
+              updatePayload.manager_id = null;
+              resolvedTouchesManager = true;
+            }
+            if (!resolvedTouchesCoordinator) {
+              updatePayload.coordinator_id = null;
+              resolvedTouchesCoordinator = true;
+            }
+          }
         }
       }
 
-      if (touchesDirectorate && data.directorate_id === undefined) {
+      if (resolvedTouchesDirectorate && updatePayload.directorate_id === undefined) {
         delete updatePayload.directorate_id;
       }
-
-      if (previousScope && touchesTeam) {
-        const previousTeamId = previousScope.team_id || previousScope.team || null;
-        const nextTeamId = (updatePayload.team_id ?? updatePayload.team ?? null) as string | null;
-
-        if (previousTeamId !== nextTeamId && !hasOwnField('coordinator_id')) {
-          updatePayload.coordinator_id = null;
-        }
+      if (resolvedTouchesManager && updatePayload.manager_id === undefined) {
+        delete updatePayload.manager_id;
+      }
+      if (resolvedTouchesCoordinator && updatePayload.coordinator_id === undefined) {
+        delete updatePayload.coordinator_id;
       }
 
       const { error } = await supabase.from('profiles').update(updatePayload).eq('id', id);
@@ -431,9 +497,19 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           : previousTeamId;
 
         const previousDirectorateId = previousScope.directorate_id ?? null;
-        const nextDirectorateId = touchesDirectorate
+        const nextDirectorateId = resolvedTouchesDirectorate
           ? ((updatePayload.directorate_id ?? null) as string | null)
           : previousDirectorateId;
+
+        const previousManagerId = previousScope.manager_id ?? null;
+        const nextManagerId = resolvedTouchesManager
+          ? ((updatePayload.manager_id ?? null) as string | null)
+          : previousManagerId;
+
+        const previousCoordinatorId = previousScope.coordinator_id ?? null;
+        const nextCoordinatorId = resolvedTouchesCoordinator
+          ? ((updatePayload.coordinator_id ?? null) as string | null)
+          : previousCoordinatorId;
 
         if (touchesTeam && previousTeamId !== nextTeamId) {
           const syncTeamMember = async (teamId: string | null, shouldAdd: boolean) => {
@@ -507,50 +583,106 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           await cleanupDuplicatedMemberships(nextTeamId);
         }
 
-        if (touchesDirectorate && previousDirectorateId !== nextDirectorateId) {
-          const propagateDirectorateAcrossOwnedData = async (newDirectorateId: string | null) => {
-            const ownershipCandidates: Array<{ table: string; ownerColumns: string[] }> = [
-              { table: 'clients', ownerColumns: ['owner_id'] },
-              { table: 'appointments', ownerColumns: ['owner_id', 'user_id', 'responsible_id', 'created_by'] },
-              { table: 'tasks', ownerColumns: ['owner_id', 'user_id', 'responsible_id', 'created_by', 'assigned_to'] },
-              { table: 'goals', ownerColumns: ['owner_id', 'created_by', 'user_id'] },
-              { table: 'announcements', ownerColumns: ['owner_id', 'author_id', 'created_by', 'user_id'] },
-              { table: 'developments', ownerColumns: ['owner_id', 'user_id', 'created_by'] },
-              { table: 'notifications', ownerColumns: ['owner_id', 'user_id', 'created_by'] },
-            ];
+        const hierarchyChanged =
+          previousTeamId !== nextTeamId ||
+          previousDirectorateId !== nextDirectorateId ||
+          previousManagerId !== nextManagerId ||
+          previousCoordinatorId !== nextCoordinatorId;
 
-            for (const target of ownershipCandidates) {
-              let updated = false;
+        if (hierarchyChanged) {
+          const getProfileName = async (profileId: string | null): Promise<string | null> => {
+            if (!profileId) return null;
+            const { data: row } = await supabase.from('profiles').select('name').eq('id', profileId).single();
+            return row?.name || null;
+          };
 
-              for (const ownerColumn of target.ownerColumns) {
-                const { error: scopeError } = await supabase
-                  .from(target.table)
-                  .update({ directorate_id: newDirectorateId })
-                  .eq(ownerColumn, id);
+          let teamName: string | null = nextTeamMeta?.name || null;
+          if (!teamName && nextTeamId) {
+            const { data: t } = await supabase.from('teams').select('name').eq('id', nextTeamId).single();
+            teamName = t?.name || null;
+          }
 
-                if (!scopeError) {
-                  updated = true;
+          let directorateName: string | null = null;
+          if (nextDirectorateId) {
+            const { data: d } = await supabase.from('directorates').select('name').eq('id', nextDirectorateId).single();
+            directorateName = d?.name || null;
+          }
+
+          const managerName = await getProfileName(nextManagerId);
+          const coordinatorName = await getProfileName(nextCoordinatorId);
+
+          const ownershipCandidates: Array<{ table: string; ownerColumns: string[] }> = [
+            { table: 'clients', ownerColumns: ['owner_id'] },
+            { table: 'appointments', ownerColumns: ['owner_id', 'user_id', 'responsible_id', 'created_by'] },
+            { table: 'tasks', ownerColumns: ['owner_id', 'user_id', 'responsible_id', 'created_by', 'assigned_to'] },
+            { table: 'goals', ownerColumns: ['owner_id', 'created_by', 'user_id'] },
+            { table: 'announcements', ownerColumns: ['owner_id', 'author_id', 'created_by', 'user_id'] },
+            { table: 'developments', ownerColumns: ['owner_id', 'user_id', 'created_by'] },
+            { table: 'notifications', ownerColumns: ['owner_id', 'user_id', 'created_by'] },
+            { table: 'leads', ownerColumns: ['owner_id', 'assigned_to', 'user_id', 'created_by'] },
+          ];
+
+          const hierarchyFields: Array<{ value: string | null; columns: string[] }> = [
+            { value: nextTeamId, columns: ['team_id', 'team'] },
+            { value: teamName, columns: ['team_name', 'equipe_nome', 'equipe'] },
+            { value: nextDirectorateId, columns: ['directorate_id', 'diretoria_id'] },
+            { value: directorateName, columns: ['directorate_name', 'diretoria_nome', 'diretoria'] },
+            { value: nextCoordinatorId, columns: ['coordinator_id', 'coordenador_id'] },
+            { value: coordinatorName, columns: ['coordinator_name', 'coordenador_nome', 'coordenador'] },
+            { value: nextManagerId, columns: ['manager_id', 'gerente_id'] },
+            { value: managerName, columns: ['manager_name', 'gerente_nome', 'gerente'] },
+          ];
+
+          const isMissingColumnError = (message: string, column: string) =>
+            message.includes('column') && message.includes(column.toLowerCase());
+
+          for (const target of ownershipCandidates) {
+            for (const ownerColumn of target.ownerColumns) {
+              let ownerColumnUnavailable = false;
+
+              for (const field of hierarchyFields) {
+                let fieldPatched = false;
+
+                for (const candidateColumn of field.columns) {
+                  const { error: patchError } = await supabase
+                    .from(target.table)
+                    .update({ [candidateColumn]: field.value })
+                    .eq(ownerColumn, id);
+
+                  if (!patchError) {
+                    fieldPatched = true;
+                    break;
+                  }
+
+                  const lowerMsg = String(patchError.message || '').toLowerCase();
+                  if (isMissingColumnError(lowerMsg, ownerColumn)) {
+                    ownerColumnUnavailable = true;
+                    break;
+                  }
+
+                  if (isMissingColumnError(lowerMsg, candidateColumn)) {
+                    continue;
+                  }
+
+                  console.warn(`Nao foi possivel propagar hierarquia em ${target.table} via ${ownerColumn}/${candidateColumn}:`, patchError.message);
+                  fieldPatched = true;
                   break;
                 }
 
-                const lowerMsg = String(scopeError.message || '').toLowerCase();
-                const isMissingOwnerColumn = lowerMsg.includes('column') && lowerMsg.includes(ownerColumn.toLowerCase());
-                const isMissingDirectorate = lowerMsg.includes('column') && lowerMsg.includes('directorate_id');
-                if (isMissingOwnerColumn || isMissingDirectorate) {
-                  continue;
+                if (ownerColumnUnavailable) {
+                  break;
                 }
 
-                console.warn(`Nao foi possivel propagar diretoria em ${target.table} via ${ownerColumn}:`, scopeError.message);
+                if (!fieldPatched) {
+                  continue;
+                }
+              }
+
+              if (!ownerColumnUnavailable) {
                 break;
               }
-
-              if (!updated) {
-                continue;
-              }
             }
-          };
-
-          await propagateDirectorateAcrossOwnedData(nextDirectorateId);
+          }
         }
       }
 
