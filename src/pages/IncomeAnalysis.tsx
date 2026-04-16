@@ -621,6 +621,7 @@ export default function IncomeAnalysis() {
 
         doc.setFontSize(10);
         doc.setFont('helvetica', 'normal');
+        const rendaMensalRegra = Math.round(totalApuradoAtivo / 6);
         const fmt = (c: number) => (c / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
         doc.text(`Nome Titular: ${nomeCliente || (clienteVinculado ? clients.find(c => c.id === clienteVinculado)?.name : 'Não informado')}`, 14, y); y += 6;
@@ -636,12 +637,31 @@ export default function IncomeAnalysis() {
 
         doc.setFontSize(10);
         doc.setFont('helvetica', 'normal');
+        doc.text(`Renda Media Mensal (Total ÷ 6): R$ ${fmt(rendaMensalRegra)}`, 14, y); y += 8;
         doc.text(`Total Apurado: R$ ${fmt(totalApuradoAtivo)}`, 14, y); y += 8;
-        doc.text(`Renda Media Mensal: R$ ${fmt(mediaMensalAtiva)}`, 14, y); y += 8;
-        doc.text(`Divisao por 6: R$ ${fmt(Math.round(totalApuradoAtivo / 6))}`, 14, y); y += 8;
-        doc.text(`Divisao por 12: R$ ${fmt(Math.round(totalApuradoAtivo / 12))}`, 14, y); y += 8;
+        doc.text(`Creditos Ativos: ${validadas.size}`, 14, y); y += 8;
+        doc.text(`Maior Mes: R$ ${fmt(maiorMesAtivo)}`, 14, y); y += 8;
+        doc.text(`Menor Mes: R$ ${fmt(menorMesAtivo)}`, 14, y); y += 8;
         doc.text(`Meses Considerados: ${mesesAtivos}`, 14, y);
         y += 12;
+
+        if (exclusionBubbles.length > 0) {
+          doc.setFontSize(11);
+          doc.setFont('helvetica', 'bold');
+          doc.text('BOLHAS DE EXCLUSAO (FILTRO DINAMICO)', 14, y);
+          y += 8;
+
+          doc.setFontSize(9);
+          doc.setFont('helvetica', 'normal');
+          const bolhasTexto = exclusionBubbles.map(b => b.term).join(', ');
+          const linhasBolhas = doc.splitTextToSize(bolhasTexto, 180);
+          linhasBolhas.forEach((linha: string) => {
+            checkPage(6);
+            doc.text(linha, 14, y);
+            y += 5;
+          });
+          y += 4;
+        }
 
         doc.setFontSize(12);
         doc.setFont('helvetica', 'bold');
