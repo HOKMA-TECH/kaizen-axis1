@@ -412,6 +412,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         delete updatePayload.directorate_id;
       }
 
+      if (previousScope && touchesTeam) {
+        const previousTeamId = previousScope.team_id || previousScope.team || null;
+        const nextTeamId = (updatePayload.team_id ?? updatePayload.team ?? null) as string | null;
+
+        if (previousTeamId !== nextTeamId && !hasOwnField('coordinator_id')) {
+          updatePayload.coordinator_id = null;
+        }
+      }
+
       const { error } = await supabase.from('profiles').update(updatePayload).eq('id', id);
       if (error) throw error;
 

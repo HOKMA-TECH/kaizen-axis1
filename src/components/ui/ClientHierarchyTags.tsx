@@ -30,11 +30,27 @@ export function ClientHierarchyTags({
     ? allProfiles.find(p => p.id === ownerProfile.coordinator_id) ?? null
     : null;
 
-  // profile.team stores the team UUID (set by AdminPanel approval flow),
-  // so we look up the team by both team_id and the team UUID stored in .team
-  const teamName = teams && ownerProfile
-    ? (teams.find(t => t.id === ownerProfile.team_id || t.id === ownerProfile.team)?.name ?? null)
-    : null;
+  const resolveTeamName = () => {
+    if (!teams || !ownerProfile) return null;
+
+    const directById = ownerProfile.team_id
+      ? teams.find(t => t.id === ownerProfile.team_id) ?? null
+      : null;
+
+    const directByLegacy = ownerProfile.team
+      ? teams.find(t => t.id === ownerProfile.team) ?? null
+      : null;
+
+    const byMembership = ownerId
+      ? teams.find(t => Array.isArray(t.members) && t.members.includes(ownerId)) ?? null
+      : null;
+
+    // Prefer membership because it reflects the latest team assignment
+    // even when legacy profile fields are temporarily inconsistent.
+    return byMembership?.name ?? directById?.name ?? directByLegacy?.name ?? null;
+  };
+
+  const teamName = resolveTeamName();
 
   const ownerName = ownerProfile?.name ?? resolved?.ownerName ?? null;
   const coordinatorName = coordProfile?.name ?? resolved?.coordinatorName ?? null;
