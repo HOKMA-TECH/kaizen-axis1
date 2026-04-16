@@ -1252,17 +1252,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             }
 
             if (ehInter) {
+                const refOrdenada = Array.from(mesesReferencia).sort();
+                const detOrdenada = Array.from(mesesDetectados).sort();
+
+                // Quando o "Período" do Inter é reconhecido como janela semestral,
+                // respeitamos essa janela exatamente para não inflar para 12 meses.
+                if (refOrdenada.length >= 5 && refOrdenada.length <= 8) {
+                    return refOrdenada;
+                }
+
+                // Fallback: PDFs divididos que perdem parte do cabeçalho de período.
+                // Se as transações indicarem uma janela semestral clara, usamos 6 meses.
+                if (refOrdenada.length <= 4 && detOrdenada.length >= 6 && detOrdenada.length <= 8) {
+                    return detOrdenada.slice(detOrdenada.length - 6);
+                }
+
                 // No Inter, juntamos o período reconhecido + meses realmente detectados.
                 // Isso evita perder meses quando o OCR falha parcialmente no cabeçalho de período.
                 const baseInter = new Set<string>([...mesesReferencia, ...mesesDetectados]);
                 const ordenadaInter = Array.from(baseInter).sort();
-
-                // Alguns PDFs divididos do Inter trazem "Período" truncado (ex.: 4 meses)
-                // mas o corpo contém de fato uma janela semestral. Nesses casos,
-                // priorizamos os 6 meses mais recentes para refletir o extrato enviado.
-                if (mesesReferencia.size <= 4 && ordenadaInter.length >= 6 && ordenadaInter.length <= 8) {
-                    return ordenadaInter.slice(ordenadaInter.length - 6);
-                }
 
                 return ordenadaInter.length > 12 ? ordenadaInter.slice(ordenadaInter.length - 12) : ordenadaInter;
             }
