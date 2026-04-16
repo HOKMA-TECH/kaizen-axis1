@@ -890,16 +890,6 @@ export default function IncomeAnalysis() {
               </div>
             )}
 
-            {/* Card de destaque — Média REATIVA */}
-            <PremiumCard highlight className="text-center py-6">
-              <p className="text-xs text-gold-700 dark:text-gold-400 font-medium uppercase tracking-wider">Renda Média Mensal (Revisada)</p>
-              <h2 className="text-4xl font-bold text-text-primary mt-2">{brl(mediaMensalAtiva)}</h2>
-              <div className="flex items-center justify-center gap-2 mt-2 text-green-600 text-xs font-medium">
-                <CheckCircle2 size={14} />
-                {mesesAtivos} meses · {validadas.size} créditos validados
-              </div>
-            </PremiumCard>
-
             {/* Bolhas de Exclusão Interativas */}
             <PremiumCard>
               <h3 className="text-sm font-semibold text-text-primary mb-1">Bolhas de Exclusão (Filtro Dinâmico)</h3>
@@ -948,14 +938,6 @@ export default function IncomeAnalysis() {
               <PremiumCard className="text-center">
                 <p className="text-xs text-text-secondary">Créditos Ativos</p>
                 <p className="text-base font-bold text-green-600 mt-1">{[...validadas].length}</p>
-              </PremiumCard>
-              <PremiumCard className="text-center">
-                <p className="text-xs text-text-secondary">Divisão ÷ 6</p>
-                <p className="text-base font-bold text-text-primary mt-1">{brl(Math.round(totalApuradoAtivo / 6))}</p>
-              </PremiumCard>
-              <PremiumCard className="text-center">
-                <p className="text-xs text-text-secondary">Divisão ÷ 12</p>
-                <p className="text-base font-bold text-text-primary mt-1">{brl(Math.round(totalApuradoAtivo / 12))}</p>
               </PremiumCard>
               <PremiumCard className="text-center">
                 <p className="text-xs text-text-secondary">Maior Mês</p>
