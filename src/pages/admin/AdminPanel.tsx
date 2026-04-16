@@ -546,7 +546,25 @@ export default function AdminPanel() {
     await updateProfile(id, { role });
   };
   const handleDirectorateChange = async (id: string, directorate_id: string | null) => {
-    await updateProfile(id, { directorate_id: directorate_id || null });
+    const targetDirectorateId = directorate_id || null;
+    const profileToChange = allProfiles.find(p => p.id === id);
+    const currentTeamId = profileToChange?.team_id || profileToChange?.team || null;
+    const teamStillBelongsToDirectorate = currentTeamId
+      ? teams.some(t => t.id === currentTeamId && t.directorate_id === targetDirectorateId)
+      : true;
+
+    if (!teamStillBelongsToDirectorate) {
+      await updateProfile(id, {
+        directorate_id: targetDirectorateId,
+        team: null,
+        team_id: null,
+        manager_id: null,
+        coordinator_id: null,
+      } as any);
+      return;
+    }
+
+    await updateProfile(id, { directorate_id: targetDirectorateId });
   };
   const handleManagerChange = async (id: string, manager_id: string | null) => {
     await updateProfile(id, { manager_id: manager_id || null });
@@ -617,7 +635,8 @@ export default function AdminPanel() {
         role: approvalForm.role,
         status: 'Ativo',
         directorate_id: approvalForm.directorate_id || null,
-        team: approvalForm.team_id || undefined,
+        team: approvalForm.team_id || null,
+        team_id: approvalForm.team_id || null,
         manager_id: null,
         coordinator_id: approvalForm.coordinator_id || null,
       };
@@ -686,7 +705,8 @@ export default function AdminPanel() {
 
     await updateTeam(teamId, { members: newMembers });
     await updateProfile(userId, {
-      team: isAdding ? teamId : undefined,
+      team: isAdding ? teamId : null,
+      team_id: isAdding ? teamId : null,
       directorate_id: isAdding ? (team.directorate_id || null) : undefined,
       manager_id: isAdding ? (team.manager_id || null) : undefined
     });

@@ -375,8 +375,143 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const updateProfile = useCallback(async (id: string, data: Partial<Profile>) => {
     try {
-      const { error } = await supabase.from('profiles').update(data).eq('id', id);
+      const hasOwnField = (field: keyof Profile) => Object.prototype.hasOwnProperty.call(data, field);
+      const touchesTeam = hasOwnField('team') || hasOwnField('team_id');
+      const touchesDirectorate = hasOwnField('directorate_id');
+
+      let previousScope: { team: string | null; team_id: string | null; directorate_id: string | null } | null = null;
+      if (touchesTeam || touchesDirectorate) {
+        const { data: previousData, error: previousError } = await supabase
+          .from('profiles')
+          .select('team, team_id, directorate_id')
+          .eq('id', id)
+          .single();
+        if (previousError) throw previousError;
+        previousScope = {
+          team: previousData?.team ?? null,
+          team_id: previousData?.team_id ?? null,
+          directorate_id: previousData?.directorate_id ?? null,
+        };
+      }
+
+      const updatePayload: any = { ...data };
+
+      if (touchesTeam) {
+        const rawTeam = hasOwnField('team_id') ? data.team_id : data.team;
+        if (rawTeam === undefined) {
+          delete updatePayload.team;
+          delete updatePayload.team_id;
+        } else {
+          const normalizedTeam = rawTeam || null;
+          updatePayload.team = normalizedTeam;
+          updatePayload.team_id = normalizedTeam;
+        }
+      }
+
+      if (touchesDirectorate && data.directorate_id === undefined) {
+        delete updatePayload.directorate_id;
+      }
+
+      const { error } = await supabase.from('profiles').update(updatePayload).eq('id', id);
       if (error) throw error;
+
+      if (previousScope) {
+        const previousTeamId = previousScope.team_id || previousScope.team || null;
+        const nextTeamId = touchesTeam
+          ? ((updatePayload.team_id ?? updatePayload.team ?? null) as string | null)
+          : previousTeamId;
+
+        const previousDirectorateId = previousScope.directorate_id ?? null;
+        const nextDirectorateId = touchesDirectorate
+          ? ((updatePayload.directorate_id ?? null) as string | null)
+          : previousDirectorateId;
+
+        if (touchesTeam && previousTeamId !== nextTeamId) {
+          const syncTeamMember = async (teamId: string | null, shouldAdd: boolean) => {
+            if (!teamId) return;
+
+            const { data: teamRow, error: teamError } = await supabase
+              .from('teams')
+              .select('members')
+              .eq('id', teamId)
+              .single();
+            if (teamError) {
+              console.warn(`Nao foi possivel sincronizar membros da equipe ${teamId}:`, teamError.message);
+              return;
+            }
+
+            const currentMembers: string[] = Array.isArray(teamRow?.members)
+              ? teamRow.members.filter((member: any) => typeof member === 'string')
+              : [];
+
+            const exists = currentMembers.includes(id);
+            if (shouldAdd && exists) return;
+            if (!shouldAdd && !exists) return;
+
+            const nextMembers = shouldAdd
+              ? [...currentMembers, id]
+              : currentMembers.filter(memberId => memberId !== id);
+
+            const { error: saveTeamError } = await supabase
+              .from('teams')
+              .update({ members: nextMembers })
+              .eq('id', teamId);
+            if (saveTeamError) {
+              console.warn(`Nao foi possivel atualizar membros da equipe ${teamId}:`, saveTeamError.message);
+            }
+          };
+
+          await syncTeamMember(previousTeamId, false);
+          await syncTeamMember(nextTeamId, true);
+        }
+
+        if (touchesDirectorate && previousDirectorateId !== nextDirectorateId) {
+          const propagateDirectorateAcrossOwnedData = async (newDirectorateId: string | null) => {
+            const ownershipCandidates: Array<{ table: string; ownerColumns: string[] }> = [
+              { table: 'clients', ownerColumns: ['owner_id'] },
+              { table: 'appointments', ownerColumns: ['owner_id', 'user_id', 'responsible_id', 'created_by'] },
+              { table: 'tasks', ownerColumns: ['owner_id', 'user_id', 'responsible_id', 'created_by', 'assigned_to'] },
+              { table: 'goals', ownerColumns: ['owner_id', 'created_by', 'user_id'] },
+              { table: 'announcements', ownerColumns: ['owner_id', 'author_id', 'created_by', 'user_id'] },
+              { table: 'developments', ownerColumns: ['owner_id', 'user_id', 'created_by'] },
+              { table: 'notifications', ownerColumns: ['owner_id', 'user_id', 'created_by'] },
+            ];
+
+            for (const target of ownershipCandidates) {
+              let updated = false;
+
+              for (const ownerColumn of target.ownerColumns) {
+                const { error: scopeError } = await supabase
+                  .from(target.table)
+                  .update({ directorate_id: newDirectorateId })
+                  .eq(ownerColumn, id);
+
+                if (!scopeError) {
+                  updated = true;
+                  break;
+                }
+
+                const lowerMsg = String(scopeError.message || '').toLowerCase();
+                const isMissingOwnerColumn = lowerMsg.includes('column') && lowerMsg.includes(ownerColumn.toLowerCase());
+                const isMissingDirectorate = lowerMsg.includes('column') && lowerMsg.includes('directorate_id');
+                if (isMissingOwnerColumn || isMissingDirectorate) {
+                  continue;
+                }
+
+                console.warn(`Nao foi possivel propagar diretoria em ${target.table} via ${ownerColumn}:`, scopeError.message);
+                break;
+              }
+
+              if (!updated) {
+                continue;
+              }
+            }
+          };
+
+          await propagateDirectorateAcrossOwnedData(nextDirectorateId);
+        }
+      }
+
       await refreshProfiles();
       logAuditEvent({
         action: data.role ? 'permissions_updated' : 'profile_updated',
