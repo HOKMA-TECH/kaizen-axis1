@@ -702,6 +702,7 @@ function extrairNubank(texto: string): Array<{ dataRaw: string; descricaoRaw: st
 
     const dateRe = /(\d{2})\s+(JAN|FEV|MAR|ABR|MAI|JUN|JUL|AGO|SET|OUT|NOV|DEZ)\s+(20\d{2})/i;
     const valorRe = /^([+-]?\s*(?:R\$\s*)?\d{1,3}(?:\.\d{3})*,\d{2})$/i;
+    const valorInlineRe = /([+-]?\s*(?:R\$\s*)?\d{1,3}(?:\.\d{3})*,\d{2})(?!.*\d{1,3}(?:\.\d{3})*,\d{2})/i;
     const totalResumoRe = /\bTOTAL\s+DE\s+(ENTRADAS|SAIDAS)\b/i;
     const inicioTransacaoRe = /(TRANSFERENCIA\s+RECEBIDA|TRANSFERENCIA\s+ENVIADA\s+PELO\s+PIX|TRANSFERENCIA\s+ENVIADA|PIX\s+RECEBIDO|PIX\s+ENVIADO|COMPRA\s+NO\s+DEBITO|PAGAMENTO\b)/i;
 
@@ -739,7 +740,16 @@ function extrairNubank(texto: string): Array<{ dataRaw: string; descricaoRaw: st
         }
 
         let valorRaw = '';
-        for (let j = i + 1; j < Math.min(i + 8, linhas.length); j++) {
+
+        // 1) tenta capturar valor na própria linha da transação
+        const selfValor = descricao.match(valorInlineRe);
+        if (selfValor) {
+            valorRaw = selfValor[1].replace(/\s+/g, '');
+            descricao = descricao.replace(selfValor[1], ' ').replace(/\s+/g, ' ').trim();
+        }
+
+        // 2) se não encontrou, busca nas próximas linhas (conta/agência/etc + valor)
+        for (let j = i + 1; !valorRaw && j < Math.min(i + 14, linhas.length); j++) {
             const cand = linhas[j];
             if (dateRe.test(normalizar(cand))) break;
             if (totalResumoRe.test(normalizar(cand))) break;
@@ -749,6 +759,14 @@ function extrairNubank(texto: string): Array<{ dataRaw: string; descricaoRaw: st
                 i = j;
                 break;
             }
+
+            const mvInline = cand.match(valorInlineRe);
+            if (mvInline) {
+                valorRaw = mvInline[1].replace(/\s+/g, '');
+                i = j;
+                break;
+            }
+
             if (cand.length > 2 && !/AGENCIA|CONTA|NU PAGAMENTOS|BANCO|BCO/i.test(cand)) {
                 descricao = `${descricao} ${cand}`.replace(/\s+/g, ' ').trim();
             }
@@ -1308,6 +1326,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const ehInter = !ehNubank && isInterBank(textoExtrato);
         const ehNeon = !ehNubank && !ehInter && isNeonBank(textoExtrato);
         const isBradescoExtrato = !ehNubank && !ehInter && !ehNeon && isBradescoBank(textoExtrato);
+        const bankDetected = ehNubank ? 'nubank' : (ehInter ? 'inter' : (ehNeon ? 'neon' : (isBradescoExtrato ? 'bradesco' : 'generic')));
         const brutas = ehNubank
             ? extrairNubank(textoExtrato)
             : (ehInter ? extrairInter(textoExtrato) : (ehNeon ? extrairNeon(textoExtrato) : extrair(textoExtrato)));
@@ -1457,6 +1476,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             }));
             res.status(422).json({
                 erro: 'Nenhum crédito válido identificado. Verifique se o nome do cliente está correto.',
+                bankDetected,
                 totalTransacoesBrutas: brutas.length,
                 transacoesIgnoradas: ignoradas.length,
                 debug_amostra_transacoes: amostraDebug,
@@ -1489,6 +1509,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         res.status(200).json({
             algoritmoVersao: '3.0.0-interactive',
+            bankDetected,
             totalApurado,
             mediaMensalReal,
             divisao6Meses,
