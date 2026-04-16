@@ -757,6 +757,75 @@ function extrairMercadoPagoPorBloco(texto: string): Array<{ dataRaw: string; des
     return todos;
 }
 
+function extrairMercadoPagoUltraFallback(texto: string): Array<{ dataRaw: string; descricaoRaw: string; valorRaw: string }> {
+    const linhas = removerAcentos(texto)
+        .replace(/[–—−]/g, '-')
+        .split(/\r?\n/)
+        .map(l => l.replace(/\s+/g, ' ').trim())
+        .filter(Boolean);
+
+    const vistas = new Set<string>();
+    const todos: Array<{ dataRaw: string; descricaoRaw: string; valorRaw: string }> = [];
+
+    const DATA_RE_MP = /^(\d{2})[\/-](\d{2})[\/-](\d{4})\b/;
+    const VALOR_RE_MP = /R\$\s*[+-]?\d{1,3}(?:\.\d{3})*,\d{2}|[+-]?\d{1,3}(?:\.\d{3})*,\d{2}/g;
+
+    for (let i = 0; i < linhas.length; i++) {
+        const linha = linhas[i];
+        const mData = linha.match(DATA_RE_MP);
+        if (!mData) continue;
+
+        const dataRaw = `${mData[1]}/${mData[2]}/${mData[3]}`;
+
+        const janela = [linhas[i - 2] || '', linhas[i - 1] || '', linhas[i], linhas[i + 1] || '', linhas[i + 2] || '']
+            .join(' ')
+            .replace(/\s+/g, ' ')
+            .trim();
+        const janelaNorm = normalizar(janela);
+
+        const linhaValores = (linha.match(VALOR_RE_MP) || []).map(v => v.replace(/\s+/g, ''));
+        const proxValores = (linhas[i + 1]?.match(VALOR_RE_MP) || []).map(v => v.replace(/\s+/g, ''));
+        const valores = [...linhaValores, ...proxValores];
+        if (valores.length === 0) continue;
+
+        let valorRaw = valores[0].replace(/^R\$/i, '');
+
+        let descricaoRaw = janela
+            .replace(DATA_RE_MP, ' ')
+            .replace(/\b\d{8,20}\b/g, ' ')
+            .replace(/R\$\s*[+-]?\d{1,3}(?:\.\d{3})*,\d{2}/g, ' ')
+            .replace(/[+-]?\d{1,3}(?:\.\d{3})*,\d{2}/g, ' ')
+            .replace(/\b(DATA|DESCRICAO|ID\s+DA\s+OPERACAO|VALOR|SALDO|DETALHE\s+DOS\s+MOVIMENTOS)\b/gi, ' ')
+            .replace(/\s+/g, ' ')
+            .trim();
+
+        if (/TRANSFERENCIA\s+PIX\s+RECEBIDA/.test(janelaNorm) && !/TRANSFERENCIA\s+PIX\s+RECEBIDA/.test(normalizar(descricaoRaw))) {
+            descricaoRaw = `Transferencia Pix recebida ${descricaoRaw}`.trim();
+        } else if (/DINHEIRO\s+RECEBIDO/.test(janelaNorm) && !/DINHEIRO\s+RECEBIDO/.test(normalizar(descricaoRaw))) {
+            descricaoRaw = `Dinheiro recebido ${descricaoRaw}`.trim();
+        } else if (/TRANSFERENCIA\s+PIX\s+ENVIADA/.test(janelaNorm) && !/TRANSFERENCIA\s+PIX\s+ENVIADA/.test(normalizar(descricaoRaw))) {
+            descricaoRaw = `Transferencia Pix enviada ${descricaoRaw}`.trim();
+        }
+
+        if (!descricaoRaw || descricaoRaw.length < 3) {
+            descricaoRaw = 'Movimentacao Mercado Pago';
+        }
+
+        const descNorm = normalizar(descricaoRaw);
+        if (!valorRaw.startsWith('-') && /PAGAMENTO\s+ENVIADO|TRANSFERENCIA\s+ENVIADA|PIX\s+ENVIADO|COMPRA|SAQUE|RETIRADA/.test(descNorm)) {
+            valorRaw = `-${valorRaw}`;
+        }
+
+        const chave = `${dataRaw}|${descricaoRaw}|${valorRaw}`;
+        if (!vistas.has(chave)) {
+            vistas.add(chave);
+            todos.push({ dataRaw, descricaoRaw, valorRaw });
+        }
+    }
+
+    return todos;
+}
+
 function extrairMercadoPago(texto: string): Array<{ dataRaw: string; descricaoRaw: string; valorRaw: string }> {
     const linhas = texto
         .replace(/\r\n/g, '\n')
@@ -934,7 +1003,9 @@ function extrairMercadoPago(texto: string): Array<{ dataRaw: string; descricaoRa
     }
 
     if (todos.length === 0) {
-        return extrairMercadoPagoPorBloco(texto);
+        const byBlock = extrairMercadoPagoPorBloco(texto);
+        if (byBlock.length > 0) return byBlock;
+        return extrairMercadoPagoUltraFallback(texto);
     }
 
     return todos;
