@@ -22,6 +22,7 @@ type ClientHierarchyResolved = {
   ownerName: string | null;
   coordinatorName: string | null;
   teamName: string | null;
+  directorateName?: string | null;
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -316,7 +317,7 @@ function ConvertLeadModal({ lead, onClose, onConfirm }: {
 export default function Clients() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { clients, leads, loading, userRole, allProfiles, teams, user } = useApp();
+  const { clients, leads, loading, userRole, allProfiles, teams, directorates, user } = useApp();
   const { isManager, isAdmin, isDirector, canViewAllClients } = useAuthorization();
 
   const [mainTab, setMainTab] = useState<MainTab>('clientes');
@@ -651,6 +652,7 @@ export default function Clients() {
                     ownerId={ownerId}
                     allProfiles={allProfiles}
                     teams={teams}
+                    directorates={directorates}
                     resolved={clientHierarchy[client.id]}
                     className="mb-2"
                   />

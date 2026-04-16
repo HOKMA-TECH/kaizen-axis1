@@ -1,14 +1,16 @@
-import { Profile, Team } from '@/context/AppContext';
+import { Directorate, Profile, Team } from '@/context/AppContext';
 
 interface ClientHierarchyTagsProps {
   /** owner_id from client or user_id from appointment */
   ownerId?: string | null;
   allProfiles: Profile[];
   teams?: Team[];
+  directorates?: Directorate[];
   resolved?: {
     ownerName?: string | null;
     coordinatorName?: string | null;
     teamName?: string | null;
+    directorateName?: string | null;
   };
   className?: string;
 }
@@ -21,20 +23,19 @@ export function ClientHierarchyTags({
   ownerId,
   allProfiles,
   teams,
+  directorates,
   resolved,
   className,
 }: ClientHierarchyTagsProps) {
   const ownerProfile = ownerId ? allProfiles.find(p => p.id === ownerId) : null;
 
-  const coordProfile = ownerProfile?.coordinator_id
-    ? allProfiles.find(p => p.id === ownerProfile.coordinator_id) ?? null
-    : null;
+  const resolvedTeamId = ownerProfile?.team_id || ownerProfile?.team || null;
 
-  const resolveTeamName = () => {
+  const resolvedTeam = (() => {
     if (!teams || !ownerProfile) return null;
 
-    const directById = ownerProfile.team_id
-      ? teams.find(t => t.id === ownerProfile.team_id) ?? null
+    const directById = resolvedTeamId
+      ? teams.find(t => t.id === resolvedTeamId) ?? null
       : null;
 
     const directByLegacy = ownerProfile.team
@@ -45,18 +46,35 @@ export function ClientHierarchyTags({
       ? teams.find(t => Array.isArray(t.members) && t.members.includes(ownerId)) ?? null
       : null;
 
-    // team_id/team no profile sao a fonte principal para evitar mostrar
-    // equipe antiga caso o usuario ainda esteja em members legado.
-    return directById?.name ?? directByLegacy?.name ?? byMembership?.name ?? null;
-  };
+    // profile.team_id/team e a fonte principal para evitar tag antiga.
+    return directById ?? directByLegacy ?? byMembership;
+  })();
 
-  const teamName = resolveTeamName();
+  const explicitCoordinator = ownerProfile?.coordinator_id
+    ? allProfiles.find(p => p.id === ownerProfile.coordinator_id) ?? null
+    : null;
+
+  const fallbackCoordinator = !explicitCoordinator && resolvedTeam
+    ? allProfiles.find((p) => {
+      const role = String(p.role || '').toUpperCase();
+      return role === 'COORDENADOR' && (p.team_id === resolvedTeam.id || p.team === resolvedTeam.id);
+    }) ?? null
+    : null;
+
+  const coordProfile = explicitCoordinator ?? fallbackCoordinator;
+
+  const teamName = resolvedTeam?.name ?? null;
+  const resolvedDirectorateId = ownerProfile?.directorate_id || resolvedTeam?.directorate_id || null;
+  const directorateName = resolvedDirectorateId
+    ? directorates?.find(d => d.id === resolvedDirectorateId)?.name ?? null
+    : null;
 
   const ownerName = ownerProfile?.name ?? resolved?.ownerName ?? null;
   const coordinatorName = coordProfile?.name ?? resolved?.coordinatorName ?? null;
   const finalTeamName = teamName ?? resolved?.teamName ?? null;
+  const finalDirectorateName = directorateName ?? resolved?.directorateName ?? null;
 
-  if (!ownerName && !coordinatorName && !finalTeamName) return null;
+  if (!ownerName && !coordinatorName && !finalTeamName && !finalDirectorateName) return null;
 
   return (
     <div className={`flex flex-wrap gap-1 ${className ?? ''}`}>
@@ -73,6 +91,11 @@ export function ClientHierarchyTags({
       {finalTeamName && (
         <span className="inline-flex items-center text-[10px] bg-surface-100 dark:bg-surface-200 text-text-secondary px-2 py-0.5 rounded-full font-medium">
           🏢 {finalTeamName}
+        </span>
+      )}
+      {finalDirectorateName && (
+        <span className="inline-flex items-center text-[10px] bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 px-2 py-0.5 rounded-full font-medium">
+          🏛️ {finalDirectorateName}
         </span>
       )}
     </div>

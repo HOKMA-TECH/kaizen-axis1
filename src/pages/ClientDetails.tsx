@@ -14,7 +14,7 @@ import { ClientHierarchyTags } from '@/components/ui/ClientHierarchyTags';
 export default function ClientDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { getClient, updateClient, deleteClient, userName, getDownloadUrl, uploadFile, addDocumentToClient, deleteDocumentFromClient, clients, allProfiles, teams } = useApp();
+  const { getClient, updateClient, deleteClient, userName, getDownloadUrl, uploadFile, addDocumentToClient, deleteDocumentFromClient, clients, allProfiles, teams, directorates } = useApp();
   const { role, canViewAllClients } = useAuthorization();
 
   // Etapas avançadas: apenas COORDENADOR, GERENTE, DIRETOR e ADMIN podem mover o cliente para cá
@@ -257,6 +257,7 @@ export default function ClientDetails() {
               ownerId={(client as any).owner_id}
               allProfiles={allProfiles}
               teams={teams}
+              directorates={directorates}
             />
           )}
 

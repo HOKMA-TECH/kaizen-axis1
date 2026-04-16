@@ -13,7 +13,7 @@ import { ClientHierarchyTags } from '@/components/ui/ClientHierarchyTags';
 export default function Schedule() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { appointments, addAppointment, updateAppointment, deleteAppointment, loading, allProfiles, teams } = useApp();
+  const { appointments, addAppointment, updateAppointment, deleteAppointment, loading, allProfiles, teams, directorates } = useApp();
   const { isManager, canViewAllClients } = useAuthorization();
 
   const today = new Date();
@@ -188,6 +188,7 @@ export default function Schedule() {
                         ownerId={event.user_id}
                         allProfiles={allProfiles}
                         teams={teams}
+                        directorates={directorates}
                         className="mb-1"
                       />
                     )}
