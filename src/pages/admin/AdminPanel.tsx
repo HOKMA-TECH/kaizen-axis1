@@ -10,6 +10,7 @@ import { supabase } from '@/lib/supabase';
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
 import PipelinePdfExport from '@/components/admin/PipelinePdfExport';
 import { useReportsData } from '@/hooks/useReportsData';
+import { parseDateOnlyLocal, parseDateOnlyLocalEnd, toDateOnlyLocal, toPtBrDate } from '@/lib/dateRange';
 
 type Tab = 'users' | 'teams' | 'goals' | 'announcements' | 'reports' | 'directorates' | 'gamification';
 
@@ -68,9 +69,12 @@ export default function AdminPanel() {
   const [isPipelineModalOpen, setIsPipelineModalOpen] = useState(false);
 
   // Reports
-  const [reportDateRange, setReportDateRange] = useState({
-    start: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().slice(0, 10),
-    end: new Date().toISOString().slice(0, 10)
+  const [reportDateRange, setReportDateRange] = useState(() => {
+    const today = new Date();
+    return {
+      start: toDateOnlyLocal(new Date(today.getFullYear(), today.getMonth(), 1)),
+      end: toDateOnlyLocal(today),
+    };
   });
   const [reportData, setReportData] = useState<any>(null);
   const [reportLoading, setReportLoading] = useState(false);
@@ -79,8 +83,8 @@ export default function AdminPanel() {
 
   // XP Report
   const [xpDateRange, setXpDateRange] = useState({
-    start: new Date(new Date().setDate(new Date().getDate() - 30)).toISOString().slice(0, 10),
-    end: new Date().toISOString().slice(0, 10)
+    start: toDateOnlyLocal(new Date(new Date().setDate(new Date().getDate() - 30))),
+    end: toDateOnlyLocal(new Date())
   });
   const [xpReportData, setXpReportData] = useState<any[]>([]);
   const [xpReportLoading, setXpReportLoading] = useState(false);
@@ -96,39 +100,64 @@ export default function AdminPanel() {
     return parseFloat(v.replace(/[R$\s.]/g, '').replace(',', '.')) || 0;
   };
 
-  // VGV: sum intendedValue of concluded clients closed within the selected period
-  const vgvLocal = clients
-    .filter(c => {
-      if (c.stage !== 'Concluído') return false;
-      const closedDate = new Date((c as any).closed_at || (c as any).updated_at || c.createdAt);
-      return closedDate >= new Date(reportDateRange.start) && closedDate <= new Date(reportDateRange.end + 'T23:59:59');
-    })
-    .reduce((acc, c) => acc + parseCurrencyLocal(c.intendedValue), 0);
+  const reportRangeStart = parseDateOnlyLocal(reportDateRange.start);
+  const reportRangeEnd = parseDateOnlyLocalEnd(reportDateRange.end);
+
+  const selectedPeriodClients = clients.filter((c) => {
+    const created = new Date(c.createdAt);
+    return created >= reportRangeStart && created <= reportRangeEnd;
+  });
+
+  const selectedPeriodSales = selectedPeriodClients.filter((c) => c.stage === 'Concluído');
+
+  // VGV aligned with selected report period and sales card criteria
+  const vgvLocal = selectedPeriodSales.reduce((acc, c) => acc + parseCurrencyLocal(c.intendedValue), 0);
 
   // Broker ranking computed client-side (RPC Li=0 because leads table is empty per-broker)
   const localBrokerRanking = (() => {
-    const start = new Date(reportDateRange.start);
-    const end = new Date(reportDateRange.end + 'T23:59:59');
+    const brokers = allProfiles.filter((p) => p.role?.toUpperCase() === 'CORRETOR');
 
-    const periodCreatedClients = clients.filter((c) => {
+    return brokers
+      .map((p) => {
+        const createdByBroker = selectedPeriodClients.filter((c) => (c as any).owner_id === p.id);
+        const salesByBroker = selectedPeriodSales.filter((c) => (c as any).owner_id === p.id);
+        if (createdByBroker.length === 0 && salesByBroker.length === 0) return null;
+
+        const vi = salesByBroker.length;
+        const ri = salesByBroker.reduce((acc, c) => acc + parseCurrencyLocal(c.intendedValue), 0);
+        return {
+          corretor_id: p.id,
+          nome: p.name,
+          Li: createdByBroker.length,
+          Vi: vi,
+          Taxa_Conversao_i: createdByBroker.length > 0 ? Math.round((vi / createdByBroker.length) * 100) : 0,
+          Ri: ri,
+        };
+      })
+      .filter(Boolean)
+      .sort((a: any, b: any) => b.Vi - a.Vi || b.Ri - a.Ri);
+  })();
+
+  const monthlyBrokerRanking = (() => {
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+    const monthEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+
+    const monthClients = clients.filter((c) => {
       const created = new Date(c.createdAt);
-      return created >= start && created <= end;
+      return created >= monthStart && created <= monthEnd;
     });
 
-    const periodClosedClients = clients.filter((c) => {
-      if (c.stage !== 'Concluído') return false;
-      const closedDate = new Date((c as any).closed_at || (c as any).updated_at || c.createdAt);
-      return closedDate >= start && closedDate <= end;
-    });
+    const brokers = allProfiles.filter((p) => p.role?.toUpperCase() === 'CORRETOR');
 
-    return allProfiles
-      .map(p => {
-        const createdByBroker = periodCreatedClients.filter(c => (c as any).owner_id === p.id);
-        const closedByBroker = periodClosedClients.filter(c => (c as any).owner_id === p.id);
-        if (createdByBroker.length === 0 && closedByBroker.length === 0) return null;
+    return brokers
+      .map((p) => {
+        const createdByBroker = monthClients.filter((c) => (c as any).owner_id === p.id);
+        const salesByBroker = createdByBroker.filter((c) => c.stage === 'Concluído');
+        if (createdByBroker.length === 0 && salesByBroker.length === 0) return null;
 
-        const vi = closedByBroker.length;
-        const ri = closedByBroker.reduce((acc, c) => acc + parseCurrencyLocal(c.intendedValue), 0);
+        const vi = salesByBroker.length;
+        const ri = salesByBroker.reduce((acc, c) => acc + parseCurrencyLocal(c.intendedValue), 0);
         return {
           corretor_id: p.id,
           nome: p.name,
@@ -326,7 +355,7 @@ export default function AdminPanel() {
       await buildPdfReport({
         filename: `relatorio-geral-${reportDateRange.start}-${reportDateRange.end}.pdf`,
         title: 'Relatorio Geral de Performance',
-        subtitle: `Periodo ${new Date(reportDateRange.start).toLocaleDateString('pt-BR')} a ${new Date(reportDateRange.end).toLocaleDateString('pt-BR')}`,
+        subtitle: `Periodo ${toPtBrDate(reportDateRange.start)} a ${toPtBrDate(reportDateRange.end)}`,
         metrics: [
           { label: 'Leads', value: String(resumo.L || 0) },
           { label: 'Clientes', value: String(resumo.C || 0) },
@@ -365,7 +394,7 @@ export default function AdminPanel() {
       await buildPdfReport({
         filename: `relatorio-equipes-${reportDateRange.start}-${reportDateRange.end}.pdf`,
         title: 'Relatorio por Equipe',
-        subtitle: `Periodo ${new Date(reportDateRange.start).toLocaleDateString('pt-BR')} a ${new Date(reportDateRange.end).toLocaleDateString('pt-BR')}`,
+        subtitle: `Periodo ${toPtBrDate(reportDateRange.start)} a ${toPtBrDate(reportDateRange.end)}`,
         metrics: [
           { label: 'Equipes com resultado', value: String(reportByTeam.length) },
           { label: 'Clientes no periodo', value: String(reportByTeam.reduce((acc, row) => acc + row.clientes, 0)) },
@@ -404,7 +433,7 @@ export default function AdminPanel() {
       await buildPdfReport({
         filename: `relatorio-coordenacao-${reportDateRange.start}-${reportDateRange.end}.pdf`,
         title: 'Relatorio por Coordenacao',
-        subtitle: `Periodo ${new Date(reportDateRange.start).toLocaleDateString('pt-BR')} a ${new Date(reportDateRange.end).toLocaleDateString('pt-BR')}`,
+        subtitle: `Periodo ${toPtBrDate(reportDateRange.start)} a ${toPtBrDate(reportDateRange.end)}`,
         metrics: [
           { label: 'Coordenacoes com resultado', value: String(reportByCoordination.length) },
           { label: 'Corretores mapeados', value: String(reportByCoordination.reduce((acc, row) => acc + row.corretores, 0)) },
@@ -1165,8 +1194,19 @@ export default function AdminPanel() {
 
                 <div className="flex justify-between items-center pt-2 gap-2 border-t border-surface-100 mt-2">
                   <div className="flex gap-2">
-                    <button onClick={() => setReportDateRange({ start: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().slice(0, 10), end: new Date().toISOString().slice(0, 10) })} className="px-3 py-1.5 bg-surface-100 text-[11px] font-semibold text-text-secondary rounded-lg hover:bg-gold-50 hover:text-gold-700 transition-colors">Este Mês</button>
-                    <button onClick={() => { const today = new Date(); const m30 = new Date(); m30.setDate(today.getDate() - 30); setReportDateRange({ start: m30.toISOString().slice(0, 10), end: today.toISOString().slice(0, 10) }) }} className="px-3 py-1.5 bg-surface-100 text-[11px] font-semibold text-text-secondary rounded-lg hover:bg-gold-50 hover:text-gold-700 transition-colors">30 Dias</button>
+                    <button onClick={() => {
+                      const today = new Date();
+                      setReportDateRange({
+                        start: toDateOnlyLocal(new Date(today.getFullYear(), today.getMonth(), 1)),
+                        end: toDateOnlyLocal(today),
+                      });
+                    }} className="px-3 py-1.5 bg-surface-100 text-[11px] font-semibold text-text-secondary rounded-lg hover:bg-gold-50 hover:text-gold-700 transition-colors">Este Mês</button>
+                    <button onClick={() => {
+                      const today = new Date();
+                      const m30 = new Date();
+                      m30.setDate(today.getDate() - 30);
+                      setReportDateRange({ start: toDateOnlyLocal(m30), end: toDateOnlyLocal(today) });
+                    }} className="px-3 py-1.5 bg-surface-100 text-[11px] font-semibold text-text-secondary rounded-lg hover:bg-gold-50 hover:text-gold-700 transition-colors">30 Dias</button>
                   </div>
                 </div>
               </div>
@@ -1183,7 +1223,7 @@ export default function AdminPanel() {
                 {/* TOP NAVIGATION METRICS */}
                 <div className="hidden print:block text-center mt-4">
                   <h2 className="text-xl font-bold">Relatório de Desempenho</h2>
-                  <p className="text-sm text-text-secondary">{new Date(reportDateRange.start).toLocaleDateString('pt-BR')} a {new Date(reportDateRange.end).toLocaleDateString('pt-BR')}</p>
+                  <p className="text-sm text-text-secondary">{toPtBrDate(reportDateRange.start)} a {toPtBrDate(reportDateRange.end)}</p>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3 print:grid-cols-4 print:gap-4 print:mt-4">
@@ -1298,8 +1338,8 @@ export default function AdminPanel() {
                 {/* RANKING TABLE */}
                 <PremiumCard className="p-0 overflow-hidden border-surface-100 shadow-[0_2px_10px_rgba(0,0,0,0.02)] mt-4">
                   <div className="p-3 border-b border-surface-100 flex items-center justify-between bg-surface-50">
-                    <h4 className="text-[11px] uppercase tracking-wider font-bold text-text-secondary flex items-center gap-1.5"><Trophy size={14} className="text-gold-500" /> Ranking de Corretores</h4>
-                    <span className="text-[10px] font-bold text-text-secondary bg-card-bg px-2 py-0.5 border border-surface-200 rounded-md shadow-sm">{localBrokerRanking.length} ativos</span>
+                    <h4 className="text-[11px] uppercase tracking-wider font-bold text-text-secondary flex items-center gap-1.5"><Trophy size={14} className="text-gold-500" /> Ranking de Corretores (Mês vigente)</h4>
+                    <span className="text-[10px] font-bold text-text-secondary bg-card-bg px-2 py-0.5 border border-surface-200 rounded-md shadow-sm">{monthlyBrokerRanking.length} ativos</span>
                   </div>
                   <div className="overflow-x-auto no-scrollbar">
                     <table className="w-full text-left border-collapse min-w-[380px]">
@@ -1313,7 +1353,7 @@ export default function AdminPanel() {
                         </tr>
                       </thead>
                       <tbody>
-                        {localBrokerRanking.map((c: any, i: number) => (
+                        {monthlyBrokerRanking.map((c: any, i: number) => (
                           <tr key={c.corretor_id} className="border-b border-surface-50 last:border-0 hover:bg-surface-50/50 transition-colors">
                             <td className="p-3 text-[11px] font-bold text-text-primary flex items-center gap-2">
                               {i < 3 ? (
@@ -1337,7 +1377,7 @@ export default function AdminPanel() {
                             </td>
                           </tr>
                         ))}
-                        {localBrokerRanking.length === 0 && (
+                        {monthlyBrokerRanking.length === 0 && (
                           <tr><td colSpan={5} className="p-8 text-center text-text-secondary text-sm">Nenhum dado de corretor encontrado nesse período.</td></tr>
                         )}
                       </tbody>
@@ -1454,8 +1494,16 @@ export default function AdminPanel() {
                     <div className="flex justify-between items-center pt-2 gap-2 border-t border-surface-100 mt-2">
                       <p className="text-[11px] text-text-secondary sm:hidden">Exibindo moedas/XP no período.</p>
                       <div className="flex gap-2">
-                        <button onClick={() => setXpDateRange({ start: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().slice(0, 10), end: new Date().toISOString().slice(0, 10) })} className="px-3 py-1.5 bg-surface-100 text-[11px] font-semibold text-text-secondary rounded-lg hover:bg-gold-50 hover:text-gold-700 transition-colors">Este Mês</button>
-                        <button onClick={() => { const today = new Date(); const m30 = new Date(); m30.setDate(today.getDate() - 30); setXpDateRange({ start: m30.toISOString().slice(0, 10), end: today.toISOString().slice(0, 10) }) }} className="px-3 py-1.5 bg-surface-100 text-[11px] font-semibold text-text-secondary rounded-lg hover:bg-gold-50 hover:text-gold-700 transition-colors">30 Dias</button>
+                        <button onClick={() => {
+                          const today = new Date();
+                          setXpDateRange({ start: toDateOnlyLocal(new Date(today.getFullYear(), today.getMonth(), 1)), end: toDateOnlyLocal(today) });
+                        }} className="px-3 py-1.5 bg-surface-100 text-[11px] font-semibold text-text-secondary rounded-lg hover:bg-gold-50 hover:text-gold-700 transition-colors">Este Mês</button>
+                        <button onClick={() => {
+                          const today = new Date();
+                          const m30 = new Date();
+                          m30.setDate(today.getDate() - 30);
+                          setXpDateRange({ start: toDateOnlyLocal(m30), end: toDateOnlyLocal(today) });
+                        }} className="px-3 py-1.5 bg-surface-100 text-[11px] font-semibold text-text-secondary rounded-lg hover:bg-gold-50 hover:text-gold-700 transition-colors">30 Dias</button>
                       </div>
                     </div>
                   </div>
