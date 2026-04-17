@@ -154,6 +154,16 @@ export default function AdminPanel() {
       .sort((a: any, b: any) => b.Vi - a.Vi || b.Ri - a.Ri);
   })();
 
+  const compareRankingRows = (a: any, b: any) => {
+    return (
+      Number(b.Ri || 0) - Number(a.Ri || 0) ||
+      Number(b.Vi || 0) - Number(a.Vi || 0) ||
+      Number(b.Li || 0) - Number(a.Li || 0) ||
+      String(a.nome || '').localeCompare(String(b.nome || ''), 'pt-BR') ||
+      String(a.entity_id || '').localeCompare(String(b.entity_id || ''))
+    );
+  };
+
   const monthlyBrokerRanking = (() => {
     const now = new Date();
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
@@ -164,17 +174,20 @@ export default function AdminPanel() {
       return created >= monthStart && created <= monthEnd;
     });
 
+    const monthSales = monthClients.filter((c) => c.stage === 'Concluído');
+
     const brokers = allProfiles.filter((p) => p.role?.toUpperCase() === 'CORRETOR');
 
     return brokers
       .map((p) => {
         const createdByBroker = monthClients.filter((c) => (c as any).owner_id === p.id);
-        const salesByBroker = createdByBroker.filter((c) => c.stage === 'Concluído');
+        const salesByBroker = monthSales.filter((c) => (c as any).owner_id === p.id);
         if (createdByBroker.length === 0 && salesByBroker.length === 0) return null;
 
         const vi = salesByBroker.length;
         const ri = salesByBroker.reduce((acc, c) => acc + parseCurrencyLocal(c.intendedValue), 0);
         return {
+          entity_id: p.id,
           corretor_id: p.id,
           nome: p.name,
           Li: createdByBroker.length,
@@ -184,7 +197,87 @@ export default function AdminPanel() {
         };
       })
       .filter(Boolean)
-      .sort((a: any, b: any) => b.Vi - a.Vi || b.Ri - a.Ri);
+      .sort(compareRankingRows)
+      .slice(0, 3);
+  })();
+
+  const monthlyManagerRanking = (() => {
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+    const monthEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+
+    const monthClients = clients.filter((c) => {
+      const created = new Date(c.createdAt);
+      return created >= monthStart && created <= monthEnd;
+    });
+
+    const monthSales = monthClients.filter((c) => c.stage === 'Concluído');
+    const managers = allProfiles.filter((p) => p.role?.toUpperCase() === 'GERENTE');
+
+    return managers
+      .map((manager) => {
+        const managedTeamIds = teams.filter((t) => t.manager_id === manager.id).map((t) => t.id);
+        const brokerIds = Array.from(new Set(allProfiles
+          .filter((p: any) => p.role?.toUpperCase() === 'CORRETOR' && managedTeamIds.includes(p.team_id || p.team))
+          .map((p) => p.id)));
+
+        const createdByManager = monthClients.filter((c) => brokerIds.includes((c as any).owner_id));
+        const salesByManager = monthSales.filter((c) => brokerIds.includes((c as any).owner_id));
+        if (createdByManager.length === 0 && salesByManager.length === 0) return null;
+
+        const vi = salesByManager.length;
+        const ri = salesByManager.reduce((acc, c) => acc + parseCurrencyLocal(c.intendedValue), 0);
+        return {
+          entity_id: manager.id,
+          nome: manager.name,
+          Li: createdByManager.length,
+          Vi: vi,
+          Taxa_Conversao_i: createdByManager.length > 0 ? Math.round((vi / createdByManager.length) * 100) : 0,
+          Ri: ri,
+        };
+      })
+      .filter(Boolean)
+      .sort(compareRankingRows)
+      .slice(0, 3);
+  })();
+
+  const monthlyCoordinatorRanking = (() => {
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+    const monthEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+
+    const monthClients = clients.filter((c) => {
+      const created = new Date(c.createdAt);
+      return created >= monthStart && created <= monthEnd;
+    });
+
+    const monthSales = monthClients.filter((c) => c.stage === 'Concluído');
+    const coordinators = allProfiles.filter((p) => p.role?.toUpperCase() === 'COORDENADOR');
+
+    return coordinators
+      .map((coord) => {
+        const brokerIds = Array.from(new Set(allProfiles
+          .filter((p: any) => p.role?.toUpperCase() === 'CORRETOR' && p.coordinator_id === coord.id)
+          .map((p) => p.id)));
+
+        const createdByCoord = monthClients.filter((c) => brokerIds.includes((c as any).owner_id));
+        const salesByCoord = monthSales.filter((c) => brokerIds.includes((c as any).owner_id));
+        if (createdByCoord.length === 0 && salesByCoord.length === 0) return null;
+
+        const vi = salesByCoord.length;
+        const ri = salesByCoord.reduce((acc, c) => acc + parseCurrencyLocal(c.intendedValue), 0);
+        return {
+          entity_id: coord.id,
+          nome: coord.name,
+          Li: createdByCoord.length,
+          Vi: vi,
+          Taxa_Conversao_i: createdByCoord.length > 0 ? Math.round((vi / createdByCoord.length) * 100) : 0,
+          Ri: ri,
+        };
+      })
+      .filter(Boolean)
+      .sort(compareRankingRows)
+      .slice(0, 3);
   })();
 
   const reportByTeam = (() => {
@@ -1351,55 +1444,71 @@ export default function AdminPanel() {
                   </PremiumCard>
                 </div>
 
-                {/* RANKING TABLE */}
-                <PremiumCard className="p-0 overflow-hidden border-surface-100 shadow-[0_2px_10px_rgba(0,0,0,0.02)] mt-4">
-                  <div className="p-3 border-b border-surface-100 flex items-center justify-between bg-surface-50">
-                    <h4 className="text-[11px] uppercase tracking-wider font-bold text-text-secondary flex items-center gap-1.5"><Trophy size={14} className="text-gold-500" /> Ranking de Corretores (Mês vigente)</h4>
-                    <span className="text-[10px] font-bold text-text-secondary bg-card-bg px-2 py-0.5 border border-surface-200 rounded-md shadow-sm">{monthlyBrokerRanking.length} ativos</span>
-                  </div>
-                  <div className="overflow-x-auto no-scrollbar">
-                    <table className="w-full text-left border-collapse min-w-[380px]">
-                      <thead>
-                        <tr className="bg-card-bg text-text-secondary text-[9px] uppercase tracking-wider border-b border-surface-100">
-                          <th className="p-3 font-bold">Corretor</th>
-                          <th className="p-3 font-bold text-center">Clientes</th>
-                          <th className="p-3 font-bold text-center">Vendas</th>
-                          <th className="p-3 font-bold text-center">Conversão</th>
-                          <th className="p-3 font-bold text-right">VGV / Receita</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {monthlyBrokerRanking.map((c: any, i: number) => (
-                          <tr key={c.corretor_id} className="border-b border-surface-50 last:border-0 hover:bg-surface-50/50 transition-colors">
-                            <td className="p-3 text-[11px] font-bold text-text-primary flex items-center gap-2">
-                              {i < 3 ? (
-                                <span className={`text-[9px] w-4 h-4 flex items-center justify-center rounded-full font-bold shadow-sm shrink-0 ${i === 0 ? 'bg-gradient-to-br from-yellow-300 to-yellow-500 text-white' : i === 1 ? 'bg-gradient-to-br from-gray-200 to-gray-400 text-white' : 'bg-gradient-to-br from-orange-300 to-orange-500 text-white'}`}>{i + 1}</span>
-                              ) : (
-                                <span className="text-[9px] w-4 h-4 flex items-center justify-center rounded-full font-bold bg-surface-100 text-text-secondary shrink-0">{i + 1}</span>
-                              )}
-                              <span className="truncate max-w-[70px]" title={String(c.nome || '').trim() || 'Sem nome'}>
-                                {formatBrokerDisplayName(c.nome)}
-                              </span>
-                            </td>
-                            <td className="p-3 text-[11px] text-center text-text-secondary font-medium">{c.Li}</td>
-                            <td className="p-3 text-[11px] text-center font-black text-green-600">{c.Vi}</td>
-                            <td className="p-3 text-center">
-                              <span className={`px-1.5 py-0.5 rounded-sm text-[9px] font-bold ${c.Taxa_Conversao_i >= 5 ? 'bg-green-50 text-green-700' : c.Taxa_Conversao_i > 0 ? 'bg-blue-50 text-blue-700' : 'bg-surface-50 text-text-secondary'}`}>
-                                {c.Taxa_Conversao_i}%
-                              </span>
-                            </td>
-                            <td className="p-3 text-[11px] text-right font-bold text-text-primary tracking-tight">
-                              {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0, notation: 'compact' }).format(c.Ri)}
-                            </td>
+                {/* TOP 3 RANKINGS */}
+                {[{
+                  key: 'brokers',
+                  title: 'Ranking de Corretores (Top 3 • Mês vigente)',
+                  label: 'Corretor',
+                  rows: monthlyBrokerRanking,
+                  empty: 'Nenhum corretor com dados no mês vigente.',
+                }, {
+                  key: 'managers',
+                  title: 'Ranking de Gerentes (Top 3 • Mês vigente)',
+                  label: 'Gerente',
+                  rows: monthlyManagerRanking,
+                  empty: 'Nenhum gerente com dados no mês vigente.',
+                }, {
+                  key: 'coordinators',
+                  title: 'Ranking de Coordenadores (Top 3 • Mês vigente)',
+                  label: 'Coordenador',
+                  rows: monthlyCoordinatorRanking,
+                  empty: 'Nenhum coordenador com dados no mês vigente.',
+                }].map((ranking) => (
+                  <PremiumCard key={ranking.key} className="p-0 overflow-hidden border-surface-100 shadow-[0_2px_10px_rgba(0,0,0,0.02)] mt-4">
+                    <div className="p-3 border-b border-surface-100 flex items-center justify-between bg-surface-50">
+                      <h4 className="text-[11px] uppercase tracking-wider font-bold text-text-secondary flex items-center gap-1.5"><Trophy size={14} className="text-gold-500" /> {ranking.title}</h4>
+                      <span className="text-[10px] font-bold text-text-secondary bg-card-bg px-2 py-0.5 border border-surface-200 rounded-md shadow-sm">{ranking.rows.length}/3</span>
+                    </div>
+                    <div className="overflow-x-auto no-scrollbar">
+                      <table className="w-full text-left border-collapse min-w-[380px]">
+                        <thead>
+                          <tr className="bg-card-bg text-text-secondary text-[9px] uppercase tracking-wider border-b border-surface-100">
+                            <th className="p-3 font-bold">{ranking.label}</th>
+                            <th className="p-3 font-bold text-center">Clientes</th>
+                            <th className="p-3 font-bold text-center">Vendas</th>
+                            <th className="p-3 font-bold text-center">Conversão</th>
+                            <th className="p-3 font-bold text-right">VGV / Receita</th>
                           </tr>
-                        ))}
-                        {monthlyBrokerRanking.length === 0 && (
-                          <tr><td colSpan={5} className="p-8 text-center text-text-secondary text-sm">Nenhum dado de corretor encontrado nesse período.</td></tr>
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                </PremiumCard>
+                        </thead>
+                        <tbody>
+                          {ranking.rows.map((c: any, i: number) => (
+                            <tr key={`${ranking.key}-${c.entity_id}`} className="border-b border-surface-50 last:border-0 hover:bg-surface-50/50 transition-colors">
+                              <td className="p-3 text-[11px] font-bold text-text-primary flex items-center gap-2">
+                                <span className={`text-[9px] w-4 h-4 flex items-center justify-center rounded-full font-bold shadow-sm shrink-0 ${i === 0 ? 'bg-gradient-to-br from-yellow-300 to-yellow-500 text-white' : i === 1 ? 'bg-gradient-to-br from-gray-200 to-gray-400 text-white' : 'bg-gradient-to-br from-orange-300 to-orange-500 text-white'}`}>{i + 1}</span>
+                                <span className="truncate max-w-[70px]" title={String(c.nome || '').trim() || 'Sem nome'}>
+                                  {formatBrokerDisplayName(c.nome)}
+                                </span>
+                              </td>
+                              <td className="p-3 text-[11px] text-center text-text-secondary font-medium">{c.Li}</td>
+                              <td className="p-3 text-[11px] text-center font-black text-green-600">{c.Vi}</td>
+                              <td className="p-3 text-center">
+                                <span className={`px-1.5 py-0.5 rounded-sm text-[9px] font-bold ${c.Taxa_Conversao_i >= 5 ? 'bg-green-50 text-green-700' : c.Taxa_Conversao_i > 0 ? 'bg-blue-50 text-blue-700' : 'bg-surface-50 text-text-secondary'}`}>
+                                  {c.Taxa_Conversao_i}%
+                                </span>
+                              </td>
+                              <td className="p-3 text-[11px] text-right font-bold text-text-primary tracking-tight">
+                                {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0, notation: 'compact' }).format(c.Ri)}
+                              </td>
+                            </tr>
+                          ))}
+                          {ranking.rows.length === 0 && (
+                            <tr><td colSpan={5} className="p-8 text-center text-text-secondary text-sm">{ranking.empty}</td></tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </PremiumCard>
+                ))}
               </>
             )}
           </div>
