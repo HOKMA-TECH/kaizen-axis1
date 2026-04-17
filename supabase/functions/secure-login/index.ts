@@ -5,6 +5,7 @@ import { createClient } from 'jsr:@supabase/supabase-js@2';
 type SecureLoginBody = {
   email?: string;
   password?: string;
+  captchaToken?: string;
 };
 
 const LOGIN_LIMIT = { limit: 10, windowSeconds: 60 };
@@ -65,6 +66,7 @@ Deno.serve(async (req: Request) => {
 
   const email = String(body?.email || '').trim().toLowerCase();
   const password = String(body?.password || '');
+  const captchaToken = String(body?.captchaToken || '').trim();
   if (!email || !password) {
     return jsonResponse({ message: 'E-mail e senha são obrigatórios' }, 400);
   }
@@ -97,13 +99,18 @@ Deno.serve(async (req: Request) => {
     return jsonResponse({ message: 'Muitas tentativas. Aguarde antes de tentar novamente.' }, 429);
   }
 
+  const authPayload: Record<string, string> = { email, password };
+  if (captchaToken) {
+    authPayload.captcha_token = captchaToken;
+  }
+
   const authRes = await fetch(`${supabaseUrl}/auth/v1/token?grant_type=password`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       apikey: anonKey,
     },
-    body: JSON.stringify({ email, password }),
+    body: JSON.stringify(authPayload),
   });
 
   let authData: any = null;
@@ -114,6 +121,14 @@ Deno.serve(async (req: Request) => {
   }
 
   if (!authRes.ok) {
+    const upstreamMessage = String(
+      authData?.msg || authData?.message || authData?.error_description || authData?.error || ''
+    ).toLowerCase();
+
+    if (upstreamMessage.includes('captcha')) {
+      return jsonResponse({ message: 'Verificacao de seguranca invalida ou expirada. Tente novamente.' }, 400);
+    }
+
     if (authRes.status === 400 || authRes.status === 401 || authRes.status === 422) {
       console.warn('[secure-login] Invalid credentials', { ip, status: authRes.status });
       return jsonResponse({ message: 'Credenciais inválidas' }, 401);

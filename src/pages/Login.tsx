@@ -1,9 +1,20 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { RoundedButton } from '@/components/ui/PremiumComponents';
 import { Building2, Mail, Lock, User, Users, ShieldCheck, Loader2, ArrowLeft } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { logAuditEvent } from '@/services/auditLogger';
+
+const TURNSTILE_SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY || '';
+
+declare global {
+  interface Window {
+    turnstile?: {
+      render: (container: HTMLElement, options: Record<string, any>) => string;
+      reset: (widgetId: string) => void;
+    };
+  }
+}
 
 export default function Login() {
   const navigate = useNavigate();
@@ -28,6 +39,75 @@ export default function Login() {
   const [showResetPassword, setShowResetPassword] = useState(false);
   const [newPassword, setNewPassword] = useState('');
   const [confirmNewPassword, setConfirmNewPassword] = useState('');
+  const [captchaToken, setCaptchaToken] = useState('');
+  const captchaContainerRef = useRef<HTMLDivElement | null>(null);
+  const captchaWidgetIdRef = useRef<string | null>(null);
+
+  const resetCaptcha = () => {
+    setCaptchaToken('');
+    if (!TURNSTILE_SITE_KEY) return;
+    if (captchaWidgetIdRef.current && window.turnstile) {
+      window.turnstile.reset(captchaWidgetIdRef.current);
+    }
+  };
+
+  const getCaptchaTokenIfRequired = () => {
+    if (!TURNSTILE_SITE_KEY) return null;
+    if (!captchaToken) {
+      throw new Error('Confirme a verificacao de seguranca antes de continuar.');
+    }
+    return captchaToken;
+  };
+
+  useEffect(() => {
+    if (!TURNSTILE_SITE_KEY || showMfaInput || showResetPassword) return;
+
+    let isCancelled = false;
+
+    const renderCaptcha = () => {
+      if (isCancelled || !captchaContainerRef.current || !window.turnstile) return;
+      if (captchaWidgetIdRef.current) return;
+
+      captchaWidgetIdRef.current = window.turnstile.render(captchaContainerRef.current, {
+        sitekey: TURNSTILE_SITE_KEY,
+        theme: 'auto',
+        callback: (token: string) => setCaptchaToken(token || ''),
+        'expired-callback': () => setCaptchaToken(''),
+        'error-callback': () => setCaptchaToken(''),
+      });
+    };
+
+    if (window.turnstile) {
+      renderCaptcha();
+      return () => {
+        isCancelled = true;
+      };
+    }
+
+    const existingScript = document.querySelector('script[data-turnstile="true"]') as HTMLScriptElement | null;
+    const onLoad = () => renderCaptcha();
+
+    if (existingScript) {
+      existingScript.addEventListener('load', onLoad);
+      return () => {
+        isCancelled = true;
+        existingScript.removeEventListener('load', onLoad);
+      };
+    }
+
+    const script = document.createElement('script');
+    script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
+    script.async = true;
+    script.defer = true;
+    script.dataset.turnstile = 'true';
+    script.addEventListener('load', onLoad);
+    document.head.appendChild(script);
+
+    return () => {
+      isCancelled = true;
+      script.removeEventListener('load', onLoad);
+    };
+  }, [showMfaInput, showResetPassword]);
 
   // Detecta evento PASSWORD_RECOVERY do Supabase
   useEffect(() => {
@@ -89,6 +169,8 @@ export default function Login() {
 
     try {
       if (!isLogin) {
+        const captchaTokenValue = getCaptchaTokenIfRequired();
+
         // Cadastro
         if (formData.password !== formData.confirmPassword) {
           alert('As senhas não coincidem.');
@@ -100,6 +182,7 @@ export default function Login() {
           email: formData.email,
           password: formData.password,
           options: {
+            ...(captchaTokenValue ? { captchaToken: captchaTokenValue } : {}),
             data: {
               name: formData.name
             }
@@ -109,12 +192,16 @@ export default function Login() {
         if (error) throw error;
         alert('Cadastro realizado com sucesso! Verifique seu e-mail ou faça login.');
         setIsLogin(true);
+        resetCaptcha();
         setLoading(false);
       } else {
+        const captchaTokenValue = getCaptchaTokenIfRequired();
+
         // Login protegido no backend: secure-login aplica rate limit por IP antes de autenticar.
         const { data: loginData, error: loginError } = await supabase.functions.invoke('secure-login', {
-          body: { email: formData.email, password: formData.password },
+          body: { email: formData.email, password: formData.password, captchaToken: captchaTokenValue },
         });
+        resetCaptcha();
 
         if (loginError) {
           let status = 500;
@@ -189,6 +276,7 @@ export default function Login() {
         metadata: { email: formData.email, reason: error.message }
       });
       alert(error.message);
+      resetCaptcha();
       setLoading(false);
     }
   };
@@ -390,25 +478,42 @@ export default function Login() {
                   type="button"
                   className="text-xs font-semibold text-gold-600 hover:text-gold-500 transition-colors"
                   onClick={async () => {
-                    const email = formData.email.trim();
-                    if (!email) {
-                      alert('Digite seu e-mail no campo acima antes de clicar em "Esqueceu a senha?".');
-                      return;
-                    }
-                    setLoading(true);
-                    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-                      redirectTo: `${window.location.origin}/reset-password`,
-                    });
-                    setLoading(false);
-                    if (error) {
-                      alert('Erro ao enviar e-mail: ' + error.message);
-                    } else {
-                      alert('E-mail de redefinição de senha enviado! Verifique sua caixa de entrada.');
+                    try {
+                      const email = formData.email.trim();
+                      if (!email) {
+                        alert('Digite seu e-mail no campo acima antes de clicar em "Esqueceu a senha?".');
+                        return;
+                      }
+
+                      const captchaTokenValue = getCaptchaTokenIfRequired();
+
+                      setLoading(true);
+                      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+                        redirectTo: `${window.location.origin}/reset-password`,
+                        ...(captchaTokenValue ? { captchaToken: captchaTokenValue } : {}),
+                      });
+                      if (error) {
+                        alert('Erro ao enviar e-mail: ' + error.message);
+                      } else {
+                        alert('E-mail de redefinição de senha enviado! Verifique sua caixa de entrada.');
+                      }
+                      resetCaptcha();
+                    } catch (error: any) {
+                      alert(error?.message || 'Falha ao iniciar redefinicao de senha.');
+                      resetCaptcha();
+                    } finally {
+                      setLoading(false);
                     }
                   }}
                 >
                   Esqueceu a senha?
                 </button>
+              </div>
+            )}
+
+            {TURNSTILE_SITE_KEY && (
+              <div className="pt-1">
+                <div ref={captchaContainerRef} className="flex justify-center" />
               </div>
             )}
 
