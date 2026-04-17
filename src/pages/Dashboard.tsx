@@ -11,6 +11,7 @@ import { useAuthorization } from '@/hooks/useAuthorization';
 import { NotificationBell } from '@/components/ui/NotificationBell';
 import { GamificationProfile } from '@/components/gamification/GamificationProfile';
 import { LeaderboardPanel } from '@/components/gamification/LeaderboardPanel';
+import { parseDateOnlyLocal, parseDateOnlyLocalEnd, toDateOnlyLocal, toPtBrDate } from '@/lib/dateRange';
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -40,12 +41,12 @@ export default function Dashboard() {
       start.setHours(0, 0, 0, 0);
     } else if (period === 'custom') {
       if (customStartDate && customEndDate) {
-        const cs = new Date(customStartDate);
-        const ce = new Date(`${customEndDate}T23:59:59`);
+        const cs = parseDateOnlyLocal(customStartDate);
+        const ce = parseDateOnlyLocalEnd(customEndDate);
         return {
           periodStart: cs,
           periodEnd: ce,
-          periodLabel: `${new Date(customStartDate).toLocaleDateString('pt-BR')} - ${new Date(customEndDate).toLocaleDateString('pt-BR')}`,
+          periodLabel: `${toPtBrDate(customStartDate)} - ${toPtBrDate(customEndDate)}`,
         };
       }
       start.setDate(end.getDate() - 30);
@@ -63,6 +64,9 @@ export default function Dashboard() {
     return { periodStart: start, periodEnd: end, periodLabel: labels[period] || '30 dias' };
   }, [period, customStartDate, customEndDate]);
 
+  const periodStartYmd = toDateOnlyLocal(periodStart);
+  const periodEndYmd = toDateOnlyLocal(periodEnd);
+
   // Active announcements from the real database
   const today = new Date().toISOString().slice(0, 10);
   const activeAnnouncements = announcements.filter(a => {
@@ -74,16 +78,14 @@ export default function Dashboard() {
   const scopedClients = clients;
   const inSelectedPeriod = (isoLike?: string | null) => {
     if (!isoLike) return false;
-    const d = new Date(isoLike);
+    const d = /^\d{4}-\d{2}-\d{2}$/.test(isoLike)
+      ? parseDateOnlyLocal(isoLike)
+      : new Date(isoLike);
     return d >= periodStart && d <= periodEnd;
   };
 
   const periodClients = scopedClients.filter(c => inSelectedPeriod(c.createdAt));
-  const periodSales = scopedClients.filter(c => {
-    if (c.stage !== 'Concluído') return false;
-    const closedAt = (c as any).closed_at || (c as any).updated_at || c.createdAt;
-    return inSelectedPeriod(closedAt);
-  });
+  const periodSales = periodClients.filter(c => c.stage === 'Concluído');
 
   const totalSales = periodSales.length;
   const emAnalise = periodClients.filter(c => c.stage === 'Em Análise').length;
@@ -206,7 +208,7 @@ export default function Dashboard() {
                     <PremiumCard
                       key={d.id}
                       className="flex items-center justify-between cursor-pointer hover:border-gold-400 hover:shadow-md transition-all"
-                      onClick={() => navigate(`/reports?scope=diretoria&id=${d.id}&name=${encodeURIComponent(d.name)}&period=${encodeURIComponent('Mês vigente')}`)}
+                      onClick={() => navigate(`/reports?scope=diretoria&id=${d.id}&name=${encodeURIComponent(d.name)}&start=${periodStartYmd}&end=${periodEndYmd}`)}
                     >
                       <div className="flex items-center gap-3">
                         <div className="w-8 h-8 rounded-lg bg-gold-100 dark:bg-gold-900/30 flex items-center justify-center">

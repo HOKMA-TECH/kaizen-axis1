@@ -12,6 +12,7 @@ import { logAuditEvent } from '@/services/auditLogger';
 import { useAuthorization } from '@/hooks/useAuthorization';
 import { useReportsData } from '@/hooks/useReportsData';
 import { STAGE_WEIGHTS } from '@/types/reports';
+import { parseDateOnlyLocal, parseDateOnlyLocalEnd, toDateOnlyLocal, toPtBrDate } from '@/lib/dateRange';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -38,8 +39,8 @@ function periodToDates(period: string): { start: string; end: string } {
     }
   }
   return {
-    start: start.toISOString().split('T')[0],
-    end: end.toISOString().split('T')[0],
+    start: toDateOnlyLocal(start),
+    end: toDateOnlyLocal(end),
   };
 }
 
@@ -97,8 +98,8 @@ function TeamReportView({
   ]));
 
   // Clients belonging to team members, optionally filtered by date range
-  const start = startDate ? new Date(startDate).getTime() : null;
-  const end = endDate ? new Date(endDate + 'T23:59:59').getTime() : null;
+  const start = startDate ? parseDateOnlyLocal(startDate).getTime() : null;
+  const end = endDate ? parseDateOnlyLocalEnd(endDate).getTime() : null;
 
   const teamClients = clients.filter(c => {
     const ownerId = (c as any).owner_id;
@@ -495,8 +496,8 @@ function CoordReportView({
   const brokerProfiles = allProfiles.filter(p => p.coordinator_id === coordId);
   const memberIds = Array.from(new Set([coordId, ...brokerProfiles.map(p => p.id)]));
 
-  const start = startDate ? new Date(startDate).getTime() : null;
-  const end = endDate ? new Date(endDate + 'T23:59:59').getTime() : null;
+  const start = startDate ? parseDateOnlyLocal(startDate).getTime() : null;
+  const end = endDate ? parseDateOnlyLocalEnd(endDate).getTime() : null;
 
   const coordClients = clients.filter(c => {
     const ownerId = (c as any).owner_id;
@@ -725,8 +726,8 @@ function DiretoriaReportView({
   const dirClients = useMemo(() =>
     clients.filter(c => {
       if ((c as any).directorate_id !== dirId) return false;
-      if (startDate && new Date(c.createdAt) < new Date(startDate)) return false;
-      if (endDate && new Date(c.createdAt) > new Date(endDate + 'T23:59:59')) return false;
+      if (startDate && new Date(c.createdAt) < parseDateOnlyLocal(startDate)) return false;
+      if (endDate && new Date(c.createdAt) > parseDateOnlyLocalEnd(endDate)) return false;
       return true;
     }),
     [clients, dirId, startDate, endDate]
@@ -841,7 +842,7 @@ function DiretoriaReportView({
       page.drawRectangle({ x: 0, y: PAGE_H - 70, width: PAGE_W, height: 70, color: dark });
       page.drawText('Relatorio por Diretoria', { x: MARGIN, y: PAGE_H - 30, size: 16, font: bold, color: gold });
       page.drawText(`Diretoria: ${dirName}`, { x: MARGIN, y: PAGE_H - 48, size: 10, font: regular, color: white });
-      page.drawText(`Periodo: ${new Date(startDate).toLocaleDateString('pt-BR')} a ${new Date(endDate).toLocaleDateString('pt-BR')}`, { x: MARGIN, y: PAGE_H - 63, size: 9, font: regular, color: rgb(0.75, 0.75, 0.75) });
+      page.drawText(`Periodo: ${toPtBrDate(startDate)} a ${toPtBrDate(endDate)}`, { x: MARGIN, y: PAGE_H - 63, size: 9, font: regular, color: rgb(0.75, 0.75, 0.75) });
       y = PAGE_H - 90;
 
       page.drawText('RESUMO', { x: MARGIN, y, size: 10, font: bold, color: gold });
@@ -1071,13 +1072,13 @@ function DiretoriaReportView({
                 ...(team.manager_id ? [team.manager_id] : []),
               ]));
               const memberCount = memberIds.length;
-              const teamClients = clients.filter(c => memberIds.includes((c as any).owner_id));
+              const teamClients = dirClients.filter(c => memberIds.includes((c as any).owner_id));
               const teamSales = teamClients.filter(c => c.stage === 'Concluído').length;
               return (
                 <PremiumCard
                   key={team.id}
                   className="flex items-center justify-between p-4 cursor-pointer hover:border-gold-300 transition-colors"
-                  onClick={() => navigate(`/reports?scope=equipe&id=${team.id}&name=${encodeURIComponent(team.name)}&period=${encodeURIComponent(period)}`)}
+                  onClick={() => navigate(`/reports?scope=equipe&id=${team.id}&name=${encodeURIComponent(team.name)}&start=${startDate}&end=${endDate}`)}
                 >
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-xl bg-gold-50 dark:bg-gold-900/20 flex items-center justify-center">
@@ -1124,7 +1125,11 @@ export default function Reports() {
   const scopeId = searchParams.get('id') ?? '';
   const scopeName = decodeURIComponent(searchParams.get('name') ?? '');
   const defaultPeriod = scope === 'global' ? '30 dias' : 'Mês vigente';
-  const period = searchParams.get('period') ?? defaultPeriod;
+  const queryStart = searchParams.get('start');
+  const queryEnd = searchParams.get('end');
+  const period = (queryStart && queryEnd)
+    ? `${toPtBrDate(queryStart)} - ${toPtBrDate(queryEnd)}`
+    : (searchParams.get('period') ?? defaultPeriod);
 
   // ── Derive ISO dates from selected period
   const { start: startDate, end: endDate } = periodToDates(period);
@@ -1271,16 +1276,18 @@ export default function Reports() {
       return;
     }
     const params = new URLSearchParams(searchParams);
+    params.delete('start');
+    params.delete('end');
     params.set('period', p);
     setSearchParams(params);
   }
 
   function applyCustomDate() {
     if (startDateInput && endDateInput) {
-      const fmt = (d: string) => d.split('-').reverse().join('/');
-      const customPeriod = `${fmt(startDateInput)} - ${fmt(endDateInput)}`;
       const params = new URLSearchParams(searchParams);
-      params.set('period', customPeriod);
+      params.set('start', startDateInput);
+      params.set('end', endDateInput);
+      params.set('period', `${toPtBrDate(startDateInput)} - ${toPtBrDate(endDateInput)}`);
       setSearchParams(params);
       setIsDateModalOpen(false);
     } else alert('Por favor, selecione as datas de início e fim.');
@@ -1556,7 +1563,7 @@ export default function Reports() {
                   <PremiumCard
                     key={coord.id}
                     className="flex items-center justify-between p-4 cursor-pointer hover:border-purple-300 transition-colors"
-                    onClick={() => navigate(`/reports?scope=coordenacao&id=${coord.id}&name=${encodeURIComponent(coord.name)}&period=${encodeURIComponent(period)}`)}
+                    onClick={() => navigate(`/reports?scope=coordenacao&id=${coord.id}&name=${encodeURIComponent(coord.name)}&start=${startDate}&end=${endDate}`)}
                   >
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-xl bg-purple-50 dark:bg-purple-900/20 flex items-center justify-center">
@@ -1606,7 +1613,7 @@ export default function Reports() {
                 <PremiumCard
                   key={team.id}
                   className="flex items-center justify-between p-4 cursor-pointer hover:border-gold-300 transition-colors"
-                  onClick={() => navigate(`/reports?scope=equipe&id=${team.id}&name=${encodeURIComponent(team.name)}&period=${encodeURIComponent(period)}`)}
+                  onClick={() => navigate(`/reports?scope=equipe&id=${team.id}&name=${encodeURIComponent(team.name)}&start=${startDate}&end=${endDate}`)}
                 >
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-xl bg-gold-50 dark:bg-gold-900/20 flex items-center justify-center">

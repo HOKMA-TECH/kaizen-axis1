@@ -6,6 +6,7 @@ import {
     WeightedPipelineEntry,
     ClientHealthScore,
 } from '@/types/reports';
+import { parseDateOnlyLocal, parseDateOnlyLocalEnd } from '@/lib/dateRange';
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
@@ -66,15 +67,18 @@ interface UseReportsDataResult {
 export function useReportsData({ startDate, endDate }: UseReportsDataOptions = {}): UseReportsDataResult {
     const { clients, leads } = useApp();
 
+    const rangeStart = startDate ? parseDateOnlyLocal(startDate) : null;
+    const rangeEnd = endDate ? parseDateOnlyLocalEnd(endDate) : null;
+
     // Filter clients by the selected date range
     const filteredClients = useMemo(() => {
         return clients.filter(c => {
             const created = new Date(c.createdAt);
-            if (startDate && created < new Date(startDate)) return false;
-            if (endDate && created > new Date(endDate + 'T23:59:59')) return false;
+            if (rangeStart && created < rangeStart) return false;
+            if (rangeEnd && created > rangeEnd) return false;
             return true;
         });
-    }, [clients, startDate, endDate]);
+    }, [clients, rangeStart, rangeEnd]);
 
     // ── Global Metrics ─────────────────────────────────────────────────────────
     const globalMetrics = useMemo((): GlobalMetrics => {
