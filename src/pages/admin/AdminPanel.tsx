@@ -100,6 +100,22 @@ export default function AdminPanel() {
     return parseFloat(v.replace(/[R$\s.]/g, '').replace(',', '.')) || 0;
   };
 
+  const formatBrokerDisplayName = (name?: string | null): string => {
+    const normalized = String(name || '').trim().replace(/\s+/g, ' ');
+    if (!normalized) return 'Sem nome';
+
+    const parts = normalized.split(' ');
+    const first = parts[0] || '';
+    if (!first || first === '.') return 'Sem nome';
+    if (parts.length === 1) return first;
+
+    const last = parts[parts.length - 1] || '';
+    const initial = last.charAt(0).toUpperCase();
+    if (!initial || initial === '.') return first;
+
+    return `${first} ${initial}.`;
+  };
+
   const reportRangeStart = parseDateOnlyLocal(reportDateRange.start);
   const reportRangeEnd = parseDateOnlyLocalEnd(reportDateRange.end);
 
@@ -1361,8 +1377,8 @@ export default function AdminPanel() {
                               ) : (
                                 <span className="text-[9px] w-4 h-4 flex items-center justify-center rounded-full font-bold bg-surface-100 text-text-secondary shrink-0">{i + 1}</span>
                               )}
-                              <span className="truncate max-w-[70px]" title={c.nome}>
-                                {c.nome.split(' ')[0]} {c.nome.split(' ').length > 1 ? c.nome.split(' ')[c.nome.split(' ').length - 1].charAt(0) + '.' : ''}
+                              <span className="truncate max-w-[70px]" title={String(c.nome || '').trim() || 'Sem nome'}>
+                                {formatBrokerDisplayName(c.nome)}
                               </span>
                             </td>
                             <td className="p-3 text-[11px] text-center text-text-secondary font-medium">{c.Li}</td>
