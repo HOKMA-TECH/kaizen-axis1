@@ -122,11 +122,11 @@ export default function PresenceReport() {
   const [pdfLoading, setPdfLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Unique teams from corretores
+  // Unique teams from all roles
   const teamOptions = Array.from(
     new Set(
       allProfiles
-        .filter(p => p.role?.toUpperCase() === 'CORRETOR' && p.team)
+        .filter(p => p.team)
         .map(p => p.team as string)
     )
   ).sort();
@@ -135,10 +135,9 @@ export default function PresenceReport() {
   const teamName = (id: string | null) =>
     id ? (teams.find(t => t.id === id)?.name ?? id) : '—';
 
-  // Corretores for filter dropdown
-  const corretorOptions = allProfiles
+  // Users for filter dropdown
+  const userOptions = allProfiles
     .filter(p => {
-      if (p.role?.toUpperCase() !== 'CORRETOR') return false;
       if (filterDir && p.directorate_id !== filterDir) return false;
       if (filterTeam && p.team !== filterTeam) return false;
       return true;
@@ -433,7 +432,7 @@ export default function PresenceReport() {
             </div>
             <div>
               <h1 className="text-xl font-bold text-text-primary leading-tight">Relatório de Presença</h1>
-              <p className="text-xs text-text-secondary">Score de engajamento dos corretores</p>
+              <p className="text-xs text-text-secondary">Score de engajamento dos usuários</p>
             </div>
           </div>
         </div>
@@ -520,16 +519,16 @@ export default function PresenceReport() {
             </div>
           )}
 
-          {/* Corretor */}
+          {/* Usuário */}
           <div className="flex flex-col gap-1 min-w-[150px]">
-            <label className="text-[11px] text-text-secondary">Corretor</label>
+            <label className="text-[11px] text-text-secondary">Usuário</label>
             <select
               value={filterUser}
               onChange={e => setFilterUser(e.target.value)}
               className="text-sm bg-surface-100 border border-surface-200 rounded-xl px-3 py-2 text-text-primary focus:outline-none focus:border-gold-400"
             >
               <option value="">Todos</option>
-              {corretorOptions.map(p => (
+              {userOptions.map(p => (
                 <option key={p.id} value={p.id}>{p.name}</option>
               ))}
             </select>
@@ -673,7 +672,7 @@ export default function PresenceReport() {
           {/* ── Ranking de Presença ───────────────────────────────────────── */}
           {data.ranking.length > 0 && (
             <section className="mb-5">
-              <SectionHeader title="Ranking de Presença" subtitle={`${data.ranking.length} corretores`} />
+              <SectionHeader title="Ranking de Presença" subtitle={`${data.ranking.length} usuários`} />
               <PremiumCard className="p-0 overflow-hidden">
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
@@ -770,7 +769,7 @@ export default function PresenceReport() {
             <section className="mb-5">
               <SectionHeader
                 title="Alertas de Ausência"
-                subtitle={`${data.alerts.length} corretores sem check-in há mais de 10 dias`}
+                subtitle={`${data.alerts.length} usuários sem check-in há mais de 10 dias`}
               />
               <div className="flex flex-col gap-2">
                 {data.alerts.map(a => (
@@ -798,7 +797,7 @@ export default function PresenceReport() {
             <PremiumCard className="flex flex-col items-center gap-3 py-12 text-center">
               <Users size={36} className="text-text-secondary opacity-40" />
               <p className="font-semibold text-text-primary">Nenhum dado no período</p>
-              <p className="text-sm text-text-secondary">Ajuste os filtros ou aguarde que os corretores realizem check-in.</p>
+              <p className="text-sm text-text-secondary">Ajuste os filtros ou aguarde que os usuários realizem check-in.</p>
             </PremiumCard>
           )}
           {/* ── Modal de Ativos / Inativos ────────────────────────────────── */}
