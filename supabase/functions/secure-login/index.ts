@@ -99,17 +99,23 @@ Deno.serve(async (req: Request) => {
     return jsonResponse({ message: 'Muitas tentativas. Aguarde antes de tentar novamente.' }, 429);
   }
 
-  const authPayload: Record<string, string> = { email, password };
+  const authPayload: Record<string, unknown> = { email, password };
   if (captchaToken) {
     authPayload.captcha_token = captchaToken;
+    authPayload.gotrue_meta_security = { captcha_token: captchaToken };
+  }
+
+  const authHeaders: Record<string, string> = {
+    'Content-Type': 'application/json',
+    apikey: anonKey,
+  };
+  if (captchaToken) {
+    authHeaders['x-captcha-token'] = captchaToken;
   }
 
   const authRes = await fetch(`${supabaseUrl}/auth/v1/token?grant_type=password`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      apikey: anonKey,
-    },
+    headers: authHeaders,
     body: JSON.stringify(authPayload),
   });
 
