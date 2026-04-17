@@ -11,6 +11,7 @@ import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
 import PipelinePdfExport from '@/components/admin/PipelinePdfExport';
 import { useReportsData } from '@/hooks/useReportsData';
 import { parseDateOnlyLocal, parseDateOnlyLocalEnd, toDateOnlyLocal, toPtBrDate } from '@/lib/dateRange';
+import { CLIENT_STAGES } from '@/data/clients';
 
 type Tab = 'users' | 'teams' | 'goals' | 'announcements' | 'reports' | 'directorates' | 'gamification';
 
@@ -25,7 +26,7 @@ export default function AdminPanel() {
     goals, addGoal, updateGoal, deleteGoal,
     announcements, addAnnouncement, updateAnnouncement, deleteAnnouncement,
     directorates, addDirectorate, updateDirectorate, deleteDirectorate,
-    clients, appointments,
+    clients, leads, appointments,
     developments,
     loading, user
   } = useApp();
@@ -124,7 +125,67 @@ export default function AdminPanel() {
     return created >= reportRangeStart && created <= reportRangeEnd;
   });
 
+  const selectedPeriodLeads = leads.filter((l) => {
+    const created = new Date((l as any).created_at || l.timestamp);
+    return created >= reportRangeStart && created <= reportRangeEnd;
+  });
+
   const selectedPeriodSales = selectedPeriodClients.filter((c) => c.stage === 'Concluído');
+  const selectedPeriodApproved = selectedPeriodClients.filter((c) => c.stage === 'Aprovado').length;
+
+  const pipelineDataLocal = CLIENT_STAGES
+    .map((stage) => {
+      const quantidade = selectedPeriodClients.filter((c) => c.stage === stage).length;
+      const percentual = selectedPeriodClients.length > 0
+        ? Number(((quantidade / selectedPeriodClients.length) * 100).toFixed(2))
+        : 0;
+      return { etapa: stage, quantidade, percentual };
+    })
+    .filter((row) => row.quantidade > 0);
+
+  const trendDataLocal = (() => {
+    const MS_DAY = 24 * 60 * 60 * 1000;
+    const daysDiff = Math.max(0, Math.floor((reportRangeEnd.getTime() - reportRangeStart.getTime()) / MS_DAY));
+    const groupByWeek = daysDiff > 31;
+
+    const normalizePeriod = (d: Date) => {
+      const local = new Date(d);
+      if (groupByWeek) {
+        const day = local.getDay();
+        const diffToMonday = day === 0 ? -6 : 1 - day;
+        local.setDate(local.getDate() + diffToMonday);
+      }
+      local.setHours(0, 0, 0, 0);
+      return toDateOnlyLocal(local);
+    };
+
+    const buckets = new Map<string, { periodo: string; Lt: number; Vt: number; Rt: number }>();
+
+    const cursor = new Date(reportRangeStart);
+    cursor.setHours(0, 0, 0, 0);
+    while (cursor <= reportRangeEnd) {
+      const key = normalizePeriod(cursor);
+      if (!buckets.has(key)) buckets.set(key, { periodo: key, Lt: 0, Vt: 0, Rt: 0 });
+      cursor.setDate(cursor.getDate() + 1);
+    }
+
+    selectedPeriodLeads.forEach((lead) => {
+      const key = normalizePeriod(new Date((lead as any).created_at || lead.timestamp));
+      const bucket = buckets.get(key);
+      if (bucket) bucket.Lt += 1;
+    });
+
+    selectedPeriodSales.forEach((client) => {
+      const key = normalizePeriod(new Date(client.createdAt));
+      const bucket = buckets.get(key);
+      if (bucket) {
+        bucket.Vt += 1;
+        bucket.Rt += parseCurrencyLocal(client.intendedValue);
+      }
+    });
+
+    return Array.from(buckets.values()).sort((a, b) => a.periodo.localeCompare(b.periodo));
+  })();
 
   // VGV aligned with selected report period and sales card criteria
   const vgvLocal = selectedPeriodSales.reduce((acc, c) => acc + parseCurrencyLocal(c.intendedValue), 0);
@@ -1337,9 +1398,9 @@ export default function AdminPanel() {
 
                 <div className="grid grid-cols-2 gap-3 print:grid-cols-4 print:gap-4 print:mt-4">
                   {[
-                    { label: 'Leads', value: reportData.resumo_geral.L, cmp: reportData.comparativo_mes_atual.crescimento_leads, icon: <Users size={14} />, color: 'text-surface-800', bg: 'bg-surface-50 text-surface-600', route: '/clients', state: { tab: 'documentacao' } },
-                    { label: 'Clientes', value: reportData.resumo_geral.C, cmp: null, icon: <Users size={14} />, color: 'text-gold-700', bg: 'bg-gold-50 text-gold-600', route: '/clients', state: undefined },
-                    { label: 'Aprovados', value: reportData.pipeline.find((p: any) => p.etapa === 'Aprovado')?.quantidade || 0, cmp: null, icon: <Shield size={14} />, color: 'text-green-700', bg: 'bg-green-50 text-green-600', route: '/clients', state: { initialStage: 'Aprovado' } },
+                    { label: 'Leads', value: selectedPeriodLeads.length, cmp: null, icon: <Users size={14} />, color: 'text-surface-800', bg: 'bg-surface-50 text-surface-600', route: '/clients', state: { tab: 'documentacao' } },
+                    { label: 'Clientes', value: selectedPeriodClients.length, cmp: null, icon: <Users size={14} />, color: 'text-gold-700', bg: 'bg-gold-50 text-gold-600', route: '/clients', state: undefined },
+                    { label: 'Aprovados', value: selectedPeriodApproved, cmp: null, icon: <Shield size={14} />, color: 'text-green-700', bg: 'bg-green-50 text-green-600', route: '/clients', state: { initialStage: 'Aprovado' } },
                     { label: 'Agenda', value: upcomingAppointmentsCount, cmp: null, icon: <Calendar size={14} />, color: 'text-blue-700', bg: 'bg-blue-50 text-blue-600', route: '/schedule', state: undefined },
                   ].map((stat, i) => (
                     <PremiumCard key={i} className={`p-3 relative flex flex-col justify-between h-24 shadow-[0_2px_10px_rgba(0,0,0,0.02)] border-surface-100 ${stat.route ? 'cursor-pointer hover:border-gold-300 hover:shadow-md transition-all' : ''}`} onClick={() => stat.route && navigate(stat.route, { state: stat.state })}>
@@ -1406,7 +1467,7 @@ export default function AdminPanel() {
                     <h4 className="text-[11px] uppercase tracking-wider font-bold text-text-secondary mb-4 flex items-center gap-1.5"><BarChart3 size={14} className="text-gold-500" /> Distribuição de Pipeline</h4>
                     <div className="h-48 w-full">
                       <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={reportData.pipeline}>
+                        <BarChart data={pipelineDataLocal}>
                           <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
                           <XAxis dataKey="etapa" axisLine={false} tickLine={false} tick={{ fontSize: 9, fill: '#6B7280' }} />
                           <YAxis hide />
@@ -1425,7 +1486,7 @@ export default function AdminPanel() {
                     <h4 className="text-[11px] uppercase tracking-wider font-bold text-text-secondary mb-4 flex items-center gap-1.5"><TrendingUp size={14} className="text-blue-500" /> Tendência no Período</h4>
                     <div className="h-48 w-full">
                       <ResponsiveContainer width="100%" height="100%">
-                        <LineChart data={reportData.tendencia_temporal}>
+                        <LineChart data={trendDataLocal}>
                           <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
                           <XAxis dataKey="periodo" axisLine={false} tickLine={false} tick={{ fontSize: 9, fill: '#6B7280' }} tickFormatter={(v) => v.substring(8, 10) + '/' + v.substring(5, 7)} />
                           <YAxis hide yAxisId="left" />
