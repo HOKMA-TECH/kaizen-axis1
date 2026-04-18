@@ -1,7 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 
-const WEBHOOK_SECRET  = Deno.env.get('LEAD_WEBHOOK_SECRET') || 'kaizen-webhook-secret';
+const WEBHOOK_SECRET  = Deno.env.get('LEAD_WEBHOOK_SECRET');
 const N8N_WEBHOOK_URL = Deno.env.get('N8N_LEAD_CREATED_WEBHOOK_URL'); // URL do WF-03 n8n
 
 Deno.serve(async (req: Request) => {
@@ -17,6 +17,11 @@ Deno.serve(async (req: Request) => {
 
     if (req.method !== 'POST') {
         return new Response(JSON.stringify({ error: 'Method not allowed' }), { status: 405 });
+    }
+
+    if (!WEBHOOK_SECRET) {
+        console.error('LEAD_WEBHOOK_SECRET is not configured');
+        return new Response(JSON.stringify({ error: 'Webhook secret is not configured' }), { status: 500 });
     }
 
     const secret = req.headers.get('x-webhook-secret');
