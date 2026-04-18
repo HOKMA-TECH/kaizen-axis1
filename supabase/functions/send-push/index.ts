@@ -16,6 +16,56 @@ const VAPID_PUBLIC_KEY  = Deno.env.get('VAPID_PUBLIC_KEY')!;
 const VAPID_PRIVATE_KEY = Deno.env.get('VAPID_PRIVATE_KEY')!;
 const VAPID_MAILTO      = Deno.env.get('VAPID_MAILTO') ?? 'mailto:admin@kaizenaxis.com';
 const ALLOWED_ROLES = new Set(['ADMIN', 'DIRETOR', 'GERENTE']);
+const MAX_PUSH_REQUESTS_PER_MINUTE = 20;
+
+const JSON_HEADERS = {
+  'Content-Type': 'application/json',
+  'Access-Control-Allow-Origin': '*',
+};
+
+const CORS_HEADERS = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+};
+
+type PushNotificationPayload = {
+  target_user_id: string;
+  title?: string;
+  message?: string;
+  reference_route?: string;
+};
+
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function badRequest(message: string, status = 400) {
+  return new Response(JSON.stringify({ error: message }), { status, headers: JSON_HEADERS });
+}
+
+function normalizeNotification(body: unknown): PushNotificationPayload | null {
+  const root = (body && typeof body === 'object') ? (body as Record<string, unknown>) : null;
+  const candidate = root?.record ?? root?.notification ?? root;
+  if (!candidate || typeof candidate !== 'object' || Array.isArray(candidate)) return null;
+
+  const notification = candidate as Record<string, unknown>;
+  const allowedKeys = new Set(['target_user_id', 'title', 'message', 'reference_route']);
+  const hasUnexpectedKey = Object.keys(notification).some((k) => !allowedKeys.has(k));
+  if (hasUnexpectedKey) return null;
+
+  const target = String(notification.target_user_id || '').trim();
+  if (!target || !UUID_REGEX.test(target)) return null;
+
+  const title = notification.title == null ? undefined : String(notification.title);
+  const message = notification.message == null ? undefined : String(notification.message);
+  const route = notification.reference_route == null ? undefined : String(notification.reference_route);
+
+  return {
+    target_user_id: target,
+    title,
+    message,
+    reference_route: route,
+  };
+}
 
 // ── Helpers base64url ─────────────────────────────────────────────────────────
 function b64urlToBytes(b64url: string): Uint8Array {
@@ -170,20 +220,11 @@ async function encryptPayload(
 // ─── Handler principal ────────────────────────────────────────────────────────
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
-    return new Response(null, {
-      headers: {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Headers': 'authorization, apikey, content-type',
-        'Access-Control-Allow-Methods': 'POST, OPTIONS',
-      },
-    });
+    return new Response(null, { headers: CORS_HEADERS });
   }
 
   if (req.method !== 'POST') {
-    return new Response(JSON.stringify({ error: 'Method not allowed' }), {
-      status: 405,
-      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
-    });
+    return badRequest('Method not allowed', 405);
   }
 
   try {
@@ -196,20 +237,14 @@ Deno.serve(async (req) => {
     const token = authHeader.toLowerCase().startsWith('bearer ') ? authHeader.slice(7).trim() : '';
 
     if (!token) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-        status: 401,
-        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
-      });
+      return badRequest('Unauthorized', 401);
     }
 
     const { data: claimsData, error: claimsError } = await supabase.auth.getClaims(token);
     const userId = claimsData?.claims?.sub as string | undefined;
 
     if (claimsError || !userId) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-        status: 401,
-        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
-      });
+      return badRequest('Unauthorized', 401);
     }
 
     const { data: profile, error: profileError } = await supabase
@@ -220,24 +255,50 @@ Deno.serve(async (req) => {
 
     const userRole = String(profile?.role || '').toUpperCase();
     if (profileError || !ALLOWED_ROLES.has(userRole)) {
-      return new Response(JSON.stringify({ error: 'Forbidden' }), {
-        status: 403,
-        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
-      });
+      return badRequest('Forbidden', 403);
     }
 
-    const body = await req.json();
-    const notification = body.record ?? body.notification ?? body;
+    let body: unknown;
+    try {
+      body = await req.json();
+    } catch {
+      return badRequest('Invalid JSON body', 400);
+    }
+
+    const notification = normalizeNotification(body);
+    if (!notification) {
+      return badRequest('Invalid payload. Expected notification.target_user_id (UUID) and supported fields only.', 422);
+    }
+
+    const { data: throttleData, error: throttleError } = await supabase.rpc('increment_request_counter', {
+      _scope: 'send_push',
+      _identifier: `${userId}:${notification.target_user_id}`,
+      _max_requests: MAX_PUSH_REQUESTS_PER_MINUTE,
+      _window_seconds: 60,
+    });
+
+    if (throttleError) {
+      console.error('send-push rate-limit error:', throttleError.message);
+      return badRequest('Rate limit unavailable', 503);
+    }
+
+    if ((throttleData ?? 0) > MAX_PUSH_REQUESTS_PER_MINUTE) {
+      return badRequest('Too many requests', 429);
+    }
 
     const targetUserId = notification.target_user_id;
-    if (!targetUserId) return new Response('no target_user_id', { status: 200 });
 
     const { data: subs } = await supabase
       .from('push_subscriptions')
       .select('subscription')
       .eq('user_id', targetUserId);
 
-    if (!subs?.length) return new Response('no subscriptions', { status: 200 });
+    if (!subs?.length) {
+      return new Response(JSON.stringify({ sent: 0, failed: 0, note: 'no subscriptions' }), {
+        status: 200,
+        headers: JSON_HEADERS,
+      });
+    }
 
     const payload = JSON.stringify({
       title: notification.title   ?? 'Kaizen Axis',
@@ -255,13 +316,10 @@ Deno.serve(async (req) => {
     }
 
     return new Response(JSON.stringify({ sent: subs.length, failed: failed.length }), {
-      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+      headers: JSON_HEADERS,
     });
   } catch (err) {
     console.error('send-push error:', err);
-    return new Response(JSON.stringify({ error: 'Internal error' }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
-    });
+    return badRequest('Internal error', 500);
   }
 });

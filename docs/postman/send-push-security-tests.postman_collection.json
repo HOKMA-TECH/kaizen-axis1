@@ -1,0 +1,233 @@
+{
+  "info": {
+    "_postman_id": "c84c4928-c3c6-4c4d-86e1-4b2cb7a5f8b0",
+    "name": "Kaizen - Send Push Security Tests",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Testes de seguranca, contrato e validacao da Edge Function send-push"
+  },
+  "item": [
+    {
+      "name": "01 - send-push sem Authorization (deve 401)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "apikey", "value": "{{anon_key}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"notification\": {\n    \"target_user_id\": \"{{target_user_id}}\",\n    \"title\": \"Teste sem auth\",\n    \"message\": \"Sem token\"\n  }\n}"
+        },
+        "url": {
+          "raw": "{{functions_base_url}}/send-push",
+          "host": ["{{functions_base_url}}"],
+          "path": ["send-push"]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status deve ser 401', function () {",
+              "  pm.response.to.have.status(401);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "02 - send-push com token sem role permitida (deve 403)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "apikey", "value": "{{anon_key}}" },
+          { "key": "Authorization", "value": "Bearer {{token_forbidden}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"notification\": {\n    \"target_user_id\": \"{{target_user_id}}\",\n    \"title\": \"Teste role negada\",\n    \"message\": \"Token sem permissao\"\n  }\n}"
+        },
+        "url": {
+          "raw": "{{functions_base_url}}/send-push",
+          "host": ["{{functions_base_url}}"],
+          "path": ["send-push"]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status deve ser 403', function () {",
+              "  pm.response.to.have.status(403);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "03 - send-push com token permitido (deve 200)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "apikey", "value": "{{anon_key}}" },
+          { "key": "Authorization", "value": "Bearer {{token_allowed}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"notification\": {\n    \"target_user_id\": \"{{target_user_id}}\",\n    \"title\": \"Teste autorizado\",\n    \"message\": \"Push com role permitida\",\n    \"reference_route\": \"/\"\n  }\n}"
+        },
+        "url": {
+          "raw": "{{functions_base_url}}/send-push",
+          "host": ["{{functions_base_url}}"],
+          "path": ["send-push"]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status deve ser 200', function () {",
+              "  pm.response.to.have.status(200);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "04 - send-push sem target_user_id (deve 422)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "apikey", "value": "{{anon_key}}" },
+          { "key": "Authorization", "value": "Bearer {{token_allowed}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"notification\": {\n    \"title\": \"Sem target\",\n    \"message\": \"Payload invalido\"\n  }\n}"
+        },
+        "url": {
+          "raw": "{{functions_base_url}}/send-push",
+          "host": ["{{functions_base_url}}"],
+          "path": ["send-push"]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status deve ser 422', function () {",
+              "  pm.response.to.have.status(422);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "05 - send-push token adulterado (deve 401)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "apikey", "value": "{{anon_key}}" },
+          { "key": "Authorization", "value": "Bearer {{token_tampered}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"notification\": {\n    \"target_user_id\": \"{{target_user_id}}\",\n    \"title\": \"Token adulterado\",\n    \"message\": \"Assinatura invalida\"\n  }\n}"
+        },
+        "url": {
+          "raw": "{{functions_base_url}}/send-push",
+          "host": ["{{functions_base_url}}"],
+          "path": ["send-push"]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status deve ser 401', function () {",
+              "  pm.response.to.have.status(401);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "06 - send-push payload com campo inesperado (deve 422)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "apikey", "value": "{{anon_key}}" },
+          { "key": "Authorization", "value": "Bearer {{token_allowed}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"notification\": {\n    \"target_user_id\": \"{{target_user_id}}\",\n    \"title\": \"Payload extra\",\n    \"message\": \"Teste\",\n    \"unexpected\": \"nao permitido\"\n  }\n}"
+        },
+        "url": {
+          "raw": "{{functions_base_url}}/send-push",
+          "host": ["{{functions_base_url}}"],
+          "path": ["send-push"]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status deve ser 422', function () {",
+              "  pm.response.to.have.status(422);",
+              "});"
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "functions_base_url",
+      "value": "https://pwvpxxrvlywlneuijmmd.supabase.co/functions/v1"
+    },
+    {
+      "key": "anon_key",
+      "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB3dnB4eHJ2bHl3bG5ldWlqbW1kIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE3MDQ2NDQsImV4cCI6MjA4NzI4MDY0NH0.Mt1yInEElG0qSWmZ4U28x_ADcQDlBiBuDGOE0_Sx254"
+    },
+    {
+      "key": "token_allowed",
+      "value": "eyJhbGciOiJFUzI1NiIsImtpZCI6ImQ0YmQwZDU1LWRlZWUtNDRjNS04YjdiLTE5NTU0ZmQ0YjU1NCIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL3B3dnB4eHJ2bHl3bG5ldWlqbW1kLnN1cGFiYXNlLmNvL2F1dGgvdjEiLCJzdWIiOiJjZTM5OWI5MS02Y2U2LTRhN2EtYjNhMC1hMDIxMTMzNWE0N2QiLCJhdWQiOiJhdXRoZW50aWNhdGVkIiwiZXhwIjoxNzc2NDczOTM4LCJpYXQiOjE3NzY0NzAzMzgsImVtYWlsIjoibWFpY29uY29ycmV0b3JqQGdtYWlsLmNvbSIsInBob25lIjoiIiwiYXBwX21ldGFkYXRhIjp7InByb3ZpZGVyIjoiZW1haWwiLCJwcm92aWRlcnMiOlsiZW1haWwiXX0sInVzZXJfbWV0YWRhdGEiOnsiZW1haWwiOiJtYWljb25jb3JyZXRvcmpAZ21haWwuY29tIiwiZW1haWxfdmVyaWZpZWQiOnRydWUsIm5hbWUiOiJNQUlDT04gT0xJVkVJUkEiLCJwaG9uZV92ZXJpZmllZCI6ZmFsc2UsInN1YiI6ImNlMzk5YjkxLTZjZTYtNGE3YS1iM2EwLWEwMjExMzM1YTQ3ZCIsInRlYW0iOiJhbHBoYSJ9LCJyb2xlIjoiYXV0aGVudGljYXRlZCIsImFhbCI6ImFhbDEiLCJhbXIiOlt7Im1ldGhvZCI6InBhc3N3b3JkIiwidGltZXN0YW1wIjoxNzc2NDQ0Nzc3fV0sInNlc3Npb25faWQiOiIxODM1ZmI4Ni00Y2MzLTQ3MDktOTZiMi1lOTVmMDljNjYxNzYiLCJpc19hbm9ueW1vdXMiOmZhbHNlfQ.O8ulAICxEQP_5moCUR_fARVDLYhqmOqiGQpu9CDxty_TZVreH9j2SyKowIFWiMHX0eGoiXtfSUeJiz9vjeIedA"
+    },
+    {
+      "key": "token_forbidden",
+      "value": "eyJhbGciOiJFUzI1NiIsImtpZCI6ImQ0YmQwZDU1LWRlZWUtNDRjNS04YjdiLTE5NTU0ZmQ0YjU1NCIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL3B3dnB4eHJ2bHl3bG5ldWlqbW1kLnN1cGFiYXNlLmNvL2F1dGgvdjEiLCJzdWIiOiJjYTZkNGM1ZS0xN2ZkLTQ4ZmQtYjJmNi0yZDNiYmQ0NjMzMDEiLCJhdWQiOiJhdXRoZW50aWNhdGVkIiwiZXhwIjoxNzc2NDc1NzA4LCJpYXQiOjE3NzY0NzIxMDgsImVtYWlsIjoibWFyaW5hdGVzdGVAZ21haWwuY29tIiwicGhvbmUiOiIiLCJhcHBfbWV0YWRhdGEiOnsicHJvdmlkZXIiOiJlbWFpbCIsInByb3ZpZGVycyI6WyJlbWFpbCJdfSwidXNlcl9tZXRhZGF0YSI6eyJlbWFpbCI6Im1hcmluYXRlc3RlQGdtYWlsLmNvbSIsImVtYWlsX3ZlcmlmaWVkIjp0cnVlLCJuYW1lIjoiTWFyaW5hIHRlc3RlIiwicGhvbmVfdmVyaWZpZWQiOmZhbHNlLCJzdWIiOiJjYTZkNGM1ZS0xN2ZkLTQ4ZmQtYjJmNi0yZDNiYmQ0NjMzMDEifSwicm9sZSI6ImF1dGhlbnRpY2F0ZWQiLCJhYWwiOiJhYWwxIiwiYW1yIjpbeyJtZXRob2QiOiJwYXNzd29yZCIsInRpbWVzdGFtcCI6MTc3NjQ3MjEwOH1dLCJzZXNzaW9uX2lkIjoiNGM3Y2VkMWUtOTNlZi00ZWI5LTk5Y2UtYTMxMDQ5ZTk0MzNjIiwiaXNfYW5vbnltb3VzIjpmYWxzZX0.v_guSJlfM1roUTWAs2G662w3UG1AQqGEedy5aQXZdo96xqFx7ZhsU9RnLWzk7KKWXQpAZg-zjWi0lq4CqFgkKg"
+    },
+    {
+      "key": "token_tampered",
+      "value": "eyJhbGciOiJFUzI1NiIsImtpZCI6ImQ0YmQwZDU1LWRlZWUtNDRjNS04YjdiLTE5NTU0ZmQ0YjU1NCIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL3B3dnB4eHJ2bHl3bG5ldWlqbW1kLnN1cGFiYXNlLmNvL2F1dGgvdjEiLCJzdWIiOiJjZTM5OWI5MS02Y2U2LTRhN2EtYjNhMC1hMDIxMTMzNWE0N2QiLCJhdWQiOiJhdXRoZW50aWNhdGVkIiwiZXhwIjoxNzc2NDczOTM4LCJpYXQiOjE3NzY0NzAzMzgsImVtYWlsIjoibWFpY29uY29ycmV0b3JqQGdtYWlsLmNvbSIsInBob25lIjoiIiwiYXBwX21ldGFkYXRhIjp7InByb3ZpZGVyIjoiZW1haWwiLCJwcm92aWRlcnMiOlsiZW1haWwiXX0sInVzZXJfbWV0YWRhdGEiOnsiZW1haWwiOiJtYWljb25jb3JyZXRvcmpAZ21haWwuY29tIiwiZW1haWxfdmVyaWZpZWQiOnRydWUsIm5hbWUiOiJNQUlDT04gT0xJVkVJUkEiLCJwaG9uZV92ZXJpZmllZCI6ZmFsc2UsInN1YiI6ImNlMzk5YjkxLTZjZTYtNGE3YS1iM2EwLWEwMjExMzM1YTQ3ZCIsInRlYW0iOiJhbHBoYSJ9LCJyb2xlIjoiYXV0aGVudGljYXRlZCIsImFhbCI6ImFhbDEiLCJhbXIiOlt7Im1ldGhvZCI6InBhc3N3b3JkIiwidGltZXN0YW1wIjoxNzc2NDQ0Nzc3fV0sInNlc3Npb25faWQiOiIxODM1ZmI4Ni00Y2MzLTQ3MDktOTZiMi1lOTVmMDljNjYxNzYiLCJpc19hbm9ueW1vdXMiOmZhbHNlfQ.O8ulAICxEQP_5moCUR_fARVDLYhqmOqiGQpu9CDxty_TZVreH9j2SyKowIFWiMHX0eGoiXtfSUeJiz9vjeIedB"
+    },
+    {
+      "key": "target_user_id",
+      "value": "ce399b91-6ce6-4a7a-b3a0-a0211335a47d"
+    }
+  ]
+}
