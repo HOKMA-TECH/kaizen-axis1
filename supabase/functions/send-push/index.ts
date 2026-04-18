@@ -202,8 +202,10 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { data: userData, error: userError } = await supabase.auth.getUser(token);
-    if (userError || !userData?.user) {
+    const { data: claimsData, error: claimsError } = await supabase.auth.getClaims(token);
+    const userId = claimsData?.claims?.sub as string | undefined;
+
+    if (claimsError || !userId) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
         status: 401,
         headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
@@ -213,7 +215,7 @@ Deno.serve(async (req) => {
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select('role')
-      .eq('id', userData.user.id)
+      .eq('id', userId)
       .single();
 
     const userRole = String(profile?.role || '').toUpperCase();
