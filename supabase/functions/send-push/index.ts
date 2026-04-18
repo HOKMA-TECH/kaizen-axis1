@@ -15,6 +15,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2';
 const VAPID_PUBLIC_KEY  = Deno.env.get('VAPID_PUBLIC_KEY')!;
 const VAPID_PRIVATE_KEY = Deno.env.get('VAPID_PRIVATE_KEY')!;
 const VAPID_MAILTO      = Deno.env.get('VAPID_MAILTO') ?? 'mailto:admin@kaizenaxis.com';
+const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const ALLOWED_ROLES = new Set(['ADMIN', 'DIRETOR', 'GERENTE']);
 const MAX_PUSH_REQUESTS_PER_MINUTE = 20;
 
@@ -37,9 +38,54 @@ type PushNotificationPayload = {
 };
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const EXPECTED_ISS = `${SUPABASE_URL}/auth/v1`;
+
+type Claims = {
+  sub?: string;
+  exp?: number;
+  iss?: string;
+  aud?: string | string[];
+};
+
+type PushSendResult = {
+  ok: boolean;
+  endpoint: string;
+  status: number;
+  error?: string;
+};
 
 function badRequest(message: string, status = 400) {
   return new Response(JSON.stringify({ error: message }), { status, headers: JSON_HEADERS });
+}
+
+function logStructured(event: string, payload: Record<string, unknown>) {
+  console.log(JSON.stringify({ event, ...payload }));
+}
+
+function validateClaims(claims: Claims): { valid: boolean; reason?: string } {
+  if (!claims?.sub || !UUID_REGEX.test(claims.sub)) {
+    return { valid: false, reason: 'invalid_sub' };
+  }
+
+  const now = Math.floor(Date.now() / 1000);
+  if (!claims?.exp || Number(claims.exp) <= now) {
+    return { valid: false, reason: 'token_expired' };
+  }
+
+  if (!claims?.iss || claims.iss !== EXPECTED_ISS) {
+    return { valid: false, reason: 'invalid_iss' };
+  }
+
+  const aud = claims.aud;
+  const audAllowed = Array.isArray(aud)
+    ? aud.includes('authenticated')
+    : aud === 'authenticated';
+
+  if (!audAllowed) {
+    return { valid: false, reason: 'invalid_aud' };
+  }
+
+  return { valid: true };
 }
 
 function normalizeNotification(body: unknown): PushNotificationPayload | null {
@@ -114,7 +160,7 @@ async function createVapidJwt(audience: string): Promise<string> {
 }
 
 // ── Envia Web Push para uma subscription ─────────────────────────────────────
-async function sendWebPush(subscription: { endpoint: string; keys: { p256dh: string; auth: string } }, payload: string): Promise<void> {
+async function sendWebPush(subscription: { endpoint: string; keys: { p256dh: string; auth: string } }, payload: string): Promise<PushSendResult> {
   const url      = new URL(subscription.endpoint);
   const audience = `${url.protocol}//${url.host}`;
   const jwt      = await createVapidJwt(audience);
@@ -132,8 +178,15 @@ async function sendWebPush(subscription: { endpoint: string; keys: { p256dh: str
 
   if (!response.ok && response.status !== 201) {
     const text = await response.text().catch(() => '');
-    throw new Error(`Push failed ${response.status}: ${text}`);
+    return {
+      ok: false,
+      endpoint: subscription.endpoint,
+      status: response.status,
+      error: `Push failed ${response.status}: ${text}`,
+    };
   }
+
+  return { ok: true, endpoint: subscription.endpoint, status: response.status };
 }
 
 // ── Encriptação AES-128-GCM + ECDH (RFC 8291) ────────────────────────────────
@@ -228,22 +281,44 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-    );
+    const correlationId = crypto.randomUUID();
+    const supabase = createClient(SUPABASE_URL, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
+    const anonKey = req.headers.get('apikey') || Deno.env.get('SUPABASE_ANON_KEY') || '';
 
     const authHeader = req.headers.get('authorization') || req.headers.get('Authorization') || '';
     const token = authHeader.toLowerCase().startsWith('bearer ') ? authHeader.slice(7).trim() : '';
 
     if (!token) {
+      logStructured('send_push_denied', {
+        correlation_id: correlationId,
+        result: 'denied',
+        deny_reason: 'missing_token',
+      });
       return badRequest('Unauthorized', 401);
     }
 
-    const { data: claimsData, error: claimsError } = await supabase.auth.getClaims(token);
-    const userId = claimsData?.claims?.sub as string | undefined;
-
-    if (claimsError || !userId) {
+    let actorClaims: Claims | undefined;
+    let userId: string | undefined;
+    try {
+      const { data: claimsData, error: claimsError } = await supabase.auth.getClaims(token);
+      actorClaims = (claimsData?.claims || {}) as Claims;
+      userId = actorClaims?.sub;
+      const claimsValidation = validateClaims(actorClaims || {});
+      if (claimsError || !userId || !claimsValidation.valid) {
+        logStructured('send_push_denied', {
+          correlation_id: correlationId,
+          result: 'denied',
+          deny_reason: claimsValidation.reason || 'invalid_claims',
+        });
+        return badRequest('Unauthorized', 401);
+      }
+    } catch (claimsException) {
+      console.warn('send-push claims validation failed:', claimsException);
+      logStructured('send_push_denied', {
+        correlation_id: correlationId,
+        result: 'denied',
+        deny_reason: 'claims_exception',
+      });
       return badRequest('Unauthorized', 401);
     }
 
@@ -255,6 +330,13 @@ Deno.serve(async (req) => {
 
     const userRole = String(profile?.role || '').toUpperCase();
     if (profileError || !ALLOWED_ROLES.has(userRole)) {
+      logStructured('send_push_denied', {
+        correlation_id: correlationId,
+        actor_user_id: userId,
+        role: userRole || null,
+        result: 'denied',
+        deny_reason: 'role_forbidden',
+      });
       return badRequest('Forbidden', 403);
     }
 
@@ -267,7 +349,38 @@ Deno.serve(async (req) => {
 
     const notification = normalizeNotification(body);
     if (!notification) {
+      logStructured('send_push_denied', {
+        correlation_id: correlationId,
+        actor_user_id: userId,
+        role: userRole,
+        result: 'denied',
+        deny_reason: 'invalid_payload',
+      });
       return badRequest('Invalid payload. Expected notification.target_user_id (UUID) and supported fields only.', 422);
+    }
+
+    if (anonKey) {
+      const scopedClient = createClient(SUPABASE_URL, anonKey, {
+        auth: { persistSession: false, autoRefreshToken: false },
+        global: { headers: { Authorization: `Bearer ${token}` } },
+      });
+
+      const { data: inScope, error: scopeError } = await scopedClient.rpc('app_user_in_scope', {
+        target_user_id: notification.target_user_id,
+      });
+
+      if (scopeError || inScope !== true) {
+        logStructured('send_push_denied', {
+          correlation_id: correlationId,
+          actor_user_id: userId,
+          target_user_id: notification.target_user_id,
+          role: userRole,
+          result: 'denied',
+          deny_reason: 'out_of_scope',
+          scope_error: scopeError?.message || null,
+        });
+        return badRequest('Forbidden', 403);
+      }
     }
 
     const { data: throttleData, error: throttleError } = await supabase.rpc('increment_request_counter', {
@@ -278,11 +391,19 @@ Deno.serve(async (req) => {
     });
 
     if (throttleError) {
-      console.error('send-push rate-limit error:', throttleError.message);
-      return badRequest('Rate limit unavailable', 503);
+      console.warn('send-push rate-limit unavailable:', throttleError.message);
     }
 
-    if ((throttleData ?? 0) > MAX_PUSH_REQUESTS_PER_MINUTE) {
+    if (!throttleError && (throttleData ?? 0) > MAX_PUSH_REQUESTS_PER_MINUTE) {
+      logStructured('send_push_denied', {
+        correlation_id: correlationId,
+        actor_user_id: userId,
+        target_user_id: notification.target_user_id,
+        role: userRole,
+        result: 'denied',
+        deny_reason: 'rate_limit_exceeded',
+        throttle_count: throttleData,
+      });
       return badRequest('Too many requests', 429);
     }
 
@@ -290,10 +411,22 @@ Deno.serve(async (req) => {
 
     const { data: subs } = await supabase
       .from('push_subscriptions')
-      .select('subscription')
+      .select('id, endpoint, subscription')
       .eq('user_id', targetUserId);
 
+    const subscriptionsCount = subs?.length || 0;
+
     if (!subs?.length) {
+      logStructured('send_push_result', {
+        correlation_id: correlationId,
+        actor_user_id: userId,
+        target_user_id: targetUserId,
+        role: userRole,
+        result: 'sent',
+        subscriptions_count: 0,
+        failed_count: 0,
+        reason: 'no_subscriptions',
+      });
       return new Response(JSON.stringify({ sent: 0, failed: 0, note: 'no subscriptions' }), {
         status: 200,
         headers: JSON_HEADERS,
@@ -306,16 +439,50 @@ Deno.serve(async (req) => {
       url:   notification.reference_route ?? '/',
     });
 
-    const results = await Promise.allSettled(
-      subs.map(({ subscription }) => sendWebPush(subscription, payload))
+    const results = await Promise.all(
+      subs.map(({ endpoint, subscription }) => sendWebPush({
+        endpoint,
+        keys: subscription.keys,
+      }, payload).catch((err) => ({
+        ok: false,
+        endpoint,
+        status: 500,
+        error: err?.message || 'unknown_error',
+      } as PushSendResult)))
     );
 
-    const failed = results.filter(r => r.status === 'rejected');
-    if (failed.length) {
-      console.error('Push failures:', failed.map(f => (f as any).reason?.message));
+    const failed = results.filter((r) => !r.ok);
+    const invalidEndpoints = failed
+      .filter((r) => r.status === 404 || r.status === 410)
+      .map((r) => r.endpoint);
+
+    if (invalidEndpoints.length > 0) {
+      const { error: deleteError } = await supabase
+        .from('push_subscriptions')
+        .delete()
+        .eq('user_id', targetUserId)
+        .in('endpoint', invalidEndpoints);
+      if (deleteError) {
+        console.error('send-push cleanup subscriptions error:', deleteError.message);
+      }
     }
 
-    return new Response(JSON.stringify({ sent: subs.length, failed: failed.length }), {
+    if (failed.length) {
+      console.error('Push failures:', failed.map((f) => f.error));
+    }
+
+    logStructured('send_push_result', {
+      correlation_id: correlationId,
+      actor_user_id: userId,
+      target_user_id: targetUserId,
+      role: userRole,
+      result: 'sent',
+      subscriptions_count: subscriptionsCount,
+      failed_count: failed.length,
+      invalid_subscriptions_removed: invalidEndpoints.length,
+    });
+
+    return new Response(JSON.stringify({ sent: subscriptionsCount, failed: failed.length }), {
       headers: JSON_HEADERS,
     });
   } catch (err) {
