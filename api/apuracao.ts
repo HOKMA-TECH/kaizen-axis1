@@ -1309,6 +1309,7 @@ function extrair(texto: string): Array<{ dataRaw: string; descricaoRaw: string; 
     // Revolut Bank e alguns outros bancos exóticos tem suas linhas de tabela separadas por pipe (|) no pdf-parse em vez de \n.
     // Para nã quebrar extratos como Bradesco (que usa | dentro da mesma linha as vezes), ativamos o split duplo apenas no Revolut
     const isRevolut = /revolut/i.test(limpo.substring(0, 1500));
+    const isBradesco = isBradescoBank(limpo);
     const linhas = isRevolut 
         ? limpo.split(/[\n|]/).map(l => l.trim()).filter(l => l.length > 0)
         : limpo.split('\n').map(l => l.trim()).filter(l => l.length > 0);
@@ -1327,6 +1328,31 @@ function extrair(texto: string): Array<{ dataRaw: string; descricaoRaw: string; 
         'TRANSFERENCIA ENVIADA', 'PIX ENVIADO', 'ENVIADO PELO PIX',
         'SAQUE',
     ];
+
+    const BRADESCO_DESC_LIXO_RE = /^transf(?:er[eê]ncia)?\s+saldo\s+c\/sal\s+p\/?c+c\b/i;
+    const BRADESCO_NOVA_TRANSACAO_RE = /^(transfer[êe]ncia\s+pix|pix(?:\s+qr\s+code)?\b|cart[ãa]o\b|ted\b|doc\b|tev\b|dep[oó]sito\b|saque\b|pagamento\b|compra\b|transf\b)/i;
+    const BRADESCO_CONTINUACAO_RE = /^(rem\.?\s*:|des\.?\s*:|fav(?:orecido)?\b|origem\b|destino\b|cpf\b|cnpj\b|ag[êe]ncia\b|conta\b)/i;
+
+    function combinarDescricao(buffer: string, atual: string): string {
+        const atualTrim = atual.trim();
+        if (!buffer) return atualTrim;
+        if (!atualTrim) return buffer.trim();
+
+        if (!isBradesco) {
+            return `${buffer} ${atualTrim}`.trim();
+        }
+
+        const bufferTrim = buffer.trim();
+        const atualIniciaNova = BRADESCO_NOVA_TRANSACAO_RE.test(atualTrim) || ehInicioNovoLancamento(atualTrim);
+        const atualEhContinuacao = BRADESCO_CONTINUACAO_RE.test(atualTrim);
+        const bufferPedeContinuacao = /:\s*$/.test(bufferTrim);
+
+        if (atualIniciaNova && !atualEhContinuacao && !bufferPedeContinuacao) {
+            return atualTrim;
+        }
+
+        return `${bufferTrim} ${atualTrim}`.trim();
+    }
 
     function add(dataRaw: string, descricaoRaw: string, valorStr: string, isCreditInferred?: boolean) {
         let v = valorStr.replace(/\s+/g, '').replace(/^R\$/i, '').replace(/^-R\$/i, '-');
@@ -1379,6 +1405,7 @@ function extrair(texto: string): Array<{ dataRaw: string; descricaoRaw: string; 
 
         const desc = descricaoRaw.replace(/\|/g, ' ').replace(/\s+/g, ' ').trim();
         if (desc.length < 3) return;
+        if (isBradesco && BRADESCO_DESC_LIXO_RE.test(desc)) return;
         const chave = `${dataRaw}|${desc}|${v}`;
         if (!vistas.has(chave)) {
             vistas.add(chave);
@@ -1611,7 +1638,7 @@ function extrair(texto: string): Array<{ dataRaw: string; descricaoRaw: string; 
 
                 const descParts = linha.split(valorRealNum);
                 let descPura = descParts[0].trim();
-                descPura = `${descAcumulada} ${descPura}`.trim();
+                descPura = combinarDescricao(descAcumulada, descPura);
                 descAcumulada = '';
 
                 // Nubank: strip "Total de entradas/saídas" prefix merged by pdfjs
@@ -1640,7 +1667,7 @@ function extrair(texto: string): Array<{ dataRaw: string; descricaoRaw: string; 
                 if (deveReiniciar) {
                     descAcumulada = linhaTrim;
                 } else {
-                    const novaAcumuladaElse = `${descAcumulada} ${linhaTrim}`.trim();
+                    const novaAcumuladaElse = combinarDescricao(descAcumulada, linhaTrim);
                     descAcumulada = novaAcumuladaElse.length > 300 ? '' : novaAcumuladaElse;
                 }
             }
