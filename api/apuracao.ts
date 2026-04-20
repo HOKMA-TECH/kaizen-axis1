@@ -255,6 +255,30 @@ function isMercadoPagoCredito(descNorm: string): boolean {
     return MERCADO_PAGO_KEYWORDS_CREDITO_NORM.some(k => k && descNorm.includes(k));
 }
 
+const BRADESCO_DESC_LIXO_GLOBAL_RE = /\btransf(?:er[eê]ncia)?\s+saldo\s+c\s*\/\s*sal\s+p\s*\/?\s*c{2}\b/i;
+const BRADESCO_CAUSA_MESCLA_GLOBAL_RE = /\b(transfer[êe]ncia\s+pix|pix\s+qr\s+code\s+din[âa]mico|pix\s+qr\s+code\s+est[áa]tico|pix\s+qr\s+code)\b/i;
+
+function isBradescoHeuristico(texto: string): boolean {
+    const cab = removerAcentos(texto).toUpperCase().substring(0, 12000);
+    return /BRADESCO\s+CELULAR|TRANSF\s+SALDO\s+C\s*\/\s*SAL\s+P\s*\/?\s*CC|PIX\s+QR\s+CODE\s+(DINAMICO|ESTATICO)|CARTAO\s+VISA\s+ELECTRON/.test(cab);
+}
+
+function sanitizarDescricaoBradesco(descricao: string): string {
+    let desc = descricao.replace(/\|/g, ' ').replace(/\s+/g, ' ').trim();
+
+    const idxLixo = desc.search(BRADESCO_DESC_LIXO_GLOBAL_RE);
+    if (idxLixo === 0) return '';
+    if (idxLixo > 0) desc = desc.slice(0, idxLixo).trim();
+
+    const mMescla = desc.match(BRADESCO_CAUSA_MESCLA_GLOBAL_RE);
+    if (mMescla && typeof mMescla.index === 'number' && mMescla.index > 0) {
+        const prefixo = desc.slice(0, mMescla.index).trim();
+        if (prefixo.length >= 3) desc = prefixo;
+    }
+
+    return desc;
+}
+
 function isMercadoPagoIgnorar(descNorm: string): boolean {
     return MERCADO_PAGO_KEYWORDS_IGNORAR_NORM.some(k => k && descNorm.includes(k));
 }
@@ -1309,7 +1333,7 @@ function extrair(texto: string): Array<{ dataRaw: string; descricaoRaw: string; 
     // Revolut Bank e alguns outros bancos exóticos tem suas linhas de tabela separadas por pipe (|) no pdf-parse em vez de \n.
     // Para nã quebrar extratos como Bradesco (que usa | dentro da mesma linha as vezes), ativamos o split duplo apenas no Revolut
     const isRevolut = /revolut/i.test(limpo.substring(0, 1500));
-    const isBradesco = isBradescoBank(limpo);
+    const isBradesco = isBradescoBank(limpo) || isBradescoHeuristico(limpo);
     const linhas = isRevolut 
         ? limpo.split(/[\n|]/).map(l => l.trim()).filter(l => l.length > 0)
         : limpo.split('\n').map(l => l.trim()).filter(l => l.length > 0);
@@ -1329,10 +1353,8 @@ function extrair(texto: string): Array<{ dataRaw: string; descricaoRaw: string; 
         'SAQUE',
     ];
 
-    const BRADESCO_DESC_LIXO_RE = /\btransf(?:er[eê]ncia)?\s+saldo\s+c\s*\/\s*sal\s+p\s*\/?\s*c{2}\b/i;
     const BRADESCO_NOVA_TRANSACAO_RE = /^(transfer[êe]ncia\s+pix|pix(?:\s+qr\s+code)?\b|cart[ãa]o\b|ted\b|doc\b|tev\b|dep[oó]sito\b|saque\b|pagamento\b|compra\b|transf\b)/i;
     const BRADESCO_CONTINUACAO_RE = /^(rem\.?\s*:|des\.?\s*:|fav(?:orecido)?\b|origem\b|destino\b|cpf\b|cnpj\b|ag[êe]ncia\b|conta\b)/i;
-    const BRADESCO_CAUSA_MESCLA_RE = /\b(transfer[êe]ncia\s+pix|pix\s+qr\s+code\s+din[âa]mico|pix\s+qr\s+code\s+est[áa]tico|pix\s+qr\s+code)\b/i;
 
     function combinarDescricao(buffer: string, atual: string): string {
         const atualTrim = atual.trim();
@@ -1353,23 +1375,6 @@ function extrair(texto: string): Array<{ dataRaw: string; descricaoRaw: string; 
         }
 
         return `${bufferTrim} ${atualTrim}`.trim();
-    }
-
-    function limparDescricaoBradesco(descricao: string): string {
-        let desc = descricao.replace(/\s+/g, ' ').trim();
-        if (!isBradesco) return desc;
-
-        const idxLixo = desc.search(BRADESCO_DESC_LIXO_RE);
-        if (idxLixo === 0) return '';
-        if (idxLixo > 0) desc = desc.slice(0, idxLixo).trim();
-
-        const mMescla = desc.match(BRADESCO_CAUSA_MESCLA_RE);
-        if (mMescla && typeof mMescla.index === 'number' && mMescla.index > 0) {
-            const prefixo = desc.slice(0, mMescla.index).trim();
-            if (prefixo.length >= 3) desc = prefixo;
-        }
-
-        return desc;
     }
 
     function add(dataRaw: string, descricaoRaw: string, valorStr: string, isCreditInferred?: boolean) {
@@ -1421,7 +1426,7 @@ function extrair(texto: string): Array<{ dataRaw: string; descricaoRaw: string; 
             v = `-${v}`;
         }
 
-        const desc = limparDescricaoBradesco(descricaoRaw.replace(/\|/g, ' '));
+        const desc = isBradesco ? sanitizarDescricaoBradesco(descricaoRaw) : descricaoRaw.replace(/\|/g, ' ').replace(/\s+/g, ' ').trim();
         if (desc.length < 3) return;
         const chave = `${dataRaw}|${desc}|${v}`;
         if (!vistas.has(chave)) {
@@ -1737,7 +1742,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const ehNubank = !ehMercadoPago && isNubankBank(textoExtrato);
         const ehInter = !ehMercadoPago && !ehNubank && isInterBank(textoExtrato);
         const ehNeon = !ehMercadoPago && !ehNubank && !ehInter && isNeonBank(textoExtrato);
-        const isBradescoExtrato = !ehMercadoPago && !ehNubank && !ehInter && !ehNeon && isBradescoBank(textoExtrato);
+        const isBradescoExtrato = !ehMercadoPago && !ehNubank && !ehInter && !ehNeon && (isBradescoBank(textoExtrato) || isBradescoHeuristico(textoExtrato));
         const bankDetected: BancoDetectado = ehMercadoPago
             ? 'mercadopago'
             : (ehNubank ? 'nubank' : (ehInter ? 'inter' : (ehNeon ? 'neon' : (isBradescoExtrato ? 'bradesco' : 'generic'))));
@@ -1801,6 +1806,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         // Regra específica Bradesco: considerar apenas depósito, PIX recebido e TED/DOC/TEV recebida.
         // Evita inflar renda com linhas "DES" (destinatário/saída), resumos e lançamentos ambíguos.
         if (isBradescoExtrato) {
+            const saneadas: Transacao[] = [];
+            for (const t of transacoes) {
+                const descLimpa = sanitizarDescricaoBradesco(t.descricao);
+                if (descLimpa.length < 3) continue;
+                if (BRADESCO_DESC_LIXO_GLOBAL_RE.test(descLimpa)) continue;
+                saneadas.push({ ...t, descricao: descLimpa });
+            }
+            transacoes = saneadas;
+
             transacoes = transacoes.map(t => {
                 if (t.classificacao === 'debito') return t;
                 const descNorm = normalizar(t.descricao);
@@ -1812,8 +1826,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     is_validated: false,
                 };
             });
-
-            transacoes = transacoes.filter(t => !/\btransf(?:er[eê]ncia)?\s+saldo\s+c\s*\/\s*sal\s+p\s*\/?\s*c{2}\b/i.test(t.descricao));
         }
 
         // v3: pós-processamentos determinísticos
