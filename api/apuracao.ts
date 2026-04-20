@@ -1329,9 +1329,10 @@ function extrair(texto: string): Array<{ dataRaw: string; descricaoRaw: string; 
         'SAQUE',
     ];
 
-    const BRADESCO_DESC_LIXO_RE = /^transf(?:er[eê]ncia)?\s+saldo\s+c\/sal\s+p\/?c+c\b/i;
+    const BRADESCO_DESC_LIXO_RE = /\btransf(?:er[eê]ncia)?\s+saldo\s+c\s*\/\s*sal\s+p\s*\/?\s*c{2}\b/i;
     const BRADESCO_NOVA_TRANSACAO_RE = /^(transfer[êe]ncia\s+pix|pix(?:\s+qr\s+code)?\b|cart[ãa]o\b|ted\b|doc\b|tev\b|dep[oó]sito\b|saque\b|pagamento\b|compra\b|transf\b)/i;
     const BRADESCO_CONTINUACAO_RE = /^(rem\.?\s*:|des\.?\s*:|fav(?:orecido)?\b|origem\b|destino\b|cpf\b|cnpj\b|ag[êe]ncia\b|conta\b)/i;
+    const BRADESCO_CAUSA_MESCLA_RE = /\b(transfer[êe]ncia\s+pix|pix\s+qr\s+code\s+din[âa]mico|pix\s+qr\s+code\s+est[áa]tico|pix\s+qr\s+code)\b/i;
 
     function combinarDescricao(buffer: string, atual: string): string {
         const atualTrim = atual.trim();
@@ -1352,6 +1353,23 @@ function extrair(texto: string): Array<{ dataRaw: string; descricaoRaw: string; 
         }
 
         return `${bufferTrim} ${atualTrim}`.trim();
+    }
+
+    function limparDescricaoBradesco(descricao: string): string {
+        let desc = descricao.replace(/\s+/g, ' ').trim();
+        if (!isBradesco) return desc;
+
+        const idxLixo = desc.search(BRADESCO_DESC_LIXO_RE);
+        if (idxLixo === 0) return '';
+        if (idxLixo > 0) desc = desc.slice(0, idxLixo).trim();
+
+        const mMescla = desc.match(BRADESCO_CAUSA_MESCLA_RE);
+        if (mMescla && typeof mMescla.index === 'number' && mMescla.index > 0) {
+            const prefixo = desc.slice(0, mMescla.index).trim();
+            if (prefixo.length >= 3) desc = prefixo;
+        }
+
+        return desc;
     }
 
     function add(dataRaw: string, descricaoRaw: string, valorStr: string, isCreditInferred?: boolean) {
@@ -1403,9 +1421,8 @@ function extrair(texto: string): Array<{ dataRaw: string; descricaoRaw: string; 
             v = `-${v}`;
         }
 
-        const desc = descricaoRaw.replace(/\|/g, ' ').replace(/\s+/g, ' ').trim();
+        const desc = limparDescricaoBradesco(descricaoRaw.replace(/\|/g, ' '));
         if (desc.length < 3) return;
-        if (isBradesco && BRADESCO_DESC_LIXO_RE.test(desc)) return;
         const chave = `${dataRaw}|${desc}|${v}`;
         if (!vistas.has(chave)) {
             vistas.add(chave);
@@ -1795,6 +1812,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     is_validated: false,
                 };
             });
+
+            transacoes = transacoes.filter(t => !/\btransf(?:er[eê]ncia)?\s+saldo\s+c\s*\/\s*sal\s+p\s*\/?\s*c{2}\b/i.test(t.descricao));
         }
 
         // v3: pós-processamentos determinísticos
