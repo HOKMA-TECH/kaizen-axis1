@@ -278,7 +278,7 @@ export function DesktopLayout({ children }: { children: React.ReactNode }) {
 
         {/* Page content */}
         <main className="flex-1 overflow-y-auto print:overflow-visible print:h-auto">
-          <div className="max-w-7xl mx-auto">
+          <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-6">
             {children}
           </div>
         </main>

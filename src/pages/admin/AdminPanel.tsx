@@ -1539,8 +1539,8 @@ export default function AdminPanel() {
                       <h4 className="text-[11px] uppercase tracking-wider font-bold text-text-secondary flex items-center gap-1.5"><Trophy size={14} className="text-gold-500" /> {ranking.title}</h4>
                       <span className="text-[10px] font-bold text-text-secondary bg-card-bg px-2 py-0.5 border border-surface-200 rounded-md shadow-sm">{ranking.rows.length}/3</span>
                     </div>
-                    <div className="overflow-x-auto no-scrollbar">
-                      <table className="w-full text-left border-collapse min-w-[380px]">
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left border-collapse min-w-[760px]">
                         <thead>
                           <tr className="bg-card-bg text-text-secondary text-[9px] uppercase tracking-wider border-b border-surface-100">
                             <th className="p-3 font-bold">{ranking.label}</th>
@@ -1713,7 +1713,7 @@ export default function AdminPanel() {
                   ) : (
                     <div className="flex flex-col">
                       {/* Desktop Table View */}
-                      <div className="hidden md:block overflow-x-auto no-scrollbar">
+                      <div className="hidden md:block overflow-x-auto">
                         <table className="w-full text-left border-collapse">
                           <thead>
                             <tr className="bg-surface-50 text-text-secondary text-[10px] uppercase tracking-wider border-b border-surface-100">
@@ -1914,12 +1914,12 @@ export default function AdminPanel() {
 
 
   return (
-    <div className="w-full max-w-full px-3 sm:px-6 pb-24 min-h-screen bg-surface-50 overflow-x-hidden print:p-0 print:bg-white">
+    <div className="w-full max-w-full px-3 sm:px-6 pb-24 min-h-screen bg-surface-50 print:p-0 print:bg-white">
       <div className="print:hidden">
         <SectionHeader title="Painel Administrativo" subtitle="Governança e Estratégia" />
       </div>
 
-      <div className="w-full flex gap-2 overflow-x-auto no-scrollbar mb-6 pb-2 print:hidden -mx-1 px-1">
+      <div className="w-full flex gap-2 overflow-x-auto mb-6 pb-2 print:hidden -mx-1 px-1">
         {[
           { id: 'users', label: 'Usuários', icon: Users },
           { id: 'teams', label: 'Equipes', icon: Shield },
