@@ -337,11 +337,19 @@ function ehLinhaResumoMensal(descNorm: string): boolean {
 }
 
 function ehRuidoItauMensal(linha: string): boolean {
+    const raw = removerAcentos(linha)
+        .toUpperCase()
+        .replace(/\s+/g, ' ')
+        .trim();
     const n = normalizar(linha);
     if (!n) return false;
 
     // Legenda de siglas do Itaú mensal (ex.: "B = ...", "C = ...", "G = ...", "P = ...")
-    if (/^[A-Z]\s*=\s*/.test(n)) return true;
+    // Importante: o normalizar() remove "=", então validamos no texto bruto também.
+    if (/^[A-Z]\s*(?:=|:|-)?\s*/.test(raw) && /^(?:[BCGP])\b/.test(raw)) return true;
+
+    // Casos específicos de legenda que costumam vazar como transação por OCR.
+    if (/^[BCGP]\s*(?:=|:|-)?\s*(ACOES\s+MOVIMENTADAS|CREDITO\s+A\s+COMPENSAR|APLICACAO\s+PROGRAMADA|POUPANCA\s+AUTOMATICA)\b/.test(raw)) return true;
 
     // Blocos de resumo/rodape que aparecem na capa e no corpo do PDF
     if (/\bMINHA\s+CONTA\b/.test(n) || /\bMINHA\s+AGENCIA\b/.test(n)) return true;
