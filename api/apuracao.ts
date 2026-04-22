@@ -269,15 +269,28 @@ function isItauMensalBank(texto: string): boolean {
         .replace(/\s+/g, ' ')
         .substring(0, 7000);
 
+    const all = removerAcentos(texto)
+        .toUpperCase()
+        .replace(/\s+/g, ' ');
+
     const hasItauBrand = /\bITAU\b|\bITAU\s+UNIBANCO\b/.test(cab);
-    if (!hasItauBrand) return false;
+    const itauNoiseFingerprintHits = [
+        /\bMINHA\s+CONTA\b/,
+        /\bMINHA\s+AGENCIA\b/,
+        /\bPARA\s+DEMAIS\s+SIGLAS\b/,
+        /\bTRANSFERENCIAS\s*,?\s*DOCS\s+E\s+TEDS\b/,
+        /\bDEPOSITOS\s+E\s+RECEBIMENTOS\b/,
+        /\bOUTRAS\s+ENTRADAS\b/,
+        /\bOUTRAS\s+SAIDAS\b/,
+        /\b[A-Z]\s*=\s+/,
+    ].reduce((acc, re) => acc + (re.test(all) ? 1 : 0), 0);
 
     const hasMensalMarkers =
         /\bEXTRATO\s+MENSAL\b/.test(cab)
         || (/\bENTRADAS\b/.test(cab) && /\bCREDITOS\b/.test(cab) && /\bSAIDAS\b/.test(cab) && /\bDEBITOS\b/.test(cab))
         || /\bDATA\s+DESCRICAO\s+ENTRADAS\b/.test(cab);
 
-    return hasMensalMarkers;
+    return (hasItauBrand && hasMensalMarkers) || itauNoiseFingerprintHits >= 3;
 }
 
 function sanitizarDescricaoBradesco(descricao: string): string {
@@ -1824,7 +1837,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         let transacoes: Transacao[] = brutas.map(b => classificar(b.dataRaw, b.descricaoRaw, b.valorRaw, ctx, bankDetected));
 
-        if (bankDetected === 'itau_mensal') {
+        if (bankDetected === 'itau_mensal' || isItauMensalBank(textoExtrato)) {
             transacoes = transacoes.filter(t => !ehRuidoItauMensal(t.descricao));
         }
 
