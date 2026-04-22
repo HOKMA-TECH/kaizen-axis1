@@ -9,6 +9,7 @@ import {
 import { supabase } from '@/lib/supabase';
 import { useApp } from '@/context/AppContext';
 import { cn } from '@/lib/utils';
+import { Modal } from '@/components/ui/Modal';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -61,6 +62,8 @@ export default function CheckIn() {
   const [brtMinutes, setBrtMinutes] = useState(getBRTMinutes());
   const [scannerOpen, setScannerOpen] = useState(false);
   const [scannerError, setScannerError] = useState<string | null>(null);
+  const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false);
+  const [isSigningOut, setIsSigningOut] = useState(false);
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const scanCanvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -201,6 +204,17 @@ export default function CheckIn() {
   }, [scannerOpen, startScanner, stopScanner]);
 
   useEffect(() => () => stopScanner(), [stopScanner]);
+
+  const handleConfirmLogout = async () => {
+    setIsSigningOut(true);
+    try {
+      await signOut();
+      navigate('/login');
+    } finally {
+      setIsSigningOut(false);
+      setIsLogoutConfirmOpen(false);
+    }
+  };
 
   // Bloqueio de horário: Check-in disponível das 08:00 às 13:30
   const isOpen = brtMinutes >= (8 * 60) && brtMinutes <= (13 * 60 + 30);
@@ -625,7 +639,7 @@ export default function CheckIn() {
                 Sua sessão venceu. Faça login novamente para continuar.
               </p>
               <button
-                onClick={async () => { await signOut(); navigate('/login'); }}
+                onClick={() => setIsLogoutConfirmOpen(true)}
                 className="w-full py-2 rounded-full bg-amber-500 text-white text-sm font-semibold"
               >
                 Ir para Login
@@ -754,6 +768,36 @@ export default function CheckIn() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      <Modal
+        isOpen={isLogoutConfirmOpen}
+        onClose={() => !isSigningOut && setIsLogoutConfirmOpen(false)}
+        title="Confirmar saída"
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-text-secondary">
+            Deseja realmente encerrar a sessão e voltar para o login?
+          </p>
+          <div className="flex items-center justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => setIsLogoutConfirmOpen(false)}
+              disabled={isSigningOut}
+              className="px-4 py-2 rounded-lg border border-surface-200 text-text-secondary hover:bg-surface-100 disabled:opacity-60"
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              onClick={() => { void handleConfirmLogout(); }}
+              disabled={isSigningOut}
+              className="px-4 py-2 rounded-lg bg-red-500 text-white hover:bg-red-600 disabled:opacity-60"
+            >
+              {isSigningOut ? 'Saindo...' : 'Sair agora'}
+            </button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

@@ -8,6 +8,7 @@ import { useNavigate } from 'react-router-dom';
 import { Modal } from '@/components/ui/Modal';
 import { supabase } from '@/lib/supabase';
 import { GamificationProfile } from '@/components/gamification/GamificationProfile';
+import { useApp } from '@/context/AppContext';
 
 // ─── tipos ──────────────────────────────────────────────────────────────────
 interface Profile {
@@ -54,6 +55,7 @@ function Toggle({ value, onChange }: { value: boolean; onChange: (v: boolean) =>
 // ─────────────────────────────────────────────────────────────────────────────
 export default function Settings() {
   const navigate = useNavigate();
+  const { signOut } = useApp();
 
   // ── estado de dados ──────────────────────────────────────────────────────
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -72,6 +74,8 @@ export default function Settings() {
   const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
   const [is2FAModalOpen, setIs2FAModalOpen] = useState(false);
+  const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false);
+  const [isSigningOut, setIsSigningOut] = useState(false);
 
   // ── formulários ───────────────────────────────────────────────────────────
   const [editProfile, setEditProfile] = useState({ name: '', cpf: '', avatar_url: '' });
@@ -331,10 +335,21 @@ export default function Settings() {
   };
 
   // ── logout ─────────────────────────────────────────────────────────────────
-  const handleLogout = async () => {
-    if (!confirm('Tem certeza que deseja sair?')) return;
-    await supabase.auth.signOut();
-    navigate('/login');
+  const handleLogout = () => {
+    setIsLogoutConfirmOpen(true);
+  };
+
+  const handleConfirmLogout = async () => {
+    setIsSigningOut(true);
+    try {
+      await signOut();
+      navigate('/login');
+    } catch (e: unknown) {
+      showToast(`Erro ao sair: ${(e as Error).message}`, 'error');
+    } finally {
+      setIsSigningOut(false);
+      setIsLogoutConfirmOpen(false);
+    }
   };
 
   // ── loading ────────────────────────────────────────────────────────────────
@@ -545,6 +560,36 @@ export default function Settings() {
               className="w-full py-3 text-sm font-medium text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-colors flex items-center justify-center gap-2"
             >
               <Trash2 size={16} /> Excluir Perfil
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal
+        isOpen={isLogoutConfirmOpen}
+        onClose={() => !isSigningOut && setIsLogoutConfirmOpen(false)}
+        title="Confirmar saída"
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-text-secondary">
+            Deseja realmente sair da conta agora?
+          </p>
+          <div className="flex items-center justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => setIsLogoutConfirmOpen(false)}
+              disabled={isSigningOut}
+              className="px-4 py-2 rounded-lg border border-surface-200 text-text-secondary hover:bg-surface-100 disabled:opacity-60"
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              onClick={handleConfirmLogout}
+              disabled={isSigningOut}
+              className="px-4 py-2 rounded-lg bg-red-500 text-white hover:bg-red-600 disabled:opacity-60"
+            >
+              {isSigningOut ? 'Saindo...' : 'Sair agora'}
             </button>
           </div>
         </div>

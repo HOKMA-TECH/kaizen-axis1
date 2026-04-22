@@ -5,6 +5,7 @@ import { RefreshCw, Clock, Users, Wifi, WifiOff, LogOut } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useApp } from '@/context/AppContext';
 import { useAuthorization } from '@/hooks/useAuthorization';
+import { Modal } from '@/components/ui/Modal';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -47,6 +48,7 @@ export default function CheckInDisplay() {
   const [checkins, setCheckins]   = useState(0);
   const [online, setOnline]       = useState(navigator.onLine);
   const [signingOut, setSigningOut] = useState(false);
+  const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false);
 
   // ── Carregar token diário ──────────────────────────────────────────────────
   const loadToken = useCallback(async () => {
@@ -118,6 +120,7 @@ export default function CheckInDisplay() {
       await signOut();
     } finally {
       setSigningOut(false);
+      setIsLogoutConfirmOpen(false);
     }
   };
 
@@ -143,7 +146,7 @@ export default function CheckInDisplay() {
           </div>
           {role === 'RECEPCAO' && (
             <button
-              onClick={handleSignOut}
+              onClick={() => setIsLogoutConfirmOpen(true)}
               disabled={signingOut}
               className="inline-flex items-center gap-1.5 rounded-full border border-gray-700 bg-gray-900 px-3 py-1.5 text-xs font-semibold text-gray-200 transition-colors hover:border-gray-600 hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
             >
@@ -241,6 +244,36 @@ export default function CheckInDisplay() {
       >
         <RefreshCw size={12} /> Atualizar QR manualmente
       </button>
+
+      <Modal
+        isOpen={isLogoutConfirmOpen}
+        onClose={() => !signingOut && setIsLogoutConfirmOpen(false)}
+        title="Confirmar saída"
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-text-secondary">
+            Deseja sair da sessão da tela de check-in?
+          </p>
+          <div className="flex items-center justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => setIsLogoutConfirmOpen(false)}
+              disabled={signingOut}
+              className="px-4 py-2 rounded-lg border border-surface-200 text-text-secondary hover:bg-surface-100 disabled:opacity-60"
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              onClick={() => { void handleSignOut(); }}
+              disabled={signingOut}
+              className="px-4 py-2 rounded-lg bg-red-500 text-white hover:bg-red-600 disabled:opacity-60"
+            >
+              {signingOut ? 'Saindo...' : 'Sair agora'}
+            </button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

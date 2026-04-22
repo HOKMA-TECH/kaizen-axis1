@@ -11,6 +11,7 @@ import { useAuthorization } from '@/hooks/useAuthorization';
 import { useApp } from '@/context/AppContext';
 import { NotificationBell } from '@/components/ui/NotificationBell';
 import { useChatUnread } from '@/context/ChatUnreadContext';
+import { Modal } from '@/components/ui/Modal';
 
 // ─── Nav items definition ─────────────────────────────────────────────────────
 
@@ -109,6 +110,8 @@ function Sidebar() {
   const { userName, profile, signOut } = useApp();
   const { totalUnread } = useChatUnread();
   const navigate = useNavigate();
+  const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = React.useState(false);
+  const [isSigningOut, setIsSigningOut] = React.useState(false);
 
   const isLeadership = isAdmin || isDirector || isManager || isCoordinator;
   const isAdminOrDirector = isAdmin || isDirector;
@@ -131,6 +134,17 @@ function Sidebar() {
       return item;
     });
   const filteredAdmin = NAV_ADMIN.filter(item => !item.adminOnly || isAdminOrDirector);
+
+  const handleConfirmLogout = async () => {
+    setIsSigningOut(true);
+    try {
+      await signOut();
+      navigate('/login');
+    } finally {
+      setIsSigningOut(false);
+      setIsLogoutConfirmOpen(false);
+    }
+  };
 
   const allGroups = [
     { label: 'Principal',     items: NAV_CORE },
@@ -179,13 +193,43 @@ function Sidebar() {
           <ChevronRight size={14} className="text-surface-300 group-hover:text-text-secondary transition-colors" />
         </button>
         <button
-          onClick={() => signOut()}
+          onClick={() => setIsLogoutConfirmOpen(true)}
           className="w-full flex items-center gap-3 px-3 py-2 mt-1 rounded-xl text-sm text-text-secondary hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20 transition-all"
         >
           <LogOut size={16} />
           <span>Sair</span>
         </button>
       </div>
+
+      <Modal
+        isOpen={isLogoutConfirmOpen}
+        onClose={() => !isSigningOut && setIsLogoutConfirmOpen(false)}
+        title="Confirmar saída"
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-text-secondary">
+            Tem certeza que deseja sair da sua conta?
+          </p>
+          <div className="flex items-center justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => setIsLogoutConfirmOpen(false)}
+              disabled={isSigningOut}
+              className="px-4 py-2 rounded-lg border border-surface-200 text-text-secondary hover:bg-surface-100 disabled:opacity-60"
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              onClick={handleConfirmLogout}
+              disabled={isSigningOut}
+              className="px-4 py-2 rounded-lg bg-red-500 text-white hover:bg-red-600 disabled:opacity-60"
+            >
+              {isSigningOut ? 'Saindo...' : 'Sair agora'}
+            </button>
+          </div>
+        </div>
+      </Modal>
     </aside>
   );
 }
