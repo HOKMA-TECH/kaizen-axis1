@@ -48,7 +48,7 @@ interface ContextoNomes {
     cpf?: string;
 }
 
-type BancoDetectado = 'generic' | 'nubank' | 'inter' | 'neon' | 'bradesco' | 'mercadopago';
+type BancoDetectado = 'generic' | 'nubank' | 'inter' | 'neon' | 'bradesco' | 'mercadopago' | 'itau_mensal';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // UTILS — MOEDA
@@ -263,6 +263,23 @@ function isBradescoHeuristico(texto: string): boolean {
     return /BRADESCO\s+CELULAR|TRANSF\s+SALDO\s+C\s*\/\s*SAL\s+P\s*\/?\s*CC|PIX\s+QR\s+CODE\s+(DINAMICO|ESTATICO)|CARTAO\s+VISA\s+ELECTRON/.test(cab);
 }
 
+function isItauMensalBank(texto: string): boolean {
+    const cab = removerAcentos(texto)
+        .toUpperCase()
+        .replace(/\s+/g, ' ')
+        .substring(0, 7000);
+
+    const hasItauBrand = /\bITAU\b|\bITAU\s+UNIBANCO\b/.test(cab);
+    if (!hasItauBrand) return false;
+
+    const hasMensalMarkers =
+        /\bEXTRATO\s+MENSAL\b/.test(cab)
+        || (/\bENTRADAS\b/.test(cab) && /\bCREDITOS\b/.test(cab) && /\bSAIDAS\b/.test(cab) && /\bDEBITOS\b/.test(cab))
+        || /\bDATA\s+DESCRICAO\s+ENTRADAS\b/.test(cab);
+
+    return hasMensalMarkers;
+}
+
 function sanitizarDescricaoBradesco(descricao: string): string {
     let desc = descricao.replace(/\|/g, ' ').replace(/\s+/g, ' ').trim();
 
@@ -464,6 +481,10 @@ function classificar(
     const base: Omit<Transacao, 'classificacao' | 'motivoExclusao' | 'is_validated' | 'custom_tag'> = {
         id: nextId(), data, mes, descricao: descricaoRaw, valor,
     };
+
+    if (bankDetected === 'itau_mensal' && ehRuidoItauMensal(descricaoRaw)) {
+        return { ...base, classificacao: 'ignorar_sem_keyword', motivoExclusao: 'Ruido do extrato Itau mensal', is_validated: false, custom_tag: null };
+    }
 
     // 1. Débito
     if (valor <= 0) return { ...base, classificacao: 'debito', is_validated: false, custom_tag: null };
@@ -1474,7 +1495,7 @@ function extrair(texto: string): Array<{ dataRaw: string; descricaoRaw: string; 
 
     // Itaú Movimentação Bancária — seção de resumo de entradas/saídas no início do extrato.
     // O cabeçalho "01. Conta Corrente e Aplicações Automáticas" desliga esse modo quando encontrado na listagem detalhada.
-    const isItauMensal = /ita[uú]/i.test(limpo.substring(0, 500)) && /entradas.*cr[eé]ditos/i.test(limpo.substring(0, 3000));
+    const isItauMensal = isItauMensalBank(limpo);
     if (isItauMensal) isIgnoredSection = true; // Começa ignorando até a seção de transações
 
     const SECTIONS_IGNORE = /^(comprovantes? de|pacote de servi[çc]os|[íi]ndices econ[óo]micos|resumo consolidado|resumo\s*[-:]|fale conosco|demonstrativo de|posi[çc][ãa]o de|investimentos|t[íi]tulos? de capitaliza[çc][ãa]o|fundos? de investimento|cr[ée]dito pessoal|poupan[çc]a|cart[ãa]o de cr[ée]dito|seguros|prote[çc][ãa]o|extrato consolidado inteligente)/i;
@@ -1770,10 +1791,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const ehNubank = !ehMercadoPago && isNubankBank(textoExtrato);
         const ehInter = !ehMercadoPago && !ehNubank && isInterBank(textoExtrato);
         const ehNeon = !ehMercadoPago && !ehNubank && !ehInter && isNeonBank(textoExtrato);
-        const isBradescoExtrato = !ehMercadoPago && !ehNubank && !ehInter && !ehNeon && (isBradescoBank(textoExtrato) || isBradescoHeuristico(textoExtrato));
+        const ehItauMensal = !ehMercadoPago && !ehNubank && !ehInter && !ehNeon && isItauMensalBank(textoExtrato);
+        const isBradescoExtrato = !ehMercadoPago && !ehNubank && !ehInter && !ehNeon && !ehItauMensal && (isBradescoBank(textoExtrato) || isBradescoHeuristico(textoExtrato));
         const bankDetected: BancoDetectado = ehMercadoPago
             ? 'mercadopago'
-            : (ehNubank ? 'nubank' : (ehInter ? 'inter' : (ehNeon ? 'neon' : (isBradescoExtrato ? 'bradesco' : 'generic'))));
+            : (ehNubank ? 'nubank' : (ehInter ? 'inter' : (ehNeon ? 'neon' : (ehItauMensal ? 'itau_mensal' : (isBradescoExtrato ? 'bradesco' : 'generic')))));
         let brutas = ehMercadoPago
             ? extrairMercadoPago(textoExtrato)
             : (ehNubank
@@ -1801,6 +1823,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
 
         let transacoes: Transacao[] = brutas.map(b => classificar(b.dataRaw, b.descricaoRaw, b.valorRaw, ctx, bankDetected));
+
+        if (bankDetected === 'itau_mensal') {
+            transacoes = transacoes.filter(t => !ehRuidoItauMensal(t.descricao));
+        }
 
         // v3: Defesa extra - Deduplicação Exata (Data + Valor + Descrição normalizada)
         // Evita que anexos de "Comprovantes" (ex: Santander) que vazem pelo filtro de seção 
