@@ -278,8 +278,21 @@ export default function AdminPanel() {
     return managers
       .map((manager) => {
         const managedTeamIds = teams.filter((t) => t.manager_id === manager.id).map((t) => t.id);
+
+        const coordinatorIds = allProfiles
+          .filter((p: any) => p.role?.toUpperCase() === 'COORDENADOR' && p.manager_id === manager.id)
+          .map((p) => p.id);
+
         const brokerIds = Array.from(new Set(allProfiles
-          .filter((p: any) => p.role?.toUpperCase() === 'CORRETOR' && managedTeamIds.includes(p.team_id || p.team))
+          .filter((p: any) => {
+            if (p.role?.toUpperCase() !== 'CORRETOR') return false;
+
+            const belongsToManagedTeam = managedTeamIds.includes(p.team_id || p.team);
+            const isDirectManagedBroker = p.manager_id === manager.id;
+            const belongsToManagedCoordinator = coordinatorIds.includes(p.coordinator_id);
+
+            return belongsToManagedTeam || isDirectManagedBroker || belongsToManagedCoordinator;
+          })
           .map((p) => p.id)));
 
         const createdByManager = monthClients.filter((c) => brokerIds.includes((c as any).owner_id));
