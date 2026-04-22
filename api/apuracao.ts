@@ -306,6 +306,25 @@ function ehLinhaResumoMensal(descNorm: string): boolean {
         || /\bTOTAL\s+MOVIMENTACAO(?:ES)?\b/.test(descNorm);
 }
 
+function ehRuidoItauMensal(linha: string): boolean {
+    const n = normalizar(linha);
+    if (!n) return false;
+
+    // Legenda de siglas do Itaú mensal (ex.: "B = ...", "C = ...", "G = ...", "P = ...")
+    if (/^[A-Z]\s*=\s*/.test(n)) return true;
+
+    // Blocos de resumo/rodape que aparecem na capa e no corpo do PDF
+    if (/\bMINHA\s+CONTA\b/.test(n) || /\bMINHA\s+AGENCIA\b/.test(n)) return true;
+    if (/\bPARA\s+DEMAIS\s+SIGLAS\b/.test(n) || /\bCONSULTE\s+AS\s+NOTAS\b/.test(n)) return true;
+    if (/\bTRANSFERENCIAS\s*,?\s*DOCS\s+E\s+TEDS\b/.test(n)) return true;
+    if (/\bDEPOSITOS\s+E\s+RECEBIMENTOS\b/.test(n) || /\bOUTRAS\s+ENTRADAS\b/.test(n) || /\bOUTRAS\s+SAIDAS\b/.test(n)) return true;
+
+    // Linhas percentuais da visão-resumo ("... 39%", "... 55%")
+    if (/\b\d{1,3}%\b/.test(n) && !/\bPIX\b|\bTED\b|\bDOC\b|\bTRANSFERENCIA\b|\bDEPOSITO\b/.test(n)) return true;
+
+    return false;
+}
+
 function ehDebitoPorContextoDescricao(descNorm: string): boolean {
     // Não pode tratar "PAGAMENTO RECEBIDO" como débito (regressão global).
     if (/\bPAGAMENTO\s+RECEBID[OA]\b/.test(descNorm)) return false;
@@ -1519,6 +1538,10 @@ function extrair(texto: string): Array<{ dataRaw: string; descricaoRaw: string; 
             if (mesCtx !== null) ultimoMesContextual = mesCtx;
 
             let descSemData = linha.substring(mData[0].length).trim();
+            if (isItauMensal && ehRuidoItauMensal(descSemData)) {
+                descAcumulada = '';
+                continue;
+            }
             if (/^saldo\s+(do\s+dia|anterior|final|bloqueado)/i.test(descSemData)) {
                 // Atualiza o saldo se houver
                 const mSaldo = descSemData.match(VALOR_RE);
@@ -1628,6 +1651,11 @@ function extrair(texto: string): Array<{ dataRaw: string; descricaoRaw: string; 
 
             // Ignorar cabeçalhos no meio do texto para não poluir o descAcumulada
             if (CABECALHOS_IGNORE.test(linha)) {
+                continue;
+            }
+
+            if (isItauMensal && ehRuidoItauMensal(linha)) {
+                descAcumulada = '';
                 continue;
             }
 
