@@ -1601,6 +1601,10 @@ function extrair(texto: string): Array<{ dataRaw: string; descricaoRaw: string; 
     // pois o extrato consolidado contém resumos e comprovantes que geram falsos positivos.
     const isSantander = /santander/i.test(limpo.substring(0, 1500));
     let isIgnoredSection = isSantander;
+    const mesesRefSantander = isSantander ? Array.from(extrairMesesReferencia(limpo)).sort() : [];
+    const anosRefSantander = isSantander
+        ? Array.from(new Set(mesesRefSantander.map(m => m.slice(0, 4)))).sort()
+        : [];
 
     // Itaú Movimentação Bancária — seção de resumo de entradas/saídas no início do extrato.
     // O cabeçalho "01. Conta Corrente e Aplicações Automáticas" desliga esse modo quando encontrado na listagem detalhada.
@@ -1665,7 +1669,20 @@ function extrair(texto: string): Array<{ dataRaw: string; descricaoRaw: string; 
             if (mAno) { anoContextual = mAno[1]; }
             else {
                 const mesAtual = obterMesNumerico(dataCandidata);
-                if (mesAtual !== null && ultimoMesContextual !== null && mesAtual < (ultimoMesContextual - 6)) {
+                if (isSantander && mesAtual !== null) {
+                    const mesPad = String(mesAtual).padStart(2, '0');
+                    const anosCandidatos = anosRefSantander.filter(a => mesesRefSantander.includes(`${a}-${mesPad}`));
+
+                    if (anosCandidatos.length === 1) {
+                        anoContextual = anosCandidatos[0];
+                    } else if (mesAtual !== null && ultimoMesContextual !== null) {
+                        if (mesAtual < (ultimoMesContextual - 6)) {
+                            anoContextual = String(parseInt(anoContextual, 10) + 1);
+                        } else if (mesAtual > (ultimoMesContextual + 6)) {
+                            anoContextual = String(parseInt(anoContextual, 10) - 1);
+                        }
+                    }
+                } else if (mesAtual !== null && ultimoMesContextual !== null && mesAtual < (ultimoMesContextual - 6)) {
                     anoContextual = String(parseInt(anoContextual, 10) + 1);
                 }
                 dataCandidata = `${dataCandidata}/${anoContextual}`;
