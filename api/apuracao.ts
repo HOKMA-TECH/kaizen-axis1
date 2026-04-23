@@ -417,6 +417,19 @@ function ehEntradaValidaItauMensal(descNorm: string): boolean {
     return false;
 }
 
+function ehLinhaNaoExibirItauMensal(descNorm: string): boolean {
+    // Linhas de investimento/saldo e textos administrativos que nao devem aparecer na apuracao.
+    if (/\b(RENDIMENTO|RENDIMENTOS|CDB|CDI|RENDA\s+VARIAVEL|FUNDO|FUNDOS|POUPANCA|APLIC\s+AUT\s+MAIS|APLIC\s+AUTOMATICA|APLICACAO|RESGATE|SALDO\s+PARCIAL|SALDO\s+TOTAL|SALDO\s+ANTERIOR|SALDO\s+FINAL|TOTALIZADOR)\b/.test(descNorm)) return true;
+
+    // Blocos de limite/credito e termos de contrato do LIS.
+    if (/\b(LIMITE\s+CONTRATADO|LIMITE\s+VARIAVEL|LIS\s+ADICIONAL|DATA\s+DA\s+PROXIMA\s+RENOVACAO\s+DO\s+CONTRATO|TAXA\s+DE\s+JUROS\s+EFETIVA|ENCARGOS\s+ATRASO|JUROS\s+MORATORIOS|CUSTO\s+EFETIVO\s+TOTAL|\bCET\b|\bIOF\b)\b/.test(descNorm)) return true;
+
+    // Mensagens institucionais e linhas de rodape/resumo operacional.
+    if (/\b(SERVICOS\s+ESSENCIAIS|CONSULTE\s+OUTRAS\s+OPCOES|QUALQUER\s+CANAL|FOLHA\s+CHEQUE|TOTAL\s+R|TRANSACAO\s+R|PRINCIPAL)\b/.test(descNorm)) return true;
+
+    return false;
+}
+
 function ehInicioNovoLancamento(linha: string): boolean {
     const up = normalizar(linha);
     return /^(TRANSFERENCIA\s+PIX|PIX\s+QR\s+CODE|PIX\s+QR\s+CODE\s+DINAMICO|PIX\s+QR\s+CODE\s+ESTATICO|COMPRA\b|DEP\b|DEPOSITO\b|PAGTO\b|PAGAMENTO\b|TED\b|DOC\b|TEV\b|RENTAB\b)/.test(up);
@@ -1867,7 +1880,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         let transacoes: Transacao[] = brutas.map(b => classificar(b.dataRaw, b.descricaoRaw, b.valorRaw, ctx, bankDetected));
 
         if (bankDetected === 'itau_mensal' || isItauMensalBank(textoExtrato)) {
-            transacoes = transacoes.filter(t => !ehRuidoItauMensal(t.descricao));
+            transacoes = transacoes.filter(t => {
+                const descNorm = normalizar(t.descricao);
+                if (ehRuidoItauMensal(t.descricao)) return false;
+                if (ehLinhaNaoExibirItauMensal(descNorm)) return false;
+
+                // No extrato mensal do Itau, mantemos na listagem apenas entradas validas.
+                // Evita poluicao de UI com linhas "ignoradas" de investimento/resumo/rodape.
+                return ehEntradaValidaItauMensal(descNorm);
+            });
         }
 
         // v3: Defesa extra - Deduplicação Exata (Data + Valor + Descrição normalizada)
