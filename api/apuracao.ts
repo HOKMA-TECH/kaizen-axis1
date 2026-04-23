@@ -823,6 +823,41 @@ function extrairMesesReferencia(texto: string): Set<string> {
     return meses;
 }
 
+function extrairMesesReferenciaSantanderEstrito(texto: string): Set<string> {
+    const meses = new Set<string>();
+    const limpo = removerAcentos(texto).toUpperCase();
+    const linhas = limpo.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+
+    const toDate = (raw: string): Date | null => {
+        const m = raw.match(/^(\d{2})\s*[\/.-]\s*(\d{2})\s*[\/.-]\s*([0-9OILoil]{2,4})$/);
+        if (!m) return null;
+        const dia = parseInt(m[1], 10);
+        const mes = parseInt(m[2], 10);
+        let anoToken = normalizarAnoOCR(m[3]);
+        if (anoToken.length === 2) anoToken = `20${anoToken}`;
+        const ano = parseInt(anoToken, 10);
+        if (dia < 1 || dia > 31 || mes < 1 || mes > 12 || ano < 2020 || ano > 2035) return null;
+        return new Date(Date.UTC(ano, mes - 1, dia));
+    };
+
+    const RE_PERIODO = /\bPERIODO\b[^0-9]{0,80}(\d{2}\s*[\/.-]\s*\d{2}\s*[\/.-]\s*[0-9OILoil]{2,4})\s*(?:A|ATE|\s-\s)\s*(\d{2}\s*[\/.-]\s*\d{2}\s*[\/.-]\s*[0-9OILoil]{2,4})/i;
+
+    for (let i = 0; i < linhas.length; i++) {
+        if (!linhas[i].includes('PERIODO')) continue;
+        const candidato = `${linhas[i]} ${linhas[i + 1] ?? ''} ${linhas[i + 2] ?? ''}`.replace(/\s+/g, ' ').trim();
+        const m = candidato.match(RE_PERIODO);
+        if (!m) continue;
+        const d1 = toDate(m[1]);
+        const d2 = toDate(m[2]);
+        if (!d1 || !d2) continue;
+        const inicio = d1 <= d2 ? d1 : d2;
+        const fim = d1 <= d2 ? d2 : d1;
+        for (const mes of gerarMesesNoIntervalo(inicio, fim)) meses.add(mes);
+    }
+
+    return meses;
+}
+
 
 // ─── NEON BANK: formato específico ───────────────────────────────────────────
 // Formato: "DESCRIÇÃO   DD/MM/YYYY   HH:MM   [±]R$ VALOR   R$ SALDO   -"
@@ -2144,6 +2179,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const ehNeon = !ehMercadoPago && !ehNubank && !ehInter && isNeonBank(textoExtrato);
         const ehItauMensal = !ehMercadoPago && !ehNubank && !ehInter && !ehNeon && isItauMensalBank(textoExtrato);
         const ehSantander = !ehMercadoPago && !ehNubank && !ehInter && !ehNeon && !ehItauMensal && isSantanderBank(textoExtrato);
+        const mesesReferenciaSantander = ehSantander ? extrairMesesReferenciaSantanderEstrito(textoExtrato) : new Set<string>();
+        const mesesReferenciaEfetivos = (ehSantander && mesesReferenciaSantander.size >= 2) ? mesesReferenciaSantander : mesesReferencia;
         const isBradescoExtrato = !ehMercadoPago && !ehNubank && !ehInter && !ehNeon && !ehItauMensal && !ehSantander && (isBradescoBank(textoExtrato) || isBradescoHeuristico(textoExtrato));
         const bankDetected: BancoDetectado = ehMercadoPago
             ? 'mercadopago'
@@ -2177,7 +2214,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         let transacoes: Transacao[] = brutas.map(b => classificar(b.dataRaw, b.descricaoRaw, b.valorRaw, ctx, bankDetected));
 
         if (bankDetected === 'santander' || ehSantander) {
-            transacoes = ajustarAnoMesSantanderPorPeriodo(transacoes, mesesReferencia);
+            transacoes = ajustarAnoMesSantanderPorPeriodo(transacoes, mesesReferenciaEfetivos);
         }
 
         if (bankDetected === 'itau_mensal' || isItauMensalBank(textoExtrato)) {
@@ -2220,7 +2257,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         let mesesJanelaSantander = new Set<string>();
         if (ehSantander || bankDetected === 'santander') {
-            mesesJanelaSantander = selecionarJanelaMesesSantander(transacoes, mesesReferencia);
+            mesesJanelaSantander = mesesReferenciaEfetivos.size >= 2
+                ? new Set<string>(mesesReferenciaEfetivos)
+                : selecionarJanelaMesesSantander(transacoes, mesesReferenciaEfetivos);
             if (mesesJanelaSantander.size > 0) {
                 transacoes = transacoes.filter(t => mesesJanelaSantander.has(t.mes));
             }
@@ -2284,7 +2323,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             }
 
             if (ehInter || ehSantander) {
-                const refOrdenada = Array.from(mesesReferencia).sort();
+                const refOrdenada = Array.from(mesesReferenciaEfetivos).sort();
                 const detOrdenada = Array.from(mesesDetectados).sort();
                 const cabOrdenada = Array.from(extrairMesesCabecalhoInter(textoExtrato)).sort();
 
