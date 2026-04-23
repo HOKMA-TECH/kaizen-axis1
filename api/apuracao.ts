@@ -453,6 +453,7 @@ function ehLinhaNaoExibirSantander(descNorm: string): boolean {
 function ehMovimentoExibirSantander(descNorm: string): boolean {
     if (ehEntradaValidaSantander(descNorm)) return true;
     if (/\b(PIX|TRANSFERENCIA|TRANSF|TED|DOC|TEV)\b/.test(descNorm)) return true;
+    if (/\bPIX(?:\s*|_?)(RECEBIDO|ENVIADO)\b/.test(descNorm) || /\bPIX(RECEBIDO|ENVIADO)\b/.test(descNorm)) return true;
     return false;
 }
 
@@ -1626,7 +1627,18 @@ function extrair(texto: string): Array<{ dataRaw: string; descricaoRaw: string; 
             v = `-${v}`;
         }
 
-        const desc = isBradesco ? sanitizarDescricaoBradesco(descricaoRaw) : descricaoRaw.replace(/\|/g, ' ').replace(/\s+/g, ' ').trim();
+        const descBase = descricaoRaw.replace(/\|/g, ' ').replace(/\s+/g, ' ').trim();
+        const desc = isBradesco
+            ? sanitizarDescricaoBradesco(descBase)
+            : (isSantander
+                ? descBase
+                    .replace(/\bPIXRECEBIDO\b/gi, 'PIX RECEBIDO')
+                    .replace(/\bPIXENVIADO\b/gi, 'PIX ENVIADO')
+                    .replace(/\bTRANSFERENCIARECEBIDA\b/gi, 'TRANSFERENCIA RECEBIDA')
+                    .replace(/\bTRANSFERENCIAENVIADA\b/gi, 'TRANSFERENCIA ENVIADA')
+                    .replace(/\s+/g, ' ')
+                    .trim()
+                : descBase);
         if (desc.length < 3) return;
         const chave = `${dataRaw}|${desc}|${v}`;
         if (!vistas.has(chave)) {
@@ -1941,6 +1953,56 @@ function extrair(texto: string): Array<{ dataRaw: string; descricaoRaw: string; 
                     descAcumulada = novaAcumuladaElse.length > 300 ? '' : novaAcumuladaElse;
                 }
             }
+        }
+    }
+
+    if (isSantander) {
+        let anoFallback = anoContextual;
+        let dataFallback = '';
+
+        for (const linhaOriginal of linhas) {
+            const linha = linhaOriginal.replace(/\s+/g, ' ').trim();
+            if (!linha) continue;
+
+            const mDataInicio = linha.match(/^(\d{2}[\/-]\d{2})(?:[\/-](\d{2,4}))?\s*(.*)$/);
+            let corpo = linha;
+            if (mDataInicio) {
+                const ddmm = mDataInicio[1].replace(/-/g, '/');
+                const anoExpl = mDataInicio[2];
+
+                if (anoExpl) {
+                    anoFallback = anoExpl.length === 2 ? `20${anoExpl}` : anoExpl;
+                } else {
+                    const mesAtual = obterMesNumerico(ddmm);
+                    if (mesAtual !== null) {
+                        const mesPad = String(mesAtual).padStart(2, '0');
+                        const anosCandidatos = anosRefSantander.filter(a => mesesRefSantander.includes(`${a}-${mesPad}`));
+                        if (anosCandidatos.length >= 1) anoFallback = anosCandidatos[0];
+                    }
+                }
+
+                dataFallback = `${ddmm}/${anoFallback}`;
+                corpo = (mDataInicio[3] ?? '').trim();
+            }
+
+            if (!dataFallback) continue;
+            if (!/\b(PIX|PIXRECEBIDO|PIXENVIADO|TRANSFERENCIA|TRANSF|TED|DOC|TEV|DEPOSITO|DEP)\b/i.test(corpo)) continue;
+
+            const valores = Array.from(corpo.matchAll(/([+-]?\s*\d{1,3}(?:\.\d{3})*,\d{2}\s*[+-]?)/g));
+            if (valores.length === 0) continue;
+
+            const primeiroValor = valores[0][1];
+            const idxValor = corpo.indexOf(primeiroValor);
+            if (idxValor < 0) continue;
+
+            const desc = corpo.substring(0, idxValor).trim();
+            if (desc.length < 3) continue;
+
+            let valorRaw = primeiroValor.replace(/\s+/g, '');
+            if (/^[\d.,]+-$/.test(valorRaw)) valorRaw = `-${valorRaw.slice(0, -1)}`;
+            if (/^[\d.,]+\+$/.test(valorRaw)) valorRaw = valorRaw.slice(0, -1);
+
+            add(dataFallback, desc, valorRaw);
         }
     }
 
