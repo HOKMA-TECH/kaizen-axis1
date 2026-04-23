@@ -282,6 +282,7 @@ function isItauMensalBank(texto: string): boolean {
         /\bDEPOSITOS\s+E\s+RECEBIMENTOS\b/,
         /\bOUTRAS\s+ENTRADAS\b/,
         /\bOUTRAS\s+SAIDAS\b/,
+        /\bPELA\s+BOLSA\s+DE\s+VALORES\b/,
         /\b[A-Z]\s*=\s+/,
     ].reduce((acc, re) => acc + (re.test(all) ? 1 : 0), 0);
 
@@ -344,18 +345,19 @@ function ehRuidoItauMensal(linha: string): boolean {
     const n = normalizar(linha);
     if (!n) return false;
 
-    // Legenda de siglas do Itaú mensal (ex.: "B = ...", "C = ...", "G = ...", "P = ...")
+    // Legenda de siglas do Itaú mensal (ex.: "B = ...", "C = ...", "D = ...", "G = ...", "P = ...")
     // Importante: o normalizar() remove "=", então validamos no texto bruto também.
-    if (/^[A-Z]\s*(?:=|:|-)?\s*/.test(raw) && /^(?:[BCGP])\b/.test(raw)) return true;
+    if (/^[A-Z]\s*(?:=|:|-)?\s*/.test(raw) && /^(?:[BCDGP])\b/.test(raw)) return true;
 
     // Casos específicos de legenda que costumam vazar como transação por OCR.
-    if (/^[BCGP]\s*(?:=|:|-)?\s*(ACOES\s+MOVIMENTADAS|CREDITO\s+A\s+COMPENSAR|APLICACAO\s+PROGRAMADA|POUPANCA\s+AUTOMATICA)\b/.test(raw)) return true;
+    if (/^[BCDGP]\s*(?:=|:|-)?\s*(ACOES\s+MOVIMENTADAS|CREDITO\s+A\s+COMPENSAR|DEBITO\s+A\s+COMPENSAR|APLICACAO\s+PROGRAMADA|POUPANCA\s+AUTOMATICA)\b/.test(raw)) return true;
 
     // Blocos de resumo/rodape que aparecem na capa e no corpo do PDF
     if (/\bMINHA\s+CONTA\b/.test(n) || /\bMINHA\s+AGENCIA\b/.test(n)) return true;
     if (/\bPARA\s+DEMAIS\s+SIGLAS\b/.test(n) || /\bCONSULTE\s+AS\s+NOTAS\b/.test(n)) return true;
     if (/\bTRANSFERENCIAS\s*,?\s*DOCS\s+E\s+TEDS\b/.test(n)) return true;
     if (/\bDEPOSITOS\s+E\s+RECEBIMENTOS\b/.test(n) || /\bOUTRAS\s+ENTRADAS\b/.test(n) || /\bOUTRAS\s+SAIDAS\b/.test(n)) return true;
+    if (/\bPELA\s+BOLSA\s+DE\s+VALORES\b/.test(n)) return true;
 
     // Linhas percentuais da visão-resumo ("... 39%", "... 55%")
     if (/\b\d{1,3}%\b/.test(n) && !/\bPIX\b|\bTED\b|\bDOC\b|\bTRANSFERENCIA\b|\bDEPOSITO\b/.test(n)) return true;
