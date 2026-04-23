@@ -887,6 +887,44 @@ function extrairNeon(texto: string): Array<{ dataRaw: string; descricaoRaw: stri
     return todos;
 }
 
+function ajustarAnoMesSantanderPorPeriodo(transacoes: Transacao[], mesesReferencia: Set<string>): Transacao[] {
+    if (mesesReferencia.size === 0) return transacoes;
+
+    const anosPorMes = new Map<string, number[]>();
+    for (const mesRef of mesesReferencia) {
+        const m = mesRef.match(/^(20\d{2})-(0[1-9]|1[0-2])$/);
+        if (!m) continue;
+        const ano = parseInt(m[1], 10);
+        const mes = m[2];
+        const arr = anosPorMes.get(mes) ?? [];
+        if (!arr.includes(ano)) arr.push(ano);
+        anosPorMes.set(mes, arr);
+    }
+
+    return transacoes.map((t) => {
+        const md = t.data.match(/^(20\d{2})-(0[1-9]|1[0-2])-(\d{2})$/);
+        if (!md) return t;
+
+        const anoAtual = parseInt(md[1], 10);
+        const mes = md[2];
+        const dia = md[3];
+
+        const anos = (anosPorMes.get(mes) ?? []).slice().sort((a, b) => a - b);
+        if (anos.length === 0 || anos.includes(anoAtual)) return t;
+
+        const anoEscolhido = anos.reduce((best, a) =>
+            Math.abs(a - anoAtual) < Math.abs(best - anoAtual) ? a : best,
+        anos[0]);
+
+        const novoAno = String(anoEscolhido);
+        return {
+            ...t,
+            data: `${novoAno}-${mes}-${dia}`,
+            mes: `${novoAno}-${mes}`,
+        };
+    });
+}
+
 function isMercadoPagoBank(texto: string): boolean {
     const norm = removerAcentos(texto).toUpperCase();
     const cabecalho = norm.substring(0, 12000);
@@ -1985,6 +2023,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
 
         let transacoes: Transacao[] = brutas.map(b => classificar(b.dataRaw, b.descricaoRaw, b.valorRaw, ctx, bankDetected));
+
+        if (bankDetected === 'santander' || ehSantander) {
+            transacoes = ajustarAnoMesSantanderPorPeriodo(transacoes, mesesReferencia);
+        }
 
         if (bankDetected === 'itau_mensal' || isItauMensalBank(textoExtrato)) {
             transacoes = transacoes.filter(t => {
