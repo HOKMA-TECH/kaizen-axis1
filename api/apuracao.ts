@@ -427,6 +427,9 @@ function ehLinhaNaoExibirItauMensal(descNorm: string): boolean {
     // Mensagens institucionais e linhas de rodape/resumo operacional.
     if (/\b(SERVICOS\s+ESSENCIAIS|CONSULTE\s+OUTRAS\s+OPCOES|QUALQUER\s+CANAL|FOLHA\s+CHEQUE|TOTAL\s+R|TRANSACAO\s+R|PRINCIPAL)\b/.test(descNorm)) return true;
 
+    // Resumos operacionais de transferencia que nao sao lancamentos reais.
+    if (/\bTRANSFERENCIA\s+DE\s+RECURSO\b/.test(descNorm) && /\bEXCETO\s+DOC\s*\/\s*TED\b/.test(descNorm)) return true;
+
     return false;
 }
 
