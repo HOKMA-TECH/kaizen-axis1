@@ -947,6 +947,75 @@ function ajustarAnoMesSantanderPorPeriodo(transacoes: Transacao[], mesesReferenc
     });
 }
 
+function gerarFaixaMeses(inicio: string, fim: string): string[] {
+    const mi = inicio.match(/^(20\d{2})-(0[1-9]|1[0-2])$/);
+    const mf = fim.match(/^(20\d{2})-(0[1-9]|1[0-2])$/);
+    if (!mi || !mf) return [];
+
+    let ano = parseInt(mi[1], 10);
+    let mes = parseInt(mi[2], 10);
+    const anoFim = parseInt(mf[1], 10);
+    const mesFim = parseInt(mf[2], 10);
+
+    const out: string[] = [];
+    let guard = 0;
+    while ((ano < anoFim || (ano === anoFim && mes <= mesFim)) && guard < 36) {
+        out.push(`${ano}-${String(mes).padStart(2, '0')}`);
+        mes += 1;
+        if (mes > 12) { mes = 1; ano += 1; }
+        guard += 1;
+    }
+    return out;
+}
+
+function selecionarJanelaMesesSantander(transacoes: Transacao[], mesesReferencia: Set<string>): Set<string> {
+    const mesesComQtd = new Map<string, number>();
+    for (const t of transacoes) {
+        if (!/^(20\d{2})-(0[1-9]|1[0-2])$/.test(t.mes)) continue;
+        mesesComQtd.set(t.mes, (mesesComQtd.get(t.mes) ?? 0) + 1);
+    }
+
+    const mesesDetectados = Array.from(mesesComQtd.keys()).sort();
+    if (mesesDetectados.length === 0) return new Set<string>();
+    if (mesesDetectados.length === 1) return new Set<string>(mesesDetectados);
+
+    const paraIdx = (m: string) => {
+        const [a, mm] = m.split('-');
+        return parseInt(a, 10) * 12 + parseInt(mm, 10);
+    };
+
+    const clusters: string[][] = [];
+    let atual: string[] = [mesesDetectados[0]];
+    for (let i = 1; i < mesesDetectados.length; i++) {
+        const prev = mesesDetectados[i - 1];
+        const cur = mesesDetectados[i];
+        if (paraIdx(cur) - paraIdx(prev) <= 1) {
+            atual.push(cur);
+        } else {
+            clusters.push(atual);
+            atual = [cur];
+        }
+    }
+    clusters.push(atual);
+
+    const melhor = clusters.reduce((best, c) => {
+        const score = c.reduce((s, m) => s + (mesesComQtd.get(m) ?? 0), 0);
+        const bestScore = best.reduce((s, m) => s + (mesesComQtd.get(m) ?? 0), 0);
+        if (score !== bestScore) return score > bestScore ? c : best;
+        return c.length > best.length ? c : best;
+    }, clusters[0]);
+
+    const inicio = melhor[0];
+    const fim = melhor[melhor.length - 1];
+    const baseFaixa = new Set<string>(gerarFaixaMeses(inicio, fim));
+
+    for (const mr of mesesReferencia) {
+        if (mr >= inicio && mr <= fim) baseFaixa.add(mr);
+    }
+
+    return baseFaixa;
+}
+
 function isMercadoPagoBank(texto: string): boolean {
     const norm = removerAcentos(texto).toUpperCase();
     const cabecalho = norm.substring(0, 12000);
@@ -2149,6 +2218,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
         transacoes = transacoesUnicas;
 
+        let mesesJanelaSantander = new Set<string>();
+        if (ehSantander || bankDetected === 'santander') {
+            mesesJanelaSantander = selecionarJanelaMesesSantander(transacoes, mesesReferencia);
+            if (mesesJanelaSantander.size > 0) {
+                transacoes = transacoes.filter(t => mesesJanelaSantander.has(t.mes));
+            }
+        }
+
         let removidasPorPeriodo = 0;
 
         // Remove meses fora do período explícito do extrato (ex.: meses fantasmas gerados por ruído OCR/PDF).
@@ -2212,7 +2289,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 const cabOrdenada = Array.from(extrairMesesCabecalhoInter(textoExtrato)).sort();
 
                 if (ehSantander) {
-                    const baseSantander = new Set<string>([...refOrdenada, ...detOrdenada]);
+                    const baseSantander = mesesJanelaSantander.size > 0
+                        ? mesesJanelaSantander
+                        : new Set<string>(detOrdenada);
                     const ordenadaSantander = Array.from(baseSantander).sort();
                     return ordenadaSantander.length > 12 ? ordenadaSantander.slice(ordenadaSantander.length - 12) : ordenadaSantander;
                 }
