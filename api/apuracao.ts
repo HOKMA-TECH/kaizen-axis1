@@ -48,7 +48,7 @@ interface ContextoNomes {
     cpf?: string;
 }
 
-type BancoDetectado = 'generic' | 'nubank' | 'inter' | 'neon' | 'bradesco' | 'mercadopago' | 'itau_mensal';
+type BancoDetectado = 'generic' | 'nubank' | 'inter' | 'neon' | 'bradesco' | 'mercadopago' | 'itau_mensal' | 'santander';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // UTILS — MOEDA
@@ -294,6 +294,19 @@ function isItauMensalBank(texto: string): boolean {
     return (hasItauBrand && hasMensalMarkers) || itauNoiseFingerprintHits >= 3;
 }
 
+function isSantanderBank(texto: string): boolean {
+    const cab = removerAcentos(texto)
+        .toUpperCase()
+        .replace(/\s+/g, ' ')
+        .substring(0, 12000);
+
+    const hasBrand = /\bSANTANDER\b/.test(cab);
+    const hasContaCorrenteMov = /\bCONTA\s+CORRENTE\b/.test(cab) && /\bMOVIMENTACAO\b|\bMOVIMENTACOES\b/.test(cab);
+    const hasTabela = /\bDATA\b\s+\bDESCRICAO\b/.test(cab) && /\bSALDO\b/.test(cab);
+
+    return hasBrand && (hasContaCorrenteMov || hasTabela);
+}
+
 function sanitizarDescricaoBradesco(descricao: string): string {
     let desc = descricao.replace(/\|/g, ' ').replace(/\s+/g, ' ').trim();
 
@@ -414,6 +427,32 @@ function ehEntradaValidaItauMensal(descNorm: string): boolean {
     const temTedDocTev = /\bTED\b|\bDOC\b|\bTEV\b/.test(descNorm);
     if (temTedDocTev && /\bRECEB\b|\bRECEBIDA\b|\bCREDITO\b|\bREM\b/.test(descNorm) && !temIndicadorSaida) return true;
 
+    return false;
+}
+
+function ehEntradaValidaSantander(descNorm: string): boolean {
+    if (/\bDEPOSITO\b|\bDEP\b/.test(descNorm)) return true;
+
+    const temPix = /\bPIX\b|\bTRANSFERENCIA\s+PIX\b|\bTRANSF\s+PIX\b/.test(descNorm);
+    const temTedDoc = /\bTED\b|\bDOC\b|\bTEV\b/.test(descNorm);
+    const temRecebimento = /\bRECEB\b|\bRECEBIDO\b|\bCREDITO\b|\bENTRADA\b/.test(descNorm);
+    const temSaida = /\bENVIAD\b|\bDEBITO\b|\bSAIDA\b/.test(descNorm);
+
+    if ((temPix || temTedDoc) && temRecebimento && !temSaida) return true;
+    return false;
+}
+
+function ehLinhaNaoExibirSantander(descNorm: string): boolean {
+    if (/\bSALDO\b|\bSALDO\s+ANTERIOR\b|\bSALDO\s+FINAL\b|\bSALDO\s+PARCIAL\b/.test(descNorm)) return true;
+    if (/\bRESUMO\b|\bTOTAL\b|\bSUBTOTAL\b|\bMOVIMENTACAO\s+DO\s+MES\b/.test(descNorm)) return true;
+    if (/\bCOMPROVANTE\b|\bPACOTE\s+DE\s+SERVICOS\b|\bINDICES\s+ECONOMICOS\b|\bTARIFA\b|\bJUROS\b|\bANUIDADE\b/.test(descNorm)) return true;
+    if (/\bINVESTIMENTO\b|\bPOUPANCA\b|\bCDB\b|\bRENDA\s+VARIAVEL\b|\bFUNDOS?\b|\bSEGUROS\b/.test(descNorm)) return true;
+    return false;
+}
+
+function ehMovimentoExibirSantander(descNorm: string): boolean {
+    if (ehEntradaValidaSantander(descNorm)) return true;
+    if (/\b(PIX|TRANSFERENCIA|TRANSF|TED|DOC|TEV)\b/.test(descNorm)) return true;
     return false;
 }
 
@@ -591,6 +630,8 @@ function classificar(
     // 3. Sem keyword de crédito
     const temCredito = bankDetected === 'mercadopago'
         ? isMercadoPagoCredito(descNorm)
+        : (bankDetected === 'santander' && ehEntradaValidaSantander(descNorm))
+            ? true
         : (bankDetected === 'itau_mensal' && ehEntradaValidaItauMensal(descNorm))
             ? true
         : KEYWORDS_CREDITO_NORM.some(k => k && descNorm.includes(k));
@@ -1860,10 +1901,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const ehInter = !ehMercadoPago && !ehNubank && isInterBank(textoExtrato);
         const ehNeon = !ehMercadoPago && !ehNubank && !ehInter && isNeonBank(textoExtrato);
         const ehItauMensal = !ehMercadoPago && !ehNubank && !ehInter && !ehNeon && isItauMensalBank(textoExtrato);
-        const isBradescoExtrato = !ehMercadoPago && !ehNubank && !ehInter && !ehNeon && !ehItauMensal && (isBradescoBank(textoExtrato) || isBradescoHeuristico(textoExtrato));
+        const ehSantander = !ehMercadoPago && !ehNubank && !ehInter && !ehNeon && !ehItauMensal && isSantanderBank(textoExtrato);
+        const isBradescoExtrato = !ehMercadoPago && !ehNubank && !ehInter && !ehNeon && !ehItauMensal && !ehSantander && (isBradescoBank(textoExtrato) || isBradescoHeuristico(textoExtrato));
         const bankDetected: BancoDetectado = ehMercadoPago
             ? 'mercadopago'
-            : (ehNubank ? 'nubank' : (ehInter ? 'inter' : (ehNeon ? 'neon' : (ehItauMensal ? 'itau_mensal' : (isBradescoExtrato ? 'bradesco' : 'generic')))));
+            : (ehNubank ? 'nubank' : (ehInter ? 'inter' : (ehNeon ? 'neon' : (ehItauMensal ? 'itau_mensal' : (ehSantander ? 'santander' : (isBradescoExtrato ? 'bradesco' : 'generic'))))));
         let brutas = ehMercadoPago
             ? extrairMercadoPago(textoExtrato)
             : (ehNubank
@@ -1904,6 +1946,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             });
         }
 
+        if (bankDetected === 'santander' || ehSantander) {
+            transacoes = transacoes.filter(t => {
+                const descNorm = normalizar(t.descricao);
+                if (ehLinhaNaoExibirSantander(descNorm)) return false;
+                return ehMovimentoExibirSantander(descNorm);
+            });
+        }
+
         // v3: Defesa extra - Deduplicação Exata (Data + Valor + Descrição normalizada)
         // Evita que anexos de "Comprovantes" (ex: Santander) que vazem pelo filtro de seção 
         // dobrem a renda ao registrar o mesmo PIX duas vezes.
@@ -1927,7 +1977,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         // Remove meses fora do período explícito do extrato (ex.: meses fantasmas gerados por ruído OCR/PDF).
         // Para Inter usamos parser dedicado e NÃO forçamos esse corte aqui,
         // pois OCR pode truncar o "Período" e reduzir indevidamente a janela.
-        if (!ehInter && mesesReferencia.size >= 2) {
+        if (!ehInter && !ehSantander && mesesReferencia.size >= 2) {
             const antesFiltroPeriodo = transacoes.length;
             transacoes = transacoes.filter(t => mesesReferencia.has(t.mes));
             removidasPorPeriodo = antesFiltroPeriodo - transacoes.length;
@@ -1979,10 +2029,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 if (/^\d{4}-(0[1-9]|1[0-2])$/.test(t.mes)) mesesDetectados.add(t.mes);
             }
 
-            if (ehInter) {
+            if (ehInter || ehSantander) {
                 const refOrdenada = Array.from(mesesReferencia).sort();
                 const detOrdenada = Array.from(mesesDetectados).sort();
                 const cabOrdenada = Array.from(extrairMesesCabecalhoInter(textoExtrato)).sort();
+
+                if (ehSantander) {
+                    const baseSantander = new Set<string>([...refOrdenada, ...detOrdenada]);
+                    const ordenadaSantander = Array.from(baseSantander).sort();
+                    return ordenadaSantander.length > 12 ? ordenadaSantander.slice(ordenadaSantander.length - 12) : ordenadaSantander;
+                }
 
                 // Extratos Inter de 6 meses (PDF dividido) devem respeitar exatamente
                 // os meses do cabeçalho "Saldo do dia" e não inflar para 12.
@@ -2018,7 +2074,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             }
             return Array.from(mesesDetectados).sort();
         })();
-        const usarBaseFechadaPorPeriodo = ehInter
+        const usarBaseFechadaPorPeriodo = (ehInter || ehSantander)
             ? mesesBaseOrdenados.length > 0
             : mesesReferencia.size >= 2;
 
