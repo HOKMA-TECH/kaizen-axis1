@@ -2456,9 +2456,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         let mesesJanelaSantander = new Set<string>();
         if (ehSantander || bankDetected === 'santander') {
-            mesesJanelaSantander = mesesReferenciaEfetivos.size >= 2
-                ? new Set<string>(mesesReferenciaEfetivos)
-                : selecionarJanelaMesesSantander(transacoes, mesesReferenciaEfetivos);
+            const mesesComMovimento = new Set<string>(
+                transacoes
+                    .filter(t => /^(20\d{2})-(0[1-9]|1[0-2])$/.test(t.mes))
+                    .map(t => t.mes)
+            );
+
+            // Santander OCR pode poluir "meses de referência" com janelas maiores que o extrato real.
+            // Priorizamos os meses realmente parseados para evitar meses fantasmas/zerados.
+            mesesJanelaSantander = mesesComMovimento.size >= 2
+                ? mesesComMovimento
+                : (mesesReferenciaEfetivos.size >= 2
+                    ? new Set<string>(mesesReferenciaEfetivos)
+                    : selecionarJanelaMesesSantander(transacoes, mesesReferenciaEfetivos));
             if (mesesJanelaSantander.size > 0) {
                 transacoes = transacoes.filter(t => mesesJanelaSantander.has(t.mes));
             }
