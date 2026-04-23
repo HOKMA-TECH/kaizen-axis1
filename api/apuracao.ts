@@ -430,6 +430,16 @@ function ehLinhaNaoExibirItauMensal(descNorm: string): boolean {
     return false;
 }
 
+function ehMovimentoExibirItauMensal(descNorm: string): boolean {
+    // Entradas validas sempre entram na listagem.
+    if (ehEntradaValidaItauMensal(descNorm)) return true;
+
+    // Transferencias feitas/recebidas devem aparecer na UI (mesmo quando nao entram no calculo).
+    if (/\b(PIX|TRANSFERENCIA|TRANSF|TED|DOC|TEV)\b/.test(descNorm)) return true;
+
+    return false;
+}
+
 function ehInicioNovoLancamento(linha: string): boolean {
     const up = normalizar(linha);
     return /^(TRANSFERENCIA\s+PIX|PIX\s+QR\s+CODE|PIX\s+QR\s+CODE\s+DINAMICO|PIX\s+QR\s+CODE\s+ESTATICO|COMPRA\b|DEP\b|DEPOSITO\b|PAGTO\b|PAGAMENTO\b|TED\b|DOC\b|TEV\b|RENTAB\b)/.test(up);
@@ -1885,9 +1895,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 if (ehRuidoItauMensal(t.descricao)) return false;
                 if (ehLinhaNaoExibirItauMensal(descNorm)) return false;
 
-                // No extrato mensal do Itau, mantemos na listagem apenas entradas validas.
-                // Evita poluicao de UI com linhas "ignoradas" de investimento/resumo/rodape.
-                return ehEntradaValidaItauMensal(descNorm);
+                // No extrato mensal do Itau, exibimos apenas movimentos relevantes:
+                // transferencias (feitas/recebidas) e depositos; ocultamos ruido e blocos administrativos.
+                return ehMovimentoExibirItauMensal(descNorm);
             });
         }
 
