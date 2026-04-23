@@ -1599,7 +1599,13 @@ function extrair(texto: string): Array<{ dataRaw: string; descricaoRaw: string; 
 
     let dataContextual = '';
     const mAnoInicial = limpo.match(/\b(20\d{2})\b/);
-    let anoContextual = mAnoInicial ? mAnoInicial[1] : String(new Date().getFullYear());
+    const anosNoTexto = Array.from(limpo.matchAll(/\b(20\d{2})\b/g))
+        .map(m => parseInt(m[1], 10))
+        .filter(n => !isNaN(n));
+    const anoInicialSantander = (isSantanderHint && anosNoTexto.length > 0)
+        ? String(Math.min(...anosNoTexto))
+        : null;
+    let anoContextual = anoInicialSantander ?? (mAnoInicial ? mAnoInicial[1] : String(new Date().getFullYear()));
     let ultimoMesContextual: number | null = null;
 
     // Regex para detectar cabeçalho de mês do C6 Bank: "Maio 2025", "Agosto 2025"
