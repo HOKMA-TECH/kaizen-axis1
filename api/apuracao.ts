@@ -891,6 +891,17 @@ function extrairNeon(texto: string): Array<{ dataRaw: string; descricaoRaw: stri
 function ajustarAnoMesSantanderPorPeriodo(transacoes: Transacao[], mesesReferencia: Set<string>): Transacao[] {
     if (mesesReferencia.size === 0) return transacoes;
 
+    const refsOrdenadas = Array.from(mesesReferencia)
+        .filter(m => /^(20\d{2})-(0[1-9]|1[0-2])$/.test(m))
+        .sort();
+    const refIdx = refsOrdenadas.map((m) => {
+        const [a, mm] = m.split('-');
+        return { mes: m, idx: parseInt(a, 10) * 12 + parseInt(mm, 10) };
+    });
+    const refsSet = new Set(refsOrdenadas);
+
+    if (refIdx.length === 0) return transacoes;
+
     const anosPorMes = new Map<string, number[]>();
     for (const mesRef of mesesReferencia) {
         const m = mesRef.match(/^(20\d{2})-(0[1-9]|1[0-2])$/);
@@ -909,19 +920,29 @@ function ajustarAnoMesSantanderPorPeriodo(transacoes: Transacao[], mesesReferenc
         const anoAtual = parseInt(md[1], 10);
         const mes = md[2];
         const dia = md[3];
+        const mesAtualStr = `${md[1]}-${mes}`;
 
-        const anos = (anosPorMes.get(mes) ?? []).slice().sort((a, b) => a - b);
-        if (anos.length === 0 || anos.includes(anoAtual)) return t;
+        // Se o mês já está dentro da janela oficial do período, preserva.
+        if (refsSet.has(mesAtualStr)) return t;
 
-        const anoEscolhido = anos.reduce((best, a) =>
-            Math.abs(a - anoAtual) < Math.abs(best - anoAtual) ? a : best,
-        anos[0]);
+        // OCR de Santander pode deslocar mês/ano (ex.: 2024-11, 2025-09) fora da janela real.
+        // Realinhamos para o mês de referência mais próximo.
+        const idxAtual = anoAtual * 12 + parseInt(mes, 10);
+        const maisProximo = refIdx.reduce((best, cur) =>
+            Math.abs(cur.idx - idxAtual) < Math.abs(best.idx - idxAtual) ? cur : best,
+        refIdx[0]);
 
-        const novoAno = String(anoEscolhido);
+        const [anoRealinhado, mesRealinhado] = maisProximo.mes.split('-');
+
+        const anos = (anosPorMes.get(mesRealinhado) ?? []).slice().sort((a, b) => a - b);
+        const anoEscolhido = anos.length > 0
+            ? anos.reduce((best, a) => (Math.abs(a - parseInt(anoRealinhado, 10)) < Math.abs(best - parseInt(anoRealinhado, 10)) ? a : best), anos[0])
+            : parseInt(anoRealinhado, 10);
+
         return {
             ...t,
-            data: `${novoAno}-${mes}-${dia}`,
-            mes: `${novoAno}-${mes}`,
+            data: `${anoEscolhido}-${mesRealinhado}-${dia}`,
+            mes: `${anoEscolhido}-${mesRealinhado}`,
         };
     });
 }
