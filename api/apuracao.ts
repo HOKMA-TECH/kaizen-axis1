@@ -400,6 +400,23 @@ function ehEntradaValidaBradesco(descNorm: string): boolean {
     return false;
 }
 
+function ehEntradaValidaItauMensal(descNorm: string): boolean {
+    // 1) Depósitos em conta (inclui variações como "DEP DINHEIRO ATM")
+    if (/\bDEPOSITO\b|\bDEP\s+DINHEIRO\b|\bDEP\b/.test(descNorm)) return true;
+
+    // 2) PIX recebido (Itaú costuma trazer "PIX", "RECEBIDO", "CREDITO")
+    const temPix = /\bPIX\b|\bTRANSFERENCIA\s+PIX\b/.test(descNorm);
+    const temIndicadorRecebimento = /\bRECEB\b|\bRECEBIDO\b|\bCREDITO\b|\bREM\b/.test(descNorm);
+    const temIndicadorSaida = /\bENVIAD\b|\bDES\b/.test(descNorm);
+    if (temPix && temIndicadorRecebimento && !temIndicadorSaida) return true;
+
+    // 3) TED/DOC/TEV recebida
+    const temTedDocTev = /\bTED\b|\bDOC\b|\bTEV\b/.test(descNorm);
+    if (temTedDocTev && /\bRECEB\b|\bRECEBIDA\b|\bCREDITO\b|\bREM\b/.test(descNorm) && !temIndicadorSaida) return true;
+
+    return false;
+}
+
 function ehInicioNovoLancamento(linha: string): boolean {
     const up = normalizar(linha);
     return /^(TRANSFERENCIA\s+PIX|PIX\s+QR\s+CODE|PIX\s+QR\s+CODE\s+DINAMICO|PIX\s+QR\s+CODE\s+ESTATICO|COMPRA\b|DEP\b|DEPOSITO\b|PAGTO\b|PAGAMENTO\b|TED\b|DOC\b|TEV\b|RENTAB\b)/.test(up);
@@ -548,6 +565,8 @@ function classificar(
     // 3. Sem keyword de crédito
     const temCredito = bankDetected === 'mercadopago'
         ? isMercadoPagoCredito(descNorm)
+        : (bankDetected === 'itau_mensal' && ehEntradaValidaItauMensal(descNorm))
+            ? true
         : KEYWORDS_CREDITO_NORM.some(k => k && descNorm.includes(k));
     if (!temCredito) {
         return { ...base, classificacao: 'ignorar_sem_keyword', motivoExclusao: 'Sem keyword de crédito', is_validated: false, custom_tag: null };
