@@ -1479,13 +1479,26 @@ function extrair(texto: string): Array<{ dataRaw: string; descricaoRaw: string; 
 
     const limpo = normalizado.trim();
     
-    // Revolut Bank e alguns outros bancos exóticos tem suas linhas de tabela separadas por pipe (|) no pdf-parse em vez de \n.
-    // Para nã quebrar extratos como Bradesco (que usa | dentro da mesma linha as vezes), ativamos o split duplo apenas no Revolut
+    // Revolut/Santander: alguns PDFs chegam com colunas separadas por pipe (|)
+    // ou com várias linhas da tabela colapsadas em uma única linha OCR.
     const isRevolut = /revolut/i.test(limpo.substring(0, 1500));
+    const isSantanderHint = /santander/i.test(limpo.substring(0, 2000));
     const isBradesco = isBradescoBank(limpo) || isBradescoHeuristico(limpo);
-    const linhas = isRevolut 
+    const linhasBase = (isRevolut || isSantanderHint)
         ? limpo.split(/[\n|]/).map(l => l.trim()).filter(l => l.length > 0)
         : limpo.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+
+    const linhas = isSantanderHint
+        ? linhasBase.flatMap((l) => {
+            const compacta = l.replace(/\s+/g, ' ').trim();
+            if (!compacta) return [];
+            const partes = compacta
+                .split(/(?=\b\d{2}[\/-]\d{2}(?:[\/-]\d{2,4})?\b)/g)
+                .map(p => p.trim())
+                .filter(Boolean);
+            return partes.length > 1 ? partes : [compacta];
+        })
+        : linhasBase;
 
     const vistas = new Set<string>();
     const todos: Array<{ dataRaw: string; descricaoRaw: string; valorRaw: string }> = [];
@@ -1599,7 +1612,7 @@ function extrair(texto: string): Array<{ dataRaw: string; descricaoRaw: string; 
     // Máquina de estados para ignorar sessões inteiras (ex: Santander "Comprovantes de Pagamento")
     // Para o Santander, iniciamos ignorando tudo até achar a seção correta ("Conta Corrente"), 
     // pois o extrato consolidado contém resumos e comprovantes que geram falsos positivos.
-    const isSantander = /santander/i.test(limpo.substring(0, 1500));
+    const isSantander = isSantanderHint;
     let isIgnoredSection = isSantander;
     const mesesRefSantander = isSantander ? Array.from(extrairMesesReferencia(limpo)).sort() : [];
     const anosRefSantander = isSantander
@@ -1736,6 +1749,14 @@ function extrair(texto: string): Array<{ dataRaw: string; descricaoRaw: string; 
                         const ult = valoresLine[valoresLine.length - 1];
                         add(dataContextual, descPura, ult[1] + (ult[2] ?? ''));
                         saldoAnteriorTracker = parseMoeda(ult[1]);
+                    } else if (isSantander) {
+                        // Santander (Conta Corrente/Movimentacao): a tabela é Movimento, depois Saldo.
+                        // Portanto, o valor da transação é o PRIMEIRO valor da linha.
+                        const first = valoresLine[0];
+                        add(dataContextual, descPura, first[1] + (first[2] ?? ''));
+
+                        const ult = valoresLine[valoresLine.length - 1];
+                        if (ult !== first) saldoAnteriorTracker = parseMoeda(ult[1]);
                     } else {
                         const ult = valoresLine[valoresLine.length - 1];
                         const penult = valoresLine[valoresLine.length - 2];
@@ -1823,7 +1844,7 @@ function extrair(texto: string): Array<{ dataRaw: string; descricaoRaw: string; 
 
                 if (valoresMatches.length >= 2) {
                     const ult = valoresMatches[valoresMatches.length - 1];
-                    targetMatch = valoresMatches[valoresMatches.length - 2];
+                    targetMatch = isSantander ? valoresMatches[0] : valoresMatches[valoresMatches.length - 2];
 
                     const saldoAtual = parseMoeda(ult[1]);
                     const valorNum = parseMoeda(targetMatch[1]);
