@@ -646,7 +646,12 @@ function classificar(
         bankDetected === 'mercadopago' &&
         /TRANSFERENCIA\s+PIX\s+RECEBIDA|DINHEIRO\s+RECEBIDO|PAGAMENTO\s+RECEBIDO|QR\s+RECEBIDO/.test(descNorm);
 
-    if (!ehRendaLaboral && !pularAutoTransferMercadoPago) {
+    const pularAutoTransferSantanderRecebido =
+        bankDetected === 'santander' &&
+        /PIX\s+RECEBIDO|TRANSFERENCIA\s+RECEBIDA|TED\s+RECEBIDA|DOC\s+RECEBIDO|TEV\s+RECEBIDA/.test(descNorm) &&
+        !/MESMA\s+TITULARIDADE|CONTA\s+PROPRIA|ENTRE\s+CONTAS/.test(descNorm);
+
+    if (!ehRendaLaboral && !pularAutoTransferMercadoPago && !pularAutoTransferSantanderRecebido) {
         // 4. Autotransferência (match forte cliente)
         const matchCliente = calcularMatch(ctx.nomeCliente, descricaoRaw, ctx.cpf);
         if (matchCliente === 'forte' || ehAutotransferenciaProvavelPorNome(ctx.nomeCliente, descNorm)) {
@@ -853,6 +858,38 @@ function extrairMesesReferenciaSantanderEstrito(texto: string): Set<string> {
         const inicio = d1 <= d2 ? d1 : d2;
         const fim = d1 <= d2 ? d2 : d1;
         for (const mes of gerarMesesNoIntervalo(inicio, fim)) meses.add(mes);
+    }
+
+    return meses;
+}
+
+function extrairMesesReferenciaSantanderPorSaldo(texto: string): Set<string> {
+    const meses = new Set<string>();
+    const limpo = removerAcentos(texto).toUpperCase();
+
+    const anosNoTexto = Array.from(limpo.matchAll(/\b(20\d{2})\b/g))
+        .map(m => parseInt(m[1], 10))
+        .filter(n => !isNaN(n) && n >= 2020 && n <= 2035)
+        .sort((a, b) => a - b);
+    let ano = anosNoTexto.length > 0 ? anosNoTexto[0] : new Date().getFullYear();
+
+    const mesesSequenciais: number[] = [];
+    const reSaldo = /SALDO\s+DE\s+CONTA\s+CORRENTE\s+EM\s+(\d{2})\s*[\/-]\s*(\d{2})/g;
+    let m: RegExpExecArray | null;
+    while ((m = reSaldo.exec(limpo)) !== null) {
+        const mes = parseInt(m[2], 10);
+        if (mes >= 1 && mes <= 12) mesesSequenciais.push(mes);
+    }
+
+    if (mesesSequenciais.length < 2) return meses;
+
+    let ultimoMes = mesesSequenciais[0];
+    meses.add(`${ano}-${String(ultimoMes).padStart(2, '0')}`);
+    for (let i = 1; i < mesesSequenciais.length; i++) {
+        const atual = mesesSequenciais[i];
+        if (atual < ultimoMes - 1) ano += 1;
+        meses.add(`${ano}-${String(atual).padStart(2, '0')}`);
+        ultimoMes = atual;
     }
 
     return meses;
@@ -2180,7 +2217,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const ehItauMensal = !ehMercadoPago && !ehNubank && !ehInter && !ehNeon && isItauMensalBank(textoExtrato);
         const ehSantander = !ehMercadoPago && !ehNubank && !ehInter && !ehNeon && !ehItauMensal && isSantanderBank(textoExtrato);
         const mesesReferenciaSantander = ehSantander ? extrairMesesReferenciaSantanderEstrito(textoExtrato) : new Set<string>();
-        const mesesReferenciaEfetivos = (ehSantander && mesesReferenciaSantander.size >= 2) ? mesesReferenciaSantander : mesesReferencia;
+        const mesesReferenciaSantanderSaldo = ehSantander ? extrairMesesReferenciaSantanderPorSaldo(textoExtrato) : new Set<string>();
+        const mesesReferenciaEfetivos = (ehSantander && mesesReferenciaSantander.size >= 2)
+            ? mesesReferenciaSantander
+            : ((ehSantander && mesesReferenciaSantanderSaldo.size >= 2) ? mesesReferenciaSantanderSaldo : mesesReferencia);
         const isBradescoExtrato = !ehMercadoPago && !ehNubank && !ehInter && !ehNeon && !ehItauMensal && !ehSantander && (isBradescoBank(textoExtrato) || isBradescoHeuristico(textoExtrato));
         const bankDetected: BancoDetectado = ehMercadoPago
             ? 'mercadopago'
