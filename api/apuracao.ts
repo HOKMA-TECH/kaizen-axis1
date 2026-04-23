@@ -433,9 +433,9 @@ function ehEntradaValidaItauMensal(descNorm: string): boolean {
 function ehEntradaValidaSantander(descNorm: string): boolean {
     if (/\bDEPOSITO\b|\bDEP\b/.test(descNorm)) return true;
 
-    const temPix = /\bPIX\b|\bPIXRECEBIDO\b|\bPIXENVIADO\b|\bTRANSFERENCIA\s+PIX\b|\bTRANSF\s+PIX\b/.test(descNorm);
+    const temPix = /\bPIX\b|\bPIXRECEBIDO\b|\bPIXENVIADO\b|\bPIX\s+REC[A-Z]*\b|\bPIX\s+EN[A-Z]*ADO\b|\bTRANSFERENCIA\s+PIX\b|\bTRANSF\s+PIX\b/.test(descNorm);
     const temTedDoc = /\bTED\b|\bDOC\b|\bTEV\b/.test(descNorm);
-    const temRecebimento = /\bRECEB\b|\bRECEBIDO\b|\bPIXRECEBIDO\b|\bTRANSFERENCIA\s+RECEBIDA\b|\bCREDITO\b|\bENTRADA\b/.test(descNorm);
+    const temRecebimento = /\bRECEB\b|\bRECEBIDO\b|\bPIXRECEBIDO\b|\bPIX\s+REC[A-Z]*\b|\bTRANSFERENCIA\s+RECEBIDA\b|\bCREDITO\b|\bENTRADA\b/.test(descNorm);
     const temSaida = /\bENVIAD\b|\bDEBITO\b|\bSAIDA\b/.test(descNorm);
 
     if ((temPix || temTedDoc) && temRecebimento && !temSaida) return true;
@@ -454,6 +454,7 @@ function ehMovimentoExibirSantander(descNorm: string): boolean {
     if (ehEntradaValidaSantander(descNorm)) return true;
     if (/\b(PIX|TRANSFERENCIA|TRANSF|TED|DOC|TEV)\b/.test(descNorm)) return true;
     if (/\bPIX(?:\s*|_?)(RECEBIDO|ENVIADO)\b/.test(descNorm) || /\bPIX(RECEBIDO|ENVIADO)\b/.test(descNorm)) return true;
+    if (/\bPIX\s+REC[A-Z]*\b|\bPIX\s+EN[A-Z]*ADO\b/.test(descNorm)) return true;
     return false;
 }
 
@@ -1796,6 +1797,8 @@ function extrair(texto: string): Array<{ dataRaw: string; descricaoRaw: string; 
                 ? descBase
                     .replace(/\bPIXRECEBIDO\b/gi, 'PIX RECEBIDO')
                     .replace(/\bPIXENVIADO\b/gi, 'PIX ENVIADO')
+                    .replace(/\bPIXREC[A-Z]*\b/gi, 'PIX RECEBIDO')
+                    .replace(/\bPIXE[A-Z]*ADO\b/gi, 'PIX ENVIADO')
                     .replace(/\bTRANSFERENCIARECEBIDA\b/gi, 'TRANSFERENCIA RECEBIDA')
                     .replace(/\bTRANSFERENCIAENVIADA\b/gi, 'TRANSFERENCIA ENVIADA')
                     .replace(/\s+/g, ' ')
