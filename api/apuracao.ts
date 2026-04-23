@@ -1657,6 +1657,162 @@ function isBradescoBank(texto: string): boolean {
     return temMarcaBradesco && temEstruturaConta;
 }
 
+function extrairSantander(texto: string): Array<{ dataRaw: string; descricaoRaw: string; valorRaw: string }> {
+    const limpo = texto
+        .replace(/\r\n/g, '\n')
+        .replace(/\r/g, '\n')
+        .replace(/[–—−]/g, '-')
+        .trim();
+
+    const refsEstritas = extrairMesesReferenciaSantanderEstrito(limpo);
+    const refsSaldo = extrairMesesReferenciaSantanderPorSaldo(limpo);
+    const refsGerais = extrairMesesReferencia(limpo);
+    const refs = refsEstritas.size >= 2 ? refsEstritas : (refsSaldo.size >= 2 ? refsSaldo : refsGerais);
+
+    const anosPorMes = new Map<string, number[]>();
+    for (const m of refs) {
+        const mm = m.match(/^(20\d{2})-(0[1-9]|1[0-2])$/);
+        if (!mm) continue;
+        const ano = parseInt(mm[1], 10);
+        const mes = mm[2];
+        const arr = anosPorMes.get(mes) ?? [];
+        if (!arr.includes(ano)) arr.push(ano);
+        anosPorMes.set(mes, arr);
+    }
+
+    const anosNoTexto = Array.from(removerAcentos(limpo).toUpperCase().matchAll(/\b(20\d{2})\b/g))
+        .map(m => parseInt(m[1], 10))
+        .filter(n => !isNaN(n) && n >= 2020 && n <= 2035)
+        .sort((a, b) => a - b);
+
+    let anoContextual = anosNoTexto.length > 0
+        ? anosNoTexto[0]
+        : (Array.from(refs).map(m => parseInt(m.slice(0, 4), 10)).sort((a, b) => a - b)[0] || new Date().getFullYear());
+    let ultimoMes: number | null = null;
+
+    const linhasBase = limpo
+        .split(/[\n|]/)
+        .map(l => l.replace(/\s+/g, ' ').trim())
+        .filter(Boolean);
+
+    const linhas = linhasBase.flatMap((l) => {
+        const partes = l
+            .split(/(?=\b\d{2}[\/-]\d{2}(?:[\/-]\d{2,4})?\b)/g)
+            .map(p => p.trim())
+            .filter(Boolean);
+        return partes.length > 1 ? partes : [l];
+    });
+
+    const RE_VALOR = /([+-]?\s*\d{1,3}(?:\.\d{3})*,\d{2}\s*[+-]?)/g;
+    const RE_CABECALHO = /\b(CONTA\s+CORRENTE|MOVIMENTACAO|DATA\s+DESCRICAO|N\s*DOCUMENTO|MOVIMENTO|SALDO|BANCO\s+SANTANDER|TOTAL\s+DE|SALDO\s+DE\s+CONTA\s+CORRENTE\s+EM)\b/;
+    const RE_CHAVE_MOV = /\b(PIX|TED|DOC|TEV|DEPOSITO|DEP|TRANSFERENCIA|TRANSF)\b/;
+
+    const resolveData = (token: string): string => {
+        const m = token.match(/^(\d{2})[\/-](\d{2})(?:[\/-](\d{2,4}))?$/);
+        if (!m) return '';
+        const dia = m[1];
+        const mes = m[2];
+        const mesNum = parseInt(mes, 10);
+        if (mesNum < 1 || mesNum > 12) return '';
+
+        if (m[3]) {
+            const ano = m[3].length === 2 ? parseInt(`20${m[3]}`, 10) : parseInt(m[3], 10);
+            if (!isNaN(ano)) {
+                anoContextual = ano;
+                ultimoMes = mesNum;
+                return `${dia}/${mes}/${ano}`;
+            }
+        }
+
+        const anosMes = (anosPorMes.get(mes) ?? []).slice().sort((a, b) => a - b);
+        if (anosMes.length === 1) {
+            anoContextual = anosMes[0];
+        } else if (ultimoMes !== null) {
+            if (mesNum < ultimoMes - 6) anoContextual += 1;
+            else if (mesNum > ultimoMes + 6) anoContextual -= 1;
+        }
+
+        ultimoMes = mesNum;
+        return `${dia}/${mes}/${anoContextual}`;
+    };
+
+    const sinalPorDescricao = (descNorm: string): -1 | 0 | 1 => {
+        if (/\bPIX\s+REC|\bPIXRECEBIDO\b|\bTRANSFERENCIA\s+RECEBIDA\b|\bTED\s+RECEBIDA\b|\bDOC\s+RECEBIDO\b|\bTEV\s+RECEBIDA\b|\bDEPOSITO\b|\bDEP\b/.test(descNorm)) return 1;
+        if (/\bPIX\s+EN|\bPIXENVIADO\b|\bTRANSFERENCIA\s+ENVIADA\b|\bPAGAMENTO\b|\bSAQUE\b|\bDEBITO\b/.test(descNorm)) return -1;
+        return 0;
+    };
+
+    const vistas = new Set<string>();
+    const todos: Array<{ dataRaw: string; descricaoRaw: string; valorRaw: string }> = [];
+
+    let dataContextual = '';
+    let descPendente = '';
+
+    const addSafe = (dataRaw: string, descricaoRaw: string, valorRaw: string) => {
+        const desc = descricaoRaw
+            .replace(/\bPIXRECEBIDO\b/gi, 'PIX RECEBIDO')
+            .replace(/\bPIXENVIADO\b/gi, 'PIX ENVIADO')
+            .replace(/\bPIXREC[A-Z]*\b/gi, 'PIX RECEBIDO')
+            .replace(/\bPIXE[A-Z]*ADO\b/gi, 'PIX ENVIADO')
+            .replace(/\s+/g, ' ')
+            .trim();
+        if (desc.length < 3) return;
+        const key = `${dataRaw}|${desc}|${valorRaw}`;
+        if (vistas.has(key)) return;
+        vistas.add(key);
+        todos.push({ dataRaw, descricaoRaw: desc, valorRaw });
+    };
+
+    for (const linhaOriginal of linhas) {
+        let linha = linhaOriginal.replace(/\s+/g, ' ').trim();
+        if (!linha) continue;
+
+        const linhaNorm = normalizar(linha);
+        if (RE_CABECALHO.test(linhaNorm)) continue;
+
+        const mData = linha.match(/^(\d{2}[\/-]\d{2}(?:[\/-]\d{2,4})?)\s*(.*)$/);
+        if (mData) {
+            const d = resolveData(mData[1]);
+            if (d) dataContextual = d;
+            descPendente = '';
+            linha = (mData[2] ?? '').trim();
+        }
+
+        if (!dataContextual || !linha) continue;
+
+        const valores = Array.from(linha.matchAll(RE_VALOR));
+        const linhaNormAtual = normalizar(linha);
+        const temChave = RE_CHAVE_MOV.test(linhaNormAtual);
+
+        if (valores.length === 0) {
+            if (temChave || descPendente) descPendente = `${descPendente} ${linha}`.trim();
+            continue;
+        }
+
+        const v0 = valores[0][1];
+        const idx = linha.indexOf(v0);
+        let desc = (idx >= 0 ? linha.slice(0, idx) : linha).trim();
+        if (descPendente) desc = `${descPendente} ${desc}`.trim();
+        descPendente = '';
+
+        const descNorm = normalizar(desc);
+        if (!RE_CHAVE_MOV.test(descNorm)) continue;
+
+        let valorRaw = v0.replace(/\s+/g, '');
+        if (/^[\d.]+,\d{2}-$/.test(valorRaw)) valorRaw = `-${valorRaw.slice(0, -1)}`;
+        else if (/^[\d.]+,\d{2}\+$/.test(valorRaw)) valorRaw = valorRaw.slice(0, -1);
+        else {
+            const s = sinalPorDescricao(descNorm);
+            if (s < 0 && !valorRaw.startsWith('-')) valorRaw = `-${valorRaw}`;
+            if (s > 0) valorRaw = valorRaw.replace(/^-/, '');
+        }
+
+        addSafe(dataContextual, desc, valorRaw);
+    }
+
+    return todos;
+}
+
 function extrair(texto: string): Array<{ dataRaw: string; descricaoRaw: string; valorRaw: string }> {
     const normalizado = texto
         .replace(/\r\n/g, '\n').replace(/\r/g, '\n')
@@ -2232,7 +2388,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             ? extrairMercadoPago(textoExtrato)
             : (ehNubank
                 ? extrairNubank(textoExtrato)
-                : (ehInter ? extrairInter(textoExtrato) : (ehNeon ? extrairNeon(textoExtrato) : extrair(textoExtrato))));
+                : (ehInter ? extrairInter(textoExtrato) : (ehNeon ? extrairNeon(textoExtrato) : (ehSantander ? extrairSantander(textoExtrato) : extrair(textoExtrato)))));
 
         if (ehMercadoPago && brutas.length === 0) {
             // fallback de segurança: alguns PDFs do Mercado Pago chegam com OCR irregular
