@@ -433,9 +433,9 @@ function ehEntradaValidaItauMensal(descNorm: string): boolean {
 function ehEntradaValidaSantander(descNorm: string): boolean {
     if (/\bDEPOSITO\b|\bDEP\b/.test(descNorm)) return true;
 
-    const temPix = /\bPIX\b|\bTRANSFERENCIA\s+PIX\b|\bTRANSF\s+PIX\b/.test(descNorm);
+    const temPix = /\bPIX\b|\bPIXRECEBIDO\b|\bPIXENVIADO\b|\bTRANSFERENCIA\s+PIX\b|\bTRANSF\s+PIX\b/.test(descNorm);
     const temTedDoc = /\bTED\b|\bDOC\b|\bTEV\b/.test(descNorm);
-    const temRecebimento = /\bRECEB\b|\bRECEBIDO\b|\bCREDITO\b|\bENTRADA\b/.test(descNorm);
+    const temRecebimento = /\bRECEB\b|\bRECEBIDO\b|\bPIXRECEBIDO\b|\bTRANSFERENCIA\s+RECEBIDA\b|\bCREDITO\b|\bENTRADA\b/.test(descNorm);
     const temSaida = /\bENVIAD\b|\bDEBITO\b|\bSAIDA\b/.test(descNorm);
 
     if ((temPix || temTedDoc) && temRecebimento && !temSaida) return true;
@@ -1614,16 +1614,18 @@ function extrair(texto: string): Array<{ dataRaw: string; descricaoRaw: string; 
 
     for (let i = 0; i < linhas.length; i++) {
         const linha = linhas[i];
+        const linhaNorm = normalizar(linha);
 
-        // Verifica mudança de sessão (apenas se a linha for curta para evitar falsos positivos no meio de descrições)
-        if (linha.length < 120) {
+        // Verifica mudança de sessão (para Santander permitimos linha mais longa,
+        // pois OCR costuma colapsar "Conta Corrente + Movimentacao + Data/Descricao" em uma linha extensa).
+        if (linha.length < (isSantander ? 260 : 120)) {
             if (SECTIONS_IGNORE.test(linha)) {
                 isIgnoredSection = true;
                 continue;
             }
 
             if (isSantander) {
-                if (SANTANDER_SECTIONS_VALID.test(linha)) {
+                if (SANTANDER_SECTIONS_VALID.test(linha) || /\bCONTA\s+CORRENTE\b/.test(linhaNorm) || /\b(?:MOVIMENTACAO|MOVIMENTACOES)\b/.test(linhaNorm) || /\bDATA\s+DESCRICAO\b/.test(linhaNorm)) {
                     isIgnoredSection = false;
                     continue;
                 }
@@ -1631,6 +1633,12 @@ function extrair(texto: string): Array<{ dataRaw: string; descricaoRaw: string; 
                 isIgnoredSection = false;
                 continue;
             }
+        }
+
+        // Santander: fallback definitivo para nao perder meses/paginas.
+        // Se entrarmos direto em linhas de tabela (DD/MM ...), destrava a seção automaticamente.
+        if (isSantander && isIgnoredSection && /^\d{2}[\/-]\d{2}\b/.test(linha.trim())) {
+            isIgnoredSection = false;
         }
 
         // Se estivermos dentro de uma sessão ignorada (como Comprovantes de Pix), pulamos o processamento da linha
