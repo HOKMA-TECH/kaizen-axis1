@@ -342,6 +342,7 @@ export default function IncomeAnalysis() {
   const [erro, setErro] = useState<string | null>(null);
   const [resultado, setResultado] = useState<ResultadoApuracao | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
   const [showFinalModal, setShowFinalModal] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -560,6 +561,158 @@ export default function IncomeAnalysis() {
     persistClear();
   };
 
+  const gerarPdfApuracao = useCallback(() => {
+    if (!resultado) throw new Error('Nenhum resultado disponível para gerar PDF.');
+
+    const doc = new jsPDF();
+    let y = 20;
+
+    const checkPage = (add = 6) => {
+      if (y + add > 280) {
+        doc.addPage();
+        y = 20;
+      }
+    };
+
+    doc.setFontSize(16);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Apuração de Renda - Kaizen Axis', 14, y);
+    y += 15;
+
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    const rendaMensalRegra = Math.round(totalApuradoAtivo / 6);
+    const fmt = (c: number) => (c / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+    doc.text(`Nome Titular: ${nomeCliente || (clienteVinculado ? clients.find(c => c.id === clienteVinculado)?.name : 'Não informado')}`, 14, y); y += 6;
+    doc.text(`Documento (CPF): ${cpf || (clienteVinculado ? clients.find(c => c.id === clienteVinculado)?.cpf : 'N/A')}`, 14, y); y += 6;
+    doc.text(`Gerado em: ${new Date().toLocaleString('pt-BR')}`, 14, y); y += 6;
+    doc.text(`Versao Algoritmo: ${resultado.algoritmoVersao}`, 14, y);
+    y += 12;
+
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.text('RESUMO (APOS REVISAO MANUAL)', 14, y);
+    y += 10;
+
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Renda Media Mensal (Total ÷ 6): R$ ${fmt(rendaMensalRegra)}`, 14, y); y += 8;
+    doc.text(`Total Apurado: R$ ${fmt(totalApuradoAtivo)}`, 14, y); y += 8;
+    doc.text(`Creditos Ativos: ${validadas.size}`, 14, y); y += 8;
+    doc.text(`Maior Mes: R$ ${fmt(maiorMesAtivo)}`, 14, y); y += 8;
+    doc.text(`Menor Mes: R$ ${fmt(menorMesAtivo)}`, 14, y); y += 8;
+    doc.text(`Meses Considerados: ${mesesAtivos}`, 14, y);
+    y += 12;
+
+    if (exclusionBubbles.length > 0) {
+      doc.setFontSize(11);
+      doc.setFont('helvetica', 'bold');
+      doc.text('BOLHAS DE EXCLUSAO (FILTRO DINAMICO)', 14, y);
+      y += 8;
+
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'normal');
+      const bolhasTexto = exclusionBubbles.join(', ');
+      const linhasBolhas = doc.splitTextToSize(bolhasTexto, 180);
+      linhasBolhas.forEach((linha: string) => {
+        checkPage(6);
+        doc.text(linha, 14, y);
+        y += 5;
+      });
+      y += 4;
+    }
+
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.text('DETALHAMENTO MENSAL', 14, y);
+    y += 10;
+
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    Object.entries(totalPorMesAtivo)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .forEach(([mes, valor]) => {
+        checkPage();
+        doc.text(`${mes} .................... R$ ${fmt(valor)}`, 14, y);
+        y += 8;
+      });
+
+    y += 4;
+    checkPage();
+    doc.text(`Timestamp: ${new Date(resultado.auditoria.timestamp).toLocaleString('pt-BR')}`, 14, y);
+    y += 12;
+
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    checkPage(15);
+    doc.text('Entradas consideradas nos respectivos meses:', 14, y);
+    y += 10;
+
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+
+    const transacoesPorMesPdf: Record<string, typeof resultado.transacoesDetalhadas> = {};
+    resultado.transacoesDetalhadas.forEach(t => {
+      if (t.valor > 0 && validadas.has(t.id)) {
+        if (!transacoesPorMesPdf[t.mes]) transacoesPorMesPdf[t.mes] = [];
+        transacoesPorMesPdf[t.mes].push(t);
+      }
+    });
+
+    Object.keys(transacoesPorMesPdf).sort().forEach(mes => {
+      checkPage(15);
+      doc.setFont('helvetica', 'bold');
+      doc.text(mes, 14, y);
+      y += 6;
+
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(9);
+      transacoesPorMesPdf[mes].forEach(t => {
+        checkPage(8);
+        let desc = t.descricao;
+        if (desc.length > 80) desc = desc.substring(0, 77) + '...';
+        doc.text(`- ${t.data} | R$ ${fmt(t.valor)} | ${desc}`, 14, y);
+        y += 5;
+      });
+
+      doc.setFontSize(10);
+      y += 4;
+    });
+
+    const fileName = `apuracao_renda_${Date.now()}.pdf`;
+    const pdfBlob = doc.output('blob');
+    return { pdfBlob, fileName };
+  }, [resultado, totalApuradoAtivo, nomeCliente, clienteVinculado, clients, cpf, validadas, maiorMesAtivo, menorMesAtivo, mesesAtivos, exclusionBubbles, totalPorMesAtivo]);
+
+  const handleBaixarRelatorio = async () => {
+    if (!resultado) return;
+    setIsDownloading(true);
+    try {
+      const { pdfBlob, fileName } = gerarPdfApuracao();
+      const url = URL.createObjectURL(pdfBlob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      logAuditEvent({
+        action: 'document_downloaded',
+        entity: 'income_report',
+        entityId: clienteVinculado || undefined,
+        userId: user?.id || null,
+        metadata: { origin: 'income_analysis', fileName }
+      });
+    } catch (e) {
+      alert(`Erro ao baixar relatório: ${e instanceof Error ? e.message : 'Erro desconhecido'}`);
+    } finally {
+      setIsDownloading(false);
+    }
+  };
+
   const handleFinalizar = async () => {
     if (!resultado) return;
     setIsSaving(true);
@@ -603,129 +756,7 @@ export default function IncomeAnalysis() {
       // Geração do PDF
       // ==========================================
       try {
-        const doc = new jsPDF();
-        let y = 20;
-
-        // Função auxiliar para quebrar página
-        const checkPage = (add = 6) => {
-          if (y + add > 280) {
-            doc.addPage();
-            y = 20;
-          }
-        };
-
-        doc.setFontSize(16);
-        doc.setFont('helvetica', 'bold');
-        doc.text('Apuração de Renda - Kaizen Axis', 14, y);
-        y += 15;
-
-        doc.setFontSize(10);
-        doc.setFont('helvetica', 'normal');
-        const rendaMensalRegra = Math.round(totalApuradoAtivo / 6);
-        const fmt = (c: number) => (c / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-
-        doc.text(`Nome Titular: ${nomeCliente || (clienteVinculado ? clients.find(c => c.id === clienteVinculado)?.name : 'Não informado')}`, 14, y); y += 6;
-        doc.text(`Documento (CPF): ${cpf || (clienteVinculado ? clients.find(c => c.id === clienteVinculado)?.cpf : 'N/A')}`, 14, y); y += 6;
-        doc.text(`Gerado em: ${new Date().toLocaleString('pt-BR')}`, 14, y); y += 6;
-        doc.text(`Versao Algoritmo: ${resultado.algoritmoVersao}`, 14, y);
-        y += 12;
-
-        doc.setFontSize(12);
-        doc.setFont('helvetica', 'bold');
-        doc.text('RESUMO (APOS REVISAO MANUAL)', 14, y);
-        y += 10;
-
-        doc.setFontSize(10);
-        doc.setFont('helvetica', 'normal');
-        doc.text(`Renda Media Mensal (Total ÷ 6): R$ ${fmt(rendaMensalRegra)}`, 14, y); y += 8;
-        doc.text(`Total Apurado: R$ ${fmt(totalApuradoAtivo)}`, 14, y); y += 8;
-        doc.text(`Creditos Ativos: ${validadas.size}`, 14, y); y += 8;
-        doc.text(`Maior Mes: R$ ${fmt(maiorMesAtivo)}`, 14, y); y += 8;
-        doc.text(`Menor Mes: R$ ${fmt(menorMesAtivo)}`, 14, y); y += 8;
-        doc.text(`Meses Considerados: ${mesesAtivos}`, 14, y);
-        y += 12;
-
-        if (exclusionBubbles.length > 0) {
-          doc.setFontSize(11);
-          doc.setFont('helvetica', 'bold');
-          doc.text('BOLHAS DE EXCLUSAO (FILTRO DINAMICO)', 14, y);
-          y += 8;
-
-          doc.setFontSize(9);
-          doc.setFont('helvetica', 'normal');
-          const bolhasTexto = exclusionBubbles.map(b => b.term).join(', ');
-          const linhasBolhas = doc.splitTextToSize(bolhasTexto, 180);
-          linhasBolhas.forEach((linha: string) => {
-            checkPage(6);
-            doc.text(linha, 14, y);
-            y += 5;
-          });
-          y += 4;
-        }
-
-        doc.setFontSize(12);
-        doc.setFont('helvetica', 'bold');
-        doc.text('DETALHAMENTO MENSAL', 14, y);
-        y += 10;
-
-        doc.setFontSize(10);
-        doc.setFont('helvetica', 'normal');
-        Object.entries(totalPorMesAtivo)
-          .sort(([a], [b]) => a.localeCompare(b))
-          .forEach(([mes, valor]) => {
-            checkPage();
-            doc.text(`${mes} .................... R$ ${fmt(valor)}`, 14, y);
-            y += 8;
-          });
-
-        y += 4;
-        checkPage();
-        doc.text(`Timestamp: ${new Date(resultado.auditoria.timestamp).toLocaleString('pt-BR')}`, 14, y);
-        y += 12;
-
-        doc.setFontSize(12);
-        doc.setFont('helvetica', 'bold');
-        checkPage(15);
-        doc.text('Entradas consideradas nos respectivos meses:', 14, y);
-        y += 10;
-
-        doc.setFontSize(10);
-        doc.setFont('helvetica', 'normal');
-
-        // Agrupar e listar transações válidas por mês
-        const transacoesPorMes: Record<string, typeof resultado.transacoesDetalhadas> = {};
-        resultado.transacoesDetalhadas.forEach(t => {
-          if (t.valor > 0 && validadas.has(t.id)) {
-            if (!transacoesPorMes[t.mes]) transacoesPorMes[t.mes] = [];
-            transacoesPorMes[t.mes].push(t);
-          }
-        });
-
-        Object.keys(transacoesPorMes).sort().forEach(mes => {
-          checkPage(15);
-          doc.setFont('helvetica', 'bold');
-          doc.text(mes, 14, y);
-          y += 6;
-
-          doc.setFont('helvetica', 'normal');
-          doc.setFontSize(9);
-          transacoesPorMes[mes].forEach(t => {
-            checkPage(8);
-
-            // Evita que descrições muito longas vazem do PDF
-            let desc = t.descricao;
-            if (desc.length > 80) desc = desc.substring(0, 77) + '...';
-
-            doc.text(`- ${t.data} | R$ ${fmt(t.valor)} | ${desc}`, 14, y);
-            y += 5;
-          });
-
-          doc.setFontSize(10);
-          y += 4;
-        });
-
-        const pdfBlob = doc.output('blob');
-        const fileName = `apuracao_renda_${Date.now()}.pdf`;
+        const { pdfBlob, fileName } = gerarPdfApuracao();
         const storagePath = clienteVinculado ? `${clienteVinculado}/${fileName}` : `general_audits/${fileName}`;
 
         const fileObj = new File([pdfBlob], fileName, { type: 'application/pdf' });
@@ -1062,9 +1093,16 @@ export default function IncomeAnalysis() {
               </select>
             </div>
           )}
-          <RoundedButton fullWidth onClick={handleFinalizar} disabled={isSaving}>
-            {isSaving ? <span className="flex items-center gap-2 justify-center"><Loader2 size={14} className="animate-spin" />Salvando…</span> : '✓ Confirmar e Salvar'}
-          </RoundedButton>
+          <div className="grid grid-cols-2 gap-2">
+            <RoundedButton variant="outline" onClick={handleBaixarRelatorio} disabled={isDownloading || isSaving}>
+              {isDownloading
+                ? <span className="flex items-center gap-2 justify-center"><Loader2 size={14} className="animate-spin" />Baixando…</span>
+                : <span className="flex items-center gap-2 justify-center"><Download size={14} />Baixar Relatório</span>}
+            </RoundedButton>
+            <RoundedButton onClick={handleFinalizar} disabled={isSaving || isDownloading}>
+              {isSaving ? <span className="flex items-center gap-2 justify-center"><Loader2 size={14} className="animate-spin" />Salvando…</span> : '✓ Confirmar e Salvar'}
+            </RoundedButton>
+          </div>
         </div>
       </Modal>
     </div>
