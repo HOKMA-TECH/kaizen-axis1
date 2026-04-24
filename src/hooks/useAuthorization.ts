@@ -16,6 +16,7 @@ export function useAuthorization() {
     const isBroker = role === 'CORRETOR';
     const isReception = role === 'RECEPCAO';
     const isAnalyst = role === 'ANALISTA';
+    const canAccessIncomeAnalysis = isAdmin || isDirector || isManager || isCoordinator || isAnalyst;
 
     // Strategic roles that can see org-wide data in their scope
     const isLeadership = isAdmin || isDirector;
@@ -37,6 +38,10 @@ export function useAuthorization() {
         // Analyst has access only to income analysis and settings
         if (isAnalyst) {
             return path === '/income' || path === '/settings';
+        }
+
+        if (path === '/income') {
+            return canAccessIncomeAnalysis;
         }
 
         // Admin-only routes
@@ -68,6 +73,7 @@ export function useAuthorization() {
         canManageTeam,
         canAccessAdmin,
         canViewAllClients,
+        canAccessIncomeAnalysis,
         canAccess,
         directorateId: profile?.directorate_id ?? null,
         coordinatorId: (profile as any)?.coordinator_id ?? null,

@@ -163,7 +163,7 @@ export default function App() {
 
         <Route path="/automation-leads" element={<ProtectedRoute><AutomationLeads /></ProtectedRoute>} />
         <Route path="/income" element={
-          <RoleRoute allowed={['ADMIN', 'ANALISTA']}>
+          <RoleRoute allowed={['ADMIN', 'DIRETOR', 'GERENTE', 'COORDENADOR', 'ANALISTA']}>
             <IncomeAnalysis />
           </RoleRoute>
         } />

@@ -106,7 +106,7 @@ function NavGroup({ label, items, chatUnread }: { label: string; items: NavItem[
 // ─── Sidebar ─────────────────────────────────────────────────────────────────
 
 function Sidebar() {
-  const { isAdmin, isDirector, isManager, isCoordinator, isAnalyst } = useAuthorization();
+  const { isAdmin, isDirector, isManager, isCoordinator, isAnalyst, canAccessIncomeAnalysis } = useAuthorization();
   const { userName, profile, signOut } = useApp();
   const { totalUnread } = useChatUnread();
   const navigate = useNavigate();
@@ -122,17 +122,10 @@ function Sidebar() {
     if (item.path === '/checkin/display') return canAccessCheckInDisplay;
     return (!item.leadershipOnly || isLeadership) && (!item.adminOnly || isAdminOrDirector);
   });
-  const filteredReports = NAV_REPORTS
-    .filter(item => {
-      if (item.path === '/income') return true;
-      return !item.leadershipOnly || isLeadership;
-    })
-    .map(item => {
-      if (item.path === '/income' && !isAdmin) {
-        return { ...item, locked: true };
-      }
-      return item;
-    });
+  const filteredReports = NAV_REPORTS.filter(item => {
+    if (item.path === '/income') return canAccessIncomeAnalysis;
+    return !item.leadershipOnly || isLeadership;
+  });
   const filteredAdmin = NAV_ADMIN.filter(item => !item.adminOnly || isAdminOrDirector);
   const reportsForRole = isAnalyst
     ? NAV_REPORTS.filter(item => item.path === '/income')
