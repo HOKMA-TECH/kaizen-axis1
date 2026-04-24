@@ -1799,22 +1799,21 @@ function extrairNext(texto: string): Array<{ dataRaw: string; descricaoRaw: stri
 
     const RE_DATA = /^(\d{2}[\/-]\d{2}[\/-]\d{4})\s*(.*)$/;
     const RE_VALOR = /R\$\s*-?\d{1,3}(?:\.\d{3})*,\d{2}|-?\d{1,3}(?:\.\d{3})*,\d{2}/g;
-    const RE_CONTINUACAO = /^(REM|DES|FAV|ORIGEM|DESTINO)\s*[:;\-]?\s*/i;
+    const RE_CONTINUACAO = /^(REM|REMETENTE|DES|DEST|DESTINO|DESTINATARIO|FAV|FAVORECIDO|ORIG|ORIGEM)\s*[:;\-]?\s*/i;
     const RE_HISTORICO_NEXT = /^\d{2,4}\s*-\s*[A-Z0-9]/i;
 
     let dataAtual = '';
     let ultimoIdx = -1;
     let historicoPendente = '';
-    const pendenciasPixPorData = new Map<string, number[]>();
     const contrapartePorData = new Map<string, { rem: string[]; des: string[] }>();
 
     const formatarDescricaoNext = (raw: string): string => {
         const base = typeof raw === 'string' ? raw : '';
         const desc = base.replace(/\s+/g, ' ').trim();
-        const rems = Array.from(desc.matchAll(/\bREM\s*:?\s*(.*?)(?=\b(?:REM|DES)\s*:?|$)/ig))
+        const rems = Array.from(desc.matchAll(/\b(?:REM|REMETENTE|ORIG|ORIGEM)\s*:?\s*(.*?)(?=\b(?:REM|REMETENTE|ORIG|ORIGEM|DES|DEST|DESTINO|DESTINATARIO|FAV|FAVORECIDO)\s*:?|$)/ig))
             .map(m => (m[1] ?? '').trim())
             .filter(Boolean);
-        const dess = Array.from(desc.matchAll(/\bDES\s*:?\s*(.*?)(?=\b(?:REM|DES)\s*:?|$)/ig))
+        const dess = Array.from(desc.matchAll(/\b(?:DES|DEST|DESTINO|DESTINATARIO|FAV|FAVORECIDO)\s*:?\s*(.*?)(?=\b(?:REM|REMETENTE|ORIG|ORIGEM|DES|DEST|DESTINO|DESTINATARIO|FAV|FAVORECIDO)\s*:?|$)/ig))
             .map(m => (m[1] ?? '').trim())
             .filter(Boolean);
         const rem = rems.length > 0 ? rems[rems.length - 1] : '';
@@ -1833,22 +1832,6 @@ function extrairNext(texto: string): Array<{ dataRaw: string; descricaoRaw: stri
         return 'PIX RECEBIDO - REM: NAO INFORMADO NO PDF';
     };
 
-    const registrarPendenciaPix = (dataRaw: string, descricaoRaw: string, idx: number) => {
-        if (!/^TRANSFERENCIA PIX$/i.test(descricaoRaw)) return;
-        const arr = pendenciasPixPorData.get(dataRaw) ?? [];
-        arr.push(idx);
-        pendenciasPixPorData.set(dataRaw, arr);
-    };
-
-    const consumirPendenciaPix = (dataRaw: string): number => {
-        const arr = pendenciasPixPorData.get(dataRaw);
-        if (!arr || arr.length === 0) return -1;
-        const idx = arr.pop() ?? -1;
-        if (arr.length === 0) pendenciasPixPorData.delete(dataRaw);
-        else pendenciasPixPorData.set(dataRaw, arr);
-        return idx;
-    };
-
     const adicionarContrapartePool = (dataRaw: string, linha: string) => {
         const data = dataRaw || dataAtual;
         if (!data) return;
@@ -1860,10 +1843,53 @@ function extrairNext(texto: string): Array<{ dataRaw: string; descricaoRaw: stri
         contrapartePorData.set(data, bucket);
     };
 
-    const espiarPendenciaPix = (dataRaw: string): number => {
-        const arr = pendenciasPixPorData.get(dataRaw);
-        if (!arr || arr.length === 0) return -1;
-        return arr[arr.length - 1];
+    const acharTxPixDoDia = (dataRaw: string, priorizarSemContraparte: boolean): number => {
+        for (let i = todos.length - 1; i >= 0; i--) {
+            const tx = todos[i];
+            if (tx.dataRaw !== dataRaw) continue;
+            const n = normalizar(tx.descricaoRaw);
+            const isPix = /\bTRANSFERENCIA\s+PIX\b|\bPIX\s+(ENVIADO|RECEBIDO)\b/.test(n);
+            if (!isPix) continue;
+            if (!priorizarSemContraparte) return i;
+            if (/^TRANSFERENCIA\s+PIX$/.test(n) || /NAO\s+INFORMADO\s+NO\s+PDF/.test(n)) return i;
+        }
+        return -1;
+    };
+
+    const escolherIdxTxDoDia = (dataRaw: string): number => {
+        const idxPreferido = acharTxPixDoDia(dataRaw, true);
+        if (idxPreferido >= 0) return idxPreferido;
+        const idxFallback = acharTxPixDoDia(dataRaw, false);
+        if (idxFallback >= 0) return idxFallback;
+        return ultimoIdx;
+    };
+
+    const ehLinhaPossivelContraparte = (txt: string): boolean => {
+        const l = txt.replace(/\s+/g, ' ').trim();
+        if (!l || l.length < 4) return false;
+        if (/^\d{2}[\/-]\d{2}[\/-]\d{4}\b/.test(l)) return false;
+        if (/^\d{2,4}\s*-\s*/.test(l)) return false;
+        if (/R\$|\d{1,3}(?:\.\d{3})*,\d{2}|SALDO\s+DO\s+DIA|SALDO\s+ANTERIOR|SALDO\s+FINAL/i.test(l)) return false;
+
+        const n = normalizar(l);
+        if (/\b(TRANSFERENCIA\s+PIX|PIX\s+QR\s+CODE\s+DINAMICO|CARTAO|SAQUE|PAGAMENTO|TARIFA|JUROS|IOF|COMPRA)\b/.test(n)) return false;
+        if (!/[A-Z]/i.test(l)) return false;
+
+        const palavras = l.split(' ').filter(Boolean);
+        if (palavras.length >= 2) return true;
+        return /\b(CPF|CNPJ|BANCO|CONTA|AGENCIA)\b/i.test(l);
+    };
+
+    const anexarContraparteInferida = (dataRef: string, linhaContraparte: string): boolean => {
+        const idxTx = escolherIdxTxDoDia(dataRef);
+        const tx = todos[idxTx];
+        if (!tx || tx.dataRaw !== dataRef) return false;
+        const txNorm = normalizar(tx.descricaoRaw);
+        if (!/\bTRANSFERENCIA\s+PIX\b|\bPIX\s+(ENVIADO|RECEBIDO)\b/.test(txNorm)) return false;
+
+        const marcador = tx.valorRaw.startsWith('-') ? 'DES:' : 'REM:';
+        tx.descricaoRaw = formatarDescricaoNext(`${tx.descricaoRaw} ${marcador} ${linhaContraparte}`);
+        return true;
     };
 
     const pushTx = (dataRaw: string, descricaoRaw: string, valorRawIn: string) => {
@@ -1880,7 +1906,6 @@ function extrairNext(texto: string): Array<{ dataRaw: string; descricaoRaw: stri
         vistas.add(key);
         todos.push({ dataRaw, descricaoRaw: desc, valorRaw });
         ultimoIdx = todos.length - 1;
-        registrarPendenciaPix(dataRaw, desc, ultimoIdx);
     };
 
     for (const linha of linhas) {
@@ -1906,11 +1931,10 @@ function extrairNext(texto: string): Array<{ dataRaw: string; descricaoRaw: stri
                 // Next frequentemente traz a linha complementar (REM:/DES:) com data repetida,
                 // mas sem valor. Nesse caso, anexamos ao lançamento imediatamente anterior do mesmo dia.
                 if (RE_CONTINUACAO.test(resto) && ultimoIdx >= 0) {
-                    const idxPend = consumirPendenciaPix(dataLinha);
-                    const idxTx = idxPend >= 0 ? idxPend : ultimoIdx;
+                    const idxTx = escolherIdxTxDoDia(dataLinha);
                     const tx = todos[idxTx];
                     if (tx && tx.dataRaw === dataLinha) {
-                        tx.descricao = formatarDescricaoNext(`${tx.descricao} ${resto}`);
+                        tx.descricaoRaw = formatarDescricaoNext(`${tx.descricaoRaw} ${resto}`);
                         const contNorm = normalizar(resto);
                         if (/^DES\b/.test(contNorm) && !tx.valorRaw.startsWith('-')) {
                             tx.valorRaw = `-${tx.valorRaw}`;
@@ -1925,6 +1949,9 @@ function extrairNext(texto: string): Array<{ dataRaw: string; descricaoRaw: stri
                     const restoNorm = normalizar(resto);
                     if (RE_HISTORICO_NEXT.test(resto) || /\b(TRANSFERENCIA\s+PIX|PIX\s+QR\s+CODE\s+DINAMICO|CARTAO|SAQUE|PAGAMENTO)\b/.test(restoNorm)) {
                         historicoPendente = resto;
+                    } else if (ehLinhaPossivelContraparte(resto)) {
+                        const anexou = anexarContraparteInferida(dataLinha, resto);
+                        if (!anexou) adicionarContrapartePool(dataLinha, resto);
                     }
                 }
                 continue;
@@ -1966,8 +1993,7 @@ function extrairNext(texto: string): Array<{ dataRaw: string; descricaoRaw: stri
             continue;
         }
 
-        const idxPend = espiarPendenciaPix(dataAtual);
-        const idxTx = idxPend >= 0 ? idxPend : ultimoIdx;
+        const idxTx = escolherIdxTxDoDia(dataAtual);
         const tx = todos[idxTx];
         if (!tx || tx.dataRaw !== dataAtual) continue;
 
@@ -1975,11 +2001,20 @@ function extrairNext(texto: string): Array<{ dataRaw: string; descricaoRaw: stri
 
         // Continuação explícita (REM/DES/FAV/ORIGEM/DESTINO)
         if (RE_CONTINUACAO.test(linha)) {
-            if (idxPend >= 0) consumirPendenciaPix(dataAtual);
             const cont = linha.replace(/\s+/g, ' ').trim();
+
+            // Em muitos extratos Next, o histórico (ex: "3205-TRANSFERENCIA PIX") vem
+            // numa linha e o REM/DES vem antes da linha com valor.
+            // Nesses casos, anexamos ao histórico pendente para criar a transação correta
+            // quando o valor aparecer, em vez de grudar no lançamento anterior.
+            if (historicoPendente) {
+                historicoPendente = `${historicoPendente} ${cont}`.trim();
+                continue;
+            }
+
             let anexou = false;
             if (tx && tx.dataRaw === dataAtual) {
-                tx.descricao = formatarDescricaoNext(`${tx.descricao} ${cont}`);
+                tx.descricaoRaw = formatarDescricaoNext(`${tx.descricaoRaw} ${cont}`);
                 anexou = true;
             }
 
@@ -2001,12 +2036,20 @@ function extrairNext(texto: string): Array<{ dataRaw: string; descricaoRaw: stri
 
         // Fallback OCR: algumas linhas perdem o "REM/DES" mas mantêm o nome/data.
         // Se a transação base for transferência PIX, anexamos como contraparte.
-        if (/\bTRANSFERENCIA\s+PIX\b/.test(normalizar(tx.descricao)) && linha.length >= 4 && !/R\$|SALDO\s+DO\s+DIA|^\d{2}[\/-]\d{2}[\/-]\d{4}\b/i.test(linha)) {
-            if (idxPend >= 0) consumirPendenciaPix(dataAtual);
+        if (/\bTRANSFERENCIA\s+PIX\b/.test(normalizar(tx.descricaoRaw)) && linha.length >= 4 && !/R\$|SALDO\s+DO\s+DIA|^\d{2}[\/-]\d{2}[\/-]\d{4}\b/i.test(linha)) {
             const marcador = tx.valorRaw.startsWith('-') ? 'DES:' : 'REM:';
-            tx.descricao = formatarDescricaoNext(`${tx.descricao} ${marcador} ${linha}`);
+            tx.descricaoRaw = formatarDescricaoNext(`${tx.descricaoRaw} ${marcador} ${linha}`);
             historicoPendente = '';
             continue;
+        }
+
+        if (ehLinhaPossivelContraparte(linha) && /\bTRANSFERENCIA\s+PIX\b|\bPIX\s+(ENVIADO|RECEBIDO)\b/.test(linhaNorm) === false) {
+            const anexou = anexarContraparteInferida(dataAtual, linha);
+            if (!anexou) adicionarContrapartePool(dataAtual, linha);
+            if (anexou) {
+                historicoPendente = '';
+                continue;
+            }
         }
     }
 
