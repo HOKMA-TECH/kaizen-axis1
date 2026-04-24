@@ -1799,12 +1799,13 @@ function extrairNext(texto: string): Array<{ dataRaw: string; descricaoRaw: stri
 
     const RE_DATA = /^(\d{2}[\/-]\d{2}[\/-]\d{4})\s*(.*)$/;
     const RE_VALOR = /R\$\s*-?\d{1,3}(?:\.\d{3})*,\d{2}|-?\d{1,3}(?:\.\d{3})*,\d{2}/g;
-    const RE_CONTINUACAO = /^(REM|DES|FAV|ORIGEM|DESTINO)\s*:?\s*/i;
+    const RE_CONTINUACAO = /^(REM|DES|FAV|ORIGEM|DESTINO)\s*[:;\-]?\s*/i;
     const RE_HISTORICO_NEXT = /^\d{2,4}\s*-\s*[A-Z0-9]/i;
 
     let dataAtual = '';
     let ultimoIdx = -1;
     let historicoPendente = '';
+    const pendentePorData = new Map<string, number>();
 
     const formatarDescricaoNext = (raw: string): string => {
         const base = typeof raw === 'string' ? raw : '';
@@ -1833,6 +1834,10 @@ function extrairNext(texto: string): Array<{ dataRaw: string; descricaoRaw: stri
         vistas.add(key);
         todos.push({ dataRaw, descricaoRaw: desc, valorRaw });
         ultimoIdx = todos.length - 1;
+
+        if (/\bTRANSFERENCIA\s+PIX\b|\bPIX\s+QR\s+CODE\s+DINAMICO\b/i.test(desc)) {
+            pendentePorData.set(dataRaw, ultimoIdx);
+        }
     };
 
     for (const linha of linhas) {
@@ -1858,7 +1863,8 @@ function extrairNext(texto: string): Array<{ dataRaw: string; descricaoRaw: stri
                 // Next frequentemente traz a linha complementar (REM:/DES:) com data repetida,
                 // mas sem valor. Nesse caso, anexamos ao lançamento imediatamente anterior do mesmo dia.
                 if (RE_CONTINUACAO.test(resto) && ultimoIdx >= 0) {
-                    const tx = todos[ultimoIdx];
+                    const idxTx = pendentePorData.get(dataLinha) ?? ultimoIdx;
+                    const tx = todos[idxTx];
                     if (tx && tx.dataRaw === dataLinha) {
                         tx.descricao = formatarDescricaoNext(`${tx.descricao} ${resto}`);
                         const contNorm = normalizar(resto);
@@ -1895,7 +1901,8 @@ function extrairNext(texto: string): Array<{ dataRaw: string; descricaoRaw: stri
         }
 
         if (!dataAtual || ultimoIdx < 0) continue;
-        const tx = todos[ultimoIdx];
+        const idxTx = pendentePorData.get(dataAtual) ?? ultimoIdx;
+        const tx = todos[idxTx];
         if (!tx || tx.dataRaw !== dataAtual) continue;
 
         const linhaNorm = normalizar(linha);
