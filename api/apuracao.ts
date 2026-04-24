@@ -1805,8 +1805,20 @@ function extrairNext(texto: string): Array<{ dataRaw: string; descricaoRaw: stri
     let ultimoIdx = -1;
     let historicoPendente = '';
 
+    const formatarDescricaoNext = (raw: string): string => {
+        const desc = raw.replace(/\s+/g, ' ').trim();
+        const rem = desc.match(/\bREM\s*:\s*.+$/i)?.[0] ?? '';
+        const des = desc.match(/\bDES\s*:\s*.+$/i)?.[0] ?? '';
+        const temPix = /\bTRANSFERENCIA\s+PIX\b|\bPIX\s+QR\s+CODE\s+DINAMICO\b/i.test(desc);
+
+        if (temPix && rem) return `PIX RECEBIDO - ${rem}`;
+        if (temPix && des) return `PIX ENVIADO - ${des}`;
+        if (temPix && !rem && !des) return 'TRANSFERENCIA PIX';
+        return desc;
+    };
+
     const pushTx = (dataRaw: string, descricaoRaw: string, valorRawIn: string) => {
-        const desc = descricaoRaw.replace(/\s+/g, ' ').trim();
+        const desc = formatarDescricaoNext(descricaoRaw);
         if (!dataRaw || desc.length < 3) return;
         if (/^SALDO\s+DO\s+DIA|^SALDO\s+ANTERIOR|^SALDO\s+FINAL/i.test(desc)) return;
 
@@ -1846,7 +1858,7 @@ function extrairNext(texto: string): Array<{ dataRaw: string; descricaoRaw: stri
                 if (RE_CONTINUACAO.test(resto) && ultimoIdx >= 0) {
                     const tx = todos[ultimoIdx];
                     if (tx && tx.dataRaw === dataLinha) {
-                        tx.descricao = `${tx.descricao} ${resto}`.replace(/\s+/g, ' ').trim();
+                        tx.descricao = formatarDescricaoNext(`${tx.descricao} ${resto}`);
                         const contNorm = normalizar(resto);
                         if (/^DES\s*:/.test(contNorm) && !tx.valorRaw.startsWith('-')) {
                             tx.valorRaw = `-${tx.valorRaw}`;
@@ -1887,7 +1899,7 @@ function extrairNext(texto: string): Array<{ dataRaw: string; descricaoRaw: stri
         if (!tx || tx.dataRaw !== dataAtual) continue;
 
         const cont = linha.replace(/\s+/g, ' ').trim();
-        tx.descricao = `${tx.descricao} ${cont}`.replace(/\s+/g, ' ').trim();
+        tx.descricao = formatarDescricaoNext(`${tx.descricao} ${cont}`);
 
         const contNorm = normalizar(cont);
         if (/^DES\s*:/.test(contNorm) && !tx.valorRaw.startsWith('-')) {
