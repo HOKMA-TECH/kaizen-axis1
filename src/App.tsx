@@ -48,7 +48,7 @@ const isInactiveProfile = (status?: string) => {
 // ─── Auth guard (all authenticated users) ───────────────────────────────────
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { profile, loading, session } = useApp();
-  const { role } = useAuthorization();
+  const { role, isAnalyst } = useAuthorization();
   const location = useLocation();
 
   // Show a blank loading screen (or simple spinner) while Auth context initializes
@@ -77,6 +77,13 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
       return <Navigate to="/checkin/display" replace />;
     }
     return <>{children}</>;
+  }
+
+  if (isAnalyst) {
+    const allowedAnalystPaths = ['/income', '/settings'];
+    if (!allowedAnalystPaths.includes(location.pathname)) {
+      return <Navigate to="/income" replace />;
+    }
   }
 
   return <ResponsiveLayout>{children}</ResponsiveLayout>;
@@ -156,7 +163,7 @@ export default function App() {
 
         <Route path="/automation-leads" element={<ProtectedRoute><AutomationLeads /></ProtectedRoute>} />
         <Route path="/income" element={
-          <RoleRoute allowed={['ADMIN']}>
+          <RoleRoute allowed={['ADMIN', 'ANALISTA']}>
             <IncomeAnalysis />
           </RoleRoute>
         } />

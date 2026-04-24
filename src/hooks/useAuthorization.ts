@@ -1,6 +1,6 @@
 import { useApp } from '@/context/AppContext';
 
-export type UserRole = 'ADMIN' | 'DIRETOR' | 'GERENTE' | 'COORDENADOR' | 'CORRETOR' | 'RECEPCAO';
+export type UserRole = 'ADMIN' | 'DIRETOR' | 'GERENTE' | 'COORDENADOR' | 'CORRETOR' | 'RECEPCAO' | 'ANALISTA';
 
 export function useAuthorization() {
     const { profile } = useApp();
@@ -15,6 +15,7 @@ export function useAuthorization() {
     const isCoordinator = role === 'COORDENADOR';
     const isBroker = role === 'CORRETOR';
     const isReception = role === 'RECEPCAO';
+    const isAnalyst = role === 'ANALISTA';
 
     // Strategic roles that can see org-wide data in their scope
     const isLeadership = isAdmin || isDirector;
@@ -33,6 +34,11 @@ export function useAuthorization() {
      * Used by ProtectedRoute and nav rendering.
      */
     const canAccess = (path: string): boolean => {
+        // Analyst has access only to income analysis and settings
+        if (isAnalyst) {
+            return path === '/income' || path === '/settings';
+        }
+
         // Admin-only routes
         if (path === '/admin') return isAdmin;
 
@@ -53,6 +59,7 @@ export function useAuthorization() {
         isCoordinator,
         isBroker,
         isReception,
+        isAnalyst,
         isLeadership,
         isTeamLead,
         canCreateStrategicResources,

@@ -1008,7 +1008,7 @@ export default function AdminPanel() {
                         <div className="flex flex-col gap-1.5 md:flex-row md:gap-2 md:items-center">
                           <select value={u.role} onChange={e => handleRoleChange(u.id, e.target.value)}
                             className="w-full md:w-40 text-xs bg-surface-50 border border-surface-200 rounded-lg p-1.5 focus:outline-none focus:border-gold-400">
-                            {['CORRETOR', 'COORDENADOR', 'GERENTE', 'DIRETOR', 'ADMIN', 'RECEPCAO'].map(r => <option key={r} value={r}>{r}</option>)}
+                            {['CORRETOR', 'COORDENADOR', 'GERENTE', 'DIRETOR', 'ADMIN', 'RECEPCAO', 'ANALISTA'].map(r => <option key={r} value={r}>{r}</option>)}
                           </select>
                           <select value={(u as any).directorate_id ?? ''} onChange={e => handleDirectorateChange(u.id, e.target.value || null)}
                             className="w-full md:w-40 text-xs bg-surface-50 border border-surface-200 rounded-lg p-1.5 focus:outline-none focus:border-gold-400">
@@ -1999,7 +1999,7 @@ export default function AdminPanel() {
             <label className="block text-sm font-medium text-text-secondary mb-1">Cargo</label>
             <select value={approvalForm.role} onChange={e => setApprovalForm(p => ({ ...p, role: e.target.value }))}
               className="w-full p-3 bg-surface-50 rounded-xl border-none focus:ring-2 focus:ring-gold-200 text-text-primary">
-              {['CORRETOR', 'COORDENADOR', 'GERENTE', 'DIRETOR', 'ADMIN', 'RECEPCAO'].map(r => <option key={r} value={r}>{r}</option>)}
+              {['CORRETOR', 'COORDENADOR', 'GERENTE', 'DIRETOR', 'ADMIN', 'RECEPCAO', 'ANALISTA'].map(r => <option key={r} value={r}>{r}</option>)}
             </select>
           </div>
           <div>

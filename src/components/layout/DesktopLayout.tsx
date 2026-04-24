@@ -106,7 +106,7 @@ function NavGroup({ label, items, chatUnread }: { label: string; items: NavItem[
 // ─── Sidebar ─────────────────────────────────────────────────────────────────
 
 function Sidebar() {
-  const { isAdmin, isDirector, isManager, isCoordinator } = useAuthorization();
+  const { isAdmin, isDirector, isManager, isCoordinator, isAnalyst } = useAuthorization();
   const { userName, profile, signOut } = useApp();
   const { totalUnread } = useChatUnread();
   const navigate = useNavigate();
@@ -134,6 +134,9 @@ function Sidebar() {
       return item;
     });
   const filteredAdmin = NAV_ADMIN.filter(item => !item.adminOnly || isAdminOrDirector);
+  const reportsForRole = isAnalyst
+    ? NAV_REPORTS.filter(item => item.path === '/income')
+    : filteredReports;
 
   const handleConfirmLogout = async () => {
     setIsSigningOut(true);
@@ -146,12 +149,14 @@ function Sidebar() {
     }
   };
 
-  const allGroups = [
-    { label: 'Principal',     items: NAV_CORE },
-    { label: 'Ferramentas',   items: filteredTools },
-    { label: 'Análise',       items: filteredReports },
-    { label: 'Administrativo',items: filteredAdmin },
-  ].filter(g => g.items.length > 0);
+  const allGroups = isAnalyst
+    ? [{ label: 'Análise', items: reportsForRole }]
+    : [
+      { label: 'Principal', items: NAV_CORE },
+      { label: 'Ferramentas', items: filteredTools },
+      { label: 'Análise', items: reportsForRole },
+      { label: 'Administrativo', items: filteredAdmin },
+    ].filter(g => g.items.length > 0);
 
   return (
     <aside className="fixed top-0 left-0 h-screen w-64 bg-card-bg border-r border-surface-200 dark:border-surface-100/10 flex flex-col z-40 print:hidden">

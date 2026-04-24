@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Users, Calendar, MessageSquare, Menu } from 'lucide-react';
+import { LayoutDashboard, Users, Calendar, MessageSquare, Menu, Calculator, Settings } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { motion } from 'motion/react';
 import { useAuthorization } from '@/hooks/useAuthorization';
@@ -21,18 +21,22 @@ function useKeyboardOpen() {
 
 export const BottomNav = () => {
   const location = useLocation();
-  const { isBroker, isManager, isCoordinator, canAccessAdmin } = useAuthorization();
+  const { isAnalyst } = useAuthorization();
   const keyboardOpen = useKeyboardOpen();
   const { totalUnread } = useChatUnread();
 
-  // Build nav items based on role
-  const navItems = [
-    { icon: LayoutDashboard, label: 'Dashboard', path: '/' },
-    { icon: Users, label: 'Clientes', path: '/clients' },
-    { icon: Calendar, label: 'Agenda', path: '/schedule' },
-    { icon: MessageSquare, label: 'Chat', path: '/chat' },
-    { icon: Menu, label: 'Mais', path: '/more' },
-  ];
+  const navItems = isAnalyst
+    ? [
+      { icon: Calculator, label: 'Apuração', path: '/income' },
+      { icon: Settings, label: 'Config.', path: '/settings' },
+    ]
+    : [
+      { icon: LayoutDashboard, label: 'Dashboard', path: '/' },
+      { icon: Users, label: 'Clientes', path: '/clients' },
+      { icon: Calendar, label: 'Agenda', path: '/schedule' },
+      { icon: MessageSquare, label: 'Chat', path: '/chat' },
+      { icon: Menu, label: 'Mais', path: '/more' },
+    ];
 
   return (
     <div className={cn("fixed bottom-0 left-0 right-0 bg-card-bg border-t border-surface-200 pb-safe pt-2 px-4 shadow-[0_-4px_20px_rgba(0,0,0,0.05)] z-50 print:hidden", keyboardOpen && "hidden")}>
