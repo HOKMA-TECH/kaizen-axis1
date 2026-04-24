@@ -1875,6 +1875,11 @@ function extrairNext(texto: string): Array<{ dataRaw: string; descricaoRaw: stri
                             tx.valorRaw = tx.valorRaw.replace(/^-/, '');
                         }
                     }
+                } else {
+                    const restoNorm = normalizar(resto);
+                    if (RE_HISTORICO_NEXT.test(resto) || /\b(TRANSFERENCIA\s+PIX|PIX\s+QR\s+CODE\s+DINAMICO|CARTAO|SAQUE|PAGAMENTO)\b/.test(restoNorm)) {
+                        historicoPendente = resto;
+                    }
                 }
                 continue;
             }
@@ -1901,6 +1906,20 @@ function extrairNext(texto: string): Array<{ dataRaw: string; descricaoRaw: stri
         }
 
         if (!dataAtual || ultimoIdx < 0) continue;
+
+        const valsLinha = Array.from(linha.matchAll(RE_VALOR));
+        if (historicoPendente && valsLinha.length > 0) {
+            const val = valsLinha[0][0];
+            const idxVal = linha.indexOf(val);
+            const prefixo = idxVal >= 0 ? linha.slice(0, idxVal).trim() : '';
+            const descComposta = RE_CONTINUACAO.test(prefixo)
+                ? `${historicoPendente} ${prefixo}`.trim()
+                : historicoPendente;
+            pushTx(dataAtual, descComposta, val);
+            historicoPendente = '';
+            continue;
+        }
+
         const idxTx = pendentePorData.get(dataAtual) ?? ultimoIdx;
         const tx = todos[idxTx];
         if (!tx || tx.dataRaw !== dataAtual) continue;
