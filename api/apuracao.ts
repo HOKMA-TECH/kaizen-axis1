@@ -1126,12 +1126,22 @@ function selecionarJanelaMesesSantander(transacoes: Transacao[], mesesReferencia
 function isMercadoPagoBank(texto: string): boolean {
     const norm = removerAcentos(texto).toUpperCase();
     const cabecalho = norm.substring(0, 12000);
+    const cabecalhoCurto = norm.substring(0, 3000);
 
+    // Evita falso positivo quando o extrato e de banco tradicional (ex.: Next)
+    // e apenas contem alguma linha isolada com "Mercado Pago" no historico.
+    const temSinaisForteBancoTradicional = /\bEXTRATO\s+DE\s+CONTA\s+CORRENTE\b|\bBANCO\s+DE\s+ORIGEM\s*:\s*NEXT\b|\bAGENCIA\s*:\s*\d+\b|\bCONTA\s*:\s*\d+|\bSALDO\s+DO\s+DIA\b|\b\d{3,4}-TRANSFERENCIA\s+PIX\b/.test(cabecalhoCurto);
+    if (temSinaisForteBancoTradicional) return false;
+
+    const temMarcaMercadoPagoCabecalho = /MERCADO\s+PAGO|MERCADOPAGO|MERCADO\s*LIVRE\s+PAGOS/.test(cabecalhoCurto);
     const temMarcaMercadoPago = /MERCADO\s+PAGO|MERCADOPAGO|MERCADO\s*LIVRE\s+PAGOS/.test(cabecalho);
     const temContextoExtrato = /EXTRATO|ATIVIDADE|MOVIMENTACAO|MOVIMENTACOES|DINHEIRO\s+EM\s+CONTA|DINHEIRO\s+RECEBIDO/.test(norm);
-    const temPadraoForteMercadoPago = /DINHEIRO\s+RECEBIDO|SEU\s+DINHEIRO\s+RENDEU|PAGAMENTO\s+RECEBIDO|QR\s+RECEBIDO|DETALHE\s+DOS\s+MOVIMENTOS/.test(norm);
+    const temPadraoForteMercadoPago = /DINHEIRO\s+RECEBIDO|SEU\s+DINHEIRO\s+RENDEU|PAGAMENTO\s+RECEBIDO|QR\s+RECEBIDO|DETALHE\s+DOS\s+MOVIMENTOS/.test(cabecalho);
+    const temLayoutMP = /\bDETALHE\s+DOS\s+MOVIMENTOS\b|\bATIVIDADE\s+DA\s+CONTA\b|\bSEU\s+DINHEIRO\s+RENDEU\b|\bMERCADO\s+PAGO\s+CONTA\b/.test(cabecalho);
 
-    return (temMarcaMercadoPago && temContextoExtrato) || (temMarcaMercadoPago && temPadraoForteMercadoPago);
+    if (!temMarcaMercadoPagoCabecalho && !temPadraoForteMercadoPago) return false;
+
+    return (temMarcaMercadoPago && temContextoExtrato && temLayoutMP) || (temMarcaMercadoPago && temPadraoForteMercadoPago);
 }
 
 function extrairMercadoPagoPorBloco(texto: string): Array<{ dataRaw: string; descricaoRaw: string; valorRaw: string }> {
