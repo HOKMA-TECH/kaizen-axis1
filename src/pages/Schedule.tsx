@@ -1,9 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { PremiumCard, SectionHeader, RoundedButton } from '@/components/ui/PremiumComponents';
-import { Calendar as CalendarIcon, MapPin, Clock, CheckCircle2, Trash2, Edit2, Plus, ArrowLeft, Loader2 } from 'lucide-react';
+import { Calendar as CalendarIcon, MapPin, Clock, CheckCircle2, Trash2, Edit2, Plus, ArrowLeft, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { FAB } from '@/components/Layout';
 import { Modal } from '@/components/ui/Modal';
-import { format, addDays, startOfWeek, isSameDay, parseISO } from 'date-fns';
+import { format, addDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isSameMonth, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useApp, Appointment } from '@/context/AppContext';
@@ -18,6 +18,8 @@ export default function Schedule() {
 
   const today = new Date();
   const [selectedDate, setSelectedDate] = useState<Date>(today);
+  const [monthCursor, setMonthCursor] = useState<Date>(startOfMonth(today));
+  const [isMonthExpanded, setIsMonthExpanded] = useState(false);
   const [viewMode, setViewMode] = useState<'day' | 'all' | 'single'>('day');
   const [highlightId, setHighlightId] = useState<string | null>(null);
 
@@ -44,8 +46,25 @@ export default function Schedule() {
     }
   }, [location.state]);
 
+  useEffect(() => {
+    setMonthCursor(startOfMonth(selectedDate));
+  }, [selectedDate]);
+
   const startDate = startOfWeek(selectedDate, { weekStartsOn: 1 });
   const calendarDays = Array.from({ length: 7 }).map((_, i) => addDays(startDate, i));
+  const monthGridDays = useMemo(() => {
+    const gridStart = startOfWeek(startOfMonth(monthCursor), { weekStartsOn: 1 });
+    const gridEnd = endOfWeek(endOfMonth(monthCursor), { weekStartsOn: 1 });
+    return eachDayOfInterval({ start: gridStart, end: gridEnd });
+  }, [monthCursor]);
+
+  const appointmentsByDate = useMemo(() => {
+    return appointments.reduce<Record<string, number>>((acc, apt) => {
+      const date = apt.date;
+      acc[date] = (acc[date] || 0) + 1;
+      return acc;
+    }, {});
+  }, [appointments]);
 
   const filteredAppointments = appointments.filter(apt => {
     if (viewMode === 'all') return true;
@@ -126,30 +145,108 @@ export default function Schedule() {
       </div>
 
       {viewMode === 'day' && (
-        <div className="flex justify-between mb-8 overflow-x-auto no-scrollbar pb-2 gap-2">
-          {calendarDays.map((date) => {
-            const isSelected = isSameDay(date, selectedDate);
-            const isToday = isSameDay(date, today);
-            const dateStr = format(date, 'yyyy-MM-dd');
-            const hasAppt = appointments.some(a => a.date === dateStr);
+        <div className="mb-8 space-y-3">
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-semibold uppercase tracking-wider text-text-secondary">Semana</p>
+            <button
+              type="button"
+              onClick={() => setIsMonthExpanded(prev => !prev)}
+              className="text-xs font-semibold text-blue-600 hover:text-blue-700 transition-colors"
+            >
+              {isMonthExpanded ? 'Ver menos' : 'Ver mais'}
+            </button>
+          </div>
 
-            return (
-              <button
-                key={date.toString()}
-                onClick={() => setSelectedDate(date)}
-                className={`flex flex-col items-center justify-center min-w-[3rem] h-16 rounded-2xl transition-all ${isSelected ? 'bg-gold-400 text-white shadow-lg shadow-gold-400/30 scale-105'
-                  : 'bg-card-bg text-text-secondary border border-surface-200'
-                  }`}
-              >
-                <span className="text-[10px] font-medium uppercase">{format(date, 'EEE', { locale: ptBR })}</span>
-                <span className="text-lg font-bold">{format(date, 'd')}</span>
-                <div className="flex gap-1 mt-1 h-1 items-center justify-center">
-                  {isToday && !isSelected && <div className="w-1 h-1 bg-gold-400 rounded-full" />}
-                  {hasAppt && <div className={`w-1 h-1 rounded-full ${isSelected ? 'bg-white' : 'bg-blue-500'}`} />}
-                </div>
-              </button>
-            );
-          })}
+          <div className="flex justify-between overflow-x-auto no-scrollbar pb-2 gap-2">
+            {calendarDays.map((date) => {
+              const isSelected = isSameDay(date, selectedDate);
+              const isToday = isSameDay(date, today);
+              const dateStr = format(date, 'yyyy-MM-dd');
+              const hasAppt = Boolean(appointmentsByDate[dateStr]);
+
+              return (
+                <button
+                  key={date.toString()}
+                  onClick={() => setSelectedDate(date)}
+                  className={`flex flex-col items-center justify-center min-w-[3rem] h-16 rounded-2xl transition-all ${isSelected ? 'bg-gold-400 text-white shadow-lg shadow-gold-400/30 scale-105'
+                    : 'bg-card-bg text-text-secondary border border-surface-200'
+                    }`}
+                >
+                  <span className="text-[10px] font-medium uppercase">{format(date, 'EEE', { locale: ptBR })}</span>
+                  <span className="text-lg font-bold">{format(date, 'd')}</span>
+                  <div className="flex gap-1 mt-1 h-1 items-center justify-center">
+                    {isToday && !isSelected && <div className="w-1 h-1 bg-gold-400 rounded-full" />}
+                    {hasAppt && <div className={`w-1 h-1 rounded-full ${isSelected ? 'bg-white' : 'bg-blue-500'}`} />}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+
+          {isMonthExpanded && (
+            <PremiumCard className="p-4">
+              <div className="flex items-center justify-between mb-3">
+                <button
+                  type="button"
+                  onClick={() => setMonthCursor(prev => addDays(startOfMonth(prev), -1))}
+                  className="p-1.5 rounded-lg text-text-secondary hover:bg-surface-100 transition-colors"
+                  title="Mês anterior"
+                >
+                  <ChevronLeft size={16} />
+                </button>
+                <h4 className="text-sm font-bold text-text-primary capitalize">
+                  {format(monthCursor, 'MMMM yyyy', { locale: ptBR })}
+                </h4>
+                <button
+                  type="button"
+                  onClick={() => setMonthCursor(prev => addDays(endOfMonth(prev), 1))}
+                  className="p-1.5 rounded-lg text-text-secondary hover:bg-surface-100 transition-colors"
+                  title="Próximo mês"
+                >
+                  <ChevronRight size={16} />
+                </button>
+              </div>
+
+              <div className="grid grid-cols-7 gap-1.5 mb-2">
+                {['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'].map(day => (
+                  <div key={day} className="text-[10px] font-semibold text-text-secondary text-center uppercase">
+                    {day}
+                  </div>
+                ))}
+              </div>
+
+              <div className="grid grid-cols-7 gap-1.5">
+                {monthGridDays.map((date) => {
+                  const dateStr = format(date, 'yyyy-MM-dd');
+                  const isSelected = isSameDay(date, selectedDate);
+                  const isToday = isSameDay(date, today);
+                  const inCurrentMonth = isSameMonth(date, monthCursor);
+                  const apptCount = appointmentsByDate[dateStr] || 0;
+
+                  return (
+                    <button
+                      key={dateStr}
+                      type="button"
+                      onClick={() => setSelectedDate(date)}
+                      className={`h-10 rounded-lg text-xs font-semibold transition-all relative ${isSelected
+                        ? 'bg-gold-400 text-white shadow-gold-400/20 shadow-sm'
+                        : inCurrentMonth
+                        ? 'bg-surface-50 text-text-primary hover:bg-surface-100'
+                        : 'bg-surface-50/40 text-text-secondary/50 hover:bg-surface-100/80'
+                        } ${isToday && !isSelected ? 'ring-1 ring-gold-300' : ''}`}
+                    >
+                      {format(date, 'd')}
+                      {apptCount > 0 && (
+                        <span className={`absolute bottom-0.5 right-0.5 min-w-[14px] h-[14px] px-1 rounded-full text-[9px] leading-[14px] font-bold ${isSelected ? 'bg-white/90 text-gold-700' : 'bg-blue-100 text-blue-700'}`}>
+                          {apptCount > 9 ? '9+' : apptCount}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </PremiumCard>
+          )}
         </div>
       )}
 
