@@ -48,7 +48,7 @@ interface ContextoNomes {
     cpf?: string;
 }
 
-type BancoDetectado = 'generic' | 'nubank' | 'inter' | 'neon' | 'bradesco' | 'mercadopago' | 'itau_mensal' | 'santander' | 'pagbank';
+type BancoDetectado = 'generic' | 'nubank' | 'inter' | 'neon' | 'bradesco' | 'mercadopago' | 'itau_mensal' | 'santander' | 'pagbank' | 'next';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // UTILS — MOEDA
@@ -319,6 +319,20 @@ function isPagBankBank(texto: string): boolean {
     const hasTabela = /\bDATA\b\s+\bDESCRICAO\b\s+\bVALOR\b/.test(cab);
 
     return hasBrand && (hasExtrato || hasTabela || hasPeriodo);
+}
+
+function isNextBank(texto: string): boolean {
+    const cab = removerAcentos(texto)
+        .toUpperCase()
+        .replace(/\s+/g, ' ')
+        .substring(0, 15000);
+
+    const hasNextBrand = /\bNEXT\b/.test(cab);
+    const hasExtratoConta = /\bEXTRATO\s+DE\s+CONTA\s+CORRENTE\b/.test(cab);
+    const hasMovRange = /\bMOVIMENTACAO\s+ENTRE\s*:\s*\d{2}[\/-]\d{2}[\/-]\d{4}\s*(?:A|ATE|-)\s*\d{2}[\/-]\d{2}[\/-]\d{4}/.test(cab);
+    const hasTable = /\bDATA\b\s+\bHISTORICO\b\s+\bDOCTO\b\s+\bCREDITO\b\s*\(\s*R\$\s*\)\s+\bDEBITO\b\s*\(\s*R\$\s*\)/.test(cab);
+
+    return hasNextBrand && (hasExtratoConta || hasMovRange || hasTable);
 }
 
 function sanitizarDescricaoBradesco(descricao: string): string {
@@ -1762,6 +1776,98 @@ function extrairPagBank(texto: string): Array<{ dataRaw: string; descricaoRaw: s
     return todos;
 }
 
+function extrairNext(texto: string): Array<{ dataRaw: string; descricaoRaw: string; valorRaw: string }> {
+    const limpo = texto
+        .replace(/\r\n/g, '\n')
+        .replace(/\r/g, '\n')
+        .replace(/[–—−]/g, '-')
+        .trim();
+
+    const linhas = limpo
+        .split(/[\n|]/)
+        .map(l => l.replace(/\s+/g, ' ').trim())
+        .filter(Boolean);
+
+    const vistas = new Set<string>();
+    const todos: Array<{ dataRaw: string; descricaoRaw: string; valorRaw: string }> = [];
+
+    const RE_DATA = /^(\d{2}[\/-]\d{2}[\/-]\d{4})\s*(.*)$/;
+    const RE_VALOR = /R\$\s*-?\d{1,3}(?:\.\d{3})*,\d{2}|-?\d{1,3}(?:\.\d{3})*,\d{2}/g;
+    const RE_CONTINUACAO = /^(REM\s*:|DES\s*:|FAV\s*:|ORIGEM\s*:|DESTINO\s*:)/i;
+
+    let dataAtual = '';
+    let ultimoIdx = -1;
+
+    const pushTx = (dataRaw: string, descricaoRaw: string, valorRawIn: string) => {
+        const desc = descricaoRaw.replace(/\s+/g, ' ').trim();
+        if (!dataRaw || desc.length < 3) return;
+        if (/^SALDO\s+DO\s+DIA|^SALDO\s+ANTERIOR|^SALDO\s+FINAL/i.test(desc)) return;
+
+        let valorRaw = valorRawIn.replace(/\s+/g, '').replace(/^R\$/i, '');
+        if (/^[\d.]+,\d{2}-$/.test(valorRaw)) valorRaw = `-${valorRaw.slice(0, -1)}`;
+        if (/^[\d.]+,\d{2}\+$/.test(valorRaw)) valorRaw = valorRaw.slice(0, -1);
+
+        const key = `${dataRaw}|${desc}|${valorRaw}`;
+        if (vistas.has(key)) return;
+        vistas.add(key);
+        todos.push({ dataRaw, descricaoRaw: desc, valorRaw });
+        ultimoIdx = todos.length - 1;
+    };
+
+    for (const linha of linhas) {
+        const mData = linha.match(RE_DATA);
+
+        if (mData) {
+            dataAtual = mData[1].replace(/-/g, '/');
+            let resto = (mData[2] ?? '').trim();
+            if (!resto) continue;
+
+            if (/^(SALDO\s+ANTERIOR|SALDO\s+DO\s+DIA|SALDO\s+FINAL)/i.test(resto)) {
+                continue;
+            }
+
+            const vals = Array.from(resto.matchAll(RE_VALOR));
+            if (vals.length === 0) continue;
+
+            const primeiroValor = vals[0][0];
+            const idx = resto.indexOf(primeiroValor);
+            if (idx < 0) continue;
+
+            let desc = resto.slice(0, idx).trim();
+            desc = desc.replace(/\b\d{5,}\b\s*$/, '').trim(); // remove Docto ao final da descrição
+            if (desc.length < 2) continue;
+
+            let valor = primeiroValor;
+            const descNorm = normalizar(desc);
+            if (!valor.includes('-') && /\b(DES\s*:|PIX\s+QR\s+CODE\s+DINAMICO|TRANSFERENCIA\s+PIX\b|CARTAO|SAQUE|PAGAMENTO)\b/.test(descNorm) && !/\bREM\s*:/.test(descNorm)) {
+                valor = `-${valor}`;
+            }
+
+            pushTx(dataAtual, desc, valor);
+            continue;
+        }
+
+        if (!dataAtual || ultimoIdx < 0) continue;
+        if (!RE_CONTINUACAO.test(linha)) continue;
+
+        const tx = todos[ultimoIdx];
+        if (!tx || tx.dataRaw !== dataAtual) continue;
+
+        const cont = linha.replace(/\s+/g, ' ').trim();
+        tx.descricao = `${tx.descricao} ${cont}`.replace(/\s+/g, ' ').trim();
+
+        const contNorm = normalizar(cont);
+        if (/^DES\s*:/.test(contNorm) && !tx.valorRaw.startsWith('-')) {
+            tx.valorRaw = `-${tx.valorRaw}`;
+        }
+        if (/^REM\s*:/.test(contNorm) && tx.valorRaw.startsWith('-')) {
+            tx.valorRaw = tx.valorRaw.replace(/^-/, '');
+        }
+    }
+
+    return todos;
+}
+
 function extrairSantander(texto: string): Array<{ dataRaw: string; descricaoRaw: string; valorRaw: string }> {
     const limpo = texto
         .replace(/\r\n/g, '\n')
@@ -2477,24 +2583,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const ehMercadoPago = isMercadoPagoBank(textoExtrato);
         const ehNubank = !ehMercadoPago && isNubankBank(textoExtrato);
         const ehPagBank = !ehMercadoPago && !ehNubank && isPagBankBank(textoExtrato);
-        const ehInter = !ehMercadoPago && !ehNubank && !ehPagBank && isInterBank(textoExtrato);
-        const ehNeon = !ehMercadoPago && !ehNubank && !ehPagBank && !ehInter && isNeonBank(textoExtrato);
-        const ehItauMensal = !ehMercadoPago && !ehNubank && !ehInter && !ehNeon && !ehPagBank && isItauMensalBank(textoExtrato);
-        const ehSantander = !ehMercadoPago && !ehNubank && !ehInter && !ehNeon && !ehPagBank && !ehItauMensal && isSantanderBank(textoExtrato);
+        const ehNext = !ehMercadoPago && !ehNubank && !ehPagBank && isNextBank(textoExtrato);
+        const ehInter = !ehMercadoPago && !ehNubank && !ehPagBank && !ehNext && isInterBank(textoExtrato);
+        const ehNeon = !ehMercadoPago && !ehNubank && !ehPagBank && !ehNext && !ehInter && isNeonBank(textoExtrato);
+        const ehItauMensal = !ehMercadoPago && !ehNubank && !ehInter && !ehNeon && !ehPagBank && !ehNext && isItauMensalBank(textoExtrato);
+        const ehSantander = !ehMercadoPago && !ehNubank && !ehInter && !ehNeon && !ehPagBank && !ehNext && !ehItauMensal && isSantanderBank(textoExtrato);
         const mesesReferenciaSantander = ehSantander ? extrairMesesReferenciaSantanderEstrito(textoExtrato) : new Set<string>();
         const mesesReferenciaSantanderSaldo = ehSantander ? extrairMesesReferenciaSantanderPorSaldo(textoExtrato) : new Set<string>();
         const mesesReferenciaEfetivos = (ehSantander && mesesReferenciaSantander.size >= 2)
             ? mesesReferenciaSantander
             : ((ehSantander && mesesReferenciaSantanderSaldo.size >= 2) ? mesesReferenciaSantanderSaldo : mesesReferencia);
-        const isBradescoExtrato = !ehMercadoPago && !ehNubank && !ehInter && !ehNeon && !ehPagBank && !ehItauMensal && !ehSantander && (isBradescoBank(textoExtrato) || isBradescoHeuristico(textoExtrato));
+        const isBradescoExtrato = !ehMercadoPago && !ehNubank && !ehInter && !ehNeon && !ehPagBank && !ehNext && !ehItauMensal && !ehSantander && (isBradescoBank(textoExtrato) || isBradescoHeuristico(textoExtrato));
         const bankDetected: BancoDetectado = ehMercadoPago
             ? 'mercadopago'
-            : (ehNubank ? 'nubank' : (ehInter ? 'inter' : (ehNeon ? 'neon' : (ehPagBank ? 'pagbank' : (ehItauMensal ? 'itau_mensal' : (ehSantander ? 'santander' : (isBradescoExtrato ? 'bradesco' : 'generic')))))));
+            : (ehNubank ? 'nubank' : (ehInter ? 'inter' : (ehNeon ? 'neon' : (ehPagBank ? 'pagbank' : (ehNext ? 'next' : (ehItauMensal ? 'itau_mensal' : (ehSantander ? 'santander' : (isBradescoExtrato ? 'bradesco' : 'generic'))))))));
         let brutas = ehMercadoPago
             ? extrairMercadoPago(textoExtrato)
             : (ehNubank
                 ? extrairNubank(textoExtrato)
-                : (ehInter ? extrairInter(textoExtrato) : (ehNeon ? extrairNeon(textoExtrato) : (ehPagBank ? extrairPagBank(textoExtrato) : (ehSantander ? extrairSantander(textoExtrato) : extrair(textoExtrato))))));
+                : (ehInter ? extrairInter(textoExtrato) : (ehNeon ? extrairNeon(textoExtrato) : (ehPagBank ? extrairPagBank(textoExtrato) : (ehNext ? extrairNext(textoExtrato) : (ehSantander ? extrairSantander(textoExtrato) : extrair(textoExtrato)))))));
 
         if (ehMercadoPago && brutas.length === 0) {
             // fallback de segurança: alguns PDFs do Mercado Pago chegam com OCR irregular
