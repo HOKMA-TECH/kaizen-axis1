@@ -680,7 +680,12 @@ function classificar(
         /PIX\s+RECEBIDO|TRANSFERENCIA\s+RECEBIDA|TED\s+RECEBIDA|DOC\s+RECEBIDO|TEV\s+RECEBIDA/.test(descNorm) &&
         !/MESMA\s+TITULARIDADE|CONTA\s+PROPRIA|ENTRE\s+CONTAS/.test(descNorm);
 
-    if (!ehRendaLaboral && !pularAutoTransferMercadoPago && !pularAutoTransferSantanderRecebido) {
+    const pularAutoTransferNextRecebido =
+        bankDetected === 'next' &&
+        /\bREM\s*:|PIX\s+RECEBIDO|TRANSFERENCIA\s+PIX\b/.test(descNorm) &&
+        !/MESMA\s+TITULARIDADE|CONTA\s+PROPRIA|ENTRE\s+CONTAS/.test(descNorm);
+
+    if (!ehRendaLaboral && !pularAutoTransferMercadoPago && !pularAutoTransferSantanderRecebido && !pularAutoTransferNextRecebido) {
         // 4. Autotransferência (match forte cliente)
         const matchCliente = calcularMatch(ctx.nomeCliente, descricaoRaw, ctx.cpf);
         if (matchCliente === 'forte' || ehAutotransferenciaProvavelPorNome(ctx.nomeCliente, descNorm)) {
@@ -1794,9 +1799,11 @@ function extrairNext(texto: string): Array<{ dataRaw: string; descricaoRaw: stri
     const RE_DATA = /^(\d{2}[\/-]\d{2}[\/-]\d{4})\s*(.*)$/;
     const RE_VALOR = /R\$\s*-?\d{1,3}(?:\.\d{3})*,\d{2}|-?\d{1,3}(?:\.\d{3})*,\d{2}/g;
     const RE_CONTINUACAO = /^(REM\s*:|DES\s*:|FAV\s*:|ORIGEM\s*:|DESTINO\s*:)/i;
+    const RE_HISTORICO_NEXT = /^\d{2,4}\s*-\s*[A-Z0-9]/i;
 
     let dataAtual = '';
     let ultimoIdx = -1;
+    let historicoPendente = '';
 
     const pushTx = (dataRaw: string, descricaoRaw: string, valorRawIn: string) => {
         const desc = descricaoRaw.replace(/\s+/g, ' ').trim();
@@ -1815,6 +1822,11 @@ function extrairNext(texto: string): Array<{ dataRaw: string; descricaoRaw: stri
     };
 
     for (const linha of linhas) {
+        if (RE_HISTORICO_NEXT.test(linha) && !/^\d{2}[\/-]\d{2}[\/-]\d{4}\b/.test(linha)) {
+            historicoPendente = linha.replace(/\s+/g, ' ').trim();
+            continue;
+        }
+
         const mData = linha.match(RE_DATA);
 
         if (mData) {
@@ -1835,6 +1847,9 @@ function extrairNext(texto: string): Array<{ dataRaw: string; descricaoRaw: stri
 
             let desc = resto.slice(0, idx).trim();
             desc = desc.replace(/\b\d{5,}\b\s*$/, '').trim(); // remove Docto ao final da descrição
+            if (!/[A-Z]/i.test(desc) && historicoPendente) {
+                desc = historicoPendente;
+            }
             if (desc.length < 2) continue;
 
             let valor = primeiroValor;
@@ -1863,6 +1878,8 @@ function extrairNext(texto: string): Array<{ dataRaw: string; descricaoRaw: stri
         if (/^REM\s*:/.test(contNorm) && tx.valorRaw.startsWith('-')) {
             tx.valorRaw = tx.valorRaw.replace(/^-/, '');
         }
+
+        historicoPendente = '';
     }
 
     return todos;
