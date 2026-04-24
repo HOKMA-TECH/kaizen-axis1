@@ -1550,6 +1550,7 @@ function extrairNubank(texto: string): Array<{ dataRaw: string; descricaoRaw: st
 function isInterBank(texto: string): boolean {
     const norm = removerAcentos(texto).toUpperCase();
     const cabecalho = norm.substring(0, 20000);
+    const temMarcaInter = /BANCO\s+INTER|INTER\s+S\.?A\.?|CONTA\s+DIGITAL\s+INTER|BANCOINTER/.test(cabecalho);
 
     if (/BANCO\s+INTER/.test(cabecalho) && /SALDO\s+DO\s+DIA|SALDO\s+POR\s+TRANSACAO|PIX\s+RECEBIDO\s*:\s*"/.test(norm)) return true;
 
@@ -1560,7 +1561,7 @@ function isInterBank(texto: string): boolean {
     const temRodapeInter = /SAC\s*:\s*0800\s*940\s*9999/.test(norm) || /OUVIDORIA\s*:\s*0800\s*940\s*7772/.test(norm);
     const temFormatoPixInter = /PIX\s+(RECEBIDO|ENVIADO)\s*:\s*"/.test(norm);
 
-    return (temPeriodoInter && temSaldoDoDia)
+    return (temMarcaInter && temPeriodoInter && (temSaldoDoDia || temSaldoPorTransacao))
         || (temRodapeInter && temSaldoDoDia)
         || (temFormatoPixInter && temSaldoPorTransacao);
 }
@@ -2475,9 +2476,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         // ── Parsear e classificar ──────────────────────────────────────────────
         const ehMercadoPago = isMercadoPagoBank(textoExtrato);
         const ehNubank = !ehMercadoPago && isNubankBank(textoExtrato);
-        const ehInter = !ehMercadoPago && !ehNubank && isInterBank(textoExtrato);
-        const ehNeon = !ehMercadoPago && !ehNubank && !ehInter && isNeonBank(textoExtrato);
-        const ehPagBank = !ehMercadoPago && !ehNubank && !ehInter && !ehNeon && isPagBankBank(textoExtrato);
+        const ehPagBank = !ehMercadoPago && !ehNubank && isPagBankBank(textoExtrato);
+        const ehInter = !ehMercadoPago && !ehNubank && !ehPagBank && isInterBank(textoExtrato);
+        const ehNeon = !ehMercadoPago && !ehNubank && !ehPagBank && !ehInter && isNeonBank(textoExtrato);
         const ehItauMensal = !ehMercadoPago && !ehNubank && !ehInter && !ehNeon && !ehPagBank && isItauMensalBank(textoExtrato);
         const ehSantander = !ehMercadoPago && !ehNubank && !ehInter && !ehNeon && !ehPagBank && !ehItauMensal && isSantanderBank(textoExtrato);
         const mesesReferenciaSantander = ehSantander ? extrairMesesReferenciaSantanderEstrito(textoExtrato) : new Set<string>();
