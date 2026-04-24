@@ -1806,6 +1806,7 @@ function extrairNext(texto: string): Array<{ dataRaw: string; descricaoRaw: stri
     let ultimoIdx = -1;
     let historicoPendente = '';
     const pendenciasPixPorData = new Map<string, number[]>();
+    const contrapartePorData = new Map<string, { rem: string[]; des: string[] }>();
 
     const formatarDescricaoNext = (raw: string): string => {
         const base = typeof raw === 'string' ? raw : '';
@@ -1846,6 +1847,17 @@ function extrairNext(texto: string): Array<{ dataRaw: string; descricaoRaw: stri
         if (arr.length === 0) pendenciasPixPorData.delete(dataRaw);
         else pendenciasPixPorData.set(dataRaw, arr);
         return idx;
+    };
+
+    const adicionarContrapartePool = (dataRaw: string, linha: string) => {
+        const data = dataRaw || dataAtual;
+        if (!data) return;
+        const bucket = contrapartePorData.get(data) ?? { rem: [], des: [] };
+        const txt = linha.replace(/\s+/g, ' ').trim();
+        const n = normalizar(txt);
+        if (/^REM\b/.test(n)) bucket.rem.push(txt);
+        else if (/^DES\b/.test(n)) bucket.des.push(txt);
+        contrapartePorData.set(data, bucket);
     };
 
     const espiarPendenciaPix = (dataRaw: string): number => {
@@ -1906,6 +1918,8 @@ function extrairNext(texto: string): Array<{ dataRaw: string; descricaoRaw: stri
                         if (/^REM\b/.test(contNorm) && tx.valorRaw.startsWith('-')) {
                             tx.valorRaw = tx.valorRaw.replace(/^-/, '');
                         }
+                    } else {
+                        adicionarContrapartePool(dataLinha, resto);
                     }
                 } else {
                     const restoNorm = normalizar(resto);
@@ -1963,14 +1977,22 @@ function extrairNext(texto: string): Array<{ dataRaw: string; descricaoRaw: stri
         if (RE_CONTINUACAO.test(linha)) {
             if (idxPend >= 0) consumirPendenciaPix(dataAtual);
             const cont = linha.replace(/\s+/g, ' ').trim();
-            tx.descricao = formatarDescricaoNext(`${tx.descricao} ${cont}`);
+            let anexou = false;
+            if (tx && tx.dataRaw === dataAtual) {
+                tx.descricao = formatarDescricaoNext(`${tx.descricao} ${cont}`);
+                anexou = true;
+            }
 
             const contNorm = normalizar(cont);
-            if (/^DES\b/.test(contNorm) && !tx.valorRaw.startsWith('-')) {
-                tx.valorRaw = `-${tx.valorRaw}`;
-            }
-            if (/^REM\b/.test(contNorm) && tx.valorRaw.startsWith('-')) {
-                tx.valorRaw = tx.valorRaw.replace(/^-/, '');
+            if (anexou) {
+                if (/^DES\b/.test(contNorm) && !tx.valorRaw.startsWith('-')) {
+                    tx.valorRaw = `-${tx.valorRaw}`;
+                }
+                if (/^REM\b/.test(contNorm) && tx.valorRaw.startsWith('-')) {
+                    tx.valorRaw = tx.valorRaw.replace(/^-/, '');
+                }
+            } else {
+                adicionarContrapartePool(dataAtual, cont);
             }
 
             historicoPendente = '';
@@ -1986,6 +2008,24 @@ function extrairNext(texto: string): Array<{ dataRaw: string; descricaoRaw: stri
             historicoPendente = '';
             continue;
         }
+    }
+
+    for (const tx of todos) {
+        const descNorm = normalizar(tx.descricaoRaw);
+        const temPix = /\bTRANSFERENCIA\s+PIX\b|\bPIX\s+(ENVIADO|RECEBIDO)\b/.test(descNorm);
+        const semContraparte = /NAO\s+INFORMADO\s+NO\s+PDF/.test(descNorm) || /^TRANSFERENCIA\s+PIX$/.test(descNorm);
+        if (!temPix || !semContraparte) continue;
+
+        const bucket = contrapartePorData.get(tx.dataRaw);
+        if (!bucket) continue;
+
+        const querDes = tx.valorRaw.startsWith('-');
+        const linha = querDes
+            ? (bucket.des.shift() ?? bucket.rem.shift())
+            : (bucket.rem.shift() ?? bucket.des.shift());
+        if (!linha) continue;
+
+        tx.descricaoRaw = formatarDescricaoNext(`${tx.descricaoRaw} ${linha}`);
     }
 
     return todos.map(t => ({
