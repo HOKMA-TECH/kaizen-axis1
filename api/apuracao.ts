@@ -71,6 +71,7 @@ function parseMoeda(raw: string): number {
 const STOPWORDS = new Set(['DE', 'DA', 'DO', 'DOS', 'DAS', 'E']);
 
 function removerAcentos(s: string): string {
+    if (typeof s !== 'string') return '';
     return s.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 }
 
@@ -1806,7 +1807,8 @@ function extrairNext(texto: string): Array<{ dataRaw: string; descricaoRaw: stri
     let historicoPendente = '';
 
     const formatarDescricaoNext = (raw: string): string => {
-        const desc = raw.replace(/\s+/g, ' ').trim();
+        const base = typeof raw === 'string' ? raw : '';
+        const desc = base.replace(/\s+/g, ' ').trim();
         const rem = desc.match(/\bREM\s*:?\s*.+$/i)?.[0] ?? '';
         const des = desc.match(/\bDES\s*:?\s*.+$/i)?.[0] ?? '';
         const temPix = /\bTRANSFERENCIA\s+PIX\b|\bPIX\s+QR\s+CODE\s+DINAMICO\b/i.test(desc);
