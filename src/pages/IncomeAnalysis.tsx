@@ -268,14 +268,14 @@ function AccordionMes({
               e.stopPropagation();
               onToggleMes(mes);
             }}
-            className="flex items-center justify-center text-gold-500 hover:text-gold-700 transition-colors"
+            className="w-6 h-6 flex items-center justify-center text-gold-500 hover:text-gold-700 transition-colors rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-gold-300"
             title={mesDesconsiderado ? 'Reconsiderar mês no cálculo' : 'Desconsiderar mês no cálculo'}
           >
             {mesDesconsiderado
               ? <ToggleLeft size={22} className="text-surface-400" />
               : <ToggleRight size={22} className="text-green-500" />}
           </button>
-          <span className="font-mono font-bold text-text-primary text-sm">{brl(totalAtivo)}</span>
+          <span className="w-[110px] text-right font-mono font-bold text-text-primary text-sm">{brl(totalAtivo)}</span>
           <button type="button" onClick={() => setAberto(!aberto)} className="text-text-secondary">
             {aberto ? <ChevronUp size={16} className="text-text-secondary" /> : <ChevronDown size={16} className="text-text-secondary" />}
           </button>
