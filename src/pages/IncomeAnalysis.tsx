@@ -11,6 +11,7 @@ import * as pdfjsLib from 'pdfjs-dist';
 import { jsPDF } from 'jspdf';
 import { Modal } from '@/components/ui/Modal';
 import { useApp } from '@/context/AppContext';
+import { useAuthorization } from '@/hooks/useAuthorization';
 import { logAuditEvent } from '@/services/auditLogger';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
@@ -328,6 +329,7 @@ function AccordionMes({
 
 export default function IncomeAnalysis() {
   const { clients, updateClient, user } = useApp();
+  const { isAnalyst } = useAuthorization();
 
   // Form state
   const [nomeCliente, setNomeCliente] = useState('');
@@ -715,6 +717,7 @@ export default function IncomeAnalysis() {
 
   const handleFinalizar = async () => {
     if (!resultado) return;
+    if (isAnalyst) return;
     setIsSaving(true);
     try {
       // Persistência no Supabase via link direto (sem edge function)
@@ -1093,16 +1096,24 @@ export default function IncomeAnalysis() {
               </select>
             </div>
           )}
-          <div className="grid grid-cols-2 gap-2">
-            <RoundedButton variant="outline" onClick={handleBaixarRelatorio} disabled={isDownloading || isSaving}>
+          {isAnalyst ? (
+            <RoundedButton fullWidth variant="outline" onClick={handleBaixarRelatorio} disabled={isDownloading}>
               {isDownloading
                 ? <span className="flex items-center gap-2 justify-center"><Loader2 size={14} className="animate-spin" />Baixando…</span>
                 : <span className="flex items-center gap-2 justify-center"><Download size={14} />Baixar Relatório</span>}
             </RoundedButton>
-            <RoundedButton onClick={handleFinalizar} disabled={isSaving || isDownloading}>
-              {isSaving ? <span className="flex items-center gap-2 justify-center"><Loader2 size={14} className="animate-spin" />Salvando…</span> : '✓ Confirmar e Salvar'}
-            </RoundedButton>
-          </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-2">
+              <RoundedButton variant="outline" onClick={handleBaixarRelatorio} disabled={isDownloading || isSaving}>
+                {isDownloading
+                  ? <span className="flex items-center gap-2 justify-center"><Loader2 size={14} className="animate-spin" />Baixando…</span>
+                  : <span className="flex items-center gap-2 justify-center"><Download size={14} />Baixar Relatório</span>}
+              </RoundedButton>
+              <RoundedButton onClick={handleFinalizar} disabled={isSaving || isDownloading}>
+                {isSaving ? <span className="flex items-center gap-2 justify-center"><Loader2 size={14} className="animate-spin" />Salvando…</span> : '✓ Confirmar e Salvar'}
+              </RoundedButton>
+            </div>
+          )}
         </div>
       </Modal>
     </div>
