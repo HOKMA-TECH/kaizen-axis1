@@ -311,7 +311,8 @@ export default function Clients() {
   const navigate = useNavigate();
   const location = useLocation();
   const { clients, leads, loading, userRole, allProfiles, teams, directorates, user } = useApp();
-  const { isManager, isAdmin, isDirector, canViewAllClients } = useAuthorization();
+  const { isAdmin, isDirector, canViewAllClients } = useAuthorization();
+  const canViewUrgencyState = isAdmin || isDirector;
 
   const [mainTab, setMainTab] = useState<MainTab>('clientes');
   const [activeStage, setActiveStage] = useState<ClientStage | 'Todos'>('Todos');
@@ -568,7 +569,7 @@ export default function Clients() {
               return (
               <PremiumCard
                 key={client.id}
-                className={`relative group cursor-pointer hover:border-gold-300 transition-colors ${urgency.level === 'critical' ? 'border-red-300 dark:border-red-700' : urgency.level === 'urgent' ? 'border-orange-300 dark:border-orange-700' : ''}`}
+                className={`relative group cursor-pointer hover:border-gold-300 transition-colors ${canViewUrgencyState && urgency.level === 'critical' ? 'border-red-300 dark:border-red-700' : canViewUrgencyState && urgency.level === 'urgent' ? 'border-orange-300 dark:border-orange-700' : ''}`}
                 onClick={() => navigate(`/clients/${client.id}`)}
               >
                 <div className="flex justify-between items-start mb-2">
@@ -578,7 +579,7 @@ export default function Clients() {
                   </div>
                   <div className="flex flex-col items-end gap-1 flex-shrink-0">
                     <StatusBadge status={client.stage} />
-                    {urgency.level && (
+                    {canViewUrgencyState && urgency.level && (
                       <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${
                         urgency.level === 'critical' ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400' :
                         urgency.level === 'urgent'   ? 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400' :
@@ -615,7 +616,7 @@ export default function Clients() {
                   >
                     <Mail size={14} /> Email
                   </RoundedButton>
-                  {(isAdmin || isDirector) && urgency.level && (
+                  {canViewUrgencyState && urgency.level && (
                     <RoundedButton
                       variant="secondary" size="sm"
                       className={`h-9 px-3 text-xs ${
