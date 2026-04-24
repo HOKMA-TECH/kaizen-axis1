@@ -1798,7 +1798,7 @@ function extrairNext(texto: string): Array<{ dataRaw: string; descricaoRaw: stri
 
     const RE_DATA = /^(\d{2}[\/-]\d{2}[\/-]\d{4})\s*(.*)$/;
     const RE_VALOR = /R\$\s*-?\d{1,3}(?:\.\d{3})*,\d{2}|-?\d{1,3}(?:\.\d{3})*,\d{2}/g;
-    const RE_CONTINUACAO = /^(REM\s*:|DES\s*:|FAV\s*:|ORIGEM\s*:|DESTINO\s*:)/i;
+    const RE_CONTINUACAO = /^(REM|DES|FAV|ORIGEM|DESTINO)\s*:?\s*/i;
     const RE_HISTORICO_NEXT = /^\d{2,4}\s*-\s*[A-Z0-9]/i;
 
     let dataAtual = '';
@@ -1807,8 +1807,8 @@ function extrairNext(texto: string): Array<{ dataRaw: string; descricaoRaw: stri
 
     const formatarDescricaoNext = (raw: string): string => {
         const desc = raw.replace(/\s+/g, ' ').trim();
-        const rem = desc.match(/\bREM\s*:\s*.+$/i)?.[0] ?? '';
-        const des = desc.match(/\bDES\s*:\s*.+$/i)?.[0] ?? '';
+        const rem = desc.match(/\bREM\s*:?\s*.+$/i)?.[0] ?? '';
+        const des = desc.match(/\bDES\s*:?\s*.+$/i)?.[0] ?? '';
         const temPix = /\bTRANSFERENCIA\s+PIX\b|\bPIX\s+QR\s+CODE\s+DINAMICO\b/i.test(desc);
 
         if (temPix && rem) return `PIX RECEBIDO - ${rem}`;
@@ -1860,10 +1860,10 @@ function extrairNext(texto: string): Array<{ dataRaw: string; descricaoRaw: stri
                     if (tx && tx.dataRaw === dataLinha) {
                         tx.descricao = formatarDescricaoNext(`${tx.descricao} ${resto}`);
                         const contNorm = normalizar(resto);
-                        if (/^DES\s*:/.test(contNorm) && !tx.valorRaw.startsWith('-')) {
+                        if (/^DES\b/.test(contNorm) && !tx.valorRaw.startsWith('-')) {
                             tx.valorRaw = `-${tx.valorRaw}`;
                         }
-                        if (/^REM\s*:/.test(contNorm) && tx.valorRaw.startsWith('-')) {
+                        if (/^REM\b/.test(contNorm) && tx.valorRaw.startsWith('-')) {
                             tx.valorRaw = tx.valorRaw.replace(/^-/, '');
                         }
                     }
@@ -1893,23 +1893,36 @@ function extrairNext(texto: string): Array<{ dataRaw: string; descricaoRaw: stri
         }
 
         if (!dataAtual || ultimoIdx < 0) continue;
-        if (!RE_CONTINUACAO.test(linha)) continue;
-
         const tx = todos[ultimoIdx];
         if (!tx || tx.dataRaw !== dataAtual) continue;
 
-        const cont = linha.replace(/\s+/g, ' ').trim();
-        tx.descricao = formatarDescricaoNext(`${tx.descricao} ${cont}`);
+        const linhaNorm = normalizar(linha);
 
-        const contNorm = normalizar(cont);
-        if (/^DES\s*:/.test(contNorm) && !tx.valorRaw.startsWith('-')) {
-            tx.valorRaw = `-${tx.valorRaw}`;
-        }
-        if (/^REM\s*:/.test(contNorm) && tx.valorRaw.startsWith('-')) {
-            tx.valorRaw = tx.valorRaw.replace(/^-/, '');
+        // Continuação explícita (REM/DES/FAV/ORIGEM/DESTINO)
+        if (RE_CONTINUACAO.test(linha)) {
+            const cont = linha.replace(/\s+/g, ' ').trim();
+            tx.descricao = formatarDescricaoNext(`${tx.descricao} ${cont}`);
+
+            const contNorm = normalizar(cont);
+            if (/^DES\b/.test(contNorm) && !tx.valorRaw.startsWith('-')) {
+                tx.valorRaw = `-${tx.valorRaw}`;
+            }
+            if (/^REM\b/.test(contNorm) && tx.valorRaw.startsWith('-')) {
+                tx.valorRaw = tx.valorRaw.replace(/^-/, '');
+            }
+
+            historicoPendente = '';
+            continue;
         }
 
-        historicoPendente = '';
+        // Fallback OCR: algumas linhas perdem o "REM/DES" mas mantêm o nome/data.
+        // Se a transação base for transferência PIX, anexamos como contraparte.
+        if (/\bTRANSFERENCIA\s+PIX\b/.test(normalizar(tx.descricao)) && linha.length >= 4 && !/R\$|SALDO\s+DO\s+DIA|^\d{2}[\/-]\d{2}[\/-]\d{4}\b/i.test(linha)) {
+            const marcador = tx.valorRaw.startsWith('-') ? 'DES:' : 'REM:';
+            tx.descricao = formatarDescricaoNext(`${tx.descricao} ${marcador} ${linha}`);
+            historicoPendente = '';
+            continue;
+        }
     }
 
     return todos;
