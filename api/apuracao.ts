@@ -1810,12 +1810,18 @@ function extrairNext(texto: string): Array<{ dataRaw: string; descricaoRaw: stri
     const formatarDescricaoNext = (raw: string): string => {
         const base = typeof raw === 'string' ? raw : '';
         const desc = base.replace(/\s+/g, ' ').trim();
-        const rem = desc.match(/\bREM\s*:?\s*.+$/i)?.[0] ?? '';
-        const des = desc.match(/\bDES\s*:?\s*.+$/i)?.[0] ?? '';
+        const rems = Array.from(desc.matchAll(/\bREM\s*:?\s*(.*?)(?=\b(?:REM|DES)\s*:?|$)/ig))
+            .map(m => (m[1] ?? '').trim())
+            .filter(Boolean);
+        const dess = Array.from(desc.matchAll(/\bDES\s*:?\s*(.*?)(?=\b(?:REM|DES)\s*:?|$)/ig))
+            .map(m => (m[1] ?? '').trim())
+            .filter(Boolean);
+        const rem = rems.length > 0 ? rems[rems.length - 1] : '';
+        const des = dess.length > 0 ? dess[dess.length - 1] : '';
         const temPix = /\bTRANSFERENCIA\s+PIX\b|\bPIX\s+QR\s+CODE\s+DINAMICO\b/i.test(desc);
 
-        if (temPix && rem) return `PIX RECEBIDO - ${rem}`;
-        if (temPix && des) return `PIX ENVIADO - ${des}`;
+        if (temPix && rem && !/NAO\s+INFORMADO\s+NO\s+PDF/i.test(rem)) return `PIX RECEBIDO - REM: ${rem}`;
+        if (temPix && des && !/NAO\s+INFORMADO\s+NO\s+PDF/i.test(des)) return `PIX ENVIADO - DES: ${des}`;
         if (temPix && !rem && !des) return 'TRANSFERENCIA PIX';
         return desc;
     };
@@ -1857,14 +1863,12 @@ function extrairNext(texto: string): Array<{ dataRaw: string; descricaoRaw: stri
         if (/^[\d.]+,\d{2}-$/.test(valorRaw)) valorRaw = `-${valorRaw.slice(0, -1)}`;
         if (/^[\d.]+,\d{2}\+$/.test(valorRaw)) valorRaw = valorRaw.slice(0, -1);
 
-        const descFinal = marcarFallbackContraparte(desc, valorRaw);
-
-        const key = `${dataRaw}|${descFinal}|${valorRaw}`;
+        const key = `${dataRaw}|${desc}|${valorRaw}`;
         if (vistas.has(key)) return;
         vistas.add(key);
-        todos.push({ dataRaw, descricaoRaw: descFinal, valorRaw });
+        todos.push({ dataRaw, descricaoRaw: desc, valorRaw });
         ultimoIdx = todos.length - 1;
-        registrarPendenciaPix(dataRaw, descFinal, ultimoIdx);
+        registrarPendenciaPix(dataRaw, desc, ultimoIdx);
     };
 
     for (const linha of linhas) {
@@ -1984,7 +1988,10 @@ function extrairNext(texto: string): Array<{ dataRaw: string; descricaoRaw: stri
         }
     }
 
-    return todos;
+    return todos.map(t => ({
+        ...t,
+        descricaoRaw: marcarFallbackContraparte(t.descricaoRaw, t.valorRaw),
+    }));
 }
 
 function extrairSantander(texto: string): Array<{ dataRaw: string; descricaoRaw: string; valorRaw: string }> {
