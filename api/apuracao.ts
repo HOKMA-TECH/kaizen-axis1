@@ -1830,7 +1830,8 @@ function extrairNext(texto: string): Array<{ dataRaw: string; descricaoRaw: stri
         const mData = linha.match(RE_DATA);
 
         if (mData) {
-            dataAtual = mData[1].replace(/-/g, '/');
+            const dataLinha = mData[1].replace(/-/g, '/');
+            dataAtual = dataLinha;
             let resto = (mData[2] ?? '').trim();
             if (!resto) continue;
 
@@ -1839,7 +1840,24 @@ function extrairNext(texto: string): Array<{ dataRaw: string; descricaoRaw: stri
             }
 
             const vals = Array.from(resto.matchAll(RE_VALOR));
-            if (vals.length === 0) continue;
+            if (vals.length === 0) {
+                // Next frequentemente traz a linha complementar (REM:/DES:) com data repetida,
+                // mas sem valor. Nesse caso, anexamos ao lançamento imediatamente anterior do mesmo dia.
+                if (RE_CONTINUACAO.test(resto) && ultimoIdx >= 0) {
+                    const tx = todos[ultimoIdx];
+                    if (tx && tx.dataRaw === dataLinha) {
+                        tx.descricao = `${tx.descricao} ${resto}`.replace(/\s+/g, ' ').trim();
+                        const contNorm = normalizar(resto);
+                        if (/^DES\s*:/.test(contNorm) && !tx.valorRaw.startsWith('-')) {
+                            tx.valorRaw = `-${tx.valorRaw}`;
+                        }
+                        if (/^REM\s*:/.test(contNorm) && tx.valorRaw.startsWith('-')) {
+                            tx.valorRaw = tx.valorRaw.replace(/^-/, '');
+                        }
+                    }
+                }
+                continue;
+            }
 
             const primeiroValor = vals[0][0];
             const idx = resto.indexOf(primeiroValor);
