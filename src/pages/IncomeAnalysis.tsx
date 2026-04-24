@@ -222,13 +222,15 @@ async function extrairTextoPdf(
 // ─── Componente AccordionMes ──────────────────────────────────────────────────
 
 function AccordionMes({
-  mes, total, transacoes, validadas, onToggle,
+  mes, total, transacoes, validadas, onToggle, mesDesconsiderado, onToggleMes,
 }: {
   mes: string;
   total: number;
   transacoes: TransacaoDetalhada[];
   validadas: Set<string>;
   onToggle: (id: string) => void;
+  mesDesconsiderado: boolean;
+  onToggleMes: (mes: string) => void;
 }) {
   const [aberto, setAberto] = useState(false);
   const alertCount = transacoes.filter(t => t.custom_tag).length;
@@ -237,14 +239,22 @@ function AccordionMes({
     .reduce((acc, t) => acc + t.valor, 0);
 
   return (
-    <div className="rounded-2xl overflow-hidden border border-surface-100 bg-white dark:bg-surface-100 shadow-sm">
+    <div className={`rounded-2xl overflow-hidden border shadow-sm ${mesDesconsiderado ? 'border-red-200 bg-red-50/40 dark:bg-red-900/10' : 'border-surface-100 bg-white dark:bg-surface-100'}`}>
       {/* Header */}
-      <button
-        onClick={() => setAberto(!aberto)}
-        className="w-full flex items-center justify-between p-4 hover:bg-surface-50 transition-colors"
-      >
+      <div className={`w-full flex items-center justify-between p-4 transition-colors ${mesDesconsiderado ? 'hover:bg-red-50/70 dark:hover:bg-red-900/20' : 'hover:bg-surface-50'}`}>
         <div className="flex items-center gap-3">
-          <span className="font-semibold text-text-primary text-sm">{mes}</span>
+          <button
+            type="button"
+            onClick={() => setAberto(!aberto)}
+            className="font-semibold text-text-primary text-sm"
+          >
+            {mes}
+          </button>
+          {mesDesconsiderado && (
+            <span className="text-[10px] px-2 py-0.5 bg-red-100 text-red-700 rounded-full font-medium">
+              mês desconsiderado
+            </span>
+          )}
           {alertCount > 0 && (
             <span className="text-[10px] px-2 py-0.5 bg-yellow-100 text-yellow-700 rounded-full font-medium">
               {alertCount} alerta{alertCount > 1 ? 's' : ''}
@@ -252,10 +262,25 @@ function AccordionMes({
           )}
         </div>
         <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggleMes(mes);
+            }}
+            className={`text-[10px] px-2 py-1 rounded-lg font-medium border transition-colors ${mesDesconsiderado
+              ? 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100'
+              : 'bg-red-50 text-red-700 border-red-200 hover:bg-red-100'}`}
+            title={mesDesconsiderado ? 'Reconsiderar este mês no cálculo' : 'Desconsiderar este mês inteiro no cálculo'}
+          >
+            {mesDesconsiderado ? 'Reconsiderar mês' : 'Desconsiderar mês'}
+          </button>
           <span className="font-mono font-bold text-text-primary text-sm">{brl(totalAtivo)}</span>
-          {aberto ? <ChevronUp size={16} className="text-text-secondary" /> : <ChevronDown size={16} className="text-text-secondary" />}
+          <button type="button" onClick={() => setAberto(!aberto)} className="text-text-secondary">
+            {aberto ? <ChevronUp size={16} className="text-text-secondary" /> : <ChevronDown size={16} className="text-text-secondary" />}
+          </button>
         </div>
-      </button>
+      </div>
 
       {/* Body */}
       <AnimatePresence>
@@ -350,6 +375,7 @@ export default function IncomeAnalysis() {
 
   // ── Filtros Dinâmicos (Bolhas) e Overrides ─────────────────────────────────
   const [exclusionBubbles, setExclusionBubbles] = useState<string[]>([]);
+  const [excludedMonths, setExcludedMonths] = useState<string[]>([]);
   const [bubbleInput, setBubbleInput] = useState('');
   const [userOverrides, setUserOverrides] = useState<Record<string, boolean>>({});
 
@@ -363,6 +389,7 @@ export default function IncomeAnalysis() {
     setStep(data.step);
     setResultado(data.resultado as ResultadoApuracao | null);
     setExclusionBubbles(data.exclusionBubbles);
+    setExcludedMonths(data.excludedMonths || []);
     setUserOverrides(data.userOverrides);
   }, []);
 
@@ -373,8 +400,8 @@ export default function IncomeAnalysis() {
 
   // Auto-save whenever key state changes
   useEffect(() => {
-    persistSave({ nomeCliente, cpf, clienteVinculado, step, resultado, exclusionBubbles, userOverrides });
-  }, [nomeCliente, cpf, clienteVinculado, step, resultado, exclusionBubbles, userOverrides, persistSave]);
+    persistSave({ nomeCliente, cpf, clienteVinculado, step, resultado, exclusionBubbles, excludedMonths, userOverrides });
+  }, [nomeCliente, cpf, clienteVinculado, step, resultado, exclusionBubbles, excludedMonths, userOverrides, persistSave]);
 
   const validadas = useMemo(() => {
     if (!resultado) return new Set<string>();
@@ -388,6 +415,10 @@ export default function IncomeAnalysis() {
 
       let isAtiva = t.is_validated;
       const descNorm = normalize(t.descricao);
+
+      if (excludedMonths.includes(t.mes)) {
+        isAtiva = false;
+      }
 
       // Verificação das bolhas
       const hasBubble = exclusionBubbles.some(b => {
@@ -415,7 +446,13 @@ export default function IncomeAnalysis() {
       if (isAtiva) ativas.add(t.id);
     }
     return ativas;
-  }, [resultado, exclusionBubbles, userOverrides]);
+  }, [resultado, exclusionBubbles, excludedMonths, userOverrides]);
+
+  const toggleMesDesconsiderado = useCallback((mes: string) => {
+    setExcludedMonths(prev => prev.includes(mes)
+      ? prev.filter(m => m !== mes)
+      : [...prev, mes]);
+  }, []);
 
   const toggleValidada = useCallback((id: string) => {
     setUserOverrides(prev => {
@@ -443,8 +480,10 @@ export default function IncomeAnalysis() {
 
     const porMes: Record<string, number> = {};
     for (const mes of mesesBase) porMes[mes] = 0;
+    const mesesExcluidosSet = new Set(excludedMonths);
 
     for (const t of resultado.transacoesDetalhadas) {
+      if (mesesExcluidosSet.has(t.mes)) continue;
       if (t.valor > 0 && validadas.has(t.id)) {
         if (!(t.mes in porMes) && /^\d{4}-(0[1-9]|1[0-2])$/.test(t.mes)) porMes[t.mes] = 0;
         porMes[t.mes] = (porMes[t.mes] ?? 0) + t.valor;
@@ -453,7 +492,7 @@ export default function IncomeAnalysis() {
 
     const vals = Object.values(porMes);
     const total = vals.reduce((a, b) => a + b, 0);
-    const meses = Object.keys(porMes).length;
+    const meses = Object.keys(porMes).filter(m => !mesesExcluidosSet.has(m)).length;
     return {
       totalPorMesAtivo: porMes,
       totalApuradoAtivo: total,
@@ -462,7 +501,7 @@ export default function IncomeAnalysis() {
       menorMesAtivo: vals.length ? Math.min(...vals) : 0,
       mesesAtivos: meses,
     };
-  }, [resultado, validadas]);
+  }, [resultado, validadas, excludedMonths]);
 
   // ── Agrupa transações válidas por mês para o Accordion ────────────────────
   const transacoesPorMes = useMemo(() => {
@@ -558,7 +597,7 @@ export default function IncomeAnalysis() {
 
   const handleNovaAnalise = () => {
     setStep(1); setResultado(null); setErro(null);
-    setArquivos([]); setUserOverrides({}); setExclusionBubbles([]);
+    setArquivos([]); setUserOverrides({}); setExclusionBubbles([]); setExcludedMonths([]);
     if (fileRef.current) fileRef.current.value = '';
     persistClear();
   };
@@ -607,6 +646,14 @@ export default function IncomeAnalysis() {
     doc.text(`Meses Considerados: ${mesesAtivos}`, 14, y);
     y += 12;
 
+    if (excludedMonths.length > 0) {
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'bold');
+      doc.text(`Meses desconsiderados: ${[...excludedMonths].sort().join(', ')}`, 14, y);
+      y += 10;
+      doc.setFont('helvetica', 'normal');
+    }
+
     if (exclusionBubbles.length > 0) {
       doc.setFontSize(11);
       doc.setFont('helvetica', 'bold');
@@ -636,7 +683,8 @@ export default function IncomeAnalysis() {
       .sort(([a], [b]) => a.localeCompare(b))
       .forEach(([mes, valor]) => {
         checkPage();
-        doc.text(`${mes} .................... R$ ${fmt(valor)}`, 14, y);
+        const marcado = excludedMonths.includes(mes) ? ' (DESCONSIDERADO)' : '';
+        doc.text(`${mes}${marcado} .................... R$ ${fmt(valor)}`, 14, y);
         y += 8;
       });
 
@@ -656,6 +704,7 @@ export default function IncomeAnalysis() {
 
     const transacoesPorMesPdf: Record<string, typeof resultado.transacoesDetalhadas> = {};
     resultado.transacoesDetalhadas.forEach(t => {
+      if (excludedMonths.includes(t.mes)) return;
       if (t.valor > 0 && validadas.has(t.id)) {
         if (!transacoesPorMesPdf[t.mes]) transacoesPorMesPdf[t.mes] = [];
         transacoesPorMesPdf[t.mes].push(t);
@@ -685,7 +734,7 @@ export default function IncomeAnalysis() {
     const fileName = `apuracao_renda_${Date.now()}.pdf`;
     const pdfBlob = doc.output('blob');
     return { pdfBlob, fileName };
-  }, [resultado, totalApuradoAtivo, nomeCliente, clienteVinculado, clients, cpf, validadas, maiorMesAtivo, menorMesAtivo, mesesAtivos, exclusionBubbles, totalPorMesAtivo]);
+  }, [resultado, totalApuradoAtivo, nomeCliente, clienteVinculado, clients, cpf, validadas, maiorMesAtivo, menorMesAtivo, mesesAtivos, exclusionBubbles, excludedMonths, totalPorMesAtivo]);
 
   const handleBaixarRelatorio = async () => {
     if (!resultado) return;
@@ -731,13 +780,14 @@ export default function IncomeAnalysis() {
         total_apurado: totalApuradoAtivo,
         meses_considerados: mesesAtivos,
         renda_multiplo: null as number | null,
-        resultado_json: {
-          ...resultado,
-          totalPorMesAtivo,
-          mediaMensalAtiva,
-          validadas: [...validadas],
-          exclusionBubbles,
-        },
+          resultado_json: {
+            ...resultado,
+            totalPorMesAtivo,
+            mediaMensalAtiva,
+            validadas: [...validadas],
+            exclusionBubbles,
+            excludedMonths,
+          },
         validado_em: new Date().toISOString(),
       };
 
@@ -1026,6 +1076,8 @@ export default function IncomeAnalysis() {
                       transacoes={transacoes}
                       validadas={validadas}
                       onToggle={toggleValidada}
+                      mesDesconsiderado={excludedMonths.includes(mes)}
+                      onToggleMes={toggleMesDesconsiderado}
                     />
                   ))}
               </div>

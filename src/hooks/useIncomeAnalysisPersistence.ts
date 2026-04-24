@@ -18,6 +18,7 @@ export interface IncomeSessionData {
   step: 1 | 2;
   resultado: unknown | null;
   exclusionBubbles: string[];
+  excludedMonths: string[];
   userOverrides: Record<string, boolean>;
   savedAt: string; // ISO string
 }
