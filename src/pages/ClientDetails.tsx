@@ -622,32 +622,31 @@ export default function ClientDetails() {
                     <div className="flex items-center justify-between">
                       <p className="text-sm font-semibold text-text-primary">Proponente {index + 2}</p>
                       <div className="flex gap-2">
-                        <button onClick={cancelEditProponent} className="text-text-secondary p-1"><X size={16} /></button>
-                        <button onClick={saveEditProponent} className="text-green-600 p-1"><Save size={16} /></button>
+                        <button onClick={cancelEditProponent} className="h-7 w-7 flex items-center justify-center rounded-md text-text-secondary hover:bg-surface-100"><X size={13} /></button>
+                        <button onClick={saveEditProponent} className="h-7 w-7 flex items-center justify-center rounded-md text-green-600 hover:bg-green-50"><Save size={13} /></button>
                       </div>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      <input value={editingProponent.name} onChange={e => setEditingProponent(prev => ({ ...prev, name: e.target.value }))} className="w-full p-2 bg-surface-50 rounded-lg border-none focus:ring-2 focus:ring-gold-400 text-sm text-text-primary" placeholder="Nome" />
-                      <input value={editingProponent.cpf} onChange={e => setEditingProponent(prev => ({ ...prev, cpf: e.target.value }))} className="w-full p-2 bg-surface-50 rounded-lg border-none focus:ring-2 focus:ring-gold-400 text-sm text-text-primary" placeholder="CPF" />
-                      <input value={editingProponent.email} onChange={e => setEditingProponent(prev => ({ ...prev, email: e.target.value }))} className="w-full p-2 bg-surface-50 rounded-lg border-none focus:ring-2 focus:ring-gold-400 text-sm text-text-primary" placeholder="Email" />
-                      <input value={editingProponent.phone} onChange={e => setEditingProponent(prev => ({ ...prev, phone: e.target.value }))} className="w-full p-2 bg-surface-50 rounded-lg border-none focus:ring-2 focus:ring-gold-400 text-sm text-text-primary" placeholder="Telefone" />
-                      <input value={editingProponent.address} onChange={e => setEditingProponent(prev => ({ ...prev, address: e.target.value }))} className="w-full p-2 bg-surface-50 rounded-lg border-none focus:ring-2 focus:ring-gold-400 text-sm text-text-primary" placeholder="Endereço" />
-                      <input value={editingProponent.profession} onChange={e => setEditingProponent(prev => ({ ...prev, profession: e.target.value }))} className="w-full p-2 bg-surface-50 rounded-lg border-none focus:ring-2 focus:ring-gold-400 text-sm text-text-primary" placeholder="Profissão" />
-                      <input value={editingProponent.grossIncome} onChange={e => setEditingProponent(prev => ({ ...prev, grossIncome: e.target.value }))} className="w-full p-2 bg-surface-50 rounded-lg border-none focus:ring-2 focus:ring-gold-400 text-sm text-text-primary" placeholder="Renda Bruta" />
+                      <input value={editingProponent.name} onChange={e => setEditingProponent(prev => ({ ...prev, name: e.target.value }))} className="w-full h-11 px-3 bg-surface-50 rounded-lg border-none focus:ring-2 focus:ring-gold-400 text-sm text-text-primary" placeholder="Nome" />
+                      <input value={editingProponent.cpf} onChange={e => setEditingProponent(prev => ({ ...prev, cpf: e.target.value }))} className="w-full h-11 px-3 bg-surface-50 rounded-lg border-none focus:ring-2 focus:ring-gold-400 text-sm text-text-primary" placeholder="CPF" />
+                      <input value={editingProponent.email} onChange={e => setEditingProponent(prev => ({ ...prev, email: e.target.value }))} className="w-full h-11 px-3 bg-surface-50 rounded-lg border-none focus:ring-2 focus:ring-gold-400 text-sm text-text-primary" placeholder="Email" />
+                      <input value={editingProponent.phone} onChange={e => setEditingProponent(prev => ({ ...prev, phone: e.target.value }))} className="w-full h-11 px-3 bg-surface-50 rounded-lg border-none focus:ring-2 focus:ring-gold-400 text-sm text-text-primary" placeholder="Telefone" />
+                      <input value={editingProponent.address} onChange={e => setEditingProponent(prev => ({ ...prev, address: e.target.value }))} className="w-full h-11 px-3 bg-surface-50 rounded-lg border-none focus:ring-2 focus:ring-gold-400 text-sm text-text-primary" placeholder="Endereço" />
+                      <input value={editingProponent.profession} onChange={e => setEditingProponent(prev => ({ ...prev, profession: e.target.value }))} className="w-full h-11 px-3 bg-surface-50 rounded-lg border-none focus:ring-2 focus:ring-gold-400 text-sm text-text-primary" placeholder="Profissão" />
+                      <input value={editingProponent.grossIncome} onChange={e => setEditingProponent(prev => ({ ...prev, grossIncome: e.target.value }))} className="w-full h-11 px-3 bg-surface-50 rounded-lg border-none focus:ring-2 focus:ring-gold-400 text-sm text-text-primary" placeholder="Renda Bruta" />
+                      <select value={editingProponent.incomeType} onChange={e => setEditingProponent(prev => ({ ...prev, incomeType: e.target.value as 'Formal' | 'Informal' }))} className="w-full h-11 px-3 bg-surface-50 rounded-lg border-none focus:ring-2 focus:ring-gold-400 text-sm text-text-primary">
+                        <option value="Formal">Tipo de renda: Formal</option>
+                        <option value="Informal">Tipo de renda: Informal</option>
+                      </select>
                     </div>
 
-                    <select value={editingProponent.incomeType} onChange={e => setEditingProponent(prev => ({ ...prev, incomeType: e.target.value as 'Formal' | 'Informal' }))} className="w-full p-2 bg-surface-50 rounded-lg border-none focus:ring-2 focus:ring-gold-400 text-sm text-text-primary">
-                      <option value="Formal">Formal</option>
-                      <option value="Informal">Informal</option>
-                    </select>
-
                     <div className="grid grid-cols-2 gap-3">
-                      <select value={editingProponent.cotista} onChange={e => setEditingProponent(prev => ({ ...prev, cotista: e.target.value }))} className="w-full p-2 bg-surface-50 rounded-lg border-none focus:ring-2 focus:ring-gold-400 text-sm text-text-primary">
+                      <select value={editingProponent.cotista} onChange={e => setEditingProponent(prev => ({ ...prev, cotista: e.target.value }))} className="w-full h-11 px-3 bg-surface-50 rounded-lg border-none focus:ring-2 focus:ring-gold-400 text-sm text-text-primary">
                         <option value="Não">Cotista: Não</option>
                         <option value="Sim">Cotista: Sim</option>
                       </select>
-                      <select value={editingProponent.socialFactor} onChange={e => setEditingProponent(prev => ({ ...prev, socialFactor: e.target.value }))} className="w-full p-2 bg-surface-50 rounded-lg border-none focus:ring-2 focus:ring-gold-400 text-sm text-text-primary">
+                      <select value={editingProponent.socialFactor} onChange={e => setEditingProponent(prev => ({ ...prev, socialFactor: e.target.value }))} className="w-full h-11 px-3 bg-surface-50 rounded-lg border-none focus:ring-2 focus:ring-gold-400 text-sm text-text-primary">
                         <option value="Não">Fator Social: Não</option>
                         <option value="Sim">Fator Social: Sim</option>
                       </select>
@@ -661,8 +660,8 @@ export default function ClientDetails() {
                   <div className="flex items-center justify-between">
                     <p className="text-sm font-semibold text-text-primary">Proponente {index + 2}</p>
                     <div className="flex gap-2">
-                      <button onClick={() => startEditProponent(proponent)} className="text-gold-600 p-1"><Edit2 size={15} /></button>
-                      <button onClick={() => handleDeleteProponent(proponent.id)} className="text-red-500 p-1"><Trash2 size={15} /></button>
+                      <button onClick={() => startEditProponent(proponent)} className="h-7 w-7 flex items-center justify-center rounded-md text-gold-600 hover:bg-gold-50"><Edit2 size={12} /></button>
+                      <button onClick={() => handleDeleteProponent(proponent.id)} className="h-7 w-7 flex items-center justify-center rounded-md text-red-500 hover:bg-red-50"><Trash2 size={12} /></button>
                     </div>
                   </div>
                   <p className="text-sm text-text-primary font-medium">{proponent.name}</p>
@@ -677,27 +676,27 @@ export default function ClientDetails() {
 
             <PremiumCard className="space-y-3">
               <div className="flex items-center gap-2 text-sm font-semibold text-text-primary">
-                <Plus size={14} /> Adicionar proponente adicional
+                <Plus size={12} /> Adicionar proponente adicional
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <input value={newProponent.name} onChange={e => setNewProponent(prev => ({ ...prev, name: e.target.value }))} className="w-full p-2 bg-surface-50 rounded-lg border-none focus:ring-2 focus:ring-gold-400 text-sm text-text-primary" placeholder="Nome" />
-                <input value={newProponent.cpf} onChange={e => setNewProponent(prev => ({ ...prev, cpf: e.target.value }))} className="w-full p-2 bg-surface-50 rounded-lg border-none focus:ring-2 focus:ring-gold-400 text-sm text-text-primary" placeholder="CPF" />
-                <input value={newProponent.email} onChange={e => setNewProponent(prev => ({ ...prev, email: e.target.value }))} className="w-full p-2 bg-surface-50 rounded-lg border-none focus:ring-2 focus:ring-gold-400 text-sm text-text-primary" placeholder="Email" />
-                <input value={newProponent.phone} onChange={e => setNewProponent(prev => ({ ...prev, phone: e.target.value }))} className="w-full p-2 bg-surface-50 rounded-lg border-none focus:ring-2 focus:ring-gold-400 text-sm text-text-primary" placeholder="Telefone" />
-                <input value={newProponent.address} onChange={e => setNewProponent(prev => ({ ...prev, address: e.target.value }))} className="w-full p-2 bg-surface-50 rounded-lg border-none focus:ring-2 focus:ring-gold-400 text-sm text-text-primary" placeholder="Endereço" />
-                <input value={newProponent.profession} onChange={e => setNewProponent(prev => ({ ...prev, profession: e.target.value }))} className="w-full p-2 bg-surface-50 rounded-lg border-none focus:ring-2 focus:ring-gold-400 text-sm text-text-primary" placeholder="Profissão" />
-                <input value={newProponent.grossIncome} onChange={e => setNewProponent(prev => ({ ...prev, grossIncome: e.target.value }))} className="w-full p-2 bg-surface-50 rounded-lg border-none focus:ring-2 focus:ring-gold-400 text-sm text-text-primary" placeholder="Renda Bruta" />
+                <input value={newProponent.name} onChange={e => setNewProponent(prev => ({ ...prev, name: e.target.value }))} className="w-full h-11 px-3 bg-surface-50 rounded-lg border-none focus:ring-2 focus:ring-gold-400 text-sm text-text-primary" placeholder="Nome" />
+                <input value={newProponent.cpf} onChange={e => setNewProponent(prev => ({ ...prev, cpf: e.target.value }))} className="w-full h-11 px-3 bg-surface-50 rounded-lg border-none focus:ring-2 focus:ring-gold-400 text-sm text-text-primary" placeholder="CPF" />
+                <input value={newProponent.email} onChange={e => setNewProponent(prev => ({ ...prev, email: e.target.value }))} className="w-full h-11 px-3 bg-surface-50 rounded-lg border-none focus:ring-2 focus:ring-gold-400 text-sm text-text-primary" placeholder="Email" />
+                <input value={newProponent.phone} onChange={e => setNewProponent(prev => ({ ...prev, phone: e.target.value }))} className="w-full h-11 px-3 bg-surface-50 rounded-lg border-none focus:ring-2 focus:ring-gold-400 text-sm text-text-primary" placeholder="Telefone" />
+                <input value={newProponent.address} onChange={e => setNewProponent(prev => ({ ...prev, address: e.target.value }))} className="w-full h-11 px-3 bg-surface-50 rounded-lg border-none focus:ring-2 focus:ring-gold-400 text-sm text-text-primary" placeholder="Endereço" />
+                <input value={newProponent.profession} onChange={e => setNewProponent(prev => ({ ...prev, profession: e.target.value }))} className="w-full h-11 px-3 bg-surface-50 rounded-lg border-none focus:ring-2 focus:ring-gold-400 text-sm text-text-primary" placeholder="Profissão" />
+                <input value={newProponent.grossIncome} onChange={e => setNewProponent(prev => ({ ...prev, grossIncome: e.target.value }))} className="w-full h-11 px-3 bg-surface-50 rounded-lg border-none focus:ring-2 focus:ring-gold-400 text-sm text-text-primary" placeholder="Renda Bruta" />
+                <select value={newProponent.incomeType} onChange={e => setNewProponent(prev => ({ ...prev, incomeType: e.target.value as 'Formal' | 'Informal' }))} className="w-full h-11 px-3 bg-surface-50 rounded-lg border-none focus:ring-2 focus:ring-gold-400 text-sm text-text-primary">
+                  <option value="Formal">Tipo de renda: Formal</option>
+                  <option value="Informal">Tipo de renda: Informal</option>
+                </select>
               </div>
-              <select value={newProponent.incomeType} onChange={e => setNewProponent(prev => ({ ...prev, incomeType: e.target.value as 'Formal' | 'Informal' }))} className="w-full p-2 bg-surface-50 rounded-lg border-none focus:ring-2 focus:ring-gold-400 text-sm text-text-primary">
-                <option value="Formal">Formal</option>
-                <option value="Informal">Informal</option>
-              </select>
               <div className="grid grid-cols-2 gap-3">
-                <select value={newProponent.cotista} onChange={e => setNewProponent(prev => ({ ...prev, cotista: e.target.value }))} className="w-full p-2 bg-surface-50 rounded-lg border-none focus:ring-2 focus:ring-gold-400 text-sm text-text-primary">
+                <select value={newProponent.cotista} onChange={e => setNewProponent(prev => ({ ...prev, cotista: e.target.value }))} className="w-full h-11 px-3 bg-surface-50 rounded-lg border-none focus:ring-2 focus:ring-gold-400 text-sm text-text-primary">
                   <option value="Não">Cotista: Não</option>
                   <option value="Sim">Cotista: Sim</option>
                 </select>
-                <select value={newProponent.socialFactor} onChange={e => setNewProponent(prev => ({ ...prev, socialFactor: e.target.value }))} className="w-full p-2 bg-surface-50 rounded-lg border-none focus:ring-2 focus:ring-gold-400 text-sm text-text-primary">
+                <select value={newProponent.socialFactor} onChange={e => setNewProponent(prev => ({ ...prev, socialFactor: e.target.value }))} className="w-full h-11 px-3 bg-surface-50 rounded-lg border-none focus:ring-2 focus:ring-gold-400 text-sm text-text-primary">
                   <option value="Não">Fator Social: Não</option>
                   <option value="Sim">Fator Social: Sim</option>
                 </select>

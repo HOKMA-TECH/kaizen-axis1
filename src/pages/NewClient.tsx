@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { PremiumCard, RoundedButton, SectionHeader } from '@/components/ui/PremiumComponents';
-import { ChevronLeft, Save, UploadCloud, FileText, X, Loader2, Plus, Trash2 } from 'lucide-react';
+import { ChevronLeft, Save, UploadCloud, FileText, X, Loader2, Plus, Trash2, ChevronDown, ChevronUp } from 'lucide-react';
 import { CLIENT_STAGES, ClientStage } from '@/data/clients';
 import { useApp } from '@/context/AppContext';
 
@@ -83,6 +83,7 @@ export default function NewClient() {
       return [];
     }
   });
+  const [openProponentIndex, setOpenProponentIndex] = useState<number | null>(null);
 
   // Salva rascunho automaticamente a cada mudança
   useEffect(() => {
@@ -134,6 +135,7 @@ export default function NewClient() {
 
   const addProponent = () => {
     setProponents(prev => [...prev, { ...emptyProponent }]);
+    setOpenProponentIndex(proponents.length);
   };
 
   const updateProponent = (index: number, field: keyof DraftProponent, value: string) => {
@@ -145,6 +147,12 @@ export default function NewClient() {
 
   const removeProponent = (index: number) => {
     setProponents(prev => prev.filter((_, i) => i !== index));
+    setOpenProponentIndex(prev => {
+      if (prev === null) return null;
+      if (prev === index) return null;
+      if (prev > index) return prev - 1;
+      return prev;
+    });
   };
 
   const submitClient = async () => {
@@ -429,7 +437,7 @@ export default function NewClient() {
                 onClick={addProponent}
                 className="text-gold-600 dark:text-gold-400 text-sm font-medium flex items-center gap-1"
               >
-                <Plus size={14} /> Adicionar
+                <Plus size={12} /> Adicionar
               </button>
             }
           />
@@ -445,99 +453,76 @@ export default function NewClient() {
             {proponents.map((prop, index) => (
               <div key={index} className="rounded-xl border border-surface-200 p-4 space-y-3">
                 <div className="flex items-center justify-between">
-                  <h4 className="text-sm font-semibold text-text-primary">Proponente {index + 2}</h4>
                   <button
                     type="button"
-                    onClick={() => removeProponent(index)}
-                    className="text-red-500 hover:text-red-600"
-                    title="Remover proponente"
+                    onClick={() => setOpenProponentIndex(prev => (prev === index ? null : index))}
+                    className="flex items-center gap-2 text-sm font-semibold text-text-primary hover:text-gold-700 transition-colors"
                   >
-                    <Trash2 size={16} />
+                    Proponente {index + 2}
+                    {openProponentIndex === index ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
                   </button>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <input
-                    value={prop.name}
-                    onChange={(e) => updateProponent(index, 'name', e.target.value)}
-                    className="w-full p-3 bg-surface-50 rounded-xl border-none focus:ring-2 focus:ring-gold-200 dark:focus:ring-gold-800 text-text-primary"
-                    placeholder="Nome completo"
-                  />
-                  <input
-                    value={prop.cpf}
-                    onChange={(e) => updateProponent(index, 'cpf', e.target.value)}
-                    className="w-full p-3 bg-surface-50 rounded-xl border-none focus:ring-2 focus:ring-gold-200 dark:focus:ring-gold-800 text-text-primary"
-                    placeholder="CPF"
-                  />
-                  <input
-                    type="email"
-                    value={prop.email}
-                    onChange={(e) => updateProponent(index, 'email', e.target.value)}
-                    className="w-full p-3 bg-surface-50 rounded-xl border-none focus:ring-2 focus:ring-gold-200 dark:focus:ring-gold-800 text-text-primary"
-                    placeholder="Email"
-                  />
-                  <input
-                    value={prop.phone}
-                    onChange={(e) => updateProponent(index, 'phone', e.target.value)}
-                    className="w-full p-3 bg-surface-50 rounded-xl border-none focus:ring-2 focus:ring-gold-200 dark:focus:ring-gold-800 text-text-primary"
-                    placeholder="Telefone"
-                  />
-                  <input
-                    value={prop.address}
-                    onChange={(e) => updateProponent(index, 'address', e.target.value)}
-                    className="w-full p-3 bg-surface-50 rounded-xl border-none focus:ring-2 focus:ring-gold-200 dark:focus:ring-gold-800 text-text-primary"
-                    placeholder="Endereco"
-                  />
-                  <input
-                    value={prop.profession}
-                    onChange={(e) => updateProponent(index, 'profession', e.target.value)}
-                    className="w-full p-3 bg-surface-50 rounded-xl border-none focus:ring-2 focus:ring-gold-200 dark:focus:ring-gold-800 text-text-primary"
-                    placeholder="Profissao"
-                  />
-                  <input
-                    value={prop.grossIncome}
-                    onChange={(e) => updateProponent(index, 'grossIncome', e.target.value)}
-                    className="w-full p-3 bg-surface-50 rounded-xl border-none focus:ring-2 focus:ring-gold-200 dark:focus:ring-gold-800 text-text-primary"
-                    placeholder="Renda bruta"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-text-secondary mb-1">Tipo de Renda</label>
-                  <select
-                    value={prop.incomeType}
-                    onChange={(e) => updateProponent(index, 'incomeType', e.target.value)}
-                    className="w-full p-3 bg-surface-50 rounded-xl border-none focus:ring-2 focus:ring-gold-200 dark:focus:ring-gold-800 text-text-primary appearance-none"
-                  >
-                    <option value="Formal">Formal</option>
-                    <option value="Informal">Informal</option>
-                  </select>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-sm font-medium text-text-secondary mb-1">Cotista (3 anos FGTS)</label>
-                    <select
-                      value={prop.cotista}
-                      onChange={(e) => updateProponent(index, 'cotista', e.target.value)}
-                      className="w-full p-3 bg-surface-50 rounded-xl border-none focus:ring-2 focus:ring-gold-200 dark:focus:ring-gold-800 text-text-primary appearance-none"
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => setOpenProponentIndex(prev => (prev === index ? null : index))}
+                      className="h-7 w-7 flex items-center justify-center rounded-md text-text-secondary hover:text-text-primary hover:bg-surface-100 transition-colors"
+                      title={openProponentIndex === index ? 'Recolher' : 'Expandir'}
                     >
-                      <option value="Não">Não</option>
-                      <option value="Sim">Sim</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-text-secondary mb-1">Fator Social (Dependente)</label>
-                    <select
-                      value={prop.socialFactor}
-                      onChange={(e) => updateProponent(index, 'socialFactor', e.target.value)}
-                      className="w-full p-3 bg-surface-50 rounded-xl border-none focus:ring-2 focus:ring-gold-200 dark:focus:ring-gold-800 text-text-primary appearance-none"
+                      {openProponentIndex === index ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => removeProponent(index)}
+                      className="h-7 w-7 flex items-center justify-center rounded-md text-red-500 hover:text-red-600 hover:bg-red-50 transition-colors"
+                      title="Remover proponente"
                     >
-                      <option value="Não">Não</option>
-                      <option value="Sim">Sim</option>
-                    </select>
+                      <Trash2 size={13} />
+                    </button>
                   </div>
                 </div>
+
+                {openProponentIndex === index && (
+                  <>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <input value={prop.name} onChange={(e) => updateProponent(index, 'name', e.target.value)} className="w-full h-12 px-3 bg-surface-50 rounded-xl border-none focus:ring-2 focus:ring-gold-200 dark:focus:ring-gold-800 text-text-primary" placeholder="Nome completo" />
+                      <input value={prop.cpf} onChange={(e) => updateProponent(index, 'cpf', e.target.value)} className="w-full h-12 px-3 bg-surface-50 rounded-xl border-none focus:ring-2 focus:ring-gold-200 dark:focus:ring-gold-800 text-text-primary" placeholder="CPF" />
+                      <input type="email" value={prop.email} onChange={(e) => updateProponent(index, 'email', e.target.value)} className="w-full h-12 px-3 bg-surface-50 rounded-xl border-none focus:ring-2 focus:ring-gold-200 dark:focus:ring-gold-800 text-text-primary" placeholder="Email" />
+                      <input value={prop.phone} onChange={(e) => updateProponent(index, 'phone', e.target.value)} className="w-full h-12 px-3 bg-surface-50 rounded-xl border-none focus:ring-2 focus:ring-gold-200 dark:focus:ring-gold-800 text-text-primary" placeholder="Telefone" />
+                      <input value={prop.address} onChange={(e) => updateProponent(index, 'address', e.target.value)} className="w-full h-12 px-3 bg-surface-50 rounded-xl border-none focus:ring-2 focus:ring-gold-200 dark:focus:ring-gold-800 text-text-primary" placeholder="Endereco" />
+                      <input value={prop.profession} onChange={(e) => updateProponent(index, 'profession', e.target.value)} className="w-full h-12 px-3 bg-surface-50 rounded-xl border-none focus:ring-2 focus:ring-gold-200 dark:focus:ring-gold-800 text-text-primary" placeholder="Profissao" />
+                      <input value={prop.grossIncome} onChange={(e) => updateProponent(index, 'grossIncome', e.target.value)} className="w-full h-12 px-3 bg-surface-50 rounded-xl border-none focus:ring-2 focus:ring-gold-200 dark:focus:ring-gold-800 text-text-primary" placeholder="Renda bruta" />
+                      <select value={prop.incomeType} onChange={(e) => updateProponent(index, 'incomeType', e.target.value)} className="w-full h-12 px-3 bg-surface-50 rounded-xl border-none focus:ring-2 focus:ring-gold-200 dark:focus:ring-gold-800 text-text-primary appearance-none">
+                        <option value="Formal">Tipo de renda: Formal</option>
+                        <option value="Informal">Tipo de renda: Informal</option>
+                      </select>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-sm font-medium text-text-secondary mb-1">Cotista (3 anos FGTS)</label>
+                        <select
+                          value={prop.cotista}
+                          onChange={(e) => updateProponent(index, 'cotista', e.target.value)}
+                          className="w-full h-12 px-3 bg-surface-50 rounded-xl border-none focus:ring-2 focus:ring-gold-200 dark:focus:ring-gold-800 text-text-primary appearance-none"
+                        >
+                          <option value="Não">Não</option>
+                          <option value="Sim">Sim</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-text-secondary mb-1">Fator Social (Dependente)</label>
+                        <select
+                          value={prop.socialFactor}
+                          onChange={(e) => updateProponent(index, 'socialFactor', e.target.value)}
+                          className="w-full h-12 px-3 bg-surface-50 rounded-xl border-none focus:ring-2 focus:ring-gold-200 dark:focus:ring-gold-800 text-text-primary appearance-none"
+                        >
+                          <option value="Não">Não</option>
+                          <option value="Sim">Sim</option>
+                        </select>
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
             ))}
           </PremiumCard>
