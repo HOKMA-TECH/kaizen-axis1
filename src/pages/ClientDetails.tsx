@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { PremiumCard, StatusBadge, SectionHeader, RoundedButton } from '@/components/ui/PremiumComponents';
-import { ChevronLeft, Phone, Mail, Calendar, Edit2, Check, Building2, Wallet, History, Trash2, FileText, Save, X, UploadCloud } from 'lucide-react';
+import { ChevronLeft, Phone, Mail, Calendar, Edit2, Check, Building2, Wallet, History, Trash2, FileText, Save, X, UploadCloud, Plus } from 'lucide-react';
 import { Client, CLIENT_STAGES, ClientStage } from '@/data/clients';
 import { motion, AnimatePresence } from 'motion/react';
 import { Modal } from '@/components/ui/Modal';
@@ -14,7 +14,23 @@ import { ClientHierarchyTags } from '@/components/ui/ClientHierarchyTags';
 export default function ClientDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { getClient, updateClient, deleteClient, userName, getDownloadUrl, uploadFile, addDocumentToClient, deleteDocumentFromClient, clients, allProfiles, teams, directorates } = useApp();
+  const {
+    getClient,
+    updateClient,
+    deleteClient,
+    userName,
+    getDownloadUrl,
+    uploadFile,
+    addDocumentToClient,
+    deleteDocumentFromClient,
+    addClientProponent,
+    updateClientProponent,
+    deleteClientProponent,
+    clients,
+    allProfiles,
+    teams,
+    directorates,
+  } = useApp();
   const { role, canViewAllClients } = useAuthorization();
 
   // Etapas avançadas: apenas COORDENADOR, GERENTE, DIRETOR e ADMIN podem mover o cliente para cá
@@ -28,6 +44,25 @@ export default function ClientDetails() {
   const [documentToDelete, setDocumentToDelete] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<Partial<Client>>({});
   const [isUploading, setIsUploading] = useState(false);
+  const [newProponent, setNewProponent] = useState({
+    name: '',
+    cpf: '',
+    email: '',
+    phone: '',
+    profession: '',
+    grossIncome: '',
+    incomeType: 'Formal' as 'Formal' | 'Informal' | 'Mista',
+  });
+  const [editingProponentId, setEditingProponentId] = useState<string | null>(null);
+  const [editingProponent, setEditingProponent] = useState({
+    name: '',
+    cpf: '',
+    email: '',
+    phone: '',
+    profession: '',
+    grossIncome: '',
+    incomeType: 'Formal' as 'Formal' | 'Informal' | 'Mista',
+  });
 
   // Load from context
   useEffect(() => {
@@ -108,7 +143,7 @@ export default function ClientDetails() {
           Authorization: `Bearer ${session.access_token}`,
           apikey: SUPABASE_ANON_KEY,
         },
-        body: { documentId: documentId || undefined, rawPath, accessToken: session.access_token, expiresIn: 300 },
+        body: { documentId: documentId || undefined, rawPath, expiresIn: 300 },
       });
 
       const signedUrl = v2Data?.signedUrl ?? null;
@@ -166,6 +201,100 @@ export default function ClientDetails() {
 
   const handleDeleteDocument = (docId: string) => {
     setDocumentToDelete(docId);
+  };
+
+  const handleAddProponent = async () => {
+    if (!id || !newProponent.name.trim()) {
+      alert('Informe o nome do proponente.');
+      return;
+    }
+
+    const result = await addClientProponent(id, {
+      name: newProponent.name.trim(),
+      cpf: newProponent.cpf.trim() || undefined,
+      email: newProponent.email.trim() || undefined,
+      phone: newProponent.phone.trim() || undefined,
+      profession: newProponent.profession.trim() || undefined,
+      grossIncome: newProponent.grossIncome.trim() || undefined,
+      incomeType: newProponent.incomeType,
+      isPrimary: false,
+    });
+
+    if (!result.success) {
+      alert(`Erro ao adicionar proponente: ${result.error || 'erro desconhecido'}`);
+      return;
+    }
+
+    setNewProponent({
+      name: '',
+      cpf: '',
+      email: '',
+      phone: '',
+      profession: '',
+      grossIncome: '',
+      incomeType: 'Formal',
+    });
+  };
+
+  const startEditProponent = (proponent: any) => {
+    setEditingProponentId(proponent.id);
+    setEditingProponent({
+      name: proponent.name || '',
+      cpf: proponent.cpf || '',
+      email: proponent.email || '',
+      phone: proponent.phone || '',
+      profession: proponent.profession || '',
+      grossIncome: proponent.grossIncome || '',
+      incomeType: (proponent.incomeType || 'Formal') as 'Formal' | 'Informal' | 'Mista',
+    });
+  };
+
+  const cancelEditProponent = () => {
+    setEditingProponentId(null);
+    setEditingProponent({
+      name: '',
+      cpf: '',
+      email: '',
+      phone: '',
+      profession: '',
+      grossIncome: '',
+      incomeType: 'Formal',
+    });
+  };
+
+  const saveEditProponent = async () => {
+    if (!editingProponentId) return;
+    if (!editingProponent.name.trim()) {
+      alert('Informe o nome do proponente.');
+      return;
+    }
+
+    const result = await updateClientProponent(editingProponentId, {
+      name: editingProponent.name.trim(),
+      cpf: editingProponent.cpf.trim() || undefined,
+      email: editingProponent.email.trim() || undefined,
+      phone: editingProponent.phone.trim() || undefined,
+      profession: editingProponent.profession.trim() || undefined,
+      grossIncome: editingProponent.grossIncome.trim() || undefined,
+      incomeType: editingProponent.incomeType,
+    });
+
+    if (!result.success) {
+      alert(`Erro ao atualizar proponente: ${result.error || 'erro desconhecido'}`);
+      return;
+    }
+
+    cancelEditProponent();
+  };
+
+  const handleDeleteProponent = async (proponentId: string) => {
+    const confirmed = window.confirm('Deseja realmente remover este proponente?');
+    if (!confirmed) return;
+
+    const result = await deleteClientProponent(proponentId);
+    if (!result.success) {
+      alert(`Erro ao remover proponente: ${result.error || 'erro desconhecido'}`);
+    }
   };
 
   const confirmDeleteDocument = async () => {
@@ -452,6 +581,86 @@ export default function ClientDetails() {
               </div>
             )}
           </PremiumCard>
+        </section>
+
+        <section>
+          <SectionHeader title="Proponentes" />
+          <div className="space-y-3">
+            <PremiumCard className="space-y-2">
+              <p className="text-xs text-text-secondary uppercase tracking-wider">Proponente 1 (Titular da ficha)</p>
+              <p className="text-sm text-text-primary font-semibold">{client.name}</p>
+              <p className="text-sm text-text-secondary">CPF: {client.cpf || 'Não informado'} • Renda: {client.grossIncome || 'Não informada'}</p>
+            </PremiumCard>
+
+            {(client.proponents || []).map((proponent, index) => {
+              const isEditing = editingProponentId === proponent.id;
+
+              if (isEditing) {
+                return (
+                  <PremiumCard key={proponent.id} className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm font-semibold text-text-primary">Proponente {index + 2}</p>
+                      <div className="flex gap-2">
+                        <button onClick={cancelEditProponent} className="text-text-secondary p-1"><X size={16} /></button>
+                        <button onClick={saveEditProponent} className="text-green-600 p-1"><Save size={16} /></button>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <input value={editingProponent.name} onChange={e => setEditingProponent(prev => ({ ...prev, name: e.target.value }))} className="w-full p-2 bg-surface-50 rounded-lg border-none focus:ring-2 focus:ring-gold-400 text-sm text-text-primary" placeholder="Nome" />
+                      <input value={editingProponent.cpf} onChange={e => setEditingProponent(prev => ({ ...prev, cpf: e.target.value }))} className="w-full p-2 bg-surface-50 rounded-lg border-none focus:ring-2 focus:ring-gold-400 text-sm text-text-primary" placeholder="CPF" />
+                      <input value={editingProponent.email} onChange={e => setEditingProponent(prev => ({ ...prev, email: e.target.value }))} className="w-full p-2 bg-surface-50 rounded-lg border-none focus:ring-2 focus:ring-gold-400 text-sm text-text-primary" placeholder="Email" />
+                      <input value={editingProponent.phone} onChange={e => setEditingProponent(prev => ({ ...prev, phone: e.target.value }))} className="w-full p-2 bg-surface-50 rounded-lg border-none focus:ring-2 focus:ring-gold-400 text-sm text-text-primary" placeholder="Telefone" />
+                      <input value={editingProponent.profession} onChange={e => setEditingProponent(prev => ({ ...prev, profession: e.target.value }))} className="w-full p-2 bg-surface-50 rounded-lg border-none focus:ring-2 focus:ring-gold-400 text-sm text-text-primary" placeholder="Profissão" />
+                      <input value={editingProponent.grossIncome} onChange={e => setEditingProponent(prev => ({ ...prev, grossIncome: e.target.value }))} className="w-full p-2 bg-surface-50 rounded-lg border-none focus:ring-2 focus:ring-gold-400 text-sm text-text-primary" placeholder="Renda Bruta" />
+                    </div>
+
+                    <select value={editingProponent.incomeType} onChange={e => setEditingProponent(prev => ({ ...prev, incomeType: e.target.value as 'Formal' | 'Informal' | 'Mista' }))} className="w-full p-2 bg-surface-50 rounded-lg border-none focus:ring-2 focus:ring-gold-400 text-sm text-text-primary">
+                      <option value="Formal">Formal</option>
+                      <option value="Informal">Informal</option>
+                      <option value="Mista">Mista</option>
+                    </select>
+                  </PremiumCard>
+                );
+              }
+
+              return (
+                <PremiumCard key={proponent.id} className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-semibold text-text-primary">Proponente {index + 2}</p>
+                    <div className="flex gap-2">
+                      <button onClick={() => startEditProponent(proponent)} className="text-gold-600 p-1"><Edit2 size={15} /></button>
+                      <button onClick={() => handleDeleteProponent(proponent.id)} className="text-red-500 p-1"><Trash2 size={15} /></button>
+                    </div>
+                  </div>
+                  <p className="text-sm text-text-primary font-medium">{proponent.name}</p>
+                  <p className="text-xs text-text-secondary">CPF: {proponent.cpf || 'Não informado'} • Email: {proponent.email || 'Não informado'}</p>
+                  <p className="text-xs text-text-secondary">Telefone: {proponent.phone || 'Não informado'} • Profissão: {proponent.profession || 'Não informada'}</p>
+                  <p className="text-xs text-text-secondary">Renda: {proponent.grossIncome || 'Não informada'} • Tipo: {proponent.incomeType || 'Não informado'}</p>
+                </PremiumCard>
+              );
+            })}
+
+            <PremiumCard className="space-y-3">
+              <div className="flex items-center gap-2 text-sm font-semibold text-text-primary">
+                <Plus size={14} /> Adicionar proponente adicional
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <input value={newProponent.name} onChange={e => setNewProponent(prev => ({ ...prev, name: e.target.value }))} className="w-full p-2 bg-surface-50 rounded-lg border-none focus:ring-2 focus:ring-gold-400 text-sm text-text-primary" placeholder="Nome" />
+                <input value={newProponent.cpf} onChange={e => setNewProponent(prev => ({ ...prev, cpf: e.target.value }))} className="w-full p-2 bg-surface-50 rounded-lg border-none focus:ring-2 focus:ring-gold-400 text-sm text-text-primary" placeholder="CPF" />
+                <input value={newProponent.email} onChange={e => setNewProponent(prev => ({ ...prev, email: e.target.value }))} className="w-full p-2 bg-surface-50 rounded-lg border-none focus:ring-2 focus:ring-gold-400 text-sm text-text-primary" placeholder="Email" />
+                <input value={newProponent.phone} onChange={e => setNewProponent(prev => ({ ...prev, phone: e.target.value }))} className="w-full p-2 bg-surface-50 rounded-lg border-none focus:ring-2 focus:ring-gold-400 text-sm text-text-primary" placeholder="Telefone" />
+                <input value={newProponent.profession} onChange={e => setNewProponent(prev => ({ ...prev, profession: e.target.value }))} className="w-full p-2 bg-surface-50 rounded-lg border-none focus:ring-2 focus:ring-gold-400 text-sm text-text-primary" placeholder="Profissão" />
+                <input value={newProponent.grossIncome} onChange={e => setNewProponent(prev => ({ ...prev, grossIncome: e.target.value }))} className="w-full p-2 bg-surface-50 rounded-lg border-none focus:ring-2 focus:ring-gold-400 text-sm text-text-primary" placeholder="Renda Bruta" />
+              </div>
+              <select value={newProponent.incomeType} onChange={e => setNewProponent(prev => ({ ...prev, incomeType: e.target.value as 'Formal' | 'Informal' | 'Mista' }))} className="w-full p-2 bg-surface-50 rounded-lg border-none focus:ring-2 focus:ring-gold-400 text-sm text-text-primary">
+                <option value="Formal">Formal</option>
+                <option value="Informal">Informal</option>
+                <option value="Mista">Mista</option>
+              </select>
+              <RoundedButton size="sm" onClick={handleAddProponent}>Salvar Proponente</RoundedButton>
+            </PremiumCard>
+          </div>
         </section>
 
         {/* Documents */}

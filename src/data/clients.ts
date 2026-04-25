@@ -48,6 +48,21 @@ export interface ClientDocument {
   uploadDate: string;
 }
 
+export interface ClientProponent {
+  id: string;
+  clientId: string;
+  name: string;
+  cpf?: string;
+  email?: string;
+  phone?: string;
+  profession?: string;
+  grossIncome?: string;
+  incomeType?: 'Formal' | 'Informal' | 'Mista';
+  isPrimary?: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 export interface Client {
   id: string;
   name: string;
@@ -67,6 +82,7 @@ export interface Client {
   stage: ClientStage;
   history: ClientHistory[];
   documents: ClientDocument[];
+  proponents?: ClientProponent[];
   createdAt: string;
   closed_at?: string;  // set by DB trigger when stage → 'Concluído'
   updated_at?: string;

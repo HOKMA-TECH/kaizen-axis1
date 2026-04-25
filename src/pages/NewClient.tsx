@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { PremiumCard, RoundedButton, SectionHeader } from '@/components/ui/PremiumComponents';
-import { ChevronLeft, Save, UploadCloud, FileText, X, Loader2 } from 'lucide-react';
+import { ChevronLeft, Save, UploadCloud, FileText, X, Loader2, Plus, Trash2 } from 'lucide-react';
 import { CLIENT_STAGES, ClientStage } from '@/data/clients';
 import { useApp } from '@/context/AppContext';
 
@@ -25,28 +25,65 @@ const defaultFormData = {
   observations: '',
 };
 
+type DraftProponent = {
+  name: string;
+  cpf: string;
+  email: string;
+  phone: string;
+  profession: string;
+  grossIncome: string;
+  incomeType: 'Formal' | 'Informal' | 'Mista';
+};
+
+const emptyProponent: DraftProponent = {
+  name: '',
+  cpf: '',
+  email: '',
+  phone: '',
+  profession: '',
+  grossIncome: '',
+  incomeType: 'Formal',
+};
+
 export default function NewClient() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { addClient, uploadFile, addDocumentToClient } = useApp();
+  const { addClient, uploadFile, addDocumentToClient, addClientProponent } = useApp();
 
   const [formData, setFormData] = useState(() => {
     // Se vier prefill da navegação, ignora rascunho salvo
     if (location.state?.prefill) return defaultFormData;
     try {
       const saved = localStorage.getItem(DRAFT_KEY);
-      return saved ? { ...defaultFormData, ...JSON.parse(saved) } : defaultFormData;
+      if (!saved) return defaultFormData;
+      const parsed = JSON.parse(saved);
+      if (parsed?.formData) {
+        return { ...defaultFormData, ...parsed.formData };
+      }
+      return { ...defaultFormData, ...parsed };
     } catch {
       return defaultFormData;
+    }
+  });
+
+  const [proponents, setProponents] = useState<DraftProponent[]>(() => {
+    if (location.state?.prefill) return [];
+    try {
+      const saved = localStorage.getItem(DRAFT_KEY);
+      if (!saved) return [];
+      const parsed = JSON.parse(saved);
+      return Array.isArray(parsed?.proponents) ? parsed.proponents : [];
+    } catch {
+      return [];
     }
   });
 
   // Salva rascunho automaticamente a cada mudança
   useEffect(() => {
     if (!location.state?.prefill) {
-      localStorage.setItem(DRAFT_KEY, JSON.stringify(formData));
+      localStorage.setItem(DRAFT_KEY, JSON.stringify({ formData, proponents }));
     }
-  }, [formData, location.state]);
+  }, [formData, proponents, location.state]);
 
   useEffect(() => {
     if (location.state?.prefill) {
@@ -89,6 +126,21 @@ export default function NewClient() {
     setDocuments(prev => prev.filter((_, i) => i !== index));
   };
 
+  const addProponent = () => {
+    setProponents(prev => [...prev, { ...emptyProponent }]);
+  };
+
+  const updateProponent = (index: number, field: keyof DraftProponent, value: string) => {
+    setProponents(prev => prev.map((item, i) => {
+      if (i !== index) return item;
+      return { ...item, [field]: value };
+    }));
+  };
+
+  const removeProponent = (index: number) => {
+    setProponents(prev => prev.filter((_, i) => i !== index));
+  };
+
   const submitClient = async () => {
     if (isSubmitting) return;
 
@@ -123,32 +175,74 @@ export default function NewClient() {
         return;
       }
 
-      localStorage.removeItem(DRAFT_KEY);
+      const filledProponents = proponents
+        .map(p => ({
+          ...p,
+          name: p.name.trim(),
+          cpf: p.cpf.trim(),
+          email: p.email.trim(),
+          phone: p.phone.trim(),
+          profession: p.profession.trim(),
+          grossIncome: p.grossIncome.trim(),
+        }))
+        .filter(p => p.name.length > 0);
+
+      let hasDocumentError = false;
+      let hasProponentError = false;
+
+      if (filledProponents.length > 0) {
+        for (const prop of filledProponents) {
+          const result = await addClientProponent(newClient.id, {
+            name: prop.name,
+            cpf: prop.cpf || undefined,
+            email: prop.email || undefined,
+            phone: prop.phone || undefined,
+            profession: prop.profession || undefined,
+            grossIncome: prop.grossIncome || undefined,
+            incomeType: prop.incomeType,
+            isPrimary: false,
+          });
+
+          if (!result.success) {
+            hasProponentError = true;
+            console.error('Erro ao salvar proponente:', result.error);
+          }
+        }
+      }
 
       if (documents.length > 0) {
-        let hasError = false;
 
         for (const file of documents) {
           const filePath = `${newClient.id}/${Date.now()}-${file.name}`;
           const uploadedPath = await uploadFile(file, filePath, 'client-documents');
 
           if (!uploadedPath) {
-            hasError = true;
+            hasDocumentError = true;
             continue;
           }
 
           const dbResult = await addDocumentToClient(newClient.id, file.name, uploadedPath);
           if (!dbResult.success) {
-            hasError = true;
+            hasDocumentError = true;
             console.error(dbResult.error);
           }
         }
+      }
 
-        if (hasError) {
-          alert('Cliente salvo, mas houve erros ao vincular alguns documentos no banco de dados.');
-        } else {
-          alert('Cliente e documentos cadastrados com sucesso!');
-        }
+      localStorage.removeItem(DRAFT_KEY);
+
+      if (hasDocumentError && hasProponentError) {
+        alert('Cliente salvo, mas houve erros ao vincular alguns documentos e proponentes.');
+      } else if (hasDocumentError) {
+        alert('Cliente salvo, mas houve erros ao vincular alguns documentos no banco de dados.');
+      } else if (hasProponentError) {
+        alert('Cliente salvo, mas houve erros ao cadastrar alguns proponentes adicionais.');
+      } else if (documents.length > 0 && filledProponents.length > 0) {
+        alert('Cliente, proponentes e documentos cadastrados com sucesso!');
+      } else if (documents.length > 0) {
+        alert('Cliente e documentos cadastrados com sucesso!');
+      } else if (filledProponents.length > 0) {
+        alert('Cliente e proponentes cadastrados com sucesso!');
       } else {
         alert('Cliente cadastrado com sucesso!');
       }
@@ -311,6 +405,99 @@ export default function NewClient() {
                 </select>
               </div>
             </div>
+          </PremiumCard>
+        </section>
+
+        <section>
+          <SectionHeader
+            title="Proponentes"
+            action={
+              <button
+                type="button"
+                onClick={addProponent}
+                className="text-gold-600 dark:text-gold-400 text-sm font-medium flex items-center gap-1"
+              >
+                <Plus size={14} /> Adicionar
+              </button>
+            }
+          />
+          <PremiumCard className="space-y-4">
+            <div className="p-3 rounded-xl bg-gold-50/60 text-xs text-text-secondary">
+              Proponente 1 e o titular da ficha (dados principais acima). Adicione aqui os proponentes adicionais.
+            </div>
+
+            {proponents.length === 0 && (
+              <p className="text-sm text-text-secondary">Nenhum proponente adicional cadastrado.</p>
+            )}
+
+            {proponents.map((prop, index) => (
+              <div key={index} className="rounded-xl border border-surface-200 p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-sm font-semibold text-text-primary">Proponente {index + 2}</h4>
+                  <button
+                    type="button"
+                    onClick={() => removeProponent(index)}
+                    className="text-red-500 hover:text-red-600"
+                    title="Remover proponente"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <input
+                    value={prop.name}
+                    onChange={(e) => updateProponent(index, 'name', e.target.value)}
+                    className="w-full p-3 bg-surface-50 rounded-xl border-none focus:ring-2 focus:ring-gold-200 dark:focus:ring-gold-800 text-text-primary"
+                    placeholder="Nome completo"
+                  />
+                  <input
+                    value={prop.cpf}
+                    onChange={(e) => updateProponent(index, 'cpf', e.target.value)}
+                    className="w-full p-3 bg-surface-50 rounded-xl border-none focus:ring-2 focus:ring-gold-200 dark:focus:ring-gold-800 text-text-primary"
+                    placeholder="CPF"
+                  />
+                  <input
+                    type="email"
+                    value={prop.email}
+                    onChange={(e) => updateProponent(index, 'email', e.target.value)}
+                    className="w-full p-3 bg-surface-50 rounded-xl border-none focus:ring-2 focus:ring-gold-200 dark:focus:ring-gold-800 text-text-primary"
+                    placeholder="Email"
+                  />
+                  <input
+                    value={prop.phone}
+                    onChange={(e) => updateProponent(index, 'phone', e.target.value)}
+                    className="w-full p-3 bg-surface-50 rounded-xl border-none focus:ring-2 focus:ring-gold-200 dark:focus:ring-gold-800 text-text-primary"
+                    placeholder="Telefone"
+                  />
+                  <input
+                    value={prop.profession}
+                    onChange={(e) => updateProponent(index, 'profession', e.target.value)}
+                    className="w-full p-3 bg-surface-50 rounded-xl border-none focus:ring-2 focus:ring-gold-200 dark:focus:ring-gold-800 text-text-primary"
+                    placeholder="Profissao"
+                  />
+                  <input
+                    value={prop.grossIncome}
+                    onChange={(e) => updateProponent(index, 'grossIncome', e.target.value)}
+                    className="w-full p-3 bg-surface-50 rounded-xl border-none focus:ring-2 focus:ring-gold-200 dark:focus:ring-gold-800 text-text-primary"
+                    placeholder="Renda bruta"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-text-secondary mb-1">Tipo de Renda</label>
+                  <select
+                    value={prop.incomeType}
+                    onChange={(e) => updateProponent(index, 'incomeType', e.target.value)}
+                    className="w-full p-3 bg-surface-50 rounded-xl border-none focus:ring-2 focus:ring-gold-200 dark:focus:ring-gold-800 text-text-primary appearance-none"
+                  >
+                    <option value="Formal">Formal</option>
+                    <option value="Informal">Informal</option>
+                    <option value="Mista">Mista</option>
+                  </select>
+                </div>
+              </div>
+            ))}
           </PremiumCard>
         </section>
 

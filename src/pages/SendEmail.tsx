@@ -72,8 +72,67 @@ export default function SendEmail() {
       }
 
       setSubject(
-        `KAIZEN IMÓVEIS | SOLICITO ANÁLISE | ${empreendimento} | ${found.name.toUpperCase()} | ${found.cpf || 'SEM CPF'} | GERÊNCIA: ${managerName}`
+        (() => {
+          const unifiedProponents = [
+            {
+              name: found.name,
+              cpf: found.cpf,
+            },
+            ...((found.proponents || []).map((p) => ({
+              name: p.name,
+              cpf: p.cpf,
+            }))),
+          ];
+
+          const proponentSummary = unifiedProponents
+            .map((p, idx) => `P${idx + 1}: ${(p.name || 'SEM NOME').toUpperCase()}${p.cpf ? ` (${p.cpf})` : ''}`)
+            .join(' | ');
+
+          return `KAIZEN IMÓVEIS | SOLICITO ANÁLISE | ${empreendimento} | ${proponentSummary} | GERÊNCIA: ${managerName}`;
+        })()
       );
+
+      const unifiedProponents = [
+        {
+          name: found.name,
+          cpf: found.cpf,
+          email: found.email,
+          phone: found.phone,
+          grossIncome: found.grossIncome,
+          profession: found.profession,
+          incomeType: found.incomeType,
+          cotista: found.cotista,
+          socialFactor: found.socialFactor,
+        },
+        ...((found.proponents || []).map((p) => ({
+          name: p.name,
+          cpf: p.cpf,
+          email: p.email,
+          phone: p.phone,
+          grossIncome: p.grossIncome,
+          profession: p.profession,
+          incomeType: p.incomeType,
+          cotista: undefined,
+          socialFactor: undefined,
+        }))),
+      ];
+
+      const proponentsBlock = unifiedProponents
+        .map((p, idx) => {
+          const extraTitular = idx === 0
+            ? `\nCOTISTA: ${p.cotista || 'Não informado'}\nFATOR SOCIAL: ${p.socialFactor || 'Não informado'}`
+            : '';
+
+          return `PROPONENTE ${idx + 1}
+NOME: ${(p.name || 'Não informado').toUpperCase()}
+CPF: ${p.cpf || 'Não informado'}
+E-MAIL: ${p.email || 'Não informado'}
+TELEFONE: ${p.phone || 'Não informado'}
+RENDA: ${p.grossIncome || 'Não informado'}
+TIPO DE RENDA: ${p.incomeType || 'Não informado'}
+PROFISSÃO: ${p.profession || 'Não informado'}${extraTitular}`;
+        })
+        .join('\n\n');
 
       const template = `Bom dia time, solicito a análise do cliente em questão.
 
@@ -81,15 +140,7 @@ GERENTE: ${managerName}
 COORDENADOR: ${coordinatorName}
 CORRETOR: ${corretorName}
 
-NOME: ${found.name.toUpperCase()}
-CPF: ${found.cpf || 'Não informado'}
-E-MAIL: ${found.email || 'Não informado'}
-TELEFONE: ${found.phone || 'Não informado'}
-
-COTISTA: ${found.cotista || 'Não informado'}
-FATOR SOCIAL: ${found.socialFactor || 'Não informado'}
-RENDA: ${found.grossIncome || 'Não informado'}
-PROFISSÃO: ${found.profession || 'Não informado'}`;
+${proponentsBlock}`;
 
       setBody(template);
 
@@ -173,7 +224,7 @@ PROFISSÃO: ${found.profession || 'Não informado'}`;
                     Authorization: `Bearer ${session.access_token}`,
                     apikey: SUPABASE_ANON_KEY,
                   },
-                  body: { documentId: att.document_id, rawPath: att.file_path, accessToken: session.access_token, expiresIn: 300 },
+                  body: { documentId: att.document_id, rawPath: att.file_path, expiresIn: 300 },
                 });
                 if (!v2Error) {
                   attachSignedUrl = v2Data.signedUrl ?? null;

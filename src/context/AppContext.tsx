@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
-import { Client } from '@/data/clients';
+import { Client, ClientProponent } from '@/data/clients';
 import { AutomationLead } from '@/data/leads';
 import { supabase } from '@/lib/supabase';
 import { logAuditEvent } from '@/services/auditLogger';
@@ -164,6 +164,9 @@ interface AppContextValue {
   deleteClient: (id: string) => Promise<void>;
   getClient: (id: string) => Client | undefined;
   refreshClients: () => Promise<void>;
+  addClientProponent: (clientId: string, data: Omit<ClientProponent, 'id' | 'clientId' | 'createdAt' | 'updatedAt'>) => Promise<{ success: boolean; error?: string }>;
+  updateClientProponent: (id: string, data: Partial<Omit<ClientProponent, 'id' | 'clientId' | 'createdAt' | 'updatedAt'>>) => Promise<{ success: boolean; error?: string }>;
+  deleteClientProponent: (id: string) => Promise<{ success: boolean; error?: string }>;
 
   // Leads
   leads: AutomationLead[];
@@ -789,7 +792,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
       let query = supabase
         .from('clients')
-        .select('*, history:client_history(*), documents:client_documents(*)')
+        .select('*, history:client_history(*), documents:client_documents(*), proponents:client_proponents(*)')
         .order('created_at', { ascending: false });
 
       if (uid && role === 'CORRETOR') {
@@ -818,7 +821,26 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             date: h.date || (h.created_at ? new Date(h.created_at).toLocaleDateString('pt-BR') : ''),
           }))
           .sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()),
-        documents: (client.documents || []).map((d: any) => ({ ...d, file_path: d.url || d.file_path, uploadDate: d.upload_date }))
+        documents: (client.documents || []).map((d: any) => ({ ...d, file_path: d.url || d.file_path, uploadDate: d.upload_date })),
+        proponents: (client.proponents || [])
+          .map((p: any) => ({
+            id: p.id,
+            clientId: p.client_id,
+            name: p.name,
+            cpf: p.cpf,
+            email: p.email,
+            phone: p.phone,
+            profession: p.profession,
+            grossIncome: p.gross_income,
+            incomeType: p.income_type,
+            isPrimary: p.is_primary,
+            createdAt: p.created_at,
+            updatedAt: p.updated_at,
+          }))
+          .sort((a: any, b: any) => {
+            if (!!a.isPrimary !== !!b.isPrimary) return a.isPrimary ? -1 : 1;
+            return new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime();
+          }),
       }));
       setClients(transformed);
     } catch (e) { console.error('Erro ao carregar clientes:', e); }
@@ -960,6 +982,103 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     } catch (e) { console.error('Erro ao deletar cliente:', e); }
   }, [refreshClients]);
 
+  const addClientProponent = useCallback(async (
+    clientId: string,
+    data: Omit<ClientProponent, 'id' | 'clientId' | 'createdAt' | 'updatedAt'>,
+  ): Promise<{ success: boolean; error?: string }> => {
+    try {
+      const payload = {
+        client_id: clientId,
+        name: (data.name || '').trim(),
+        cpf: data.cpf?.trim() || null,
+        email: data.email?.trim() || null,
+        phone: data.phone?.trim() || null,
+        profession: data.profession?.trim() || null,
+        gross_income: data.grossIncome?.trim() || null,
+        income_type: data.incomeType?.trim() || null,
+        is_primary: !!data.isPrimary,
+      };
+
+      if (!payload.name) {
+        return { success: false, error: 'Nome do proponente é obrigatório.' };
+      }
+
+      const { error } = await supabase.from('client_proponents').insert([payload]);
+      if (error) return { success: false, error: error.message };
+
+      await refreshClients();
+      logAuditEvent({
+        action: 'client_proponent_added',
+        entity: 'client',
+        entityId: clientId,
+        userId: userRef.current?.id || null,
+        metadata: { name: payload.name }
+      });
+
+      return { success: true };
+    } catch (e: any) {
+      console.error('Erro ao adicionar proponente:', e);
+      return { success: false, error: e.message || 'Erro desconhecido' };
+    }
+  }, [refreshClients]);
+
+  const updateClientProponent = useCallback(async (
+    id: string,
+    data: Partial<Omit<ClientProponent, 'id' | 'clientId' | 'createdAt' | 'updatedAt'>>,
+  ): Promise<{ success: boolean; error?: string }> => {
+    try {
+      const payload: any = {};
+      if (data.name !== undefined) payload.name = data.name.trim();
+      if (data.cpf !== undefined) payload.cpf = data.cpf?.trim() || null;
+      if (data.email !== undefined) payload.email = data.email?.trim() || null;
+      if (data.phone !== undefined) payload.phone = data.phone?.trim() || null;
+      if (data.profession !== undefined) payload.profession = data.profession?.trim() || null;
+      if (data.grossIncome !== undefined) payload.gross_income = data.grossIncome?.trim() || null;
+      if (data.incomeType !== undefined) payload.income_type = data.incomeType?.trim() || null;
+      if (data.isPrimary !== undefined) payload.is_primary = !!data.isPrimary;
+
+      if (payload.name !== undefined && !payload.name) {
+        return { success: false, error: 'Nome do proponente é obrigatório.' };
+      }
+
+      const { error } = await supabase.from('client_proponents').update(payload).eq('id', id);
+      if (error) return { success: false, error: error.message };
+
+      await refreshClients();
+      logAuditEvent({
+        action: 'client_proponent_updated',
+        entity: 'client',
+        entityId: id,
+        userId: userRef.current?.id || null,
+      });
+
+      return { success: true };
+    } catch (e: any) {
+      console.error('Erro ao atualizar proponente:', e);
+      return { success: false, error: e.message || 'Erro desconhecido' };
+    }
+  }, [refreshClients]);
+
+  const deleteClientProponent = useCallback(async (id: string): Promise<{ success: boolean; error?: string }> => {
+    try {
+      const { error } = await supabase.from('client_proponents').delete().eq('id', id);
+      if (error) return { success: false, error: error.message };
+
+      await refreshClients();
+      logAuditEvent({
+        action: 'client_proponent_deleted',
+        entity: 'client',
+        entityId: id,
+        userId: userRef.current?.id || null,
+      });
+
+      return { success: true };
+    } catch (e: any) {
+      console.error('Erro ao remover proponente:', e);
+      return { success: false, error: e.message || 'Erro desconhecido' };
+    }
+  }, [refreshClients]);
+
   const getClient = useCallback((id: string) => clients.find(c => c.id === id), [clients]);
 
   // ─── Storage ──────────────────────────────────────────────────────────────
@@ -992,8 +1111,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const addDocumentToClient = async (clientId: string, name: string, path: string): Promise<{ success: boolean; error?: string }> => {
     try {
-      const { error } = await supabase.from('client_documents').insert([{ client_id: clientId, name, url: path }]);
+      const { error } = await supabase.from('client_documents').insert([{
+        client_id: clientId,
+        name,
+        url: path,
+        created_by: userRef.current?.id || null,
+      }]);
       if (error) return { success: false, error: error.message };
+
       await refreshClients();
       logAuditEvent({
         action: 'document_uploaded',
@@ -1618,6 +1743,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const channel = supabase
       .channel('schema-db-changes')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'clients' }, () => refreshClients())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'client_proponents' }, () => refreshClients())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'leads' }, () => refreshLeads())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'appointments' }, () => refreshAppointments())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, () => refreshTasks())
@@ -1637,6 +1763,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       session, user, profile, allProfiles, userName, userRole,
       signOut, refreshProfiles, updateProfile,
       clients, loading, addClient, updateClient, deleteClient, getClient, refreshClients,
+      addClientProponent, updateClientProponent, deleteClientProponent,
       leads, refreshLeads, updateLead, convertLeadToClient,
       uploadFile,
       addDocumentToClient,
