@@ -85,7 +85,7 @@ export default function SendEmail() {
           ];
 
           const proponentSummary = unifiedProponents
-            .map((p, idx) => `P${idx + 1}: ${(p.name || 'SEM NOME').toUpperCase()}${p.cpf ? ` (${p.cpf})` : ''}`)
+            .map((p) => `${(p.name || 'SEM NOME').toUpperCase()}${p.cpf ? ` (${p.cpf})` : ''}`)
             .join(' | ');
 
           return `KAIZEN IMÓVEIS | SOLICITO ANÁLISE | ${empreendimento} | ${proponentSummary} | GERÊNCIA: ${managerName}`;
