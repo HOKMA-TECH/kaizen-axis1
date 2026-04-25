@@ -830,9 +830,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             cpf: p.cpf,
             email: p.email,
             phone: p.phone,
+            address: p.address,
             profession: p.profession,
             grossIncome: p.gross_income,
             incomeType: p.income_type,
+            cotista: p.cotista,
+            socialFactor: p.social_factor,
             isPrimary: p.is_primary,
             createdAt: p.created_at,
             updatedAt: p.updated_at,
@@ -993,9 +996,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         cpf: data.cpf?.trim() || null,
         email: data.email?.trim() || null,
         phone: data.phone?.trim() || null,
+        address: data.address?.trim() || null,
         profession: data.profession?.trim() || null,
         gross_income: data.grossIncome?.trim() || null,
         income_type: data.incomeType?.trim() || null,
+        cotista: data.cotista?.trim() || null,
+        social_factor: data.socialFactor?.trim() || null,
         is_primary: !!data.isPrimary,
       };
 
@@ -1032,9 +1038,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       if (data.cpf !== undefined) payload.cpf = data.cpf?.trim() || null;
       if (data.email !== undefined) payload.email = data.email?.trim() || null;
       if (data.phone !== undefined) payload.phone = data.phone?.trim() || null;
+      if (data.address !== undefined) payload.address = data.address?.trim() || null;
       if (data.profession !== undefined) payload.profession = data.profession?.trim() || null;
       if (data.grossIncome !== undefined) payload.gross_income = data.grossIncome?.trim() || null;
       if (data.incomeType !== undefined) payload.income_type = data.incomeType?.trim() || null;
+      if (data.cotista !== undefined) payload.cotista = data.cotista?.trim() || null;
+      if (data.socialFactor !== undefined) payload.social_factor = data.socialFactor?.trim() || null;
       if (data.isPrimary !== undefined) payload.is_primary = !!data.isPrimary;
 
       if (payload.name !== undefined && !payload.name) {

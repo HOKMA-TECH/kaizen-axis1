@@ -49,9 +49,12 @@ export default function ClientDetails() {
     cpf: '',
     email: '',
     phone: '',
+    address: '',
     profession: '',
     grossIncome: '',
-    incomeType: 'Formal' as 'Formal' | 'Informal' | 'Mista',
+    incomeType: 'Formal' as 'Formal' | 'Informal',
+    cotista: 'Não',
+    socialFactor: 'Não',
   });
   const [editingProponentId, setEditingProponentId] = useState<string | null>(null);
   const [editingProponent, setEditingProponent] = useState({
@@ -59,9 +62,12 @@ export default function ClientDetails() {
     cpf: '',
     email: '',
     phone: '',
+    address: '',
     profession: '',
     grossIncome: '',
-    incomeType: 'Formal' as 'Formal' | 'Informal' | 'Mista',
+    incomeType: 'Formal' as 'Formal' | 'Informal',
+    cotista: 'Não',
+    socialFactor: 'Não',
   });
 
   // Load from context
@@ -214,9 +220,12 @@ export default function ClientDetails() {
       cpf: newProponent.cpf.trim() || undefined,
       email: newProponent.email.trim() || undefined,
       phone: newProponent.phone.trim() || undefined,
+      address: newProponent.address.trim() || undefined,
       profession: newProponent.profession.trim() || undefined,
       grossIncome: newProponent.grossIncome.trim() || undefined,
       incomeType: newProponent.incomeType,
+      cotista: newProponent.cotista,
+      socialFactor: newProponent.socialFactor,
       isPrimary: false,
     });
 
@@ -230,9 +239,12 @@ export default function ClientDetails() {
       cpf: '',
       email: '',
       phone: '',
+      address: '',
       profession: '',
       grossIncome: '',
       incomeType: 'Formal',
+      cotista: 'Não',
+      socialFactor: 'Não',
     });
   };
 
@@ -243,9 +255,12 @@ export default function ClientDetails() {
       cpf: proponent.cpf || '',
       email: proponent.email || '',
       phone: proponent.phone || '',
+      address: proponent.address || '',
       profession: proponent.profession || '',
       grossIncome: proponent.grossIncome || '',
-      incomeType: (proponent.incomeType || 'Formal') as 'Formal' | 'Informal' | 'Mista',
+      incomeType: (proponent.incomeType || 'Formal') as 'Formal' | 'Informal',
+      cotista: proponent.cotista || 'Não',
+      socialFactor: proponent.socialFactor || 'Não',
     });
   };
 
@@ -256,9 +271,12 @@ export default function ClientDetails() {
       cpf: '',
       email: '',
       phone: '',
+      address: '',
       profession: '',
       grossIncome: '',
       incomeType: 'Formal',
+      cotista: 'Não',
+      socialFactor: 'Não',
     });
   };
 
@@ -274,9 +292,12 @@ export default function ClientDetails() {
       cpf: editingProponent.cpf.trim() || undefined,
       email: editingProponent.email.trim() || undefined,
       phone: editingProponent.phone.trim() || undefined,
+      address: editingProponent.address.trim() || undefined,
       profession: editingProponent.profession.trim() || undefined,
       grossIncome: editingProponent.grossIncome.trim() || undefined,
       incomeType: editingProponent.incomeType,
+      cotista: editingProponent.cotista,
+      socialFactor: editingProponent.socialFactor,
     });
 
     if (!result.success) {
@@ -611,15 +632,26 @@ export default function ClientDetails() {
                       <input value={editingProponent.cpf} onChange={e => setEditingProponent(prev => ({ ...prev, cpf: e.target.value }))} className="w-full p-2 bg-surface-50 rounded-lg border-none focus:ring-2 focus:ring-gold-400 text-sm text-text-primary" placeholder="CPF" />
                       <input value={editingProponent.email} onChange={e => setEditingProponent(prev => ({ ...prev, email: e.target.value }))} className="w-full p-2 bg-surface-50 rounded-lg border-none focus:ring-2 focus:ring-gold-400 text-sm text-text-primary" placeholder="Email" />
                       <input value={editingProponent.phone} onChange={e => setEditingProponent(prev => ({ ...prev, phone: e.target.value }))} className="w-full p-2 bg-surface-50 rounded-lg border-none focus:ring-2 focus:ring-gold-400 text-sm text-text-primary" placeholder="Telefone" />
+                      <input value={editingProponent.address} onChange={e => setEditingProponent(prev => ({ ...prev, address: e.target.value }))} className="w-full p-2 bg-surface-50 rounded-lg border-none focus:ring-2 focus:ring-gold-400 text-sm text-text-primary" placeholder="Endereço" />
                       <input value={editingProponent.profession} onChange={e => setEditingProponent(prev => ({ ...prev, profession: e.target.value }))} className="w-full p-2 bg-surface-50 rounded-lg border-none focus:ring-2 focus:ring-gold-400 text-sm text-text-primary" placeholder="Profissão" />
                       <input value={editingProponent.grossIncome} onChange={e => setEditingProponent(prev => ({ ...prev, grossIncome: e.target.value }))} className="w-full p-2 bg-surface-50 rounded-lg border-none focus:ring-2 focus:ring-gold-400 text-sm text-text-primary" placeholder="Renda Bruta" />
                     </div>
 
-                    <select value={editingProponent.incomeType} onChange={e => setEditingProponent(prev => ({ ...prev, incomeType: e.target.value as 'Formal' | 'Informal' | 'Mista' }))} className="w-full p-2 bg-surface-50 rounded-lg border-none focus:ring-2 focus:ring-gold-400 text-sm text-text-primary">
+                    <select value={editingProponent.incomeType} onChange={e => setEditingProponent(prev => ({ ...prev, incomeType: e.target.value as 'Formal' | 'Informal' }))} className="w-full p-2 bg-surface-50 rounded-lg border-none focus:ring-2 focus:ring-gold-400 text-sm text-text-primary">
                       <option value="Formal">Formal</option>
                       <option value="Informal">Informal</option>
-                      <option value="Mista">Mista</option>
                     </select>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <select value={editingProponent.cotista} onChange={e => setEditingProponent(prev => ({ ...prev, cotista: e.target.value }))} className="w-full p-2 bg-surface-50 rounded-lg border-none focus:ring-2 focus:ring-gold-400 text-sm text-text-primary">
+                        <option value="Não">Cotista: Não</option>
+                        <option value="Sim">Cotista: Sim</option>
+                      </select>
+                      <select value={editingProponent.socialFactor} onChange={e => setEditingProponent(prev => ({ ...prev, socialFactor: e.target.value }))} className="w-full p-2 bg-surface-50 rounded-lg border-none focus:ring-2 focus:ring-gold-400 text-sm text-text-primary">
+                        <option value="Não">Fator Social: Não</option>
+                        <option value="Sim">Fator Social: Sim</option>
+                      </select>
+                    </div>
                   </PremiumCard>
                 );
               }
@@ -635,8 +667,10 @@ export default function ClientDetails() {
                   </div>
                   <p className="text-sm text-text-primary font-medium">{proponent.name}</p>
                   <p className="text-xs text-text-secondary">CPF: {proponent.cpf || 'Não informado'} • Email: {proponent.email || 'Não informado'}</p>
-                  <p className="text-xs text-text-secondary">Telefone: {proponent.phone || 'Não informado'} • Profissão: {proponent.profession || 'Não informada'}</p>
+                  <p className="text-xs text-text-secondary">Telefone: {proponent.phone || 'Não informado'} • Endereço: {proponent.address || 'Não informado'}</p>
+                  <p className="text-xs text-text-secondary">Profissão: {proponent.profession || 'Não informada'}</p>
                   <p className="text-xs text-text-secondary">Renda: {proponent.grossIncome || 'Não informada'} • Tipo: {proponent.incomeType || 'Não informado'}</p>
+                  <p className="text-xs text-text-secondary">Cotista: {proponent.cotista || 'Não informado'} • Fator Social: {proponent.socialFactor || 'Não informado'}</p>
                 </PremiumCard>
               );
             })}
@@ -650,14 +684,24 @@ export default function ClientDetails() {
                 <input value={newProponent.cpf} onChange={e => setNewProponent(prev => ({ ...prev, cpf: e.target.value }))} className="w-full p-2 bg-surface-50 rounded-lg border-none focus:ring-2 focus:ring-gold-400 text-sm text-text-primary" placeholder="CPF" />
                 <input value={newProponent.email} onChange={e => setNewProponent(prev => ({ ...prev, email: e.target.value }))} className="w-full p-2 bg-surface-50 rounded-lg border-none focus:ring-2 focus:ring-gold-400 text-sm text-text-primary" placeholder="Email" />
                 <input value={newProponent.phone} onChange={e => setNewProponent(prev => ({ ...prev, phone: e.target.value }))} className="w-full p-2 bg-surface-50 rounded-lg border-none focus:ring-2 focus:ring-gold-400 text-sm text-text-primary" placeholder="Telefone" />
+                <input value={newProponent.address} onChange={e => setNewProponent(prev => ({ ...prev, address: e.target.value }))} className="w-full p-2 bg-surface-50 rounded-lg border-none focus:ring-2 focus:ring-gold-400 text-sm text-text-primary" placeholder="Endereço" />
                 <input value={newProponent.profession} onChange={e => setNewProponent(prev => ({ ...prev, profession: e.target.value }))} className="w-full p-2 bg-surface-50 rounded-lg border-none focus:ring-2 focus:ring-gold-400 text-sm text-text-primary" placeholder="Profissão" />
                 <input value={newProponent.grossIncome} onChange={e => setNewProponent(prev => ({ ...prev, grossIncome: e.target.value }))} className="w-full p-2 bg-surface-50 rounded-lg border-none focus:ring-2 focus:ring-gold-400 text-sm text-text-primary" placeholder="Renda Bruta" />
               </div>
-              <select value={newProponent.incomeType} onChange={e => setNewProponent(prev => ({ ...prev, incomeType: e.target.value as 'Formal' | 'Informal' | 'Mista' }))} className="w-full p-2 bg-surface-50 rounded-lg border-none focus:ring-2 focus:ring-gold-400 text-sm text-text-primary">
+              <select value={newProponent.incomeType} onChange={e => setNewProponent(prev => ({ ...prev, incomeType: e.target.value as 'Formal' | 'Informal' }))} className="w-full p-2 bg-surface-50 rounded-lg border-none focus:ring-2 focus:ring-gold-400 text-sm text-text-primary">
                 <option value="Formal">Formal</option>
                 <option value="Informal">Informal</option>
-                <option value="Mista">Mista</option>
               </select>
+              <div className="grid grid-cols-2 gap-3">
+                <select value={newProponent.cotista} onChange={e => setNewProponent(prev => ({ ...prev, cotista: e.target.value }))} className="w-full p-2 bg-surface-50 rounded-lg border-none focus:ring-2 focus:ring-gold-400 text-sm text-text-primary">
+                  <option value="Não">Cotista: Não</option>
+                  <option value="Sim">Cotista: Sim</option>
+                </select>
+                <select value={newProponent.socialFactor} onChange={e => setNewProponent(prev => ({ ...prev, socialFactor: e.target.value }))} className="w-full p-2 bg-surface-50 rounded-lg border-none focus:ring-2 focus:ring-gold-400 text-sm text-text-primary">
+                  <option value="Não">Fator Social: Não</option>
+                  <option value="Sim">Fator Social: Sim</option>
+                </select>
+              </div>
               <RoundedButton size="sm" onClick={handleAddProponent}>Salvar Proponente</RoundedButton>
             </PremiumCard>
           </div>

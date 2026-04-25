@@ -55,9 +55,12 @@ export interface ClientProponent {
   cpf?: string;
   email?: string;
   phone?: string;
+  address?: string;
   profession?: string;
   grossIncome?: string;
-  incomeType?: 'Formal' | 'Informal' | 'Mista';
+  incomeType?: 'Formal' | 'Informal';
+  cotista?: string;
+  socialFactor?: string;
   isPrimary?: boolean;
   createdAt?: string;
   updatedAt?: string;

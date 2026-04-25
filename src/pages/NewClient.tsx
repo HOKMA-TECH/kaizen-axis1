@@ -30,9 +30,12 @@ type DraftProponent = {
   cpf: string;
   email: string;
   phone: string;
+  address: string;
   profession: string;
   grossIncome: string;
-  incomeType: 'Formal' | 'Informal' | 'Mista';
+  incomeType: 'Formal' | 'Informal';
+  cotista: string;
+  socialFactor: string;
 };
 
 const emptyProponent: DraftProponent = {
@@ -40,9 +43,12 @@ const emptyProponent: DraftProponent = {
   cpf: '',
   email: '',
   phone: '',
+  address: '',
   profession: '',
   grossIncome: '',
   incomeType: 'Formal',
+  cotista: 'Não',
+  socialFactor: 'Não',
 };
 
 export default function NewClient() {
@@ -182,8 +188,11 @@ export default function NewClient() {
           cpf: p.cpf.trim(),
           email: p.email.trim(),
           phone: p.phone.trim(),
+          address: p.address.trim(),
           profession: p.profession.trim(),
           grossIncome: p.grossIncome.trim(),
+          cotista: p.cotista,
+          socialFactor: p.socialFactor,
         }))
         .filter(p => p.name.length > 0);
 
@@ -197,9 +206,12 @@ export default function NewClient() {
             cpf: prop.cpf || undefined,
             email: prop.email || undefined,
             phone: prop.phone || undefined,
+            address: prop.address || undefined,
             profession: prop.profession || undefined,
             grossIncome: prop.grossIncome || undefined,
             incomeType: prop.incomeType,
+            cotista: prop.cotista,
+            socialFactor: prop.socialFactor,
             isPrimary: false,
           });
 
@@ -471,6 +483,12 @@ export default function NewClient() {
                     placeholder="Telefone"
                   />
                   <input
+                    value={prop.address}
+                    onChange={(e) => updateProponent(index, 'address', e.target.value)}
+                    className="w-full p-3 bg-surface-50 rounded-xl border-none focus:ring-2 focus:ring-gold-200 dark:focus:ring-gold-800 text-text-primary"
+                    placeholder="Endereco"
+                  />
+                  <input
                     value={prop.profession}
                     onChange={(e) => updateProponent(index, 'profession', e.target.value)}
                     className="w-full p-3 bg-surface-50 rounded-xl border-none focus:ring-2 focus:ring-gold-200 dark:focus:ring-gold-800 text-text-primary"
@@ -493,8 +511,32 @@ export default function NewClient() {
                   >
                     <option value="Formal">Formal</option>
                     <option value="Informal">Informal</option>
-                    <option value="Mista">Mista</option>
                   </select>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm font-medium text-text-secondary mb-1">Cotista (3 anos FGTS)</label>
+                    <select
+                      value={prop.cotista}
+                      onChange={(e) => updateProponent(index, 'cotista', e.target.value)}
+                      className="w-full p-3 bg-surface-50 rounded-xl border-none focus:ring-2 focus:ring-gold-200 dark:focus:ring-gold-800 text-text-primary appearance-none"
+                    >
+                      <option value="Não">Não</option>
+                      <option value="Sim">Sim</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-text-secondary mb-1">Fator Social (Dependente)</label>
+                    <select
+                      value={prop.socialFactor}
+                      onChange={(e) => updateProponent(index, 'socialFactor', e.target.value)}
+                      className="w-full p-3 bg-surface-50 rounded-xl border-none focus:ring-2 focus:ring-gold-200 dark:focus:ring-gold-800 text-text-primary appearance-none"
+                    >
+                      <option value="Não">Não</option>
+                      <option value="Sim">Sim</option>
+                    </select>
+                  </div>
                 </div>
               </div>
             ))}

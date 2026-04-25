@@ -98,6 +98,7 @@ export default function SendEmail() {
           cpf: found.cpf,
           email: found.email,
           phone: found.phone,
+          address: found.address,
           grossIncome: found.grossIncome,
           profession: found.profession,
           incomeType: found.incomeType,
@@ -109,28 +110,28 @@ export default function SendEmail() {
           cpf: p.cpf,
           email: p.email,
           phone: p.phone,
+          address: p.address,
           grossIncome: p.grossIncome,
           profession: p.profession,
           incomeType: p.incomeType,
-          cotista: undefined,
-          socialFactor: undefined,
+          cotista: p.cotista,
+          socialFactor: p.socialFactor,
         }))),
       ];
 
       const proponentsBlock = unifiedProponents
         .map((p, idx) => {
-          const extraTitular = idx === 0
-            ? `\nCOTISTA: ${p.cotista || 'Não informado'}\nFATOR SOCIAL: ${p.socialFactor || 'Não informado'}`
-            : '';
-
           return `PROPONENTE ${idx + 1}
 NOME: ${(p.name || 'Não informado').toUpperCase()}
 CPF: ${p.cpf || 'Não informado'}
 E-MAIL: ${p.email || 'Não informado'}
 TELEFONE: ${p.phone || 'Não informado'}
+ENDEREÇO: ${p.address || 'Não informado'}
 RENDA: ${p.grossIncome || 'Não informado'}
 TIPO DE RENDA: ${p.incomeType || 'Não informado'}
-PROFISSÃO: ${p.profession || 'Não informado'}${extraTitular}`;
+PROFISSÃO: ${p.profession || 'Não informado'}
+COTISTA: ${p.cotista || 'Não informado'}
+FATOR SOCIAL: ${p.socialFactor || 'Não informado'}`;
         })
         .join('\n\n');
 
