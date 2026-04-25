@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { PremiumCard, StatusBadge, SectionHeader, RoundedButton } from '@/components/ui/PremiumComponents';
-import { ChevronLeft, Phone, Mail, Calendar, Edit2, Check, Building2, Wallet, History, Trash2, FileText, Save, X, UploadCloud, Plus } from 'lucide-react';
+import { ChevronLeft, Phone, Mail, Calendar, Edit2, Check, Building2, Wallet, History, Trash2, FileText, Save, X, UploadCloud, Plus, ChevronDown, ChevronUp } from 'lucide-react';
 import { Client, CLIENT_STAGES, ClientStage } from '@/data/clients';
 import { motion, AnimatePresence } from 'motion/react';
 import { Modal } from '@/components/ui/Modal';
@@ -57,6 +57,8 @@ export default function ClientDetails() {
     socialFactor: 'Não',
   });
   const [editingProponentId, setEditingProponentId] = useState<string | null>(null);
+  const [openProponentIndex, setOpenProponentIndex] = useState<number | null>(null);
+  const [showAddProponentForm, setShowAddProponentForm] = useState(false);
   const [editingProponent, setEditingProponent] = useState({
     name: '',
     cpf: '',
@@ -246,6 +248,7 @@ export default function ClientDetails() {
       cotista: 'Não',
       socialFactor: 'Não',
     });
+    setShowAddProponentForm(false);
   };
 
   const startEditProponent = (proponent: any) => {
@@ -605,7 +608,18 @@ export default function ClientDetails() {
         </section>
 
         <section>
-          <SectionHeader title="Proponentes" />
+          <SectionHeader
+            title="Proponentes"
+            action={
+              <button
+                type="button"
+                onClick={() => setShowAddProponentForm(prev => !prev)}
+                className="text-gold-600 dark:text-gold-400 text-sm font-medium flex items-center gap-1"
+              >
+                <Plus size={12} /> Adicionar
+              </button>
+            }
+          />
           <div className="space-y-3">
             <PremiumCard className="space-y-2">
               <p className="text-xs text-text-secondary uppercase tracking-wider">Proponente 1 (Titular da ficha)</p>
@@ -658,51 +672,81 @@ export default function ClientDetails() {
               return (
                 <PremiumCard key={proponent.id} className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <p className="text-sm font-semibold text-text-primary">Proponente {index + 2}</p>
+                    <button
+                      type="button"
+                      onClick={() => setOpenProponentIndex(prev => (prev === index ? null : index))}
+                      className="flex items-center gap-2 text-sm font-semibold text-text-primary hover:text-gold-700 transition-colors"
+                    >
+                      Proponente {index + 2}
+                      {openProponentIndex === index ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                    </button>
                     <div className="flex gap-2">
                       <button onClick={() => startEditProponent(proponent)} className="h-7 w-7 flex items-center justify-center rounded-md text-gold-600 hover:bg-gold-50"><Edit2 size={12} /></button>
                       <button onClick={() => handleDeleteProponent(proponent.id)} className="h-7 w-7 flex items-center justify-center rounded-md text-red-500 hover:bg-red-50"><Trash2 size={12} /></button>
                     </div>
                   </div>
-                  <p className="text-sm text-text-primary font-medium">{proponent.name}</p>
-                  <p className="text-xs text-text-secondary">CPF: {proponent.cpf || 'Não informado'} • Email: {proponent.email || 'Não informado'}</p>
-                  <p className="text-xs text-text-secondary">Telefone: {proponent.phone || 'Não informado'} • Endereço: {proponent.address || 'Não informado'}</p>
-                  <p className="text-xs text-text-secondary">Profissão: {proponent.profession || 'Não informada'}</p>
-                  <p className="text-xs text-text-secondary">Renda: {proponent.grossIncome || 'Não informada'} • Tipo: {proponent.incomeType || 'Não informado'}</p>
-                  <p className="text-xs text-text-secondary">Cotista: {proponent.cotista || 'Não informado'} • Fator Social: {proponent.socialFactor || 'Não informado'}</p>
+                  {openProponentIndex === index && (
+                    <>
+                      <p className="text-sm text-text-primary font-medium">{proponent.name}</p>
+                      <p className="text-xs text-text-secondary">CPF: {proponent.cpf || 'Não informado'} • Email: {proponent.email || 'Não informado'}</p>
+                      <p className="text-xs text-text-secondary">Telefone: {proponent.phone || 'Não informado'} • Endereço: {proponent.address || 'Não informado'}</p>
+                      <p className="text-xs text-text-secondary">Profissão: {proponent.profession || 'Não informada'}</p>
+                      <p className="text-xs text-text-secondary">Renda: {proponent.grossIncome || 'Não informada'} • Tipo: {proponent.incomeType || 'Não informado'}</p>
+                      <p className="text-xs text-text-secondary">Cotista: {proponent.cotista || 'Não informado'} • Fator Social: {proponent.socialFactor || 'Não informado'}</p>
+                    </>
+                  )}
                 </PremiumCard>
               );
             })}
 
-            <PremiumCard className="space-y-3">
-              <div className="flex items-center gap-2 text-sm font-semibold text-text-primary">
-                <Plus size={12} /> Adicionar proponente adicional
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <input value={newProponent.name} onChange={e => setNewProponent(prev => ({ ...prev, name: e.target.value }))} className="w-full h-11 px-3 bg-surface-50 rounded-lg border-none focus:ring-2 focus:ring-gold-400 text-sm text-text-primary" placeholder="Nome" />
-                <input value={newProponent.cpf} onChange={e => setNewProponent(prev => ({ ...prev, cpf: e.target.value }))} className="w-full h-11 px-3 bg-surface-50 rounded-lg border-none focus:ring-2 focus:ring-gold-400 text-sm text-text-primary" placeholder="CPF" />
-                <input value={newProponent.email} onChange={e => setNewProponent(prev => ({ ...prev, email: e.target.value }))} className="w-full h-11 px-3 bg-surface-50 rounded-lg border-none focus:ring-2 focus:ring-gold-400 text-sm text-text-primary" placeholder="Email" />
-                <input value={newProponent.phone} onChange={e => setNewProponent(prev => ({ ...prev, phone: e.target.value }))} className="w-full h-11 px-3 bg-surface-50 rounded-lg border-none focus:ring-2 focus:ring-gold-400 text-sm text-text-primary" placeholder="Telefone" />
-                <input value={newProponent.address} onChange={e => setNewProponent(prev => ({ ...prev, address: e.target.value }))} className="w-full h-11 px-3 bg-surface-50 rounded-lg border-none focus:ring-2 focus:ring-gold-400 text-sm text-text-primary" placeholder="Endereço" />
-                <input value={newProponent.profession} onChange={e => setNewProponent(prev => ({ ...prev, profession: e.target.value }))} className="w-full h-11 px-3 bg-surface-50 rounded-lg border-none focus:ring-2 focus:ring-gold-400 text-sm text-text-primary" placeholder="Profissão" />
-                <input value={newProponent.grossIncome} onChange={e => setNewProponent(prev => ({ ...prev, grossIncome: e.target.value }))} className="w-full h-11 px-3 bg-surface-50 rounded-lg border-none focus:ring-2 focus:ring-gold-400 text-sm text-text-primary" placeholder="Renda Bruta" />
-                <select value={newProponent.incomeType} onChange={e => setNewProponent(prev => ({ ...prev, incomeType: e.target.value as 'Formal' | 'Informal' }))} className="w-full h-11 px-3 bg-surface-50 rounded-lg border-none focus:ring-2 focus:ring-gold-400 text-sm text-text-primary">
-                  <option value="Formal">Tipo de renda: Formal</option>
-                  <option value="Informal">Tipo de renda: Informal</option>
-                </select>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <select value={newProponent.cotista} onChange={e => setNewProponent(prev => ({ ...prev, cotista: e.target.value }))} className="w-full h-11 px-3 bg-surface-50 rounded-lg border-none focus:ring-2 focus:ring-gold-400 text-sm text-text-primary">
-                  <option value="Não">Cotista: Não</option>
-                  <option value="Sim">Cotista: Sim</option>
-                </select>
-                <select value={newProponent.socialFactor} onChange={e => setNewProponent(prev => ({ ...prev, socialFactor: e.target.value }))} className="w-full h-11 px-3 bg-surface-50 rounded-lg border-none focus:ring-2 focus:ring-gold-400 text-sm text-text-primary">
-                  <option value="Não">Fator Social: Não</option>
-                  <option value="Sim">Fator Social: Sim</option>
-                </select>
-              </div>
-              <RoundedButton size="sm" onClick={handleAddProponent}>Salvar Proponente</RoundedButton>
-            </PremiumCard>
+            {(!client.proponents || client.proponents.length === 0) && !showAddProponentForm && (
+              <PremiumCard>
+                <p className="text-sm text-text-secondary">Nenhum proponente adicional cadastrado.</p>
+              </PremiumCard>
+            )}
+
+            {showAddProponentForm && (
+              <PremiumCard className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <button
+                    type="button"
+                    onClick={() => setShowAddProponentForm(prev => !prev)}
+                    className="flex items-center gap-2 text-sm font-semibold text-text-primary hover:text-gold-700 transition-colors"
+                  >
+                    Adicionar proponente adicional
+                    {showAddProponentForm ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                  </button>
+                  <button onClick={() => setShowAddProponentForm(false)} className="h-7 w-7 flex items-center justify-center rounded-md text-text-secondary hover:bg-surface-100"><X size={13} /></button>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <input value={newProponent.name} onChange={e => setNewProponent(prev => ({ ...prev, name: e.target.value }))} className="w-full h-11 px-3 bg-surface-50 rounded-lg border-none focus:ring-2 focus:ring-gold-400 text-sm text-text-primary" placeholder="Nome" />
+                  <input value={newProponent.cpf} onChange={e => setNewProponent(prev => ({ ...prev, cpf: e.target.value }))} className="w-full h-11 px-3 bg-surface-50 rounded-lg border-none focus:ring-2 focus:ring-gold-400 text-sm text-text-primary" placeholder="CPF" />
+                  <input value={newProponent.email} onChange={e => setNewProponent(prev => ({ ...prev, email: e.target.value }))} className="w-full h-11 px-3 bg-surface-50 rounded-lg border-none focus:ring-2 focus:ring-gold-400 text-sm text-text-primary" placeholder="Email" />
+                  <input value={newProponent.phone} onChange={e => setNewProponent(prev => ({ ...prev, phone: e.target.value }))} className="w-full h-11 px-3 bg-surface-50 rounded-lg border-none focus:ring-2 focus:ring-gold-400 text-sm text-text-primary" placeholder="Telefone" />
+                  <input value={newProponent.address} onChange={e => setNewProponent(prev => ({ ...prev, address: e.target.value }))} className="w-full h-11 px-3 bg-surface-50 rounded-lg border-none focus:ring-2 focus:ring-gold-400 text-sm text-text-primary" placeholder="Endereço" />
+                  <input value={newProponent.profession} onChange={e => setNewProponent(prev => ({ ...prev, profession: e.target.value }))} className="w-full h-11 px-3 bg-surface-50 rounded-lg border-none focus:ring-2 focus:ring-gold-400 text-sm text-text-primary" placeholder="Profissão" />
+                  <input value={newProponent.grossIncome} onChange={e => setNewProponent(prev => ({ ...prev, grossIncome: e.target.value }))} className="w-full h-11 px-3 bg-surface-50 rounded-lg border-none focus:ring-2 focus:ring-gold-400 text-sm text-text-primary" placeholder="Renda Bruta" />
+                  <select value={newProponent.incomeType} onChange={e => setNewProponent(prev => ({ ...prev, incomeType: e.target.value as 'Formal' | 'Informal' }))} className="w-full h-11 px-3 bg-surface-50 rounded-lg border-none focus:ring-2 focus:ring-gold-400 text-sm text-text-primary">
+                    <option value="Formal">Tipo de renda: Formal</option>
+                    <option value="Informal">Tipo de renda: Informal</option>
+                  </select>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <select value={newProponent.cotista} onChange={e => setNewProponent(prev => ({ ...prev, cotista: e.target.value }))} className="w-full h-11 px-3 bg-surface-50 rounded-lg border-none focus:ring-2 focus:ring-gold-400 text-sm text-text-primary">
+                    <option value="Não">Cotista: Não</option>
+                    <option value="Sim">Cotista: Sim</option>
+                  </select>
+                  <select value={newProponent.socialFactor} onChange={e => setNewProponent(prev => ({ ...prev, socialFactor: e.target.value }))} className="w-full h-11 px-3 bg-surface-50 rounded-lg border-none focus:ring-2 focus:ring-gold-400 text-sm text-text-primary">
+                    <option value="Não">Fator Social: Não</option>
+                    <option value="Sim">Fator Social: Sim</option>
+                  </select>
+                </div>
+                <div className="flex gap-2">
+                  <RoundedButton size="sm" onClick={handleAddProponent}>Salvar Proponente</RoundedButton>
+                  <RoundedButton size="sm" variant="secondary" onClick={() => setShowAddProponentForm(false)}>Cancelar</RoundedButton>
+                </div>
+              </PremiumCard>
+            )}
           </div>
         </section>
 
