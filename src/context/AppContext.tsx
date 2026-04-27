@@ -435,7 +435,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           });
 
           if (rpcError) {
-            console.warn('RPC admin_set_profile_team falhou, fallback para fluxo local:', rpcError.message);
+            throw new Error(`RPC admin_set_profile_team falhou: ${rpcError.message}`);
           } else {
             handledTeamByRpc = true;
             rpcNextTeamId = requestedTeamId;

@@ -766,34 +766,54 @@ export default function AdminPanel() {
 
   // ── Users Actions ──────────────────────────────────────────────────────────
   const handleRoleChange = async (id: string, role: string) => {
-    await updateProfile(id, { role });
+    try {
+      await updateProfile(id, { role });
+    } catch (e: any) {
+      console.error('Erro ao atualizar perfil (role):', e);
+      alert(`Não foi possível atualizar o cargo. ${e?.message || ''}`.trim());
+    }
   };
   const handleDirectorateChange = async (id: string, directorate_id: string | null) => {
-    const targetDirectorateId = directorate_id || null;
-    const profileToChange = allProfiles.find(p => p.id === id);
-    const currentTeamId = profileToChange?.team_id || profileToChange?.team || null;
-    const teamStillBelongsToDirectorate = currentTeamId
-      ? teams.some(t => t.id === currentTeamId && t.directorate_id === targetDirectorateId)
-      : true;
+    try {
+      const targetDirectorateId = directorate_id || null;
+      const profileToChange = allProfiles.find(p => p.id === id);
+      const currentTeamId = profileToChange?.team_id || profileToChange?.team || null;
+      const teamStillBelongsToDirectorate = currentTeamId
+        ? teams.some(t => t.id === currentTeamId && t.directorate_id === targetDirectorateId)
+        : true;
 
-    if (!teamStillBelongsToDirectorate) {
-      await updateProfile(id, {
-        directorate_id: targetDirectorateId,
-        team: null,
-        team_id: null,
-        manager_id: null,
-        coordinator_id: null,
-      } as any);
-      return;
+      if (!teamStillBelongsToDirectorate) {
+        await updateProfile(id, {
+          directorate_id: targetDirectorateId,
+          team: null,
+          team_id: null,
+          manager_id: null,
+          coordinator_id: null,
+        } as any);
+        return;
+      }
+
+      await updateProfile(id, { directorate_id: targetDirectorateId });
+    } catch (e: any) {
+      console.error('Erro ao atualizar perfil (diretoria):', e);
+      alert(`Não foi possível atualizar a diretoria. ${e?.message || ''}`.trim());
     }
-
-    await updateProfile(id, { directorate_id: targetDirectorateId });
   };
   const handleManagerChange = async (id: string, manager_id: string | null) => {
-    await updateProfile(id, { manager_id: manager_id || null });
+    try {
+      await updateProfile(id, { manager_id: manager_id || null });
+    } catch (e: any) {
+      console.error('Erro ao atualizar perfil (gestor):', e);
+      alert(`Não foi possível atualizar o gestor. ${e?.message || ''}`.trim());
+    }
   };
   const handleCoordinatorChange = async (id: string, coordinator_id: string | null) => {
-    await updateProfile(id, { coordinator_id: coordinator_id || null } as any);
+    try {
+      await updateProfile(id, { coordinator_id: coordinator_id || null } as any);
+    } catch (e: any) {
+      console.error('Erro ao atualizar perfil (coordenador):', e);
+      alert(`Não foi possível atualizar o coordenador. ${e?.message || ''}`.trim());
+    }
   };
 
 
