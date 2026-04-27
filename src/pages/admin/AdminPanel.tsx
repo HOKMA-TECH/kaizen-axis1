@@ -22,7 +22,7 @@ export default function AdminPanel() {
 
   const {
     allProfiles, updateProfile, refreshProfiles,
-    teams, addTeam, updateTeam, deleteTeam,
+    teams, refreshTeams, addTeam, updateTeam, deleteTeam,
     goals, addGoal, updateGoal, deleteGoal,
     announcements, addAnnouncement, updateAnnouncement, deleteAnnouncement,
     directorates, addDirectorate, updateDirectorate, deleteDirectorate,
@@ -924,19 +924,17 @@ export default function AdminPanel() {
     if (!team) return;
     const members = getTeamMemberIds(team);
     const isAdding = !members.includes(userId);
-    const newMembers = isAdding ? [...members, userId] : members.filter(id => id !== userId);
 
     try {
-      // Primeiro persiste o vínculo canônico no profile.
+      // Persiste o vínculo canônico no profile (RPC + trigger sincronizam members[]).
       await updateProfile(userId, {
         team: isAdding ? teamId : null,
         team_id: isAdding ? teamId : null,
         directorate_id: isAdding ? (team.directorate_id || null) : undefined,
         manager_id: isAdding ? (team.manager_id || null) : undefined,
       });
-
-      // Depois sincroniza o members[] para consistência visual no Admin.
-      await updateTeam(teamId, { members: newMembers });
+      await refreshTeams();
+      await refreshProfiles();
     } catch (e: any) {
       console.error('Falha ao transferir membro de equipe:', e);
       alert(`Não foi possível concluir a transferência de equipe. ${e?.message || ''}`.trim());

@@ -421,7 +421,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       if (touchesTeam) {
         const rawTeam = hasOwnField('team_id') ? data.team_id : data.team;
 
-        const currentRole = String(profileRef.current?.role || '').toUpperCase();
+        const currentRole = String(profileRef.current?.role || '').trim().toUpperCase();
         const canUseAdminTeamRpc = currentRole === 'ADMIN' || currentRole === 'DIRETOR';
 
         if (canUseAdminTeamRpc && rawTeam !== undefined) {
@@ -555,6 +555,25 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       if (Object.keys(updatePayload).length > 0) {
         const { error } = await supabase.from('profiles').update(updatePayload).eq('id', id);
         if (error) throw error;
+      }
+
+      if (touchesTeam) {
+        const expectedTeamId = handledTeamByRpc
+          ? rpcNextTeamId
+          : ((updatePayload.team_id ?? updatePayload.team ?? null) as string | null);
+
+        const { data: persisted, error: persistedError } = await supabase
+          .from('profiles')
+          .select('team, team_id')
+          .eq('id', id)
+          .maybeSingle();
+
+        if (persistedError) throw persistedError;
+
+        const persistedTeamId = (persisted?.team_id ?? persisted?.team ?? null) as string | null;
+        if (persistedTeamId !== expectedTeamId) {
+          throw new Error('Falha ao persistir troca de equipe. Verifique permissões (RLS/RPC).');
+        }
       }
 
       if (previousScope) {
