@@ -59,8 +59,7 @@ BEGIN
   WITH single_managers AS (
     SELECT
       manager_id,
-      MIN(id) AS team_id,
-      COUNT(*) AS total_teams
+      (array_agg(id ORDER BY id))[1] AS team_id
     FROM public.teams
     WHERE manager_id IS NOT NULL
     GROUP BY manager_id
