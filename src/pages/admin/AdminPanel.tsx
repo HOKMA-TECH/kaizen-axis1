@@ -807,6 +807,22 @@ export default function AdminPanel() {
       alert(`Não foi possível atualizar o gestor. ${e?.message || ''}`.trim());
     }
   };
+  const handleTeamChange = async (id: string, team_id: string | null) => {
+    try {
+      const targetTeamId = team_id || null;
+      const selectedTeam = targetTeamId ? teams.find(t => t.id === targetTeamId) : null;
+
+      await updateProfile(id, {
+        team: targetTeamId,
+        team_id: targetTeamId,
+        directorate_id: targetTeamId ? (selectedTeam?.directorate_id || null) : null,
+        manager_id: targetTeamId ? (selectedTeam?.manager_id || null) : null,
+      } as any);
+    } catch (e: any) {
+      console.error('Erro ao atualizar perfil (equipe):', e);
+      alert(`Não foi possível transferir a equipe. ${e?.message || ''}`.trim());
+    }
+  };
   const handleCoordinatorChange = async (id: string, coordinator_id: string | null) => {
     try {
       await updateProfile(id, { coordinator_id: coordinator_id || null } as any);
@@ -1055,6 +1071,16 @@ export default function AdminPanel() {
                             className="w-full md:w-40 text-xs bg-surface-50 border border-surface-200 rounded-lg p-1.5 focus:outline-none focus:border-gold-400">
                             <option value="">Sem Diretoria</option>
                             {directorates.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                          </select>
+                          <select
+                            value={(u as any).team_id || (u as any).team || ''}
+                            onChange={e => handleTeamChange(u.id, e.target.value || null)}
+                            className="w-full md:w-40 text-xs bg-surface-50 border border-surface-200 rounded-lg p-1.5 focus:outline-none focus:border-gold-400"
+                          >
+                            <option value="">Sem Equipe</option>
+                            {teams
+                              .filter(t => !(u as any).directorate_id || t.directorate_id === (u as any).directorate_id || t.id === ((u as any).team_id || (u as any).team))
+                              .map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
                           </select>
                           <select value={(u as any).manager_id ?? ''} onChange={e => handleManagerChange(u.id, e.target.value || null)}
                             className="w-full md:w-40 text-xs bg-surface-50 border border-surface-200 rounded-lg p-1.5 focus:outline-none focus:border-gold-400">
