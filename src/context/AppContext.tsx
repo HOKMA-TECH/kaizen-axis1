@@ -413,16 +413,41 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       let resolvedTouchesDirectorate = touchesDirectorate;
       let resolvedTouchesManager = touchesManager;
       let resolvedTouchesCoordinator = touchesCoordinator;
+      let handledTeamByRpc = false;
+      let rpcNextTeamId: string | null = null;
 
       let nextTeamMeta: { name: string | null; directorate_id: string | null; manager_id: string | null } | null = null;
 
       if (touchesTeam) {
         const rawTeam = hasOwnField('team_id') ? data.team_id : data.team;
 
-        if (rawTeam === undefined) {
+        const currentRole = String(profileRef.current?.role || '').toUpperCase();
+        const canUseAdminTeamRpc = currentRole === 'ADMIN' || currentRole === 'DIRETOR';
+
+        if (canUseAdminTeamRpc && rawTeam !== undefined) {
+          const requestedTeamId = (typeof rawTeam === 'string' ? rawTeam.trim() : rawTeam) || null;
+          const explicitCoordinator = hasOwnField('coordinator_id') ? (data.coordinator_id ?? null) : null;
+
+          const { error: rpcError } = await supabase.rpc('admin_set_profile_team', {
+            p_profile_id: id,
+            p_team_id: requestedTeamId,
+            p_coordinator_id: explicitCoordinator,
+          });
+
+          if (rpcError) {
+            console.warn('RPC admin_set_profile_team falhou, fallback para fluxo local:', rpcError.message);
+          } else {
+            handledTeamByRpc = true;
+            rpcNextTeamId = requestedTeamId;
+            delete updatePayload.team;
+            delete updatePayload.team_id;
+          }
+        }
+
+        if (!handledTeamByRpc && rawTeam === undefined) {
           delete updatePayload.team;
           delete updatePayload.team_id;
-        } else {
+        } else if (!handledTeamByRpc) {
           const normalizedTeamRef = typeof rawTeam === 'string' ? rawTeam.trim() : rawTeam;
           let normalizedTeam = normalizedTeamRef || null;
 
@@ -527,13 +552,17 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         delete updatePayload.coordinator_id;
       }
 
-      const { error } = await supabase.from('profiles').update(updatePayload).eq('id', id);
-      if (error) throw error;
+      if (Object.keys(updatePayload).length > 0) {
+        const { error } = await supabase.from('profiles').update(updatePayload).eq('id', id);
+        if (error) throw error;
+      }
 
       if (previousScope) {
         const previousTeamId = previousScope.team_id || previousScope.team || null;
         const nextTeamId = touchesTeam
-          ? ((updatePayload.team_id ?? updatePayload.team ?? null) as string | null)
+          ? (handledTeamByRpc
+            ? rpcNextTeamId
+            : ((updatePayload.team_id ?? updatePayload.team ?? null) as string | null))
           : previousTeamId;
 
         const previousDirectorateId = previousScope.directorate_id ?? null;
