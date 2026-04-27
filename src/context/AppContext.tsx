@@ -426,6 +426,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           const normalizedTeamRef = typeof rawTeam === 'string' ? rawTeam.trim() : rawTeam;
           let normalizedTeam = normalizedTeamRef || null;
 
+          // Sempre persiste o vínculo informado; metadados da equipe são best-effort.
+          updatePayload.team = normalizedTeam;
+          updatePayload.team_id = normalizedTeam;
+
           if (normalizedTeam) {
             let teamMeta: { id: string; name: string | null; directorate_id: string | null; manager_id: string | null } | null = null;
 
@@ -434,7 +438,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
               .select('id, name, directorate_id, manager_id')
               .eq('id', normalizedTeam)
               .maybeSingle();
-            if (byIdError) throw byIdError;
+            if (byIdError) {
+              console.warn('Falha ao resolver equipe por id (seguindo com vínculo informado):', byIdError.message);
+            }
 
             if (byIdTeam) {
               teamMeta = byIdTeam as any;
@@ -445,49 +451,56 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
                 .ilike('name', normalizedTeam)
                 .limit(1)
                 .maybeSingle();
-              if (byNameError) throw byNameError;
+              if (byNameError) {
+                console.warn('Falha ao resolver equipe por nome legado (seguindo com vínculo informado):', byNameError.message);
+              }
               if (byNameTeam) teamMeta = byNameTeam as any;
             }
 
             if (!teamMeta?.id) {
-              throw new Error(`Equipe inválida para o usuário ${id}: ${String(rawTeam)}`);
-            }
+              console.warn(`Equipe sem metadados para ${id}. Mantendo team/team_id como informado:`, rawTeam);
+              nextTeamMeta = null;
+            } else {
+              normalizedTeam = teamMeta.id;
+              updatePayload.team = normalizedTeam;
+              updatePayload.team_id = normalizedTeam;
 
-            normalizedTeam = teamMeta.id;
-            updatePayload.team = normalizedTeam;
-            updatePayload.team_id = normalizedTeam;
+              nextTeamMeta = {
+                name: teamMeta?.name ?? null,
+                directorate_id: teamMeta?.directorate_id ?? null,
+                manager_id: teamMeta?.manager_id ?? null,
+              };
 
-            nextTeamMeta = {
-              name: teamMeta?.name ?? null,
-              directorate_id: teamMeta?.directorate_id ?? null,
-              manager_id: teamMeta?.manager_id ?? null,
-            };
+              if (!resolvedTouchesDirectorate) {
+                updatePayload.directorate_id = nextTeamMeta.directorate_id;
+                resolvedTouchesDirectorate = true;
+              }
 
-            if (!resolvedTouchesDirectorate) {
-              updatePayload.directorate_id = nextTeamMeta.directorate_id;
-              resolvedTouchesDirectorate = true;
-            }
+              if (!resolvedTouchesManager) {
+                updatePayload.manager_id = nextTeamMeta.manager_id;
+                resolvedTouchesManager = true;
+              }
 
-            if (!resolvedTouchesManager) {
-              updatePayload.manager_id = nextTeamMeta.manager_id;
-              resolvedTouchesManager = true;
-            }
+              if (!resolvedTouchesCoordinator) {
+                const { data: coordinatorRows, error: coordinatorRowsError } = await supabase
+                  .from('profiles')
+                  .select('id, status, role')
+                  .or(`team.eq.${normalizedTeam},team_id.eq.${normalizedTeam}`);
 
-            if (!resolvedTouchesCoordinator) {
-              const { data: coordinatorRows } = await supabase
-                .from('profiles')
-                .select('id, status, role')
-                .or(`team.eq.${normalizedTeam},team_id.eq.${normalizedTeam}`);
+                if (coordinatorRowsError) {
+                  console.warn('Falha ao resolver coordenador automático da equipe:', coordinatorRowsError.message);
+                }
 
-              const activeCoordinator = (coordinatorRows || []).find((row: any) => {
-                const role = String(row?.role || '').toUpperCase();
-                if (role !== 'COORDENADOR') return false;
-                const status = String(row?.status || '').toLowerCase();
-                return status === 'ativo' || status === 'active' || status === '';
-              });
+                const activeCoordinator = (coordinatorRows || []).find((row: any) => {
+                  const role = String(row?.role || '').toUpperCase();
+                  if (role !== 'COORDENADOR') return false;
+                  const status = String(row?.status || '').toLowerCase();
+                  return status === 'ativo' || status === 'active' || status === '';
+                });
 
-              updatePayload.coordinator_id = activeCoordinator?.id || null;
-              resolvedTouchesCoordinator = true;
+                updatePayload.coordinator_id = activeCoordinator?.id || null;
+                resolvedTouchesCoordinator = true;
+              }
             }
           } else {
             updatePayload.team = null;
