@@ -40,27 +40,30 @@ export default function SendEmail() {
       // ── Resolve hierarchy from the CLIENT OWNER, not the logged-in user ──
       const ownerProfile = allProfiles.find(p => p.id === (found as any).owner_id);
       const ownerRole = ownerProfile?.role?.toUpperCase();
-      const ownerTeamId = ownerProfile?.team_id;
 
       let managerName: string;
       let coordinatorName: string;
       let corretorName: string;
 
-      if (ownerRole === 'GERENTE') {
-        // Owner is the manager — they acted as the broker too
-        managerName = ownerProfile!.name.toUpperCase();
+      if (!ownerProfile) {
+        managerName = 'NÃO INFORMADO';
         coordinatorName = '';
-        corretorName = ownerProfile!.name.toUpperCase();
+        corretorName = userName.toUpperCase();
+      } else if (ownerRole === 'GERENTE') {
+        // Owner is the manager — they acted as the broker too
+        managerName = ownerProfile.name.toUpperCase();
+        coordinatorName = '';
+        corretorName = ownerProfile.name.toUpperCase();
       } else if (ownerRole === 'COORDENADOR') {
         // Owner is the coordinator — look up manager via direct manager_id FK
-        coordinatorName = ownerProfile!.name.toUpperCase();
+        coordinatorName = ownerProfile.name.toUpperCase();
         const managerObj = allProfiles.find(p => p.id === (ownerProfile as any).manager_id);
         managerName = managerObj ? managerObj.name.toUpperCase() : 'NÃO INFORMADO';
-        corretorName = ownerProfile!.name.toUpperCase();
+        corretorName = ownerProfile.name.toUpperCase();
       } else {
         // Owner is CORRETOR (or unknown) — resolve hierarchy via direct coordinator_id / manager_id FKs
-        corretorName = ownerProfile ? ownerProfile.name.toUpperCase() : userName.toUpperCase();
-        const coordObj = allProfiles.find(p => p.id === (ownerProfile as any).coordinator_id);
+        corretorName = ownerProfile.name.toUpperCase();
+        const coordObj = allProfiles.find(p => p.id === ownerProfile.coordinator_id);
         coordinatorName = coordObj ? coordObj.name.toUpperCase() : '';
 
         // Prefer direct manager_id; fallback to coordinator's manager_id
