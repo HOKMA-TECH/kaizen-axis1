@@ -402,7 +402,29 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           delete updatePayload.team;
           delete updatePayload.team_id;
         } else {
-          const normalizedTeam = rawTeam || null;
+          const normalizedRef = typeof rawTeam === 'string' ? rawTeam.trim() : rawTeam;
+          let normalizedTeam = normalizedRef || null;
+
+          if (normalizedTeam) {
+            const { data: teamById, error: teamByIdError } = await supabase
+              .from('teams')
+              .select('id')
+              .eq('id', normalizedTeam)
+              .maybeSingle();
+            if (teamByIdError) throw teamByIdError;
+
+            if (!teamById && typeof normalizedTeam === 'string') {
+              const { data: teamByName, error: teamByNameError } = await supabase
+                .from('teams')
+                .select('id')
+                .ilike('name', normalizedTeam)
+                .limit(1)
+                .maybeSingle();
+              if (teamByNameError) throw teamByNameError;
+              normalizedTeam = teamByName?.id || null;
+            }
+          }
+
           updatePayload.team = normalizedTeam;
           updatePayload.team_id = normalizedTeam;
         }
