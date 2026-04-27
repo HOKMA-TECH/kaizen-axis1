@@ -47,6 +47,25 @@ function parseValue(v: string): number {
   return parseFloat(clean) || 0;
 }
 
+const normalizeTeamRef = (value?: string | null) => String(value || '').trim().toLowerCase();
+
+function profileMatchesTeam(profile: { team?: string; team_id?: string | null }, team: Team): boolean {
+  if (profile.team_id === team.id || profile.team === team.id) return true;
+
+  // Legacy fallback: some older records store the team name in `profiles.team`
+  const profileTeamName = normalizeTeamRef(profile.team);
+  const teamName = normalizeTeamRef(team.name);
+  return profileTeamName.length > 0 && profileTeamName === teamName;
+}
+
+function getTeamMemberIds(team: Team, profiles: { id: string; team?: string; team_id?: string | null }[]): string[] {
+  return Array.from(new Set([
+    ...(team.members ?? []),
+    ...profiles.filter(p => profileMatchesTeam(p, team)).map(p => p.id),
+    ...(team.manager_id ? [team.manager_id] : []),
+  ]));
+}
+
 // ─── Sub-view: Equipe Report ────────────────────────────────────────────────────
 
 function TeamReportView({
@@ -60,13 +79,9 @@ function TeamReportView({
 
   // Members of this team:
   // - team.members[] is the authoritative list (set by the approval flow)
-  // - fallback: profile.team stores the team UUID (AdminPanel sets team = team_id)
+  // - fallback: profile.team can store UUID or legacy team name
   // - always include the team manager themselves
-  const memberIds = Array.from(new Set([
-    ...(team.members ?? []),
-    ...allProfiles.filter(p => p.team === team.id || p.team_id === team.id).map(p => p.id),
-    ...(team.manager_id ? [team.manager_id] : []),
-  ]));
+  const memberIds = getTeamMemberIds(team, allProfiles);
 
   // Clients belonging to team members, optionally filtered by date range
   const start = startDate ? new Date(startDate).getTime() : null;
@@ -790,7 +805,7 @@ function DiretoriaReportView({
         .map((team) => {
           const memberIds = Array.from(new Set([
             ...(team.members ?? []),
-            ...allProfiles.filter((p) => p.team === team.id || p.team_id === team.id).map((p) => p.id),
+            ...allProfiles.filter((p) => profileMatchesTeam(p, team)).map((p) => p.id),
             ...(team.manager_id ? [team.manager_id] : []),
           ]));
           const teamClients = dirClients.filter((c) => memberIds.includes((c as any).owner_id));
@@ -1033,7 +1048,7 @@ function DiretoriaReportView({
             {dirTeams.map(team => {
               const memberIds = Array.from(new Set([
                 ...(team.members ?? []),
-                ...allProfiles.filter(p => p.team === team.id || p.team_id === team.id).map(p => p.id),
+                ...allProfiles.filter(p => profileMatchesTeam(p, team)).map(p => p.id),
                 ...(team.manager_id ? [team.manager_id] : []),
               ]));
               const memberCount = memberIds.length;
@@ -1090,6 +1105,7 @@ export default function Reports() {
   const scope = searchParams.get('scope') ?? 'global';
   const scopeId = searchParams.get('id') ?? '';
   const scopeName = decodeURIComponent(searchParams.get('name') ?? '');
+  const currentUserProfile = allProfiles.find(p => p.id === profile?.id);
 
   // ── Derive ISO dates from selected period
   const { start: startDate, end: endDate } = periodToDates(period);
@@ -1150,8 +1166,7 @@ export default function Reports() {
       (isManager && teamObj?.manager_id === profile?.id) ||
       (isCoordinator && (
         teamObj?.members?.includes(profile?.id ?? '') ||
-        allProfiles.find(p => p.id === profile?.id)?.team_id === teamObj?.id ||
-        allProfiles.find(p => p.id === profile?.id)?.team === teamObj?.id
+        (!!teamObj && !!currentUserProfile && profileMatchesTeam(currentUserProfile, teamObj))
       ));
     if (teamObj && canViewThisTeam) {
       return <TeamReportView team={teamObj} startDate={startDate} endDate={endDate} />;
@@ -1481,16 +1496,18 @@ export default function Reports() {
 
       {/* ── Por Equipe ── */}
       {canViewAllClients && (() => {
+        const myDirectorateId = profile?.directorate_id || allProfiles.find(p => p.id === profile?.id)?.directorate_id;
         const visibleTeams = (isAdmin || isDirector)
           ? teams
-          : isManager
-            ? teams.filter(t => t.manager_id === profile?.id)
-            : // COORDENADOR: só a equipe a que pertence
-              teams.filter(t =>
-                t.members?.includes(profile?.id ?? '') ||
-                allProfiles.find(p => p.id === profile?.id)?.team_id === t.id ||
-                allProfiles.find(p => p.id === profile?.id)?.team === t.id
-              );
+          : isDirector
+            ? teams.filter(t => t.directorate_id && t.directorate_id === myDirectorateId)
+            : isManager
+              ? teams.filter(t => t.manager_id === profile?.id)
+              : // COORDENADOR: só a equipe a que pertence
+                teams.filter(t =>
+                  t.members?.includes(profile?.id ?? '') ||
+                  (!!currentUserProfile && profileMatchesTeam(currentUserProfile, t))
+                );
         if (visibleTeams.length === 0) return null;
         return (
         <section className="mt-8 print:hidden">
@@ -1499,7 +1516,7 @@ export default function Reports() {
             {visibleTeams.map(team => {
               const memberCount = new Set([
                 ...(team.members ?? []),
-                ...allProfiles.filter(p => p.team === team.id || p.team_id === team.id).map(p => p.id),
+                ...allProfiles.filter(p => profileMatchesTeam(p, team)).map(p => p.id),
                 ...(team.manager_id ? [team.manager_id] : []),
               ]).size;
               return (
