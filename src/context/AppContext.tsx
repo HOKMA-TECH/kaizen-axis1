@@ -1380,15 +1380,94 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const updateTeam = useCallback(async (id: string, data: Partial<Team>) => {
     try {
+      const { data: previousTeam, error: previousTeamError } = await supabase
+        .from('teams')
+        .select('manager_id, directorate_id, members')
+        .eq('id', id)
+        .single();
+      if (previousTeamError) throw previousTeamError;
+
       const updateData: any = { ...data };
       if ('directorate_id' in data) updateData.directorate_id = data.directorate_id ? data.directorate_id : null;
       if ('manager_id' in data) updateData.manager_id = data.manager_id ? data.manager_id : null;
 
       const { error } = await supabase.from('teams').update(updateData).eq('id', id);
       if (error) throw error;
+
+      if ('manager_id' in data) {
+        const previousManagerId = previousTeam?.manager_id || null;
+        const nextManagerId = updateData.manager_id || null;
+        const nextDirectorateId = ('directorate_id' in updateData)
+          ? updateData.directorate_id
+          : (previousTeam?.directorate_id || null);
+
+        const currentMembers: string[] = Array.isArray(previousTeam?.members)
+          ? previousTeam.members.filter((member: any) => typeof member === 'string')
+          : [];
+
+        const syncManagerMembership = async (managerId: string | null) => {
+          if (!managerId) return;
+
+          await supabase
+            .from('profiles')
+            .update({
+              team: id,
+              team_id: id,
+              directorate_id: nextDirectorateId,
+              coordinator_id: null,
+            })
+            .eq('id', managerId);
+
+          const { data: allTeamRows } = await supabase
+            .from('teams')
+            .select('id, members');
+
+          for (const row of (allTeamRows || []) as Array<any>) {
+            const teamId = row?.id as string | undefined;
+            if (!teamId || teamId === id) continue;
+            const members: string[] = Array.isArray(row?.members)
+              ? row.members.filter((member: any) => typeof member === 'string')
+              : [];
+            if (!members.includes(managerId)) continue;
+
+            await supabase
+              .from('teams')
+              .update({ members: members.filter(memberId => memberId !== managerId) })
+              .eq('id', teamId);
+          }
+
+          if (!currentMembers.includes(managerId)) {
+            await supabase
+              .from('teams')
+              .update({ members: [...currentMembers, managerId] })
+              .eq('id', id);
+          }
+        };
+
+        if (nextManagerId && nextManagerId !== previousManagerId) {
+          await syncManagerMembership(nextManagerId);
+        }
+
+        if (previousManagerId && previousManagerId !== nextManagerId) {
+          const { data: prevProfile } = await supabase
+            .from('profiles')
+            .select('team, team_id')
+            .eq('id', previousManagerId)
+            .single();
+
+          if ((prevProfile?.team_id || prevProfile?.team) === id) {
+            await supabase
+              .from('profiles')
+              .update({ team: null, team_id: null })
+              .eq('id', previousManagerId);
+          }
+        }
+      }
+
       await refreshTeams();
+      await refreshProfiles();
     } catch (e) { console.error('Erro ao atualizar equipe:', e); }
-  }, [refreshTeams]);
+  }, [refreshProfiles, refreshTeams]);
 
   const deleteTeam = useCallback(async (id: string) => {
     try {

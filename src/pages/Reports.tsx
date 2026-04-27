@@ -142,7 +142,7 @@ function TeamReportView({
 
   // Broker ranking
   const brokerRanking = allProfiles
-    .filter(p => memberIds.includes(p.id))
+    .filter(p => memberIds.includes(p.id) && p.role?.toUpperCase() === 'CORRETOR')
     .map(p => {
       const brokerClients = teamClients.filter(c => (c as any).owner_id === p.id);
       return {
