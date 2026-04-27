@@ -926,13 +926,21 @@ export default function AdminPanel() {
     const isAdding = !members.includes(userId);
     const newMembers = isAdding ? [...members, userId] : members.filter(id => id !== userId);
 
-    await updateTeam(teamId, { members: newMembers });
-    await updateProfile(userId, {
-      team: isAdding ? teamId : null,
-      team_id: isAdding ? teamId : null,
-      directorate_id: isAdding ? (team.directorate_id || null) : undefined,
-      manager_id: isAdding ? (team.manager_id || null) : undefined
-    });
+    try {
+      // Primeiro persiste o vínculo canônico no profile.
+      await updateProfile(userId, {
+        team: isAdding ? teamId : null,
+        team_id: isAdding ? teamId : null,
+        directorate_id: isAdding ? (team.directorate_id || null) : undefined,
+        manager_id: isAdding ? (team.manager_id || null) : undefined,
+      });
+
+      // Depois sincroniza o members[] para consistência visual no Admin.
+      await updateTeam(teamId, { members: newMembers });
+    } catch (e: any) {
+      console.error('Falha ao transferir membro de equipe:', e);
+      alert(`Não foi possível concluir a transferência de equipe. ${e?.message || ''}`.trim());
+    }
   };
 
   // ── Goal Actions ───────────────────────────────────────────────────────────

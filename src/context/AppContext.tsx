@@ -736,6 +736,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       });
     } catch (e) {
       console.error('Erro ao atualizar profile:', e);
+      throw e;
     }
   }, [refreshProfiles]);
 
@@ -1479,7 +1480,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
       await refreshTeams();
       await refreshProfiles();
-    } catch (e) { console.error('Erro ao atualizar equipe:', e); }
+    } catch (e) {
+      console.error('Erro ao atualizar equipe:', e);
+      throw e;
+    }
   }, [refreshProfiles, refreshTeams]);
 
   const deleteTeam = useCallback(async (id: string) => {
