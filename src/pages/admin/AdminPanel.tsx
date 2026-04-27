@@ -101,6 +101,21 @@ export default function AdminPanel() {
     return parseFloat(v.replace(/[R$\s.]/g, '').replace(',', '.')) || 0;
   };
 
+  const normalizeTeamRef = (value?: string | null) => String(value || '').trim().toLowerCase();
+
+  const profileMatchesTeam = (profile: any, team: Team): boolean => {
+    if (!profile || !team) return false;
+    if (profile.team_id === team.id || profile.team === team.id) return true;
+    const profileTeamName = normalizeTeamRef(profile.team);
+    const teamName = normalizeTeamRef(team.name);
+    return profileTeamName.length > 0 && profileTeamName === teamName;
+  };
+
+  const getTeamMemberIds = (team: Team): string[] => Array.from(new Set([
+    ...(team.members || []),
+    ...allProfiles.filter((p: any) => profileMatchesTeam(p, team)).map((p: any) => p.id),
+  ]));
+
   const formatBrokerDisplayName = (name?: string | null): string => {
     const normalized = String(name || '').trim().replace(/\s+/g, ' ');
     if (!normalized) return 'Sem nome';
@@ -356,7 +371,7 @@ export default function AdminPanel() {
     return teams
       .map((team) => {
         const brokerIds = Array.from(new Set(allProfiles
-          .filter((p: any) => (p.team === team.id || p.team_id === team.id) && p.role?.toUpperCase() === 'CORRETOR')
+          .filter((p: any) => profileMatchesTeam(p, team) && p.role?.toUpperCase() === 'CORRETOR')
           .map((p) => p.id)));
 
         const rows = brokerIds.map((id) => brokerMap.get(id)).filter(Boolean) as any[];
@@ -907,7 +922,7 @@ export default function AdminPanel() {
   const handleToggleMember = async (teamId: string, userId: string) => {
     const team = teams.find(t => t.id === teamId);
     if (!team) return;
-    const members = team.members || [];
+    const members = getTeamMemberIds(team);
     const isAdding = !members.includes(userId);
     const newMembers = isAdding ? [...members, userId] : members.filter(id => id !== userId);
 
@@ -1105,7 +1120,7 @@ export default function AdminPanel() {
                           <button onClick={() => { if (confirm('Excluir equipe?')) deleteTeam(team.id); }} className="p-1.5 bg-surface-50 rounded-full hover:text-red-500"><Trash2 size={14} /></button>
                         </div>
                       </div>
-                      <p className="text-xs text-text-secondary">{(team.members || []).length} membros</p>
+                      <p className="text-xs text-text-secondary">{getTeamMemberIds(team).length} membros</p>
                     </PremiumCard>
                   );
                 })}
@@ -2081,7 +2096,7 @@ export default function AdminPanel() {
           <div className="max-h-60 overflow-y-auto space-y-2">
             {allProfiles.filter(u => u.status === 'active' || u.status === 'Ativo').map(u => {
               const team = teams.find(t => t.id === selectedTeamId);
-              const isMember = (team?.members || []).includes(u.id);
+              const isMember = team ? getTeamMemberIds(team).includes(u.id) : false;
               return (
                 <div key={u.id} className="flex justify-between items-center p-2 bg-surface-50 rounded-lg">
                   <div className="flex items-center gap-2">
