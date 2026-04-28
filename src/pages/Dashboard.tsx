@@ -84,8 +84,12 @@ export default function Dashboard() {
     return d >= periodStart && d <= periodEnd;
   };
 
+  const getSaleReferenceDate = (client: any): string | null => {
+    return client?.closed_at || client?.updated_at || client?.createdAt || null;
+  };
+
   const periodClients = scopedClients.filter(c => inSelectedPeriod(c.createdAt));
-  const periodSales = periodClients.filter(c => c.stage === 'Concluído');
+  const periodSales = scopedClients.filter(c => c.stage === 'Concluído' && inSelectedPeriod(getSaleReferenceDate(c)));
 
   const totalSales = periodSales.length;
   const emAnalise = periodClients.filter(c => c.stage === 'Em Análise').length;
