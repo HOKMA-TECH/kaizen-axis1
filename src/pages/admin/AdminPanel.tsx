@@ -511,23 +511,22 @@ export default function AdminPanel() {
   };
 
   const handleExportGeneralPdf = async () => {
-    if (!reportData) return;
     setPdfExportType('geral');
     try {
-      const resumo = reportData.resumo_geral || {};
-      const totalClientes = Number(resumo.C || 0);
-      const totalVendas = Number(resumo.V || 0);
+      const totalClientes = selectedPeriodClients.length;
+      const totalVendas = globalMetrics.totalVendas;
+      const receitaTotal = selectedPeriodSales.reduce((acc, c) => acc + parseCurrencyLocal(c.intendedValue), 0);
       const taxaConversaoReal = totalClientes > 0 ? Number(((totalVendas / totalClientes) * 100).toFixed(1)) : 0;
       await buildPdfReport({
         filename: `relatorio-geral-${reportDateRange.start}-${reportDateRange.end}.pdf`,
         title: 'Relatorio Geral de Performance',
         subtitle: `Periodo ${toPtBrDate(reportDateRange.start)} a ${toPtBrDate(reportDateRange.end)}`,
         metrics: [
-          { label: 'Leads', value: String(resumo.L || 0) },
-          { label: 'Clientes', value: String(resumo.C || 0) },
-          { label: 'Vendas concluidas', value: String(resumo.V || 0) },
+          { label: 'Leads', value: String(selectedPeriodLeads.length) },
+          { label: 'Clientes', value: String(totalClientes) },
+          { label: 'Vendas concluidas', value: String(totalVendas) },
           { label: 'Taxa de conversao', value: `${taxaConversaoReal}%` },
-          { label: 'Receita total', value: new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(resumo.R || 0)) },
+          { label: 'Receita total', value: new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(receitaTotal) },
           { label: 'VGV concluido', value: new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(vgvLocal) },
         ],
         columns: [
@@ -654,24 +653,24 @@ export default function AdminPanel() {
   };
 
   const handleExportCSV = () => {
-    if (!reportData) return;
     setIsGeneratingCSV(true);
     try {
+      const receitaTotal = selectedPeriodSales.reduce((acc, c) => acc + parseCurrencyLocal(c.intendedValue), 0);
       const rows = [
         ['Métrica', 'Valor'],
-        ['Total de Leads', reportData.resumo_geral.L],
-        ['Total de Clientes', reportData.resumo_geral.C],
-        ['Vendas Concluídas', reportData.resumo_geral.V],
-        ['Receita Total', reportData.resumo_geral.R],
-        ['Agendamentos', reportData.resumo_geral.A],
-        ['Taxa de Conversão', `${reportData.resumo_geral.Taxa_Conversao}%`],
-        ['Ticket Médio', reportData.resumo_geral.Ticket_Medio],
-        ['Tempo Médio de Conversão (dias)', reportData.resumo_geral.Tempo_Medio_Conversao],
+        ['Total de Leads', String(selectedPeriodLeads.length)],
+        ['Total de Clientes', String(selectedPeriodClients.length)],
+        ['Vendas Concluídas', String(globalMetrics.totalVendas)],
+        ['Receita Total', receitaTotal.toFixed(2)],
+        ['Agendamentos', String(upcomingAppointmentsCount)],
+        ['Taxa de Conversão', `${globalMetrics.taxaConversao.toFixed(1)}%`],
+        ['Ticket Médio', globalMetrics.totalVendas > 0 ? (receitaTotal / globalMetrics.totalVendas).toFixed(2) : '0'],
+        ['Tempo Médio de Conversão (dias)', String(globalMetrics.cicloMedioDias)],
         [],
         ['Pipeline - Etapa', 'Quantidade', 'Percentual']
       ];
 
-      reportData.pipeline.forEach((p: any) => {
+      pipelineDataLocal.forEach((p: any) => {
         rows.push([p.etapa, p.quantidade.toString(), `${p.percentual}%`]);
       });
 
