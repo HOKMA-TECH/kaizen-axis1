@@ -466,7 +466,11 @@ export default function AdminPanel() {
     drawTableHeader();
 
     rows.forEach((row, rowIndex) => {
-      if (y < MARGIN + ROW_H + 18) {
+      const rowLines = row.map((cell) => String(cell || '').split('\n').length);
+      const lineCount = Math.max(1, ...rowLines);
+      const rowHeight = Math.max(ROW_H, 10 + (lineCount * 8));
+
+      if (y < MARGIN + rowHeight + 18) {
         page = doc.addPage([PAGE_W, PAGE_H]);
         y = PAGE_H - MARGIN;
         page.drawText(`${title} - continuacao`, { x: MARGIN, y, size: 8, font: fontRegular, color: colorGray });
@@ -477,9 +481,9 @@ export default function AdminPanel() {
       const isEven = rowIndex % 2 === 0;
       page.drawRectangle({
         x: MARGIN,
-        y: y - ROW_H,
+        y: y - rowHeight,
         width: TABLE_W,
-        height: ROW_H,
+        height: rowHeight,
         color: isEven ? colorWhite : colorLight,
       });
 
@@ -488,16 +492,20 @@ export default function AdminPanel() {
         const colW = columns[cellIndex]?.width || 80;
         const text = String(cell || '');
         const maxChars = Math.max(8, Math.floor(colW / 4.2));
-        page.drawText(text.length > maxChars ? `${text.slice(0, maxChars - 1)}…` : text, {
-          x: cx,
-          y: y - ROW_H + 6,
-          size: 7,
-          font: fontRegular,
-          color: colorDark,
+        const lines = text.split('\n');
+        lines.forEach((line, lineIndex) => {
+          const clipped = line.length > maxChars ? `${line.slice(0, maxChars - 1)}…` : line;
+          page.drawText(clipped, {
+            x: cx,
+            y: y - 12 - (lineIndex * 8),
+            size: 7,
+            font: fontRegular,
+            color: colorDark,
+          });
         });
         cx += colW;
       });
-      y -= ROW_H;
+      y -= rowHeight;
     });
 
     const bytes = await doc.save();
@@ -517,6 +525,46 @@ export default function AdminPanel() {
       const totalVendas = globalMetrics.totalVendas;
       const receitaTotal = selectedPeriodSales.reduce((acc, c) => acc + parseCurrencyLocal(c.intendedValue), 0);
       const taxaConversaoReal = totalClientes > 0 ? Number(((totalVendas / totalClientes) * 100).toFixed(1)) : 0;
+      const salesByUserMap = new Map<string, { clients: string[]; clientCount: number; salesCount: number; revenue: number }>();
+      selectedPeriodSales.forEach((client: any) => {
+        const ownerId = String(client?.owner_id || '');
+        if (!ownerId) return;
+        const row = salesByUserMap.get(ownerId) || { clients: [], clientCount: 0, salesCount: 0, revenue: 0 };
+        row.salesCount += 1;
+        row.revenue += parseCurrencyLocal(client.intendedValue);
+        if (client?.name) row.clients.push(String(client.name));
+        salesByUserMap.set(ownerId, row);
+      });
+
+      const clientsByUserMap = new Map<string, number>();
+      selectedPeriodClients.forEach((client: any) => {
+        const ownerId = String(client?.owner_id || '');
+        if (!ownerId) return;
+        clientsByUserMap.set(ownerId, (clientsByUserMap.get(ownerId) || 0) + 1);
+      });
+
+      const sellerRows = Array.from(salesByUserMap.entries())
+        .map(([ownerId, row]) => {
+          const profileRow = allProfiles.find((p) => p.id === ownerId);
+          const role = String(profileRow?.role || '').toUpperCase();
+          const userName = profileRow?.name || `Usuário ${ownerId.slice(0, 8)}`;
+          const uniqueClients = Array.from(new Set(row.clients));
+          const firstClient = uniqueClients[0] || 'Cliente não identificado';
+          const clientLine = uniqueClients.length > 1
+            ? `Cliente: ${firstClient} (+${uniqueClients.length - 1})`
+            : `Cliente: ${firstClient}`;
+          const clientsCount = clientsByUserMap.get(ownerId) || 0;
+          const conversion = clientsCount > 0 ? Math.round((row.salesCount / clientsCount) * 100) : 0;
+          return {
+            userCell: `${userName} (${role || 'SEM CARGO'})\n${clientLine}`,
+            clientsCount,
+            salesCount: row.salesCount,
+            conversion,
+            revenue: row.revenue,
+          };
+        })
+        .sort((a, b) => b.salesCount - a.salesCount || b.revenue - a.revenue);
+
       await buildPdfReport({
         filename: `relatorio-geral-${reportDateRange.start}-${reportDateRange.end}.pdf`,
         title: 'Relatorio Geral de Performance',
@@ -530,18 +578,18 @@ export default function AdminPanel() {
           { label: 'VGV concluido', value: new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(vgvLocal) },
         ],
         columns: [
-          { header: 'Corretor', width: 210 },
+          { header: 'Usuário / Cliente', width: 260 },
           { header: 'Clientes', width: 70 },
           { header: 'Vendas', width: 65 },
           { header: 'Conv.%', width: 60 },
-          { header: 'Receita', width: 118 },
+          { header: 'Receita', width: 68 },
         ],
-        rows: localBrokerRanking.map((row: any) => [
-          String(row.nome || '-'),
-          String(row.Li || 0),
-          String(row.Vi || 0),
-          `${row.Taxa_Conversao_i || 0}%`,
-          new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(Number(row.Ri || 0)),
+        rows: sellerRows.map((row: any) => [
+          row.userCell,
+          String(row.clientsCount || 0),
+          String(row.salesCount || 0),
+          `${row.conversion || 0}%`,
+          new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(Number(row.revenue || 0)),
         ]),
       });
     } catch (error) {
