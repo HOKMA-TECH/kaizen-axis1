@@ -95,6 +95,21 @@ function getTeamMemberIds(team: Team, profiles: { id: string; team?: string; tea
   ]));
 }
 
+function parseIsoDate(value?: string | null): number | null {
+  if (!value) return null;
+  const parsed = new Date(value).getTime();
+  return Number.isNaN(parsed) ? null : parsed;
+}
+
+function isSaleInPeriod(client: any, start: number | null, end: number | null): boolean {
+  if (client?.stage !== 'Concluído') return false;
+  const saleDate = parseIsoDate(client?.closed_at);
+  if (saleDate === null) return false;
+  if (start !== null && saleDate < start) return false;
+  if (end !== null && saleDate > end) return false;
+  return true;
+}
+
 // ─── Sub-view: Equipe Report ────────────────────────────────────────────────────
 
 function TeamReportView({
@@ -126,13 +141,17 @@ function TeamReportView({
     return true;
   });
 
+  const teamSales = clients.filter(c => {
+    const ownerId = (c as any).owner_id;
+    if (!memberIds.includes(ownerId)) return false;
+    return isSaleInPeriod(c, start, end);
+  });
+
   const totalClientes = teamClients.length;
-  const vendas = teamClients.filter(c => c.stage === 'Concluído').length;
+  const vendas = teamSales.length;
   const aprovados = teamClients.filter(c => c.stage === 'Aprovado').length;
   const taxaConversao = totalClientes > 0 ? Math.round((vendas / totalClientes) * 100) : 0;
-  const vgv = teamClients
-    .filter(c => c.stage === 'Concluído')
-    .reduce((acc, c) => acc + parseValue(c.intendedValue), 0);
+  const vgv = teamSales.reduce((acc, c) => acc + parseValue(c.intendedValue), 0);
 
   // Stage breakdown
   const byStage: Record<string, number> = {};
@@ -145,11 +164,12 @@ function TeamReportView({
     .filter(p => memberIds.includes(p.id) && p.role?.toUpperCase() === 'CORRETOR')
     .map(p => {
       const brokerClients = teamClients.filter(c => (c as any).owner_id === p.id);
+      const brokerSales = teamSales.filter(c => (c as any).owner_id === p.id);
       return {
         id: p.id,
         name: p.name,
         total: brokerClients.length,
-        vendas: brokerClients.filter(c => c.stage === 'Concluído').length,
+        vendas: brokerSales.length,
       };
     })
     .sort((a, b) => b.vendas - a.vendas || b.total - a.total);
@@ -524,13 +544,17 @@ function CoordReportView({
     return true;
   });
 
+  const coordSales = clients.filter(c => {
+    const ownerId = (c as any).owner_id;
+    if (!memberIds.includes(ownerId)) return false;
+    return isSaleInPeriod(c, start, end);
+  });
+
   const totalClientes = coordClients.length;
-  const vendas = coordClients.filter(c => c.stage === 'Concluído').length;
+  const vendas = coordSales.length;
   const aprovados = coordClients.filter(c => c.stage === 'Aprovado').length;
   const taxaConversao = totalClientes > 0 ? Math.round((vendas / totalClientes) * 100) : 0;
-  const vgv = coordClients
-    .filter(c => c.stage === 'Concluído')
-    .reduce((acc, c) => acc + parseValue(c.intendedValue), 0);
+  const vgv = coordSales.reduce((acc, c) => acc + parseValue(c.intendedValue), 0);
 
   const byStage: Record<string, number> = {};
   coordClients.forEach(c => { byStage[c.stage] = (byStage[c.stage] ?? 0) + 1; });
@@ -539,11 +563,12 @@ function CoordReportView({
     .filter(p => memberIds.includes(p.id))
     .map(p => {
       const bc = coordClients.filter(c => (c as any).owner_id === p.id);
+      const sales = coordSales.filter(c => (c as any).owner_id === p.id);
       return {
         id: p.id,
         name: p.name,
         total: bc.length,
-        vendas: bc.filter(c => c.stage === 'Concluído').length,
+        vendas: sales.length,
       };
     })
     .sort((a, b) => b.vendas - a.vendas || b.total - a.total);
@@ -756,7 +781,7 @@ function DiretoriaReportView({
 
   // ── Metrics
   const totalClientes = dirClients.length;
-  const vendas = dirClients.filter(c => c.stage === 'Concluído');
+  const vendas = dirClients.filter(c => isSaleInPeriod(c, startDate ? parseDateOnlyLocal(startDate).getTime() : null, endDate ? parseDateOnlyLocalEnd(endDate).getTime() : null));
   const totalVendas = vendas.length;
   const aprovados = dirClients.filter(c => c.stage === 'Aprovado').length;
   const taxaConversao = totalClientes > 0 ? ((totalVendas / totalClientes) * 100).toFixed(1) : '0.0';
@@ -842,7 +867,7 @@ function DiretoriaReportView({
             ...(team.manager_id ? [team.manager_id] : []),
           ]));
           const teamClients = dirClients.filter((c) => memberIds.includes((c as any).owner_id));
-          const vendasEquipe = teamClients.filter((c) => c.stage === 'Concluído');
+          const vendasEquipe = dirClients.filter((c) => memberIds.includes((c as any).owner_id) && isSaleInPeriod(c, startDate ? parseDateOnlyLocal(startDate).getTime() : null, endDate ? parseDateOnlyLocalEnd(endDate).getTime() : null));
           const vgvEquipe = vendasEquipe.reduce((acc, c) => acc + parseValue(c.intendedValue), 0);
           return {
             equipe: team.name,
@@ -1088,7 +1113,7 @@ function DiretoriaReportView({
               ]));
               const memberCount = memberIds.length;
               const teamClients = dirClients.filter(c => memberIds.includes((c as any).owner_id));
-              const teamSales = teamClients.filter(c => c.stage === 'Concluído').length;
+              const teamSales = dirClients.filter(c => memberIds.includes((c as any).owner_id) && isSaleInPeriod(c, startDate ? parseDateOnlyLocal(startDate).getTime() : null, endDate ? parseDateOnlyLocalEnd(endDate).getTime() : null)).length;
               return (
                 <PremiumCard
                   key={team.id}
