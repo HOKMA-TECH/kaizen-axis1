@@ -135,7 +135,7 @@ export default function AdminPanel() {
   const reportRangeStart = parseDateOnlyLocal(reportDateRange.start);
   const reportRangeEnd = parseDateOnlyLocalEnd(reportDateRange.end);
   const getSaleReferenceDate = (client: any): Date | null => {
-    const raw = client?.closed_at || client?.updated_at || client?.createdAt || null;
+    const raw = client?.closed_at || null;
     if (!raw) return null;
     const parsed = new Date(raw);
     return Number.isNaN(parsed.getTime()) ? null : parsed;
@@ -156,6 +156,10 @@ export default function AdminPanel() {
     const saleDate = getSaleReferenceDate(c);
     return !!saleDate && saleDate >= reportRangeStart && saleDate <= reportRangeEnd;
   });
+  const selectedPeriodSalesCount = selectedPeriodSales.length;
+  const selectedPeriodConversion = selectedPeriodClients.length > 0
+    ? Number(((selectedPeriodSalesCount / selectedPeriodClients.length) * 100).toFixed(1))
+    : 0;
   const selectedPeriodApproved = selectedPeriodClients.filter((c) => c.stage === 'Aprovado').length;
 
   const pipelineDataLocal = CLIENT_STAGES
@@ -350,18 +354,21 @@ export default function AdminPanel() {
   })();
 
   const reportByTeam = (() => {
-    const brokerMap = new Map(localBrokerRanking.map((row: any) => [row.corretor_id, row]));
-
     return teams
       .map((team) => {
+        const teamMemberIds = Array.from(new Set([
+          ...getTeamMemberIds(team),
+          team.manager_id,
+        ].filter(Boolean) as string[]));
         const brokerIds = Array.from(new Set(allProfiles
           .filter((p: any) => profileMatchesTeam(p, team) && p.role?.toUpperCase() === 'CORRETOR')
           .map((p) => p.id)));
 
-        const rows = brokerIds.map((id) => brokerMap.get(id)).filter(Boolean) as any[];
-        const clientes = rows.reduce((acc, row) => acc + Number(row.Li || 0), 0);
-        const vendas = rows.reduce((acc, row) => acc + Number(row.Vi || 0), 0);
-        const receita = rows.reduce((acc, row) => acc + Number(row.Ri || 0), 0);
+        const clientsByTeam = selectedPeriodClients.filter((c: any) => teamMemberIds.includes(String(c?.owner_id || '')));
+        const salesByTeam = selectedPeriodSales.filter((c: any) => teamMemberIds.includes(String(c?.owner_id || '')));
+        const clientes = clientsByTeam.length;
+        const vendas = salesByTeam.length;
+        const receita = salesByTeam.reduce((acc, c) => acc + parseCurrencyLocal(c.intendedValue), 0);
         const conversao = clientes > 0 ? Math.round((vendas / clientes) * 100) : 0;
 
         return {
@@ -534,7 +541,7 @@ export default function AdminPanel() {
     setPdfExportType('geral');
     try {
       const totalClientes = selectedPeriodClients.length;
-      const totalVendas = globalMetrics.totalVendas;
+      const totalVendas = selectedPeriodSalesCount;
       const receitaTotal = selectedPeriodSales.reduce((acc, c) => acc + parseCurrencyLocal(c.intendedValue), 0);
       const taxaConversaoReal = totalClientes > 0 ? Number(((totalVendas / totalClientes) * 100).toFixed(1)) : 0;
       const salesByUserMap = new Map<string, { clients: string[]; clientCount: number; salesCount: number; revenue: number }>();
@@ -719,11 +726,11 @@ export default function AdminPanel() {
         ['Métrica', 'Valor'],
         ['Total de Leads', String(selectedPeriodLeads.length)],
         ['Total de Clientes', String(selectedPeriodClients.length)],
-        ['Vendas Concluídas', String(globalMetrics.totalVendas)],
+        ['Vendas Concluídas', String(selectedPeriodSalesCount)],
         ['Receita Total', receitaTotal.toFixed(2)],
         ['Agendamentos', String(upcomingAppointmentsCount)],
-        ['Taxa de Conversão', `${globalMetrics.taxaConversao.toFixed(1)}%`],
-        ['Ticket Médio', globalMetrics.totalVendas > 0 ? (receitaTotal / globalMetrics.totalVendas).toFixed(2) : '0'],
+        ['Taxa de Conversão', `${selectedPeriodConversion.toFixed(1)}%`],
+        ['Ticket Médio', selectedPeriodSalesCount > 0 ? (receitaTotal / selectedPeriodSalesCount).toFixed(2) : '0'],
         ['Tempo Médio de Conversão (dias)', String(globalMetrics.cicloMedioDias)],
         [],
         ['Pipeline - Etapa', 'Quantidade', 'Percentual']
@@ -1531,7 +1538,7 @@ export default function AdminPanel() {
                   <PremiumCard className="p-3 bg-gradient-to-br from-gold-50/60 to-card-bg dark:from-gold-900/15 dark:to-card-bg border-gold-100 dark:border-gold-900/30 shadow-[0_2px_10px_rgba(0,0,0,0.03)] h-28 flex flex-col justify-between">
                     <p className="text-[10px] uppercase font-bold tracking-wider text-gold-600 flex items-center gap-1"><Trophy size={12} /> Vendas</p>
                     <div>
-                      <p className="text-2xl font-bold text-text-primary leading-none">{globalMetrics.totalVendas}</p>
+                      <p className="text-2xl font-bold text-text-primary leading-none">{selectedPeriodSalesCount}</p>
                       <p className="text-[9px] font-semibold text-text-secondary mt-1.5">no período selecionado</p>
                     </div>
                   </PremiumCard>
@@ -1550,7 +1557,7 @@ export default function AdminPanel() {
                     <p className="text-[10px] uppercase font-bold tracking-wider text-blue-600 flex items-center gap-1"><Target size={12} /> Conversão</p>
                     <div>
                       <div className="flex items-end gap-1 mb-1">
-                        <p className="text-2xl font-bold text-text-primary leading-none">{globalMetrics.taxaConversao.toFixed(1)}%</p>
+                        <p className="text-2xl font-bold text-text-primary leading-none">{selectedPeriodConversion.toFixed(1)}%</p>
                       </div>
                       <p className="text-[9px] font-semibold text-text-secondary mt-0.5">vendas / total clientes</p>
                     </div>
