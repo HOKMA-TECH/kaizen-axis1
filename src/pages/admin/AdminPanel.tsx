@@ -549,14 +549,13 @@ export default function AdminPanel() {
           const role = String(profileRow?.role || '').toUpperCase();
           const userName = profileRow?.name || `Usuário ${ownerId.slice(0, 8)}`;
           const uniqueClients = Array.from(new Set(row.clients));
-          const firstClient = uniqueClients[0] || 'Cliente não identificado';
-          const clientLine = uniqueClients.length > 1
-            ? `Cliente: ${firstClient} (+${uniqueClients.length - 1})`
-            : `Cliente: ${firstClient}`;
+          const clientLines = uniqueClients.length > 0
+            ? uniqueClients.map((clientName) => `Cliente: ${clientName}`)
+            : ['Cliente: Cliente não identificado'];
           const clientsCount = clientsByUserMap.get(ownerId) || 0;
           const conversion = clientsCount > 0 ? Math.round((row.salesCount / clientsCount) * 100) : 0;
           return {
-            userCell: `${userName} (${role || 'SEM CARGO'})\n${clientLine}`,
+            userCell: `${userName} (${role || 'SEM CARGO'})\n${clientLines.join('\n')}`,
             clientsCount,
             salesCount: row.salesCount,
             conversion,
