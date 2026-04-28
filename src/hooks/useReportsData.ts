@@ -62,6 +62,7 @@ interface UseReportsDataResult {
     forecastTotal: number;  // weighted total in BRL
     healthScores: ClientHealthScore[];
     filteredClientsCount: number;
+    filteredLeadsCount: number;
 }
 
 export function useReportsData({ startDate, endDate }: UseReportsDataOptions = {}): UseReportsDataResult {
@@ -79,6 +80,17 @@ export function useReportsData({ startDate, endDate }: UseReportsDataOptions = {
             return true;
         });
     }, [clients, rangeStart, rangeEnd]);
+
+    const filteredLeads = useMemo(() => {
+        return leads.filter((l: any) => {
+            const createdRaw = (l as any).created_at || (l as any).timestamp;
+            if (!createdRaw) return false;
+            const created = new Date(createdRaw);
+            if (rangeStart && created < rangeStart) return false;
+            if (rangeEnd && created > rangeEnd) return false;
+            return true;
+        });
+    }, [leads, rangeStart, rangeEnd]);
 
     // ── Global Metrics ─────────────────────────────────────────────────────────
     const globalMetrics = useMemo((): GlobalMetrics => {
@@ -102,11 +114,11 @@ export function useReportsData({ startDate, endDate }: UseReportsDataOptions = {
 
         return {
             totalVendas,
-            novosLeads: leads.length,
+            novosLeads: filteredLeads.length,
             taxaConversao: parseFloat(taxaConversao.toFixed(1)),
             cicloMedioDias: parseFloat(cicloMedioDias.toFixed(1)),
         };
-    }, [filteredClients, leads]);
+    }, [filteredClients, filteredLeads]);
 
     // ── Weighted Pipeline (chart data) ────────────────────────────────────────
     const { weightedPipeline, forecastTotal } = useMemo(() => {
@@ -162,5 +174,6 @@ export function useReportsData({ startDate, endDate }: UseReportsDataOptions = {
         forecastTotal,
         healthScores,
         filteredClientsCount: filteredClients.length,
+        filteredLeadsCount: filteredLeads.length,
     };
 }

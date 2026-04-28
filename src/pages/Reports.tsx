@@ -1140,7 +1140,7 @@ export default function Reports() {
   const scopeId = searchParams.get('id') ?? '';
   const scopeName = decodeURIComponent(searchParams.get('name') ?? '');
   const currentUserProfile = allProfiles.find(p => p.id === profile?.id);
-  const defaultPeriod = scope === 'global' ? '30 dias' : 'Mês vigente';
+  const defaultPeriod = 'Mês vigente';
   const queryStart = searchParams.get('start');
   const queryEnd = searchParams.get('end');
   const period = (queryStart && queryEnd)
@@ -1172,7 +1172,7 @@ export default function Reports() {
       value: globalMetrics.novosLeads.toString(),
       change: '',
       trend: 'up' as const,
-      period: 'total no sistema',
+      period: `no período de ${period}`,
     },
     {
       id: '3',

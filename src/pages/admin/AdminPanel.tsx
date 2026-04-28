@@ -240,24 +240,16 @@ export default function AdminPanel() {
     );
   };
 
-  const monthlyBrokerRanking = (() => {
-    const now = new Date();
-    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
-    const monthEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+  const selectedPeriodLabel = `${toPtBrDate(reportDateRange.start)} a ${toPtBrDate(reportDateRange.end)}`;
 
-    const monthClients = clients.filter((c) => {
-      const created = new Date(c.createdAt);
-      return created >= monthStart && created <= monthEnd;
-    });
-
-    const monthSales = monthClients.filter((c) => c.stage === 'Concluído');
+  const periodBrokerRanking = (() => {
 
     const brokers = allProfiles.filter((p) => p.role?.toUpperCase() === 'CORRETOR');
 
     return brokers
       .map((p) => {
-        const createdByBroker = monthClients.filter((c) => (c as any).owner_id === p.id);
-        const salesByBroker = monthSales.filter((c) => (c as any).owner_id === p.id);
+        const createdByBroker = selectedPeriodClients.filter((c) => (c as any).owner_id === p.id);
+        const salesByBroker = selectedPeriodSales.filter((c) => (c as any).owner_id === p.id);
         if (createdByBroker.length === 0 && salesByBroker.length === 0) return null;
 
         const vi = salesByBroker.length;
@@ -277,17 +269,7 @@ export default function AdminPanel() {
       .slice(0, 3);
   })();
 
-  const monthlyManagerRanking = (() => {
-    const now = new Date();
-    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
-    const monthEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
-
-    const monthClients = clients.filter((c) => {
-      const created = new Date(c.createdAt);
-      return created >= monthStart && created <= monthEnd;
-    });
-
-    const monthSales = monthClients.filter((c) => c.stage === 'Concluído');
+  const periodManagerRanking = (() => {
     const managers = allProfiles.filter((p) => p.role?.toUpperCase() === 'GERENTE');
 
     return managers
@@ -306,8 +288,8 @@ export default function AdminPanel() {
             .map((p) => p.id),
         ]));
 
-        const createdByManager = monthClients.filter((c) => memberIds.includes((c as any).owner_id));
-        const salesByManager = monthSales.filter((c) => memberIds.includes((c as any).owner_id));
+        const createdByManager = selectedPeriodClients.filter((c) => memberIds.includes((c as any).owner_id));
+        const salesByManager = selectedPeriodSales.filter((c) => memberIds.includes((c as any).owner_id));
         if (createdByManager.length === 0 && salesByManager.length === 0) return null;
 
         const vi = salesByManager.length;
@@ -326,17 +308,7 @@ export default function AdminPanel() {
       .slice(0, 3);
   })();
 
-  const monthlyCoordinatorRanking = (() => {
-    const now = new Date();
-    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
-    const monthEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
-
-    const monthClients = clients.filter((c) => {
-      const created = new Date(c.createdAt);
-      return created >= monthStart && created <= monthEnd;
-    });
-
-    const monthSales = monthClients.filter((c) => c.stage === 'Concluído');
+  const periodCoordinatorRanking = (() => {
     const coordinators = allProfiles.filter((p) => p.role?.toUpperCase() === 'COORDENADOR');
 
     return coordinators
@@ -345,8 +317,8 @@ export default function AdminPanel() {
           .filter((p: any) => p.role?.toUpperCase() === 'CORRETOR' && p.coordinator_id === coord.id)
           .map((p) => p.id)));
 
-        const createdByCoord = monthClients.filter((c) => brokerIds.includes((c as any).owner_id));
-        const salesByCoord = monthSales.filter((c) => brokerIds.includes((c as any).owner_id));
+        const createdByCoord = selectedPeriodClients.filter((c) => brokerIds.includes((c as any).owner_id));
+        const salesByCoord = selectedPeriodSales.filter((c) => brokerIds.includes((c as any).owner_id));
         if (createdByCoord.length === 0 && salesByCoord.length === 0) return null;
 
         const vi = salesByCoord.length;
@@ -1584,22 +1556,22 @@ export default function AdminPanel() {
                 {/* TOP 3 RANKINGS */}
                 {[{
                   key: 'brokers',
-                  title: 'Ranking de Corretores (Top 3 • Mês vigente)',
+                  title: `Ranking de Corretores (Top 3 • ${selectedPeriodLabel})`,
                   label: 'Corretor',
-                  rows: monthlyBrokerRanking,
-                  empty: 'Nenhum corretor com dados no mês vigente.',
+                  rows: periodBrokerRanking,
+                  empty: `Nenhum corretor com dados no período ${selectedPeriodLabel}.`,
                 }, {
                   key: 'managers',
-                  title: 'Ranking de Gerentes (Top 3 • Mês vigente)',
+                  title: `Ranking de Gerentes (Top 3 • ${selectedPeriodLabel})`,
                   label: 'Gerente',
-                  rows: monthlyManagerRanking,
-                  empty: 'Nenhum gerente com dados no mês vigente.',
+                  rows: periodManagerRanking,
+                  empty: `Nenhum gerente com dados no período ${selectedPeriodLabel}.`,
                 }, {
                   key: 'coordinators',
-                  title: 'Ranking de Coordenadores (Top 3 • Mês vigente)',
+                  title: `Ranking de Coordenadores (Top 3 • ${selectedPeriodLabel})`,
                   label: 'Coordenador',
-                  rows: monthlyCoordinatorRanking,
-                  empty: 'Nenhum coordenador com dados no mês vigente.',
+                  rows: periodCoordinatorRanking,
+                  empty: `Nenhum coordenador com dados no período ${selectedPeriodLabel}.`,
                 }].map((ranking) => (
                   <PremiumCard key={ranking.key} className="p-0 overflow-hidden border-surface-100 shadow-[0_2px_10px_rgba(0,0,0,0.02)] mt-4">
                     <div className="p-3 border-b border-surface-100 flex items-center justify-between bg-surface-50">
