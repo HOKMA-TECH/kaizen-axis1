@@ -134,6 +134,12 @@ export default function AdminPanel() {
 
   const reportRangeStart = parseDateOnlyLocal(reportDateRange.start);
   const reportRangeEnd = parseDateOnlyLocalEnd(reportDateRange.end);
+  const getSaleReferenceDate = (client: any): Date | null => {
+    const raw = client?.closed_at || client?.updated_at || client?.createdAt || null;
+    if (!raw) return null;
+    const parsed = new Date(raw);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  };
 
   const selectedPeriodClients = clients.filter((c) => {
     const created = new Date(c.createdAt);
@@ -145,7 +151,11 @@ export default function AdminPanel() {
     return created >= reportRangeStart && created <= reportRangeEnd;
   });
 
-  const selectedPeriodSales = selectedPeriodClients.filter((c) => c.stage === 'Concluído');
+  const selectedPeriodSales = clients.filter((c) => {
+    if (c.stage !== 'Concluído') return false;
+    const saleDate = getSaleReferenceDate(c);
+    return !!saleDate && saleDate >= reportRangeStart && saleDate <= reportRangeEnd;
+  });
   const selectedPeriodApproved = selectedPeriodClients.filter((c) => c.stage === 'Aprovado').length;
 
   const pipelineDataLocal = CLIENT_STAGES
@@ -191,7 +201,9 @@ export default function AdminPanel() {
     });
 
     selectedPeriodSales.forEach((client) => {
-      const key = normalizePeriod(new Date(client.createdAt));
+      const saleDate = getSaleReferenceDate(client);
+      if (!saleDate) return;
+      const key = normalizePeriod(saleDate);
       const bucket = buckets.get(key);
       if (bucket) {
         bucket.Vt += 1;
