@@ -135,7 +135,7 @@ export default function AdminPanel() {
   const reportRangeStart = parseDateOnlyLocal(reportDateRange.start);
   const reportRangeEnd = parseDateOnlyLocalEnd(reportDateRange.end);
   const getSaleReferenceDate = (client: any): Date | null => {
-    const raw = client?.closed_at || null;
+    const raw = client?.closed_at || client?.updated_at || null;
     if (!raw) return null;
     const parsed = new Date(raw);
     return Number.isNaN(parsed.getTime()) ? null : parsed;

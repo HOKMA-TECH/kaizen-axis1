@@ -103,7 +103,7 @@ function parseIsoDate(value?: string | null): number | null {
 
 function isSaleInPeriod(client: any, start: number | null, end: number | null): boolean {
   if (client?.stage !== 'Concluído') return false;
-  const saleDate = parseIsoDate(client?.closed_at);
+  const saleDate = parseIsoDate(client?.closed_at) ?? parseIsoDate(client?.updated_at);
   if (saleDate === null) return false;
   if (start !== null && saleDate < start) return false;
   if (end !== null && saleDate > end) return false;
