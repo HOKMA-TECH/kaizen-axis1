@@ -790,15 +790,20 @@ function DiretoriaReportView({
   const [pdfLoading, setPdfLoading] = useState(false);
   const [isActionsMenuOpen, setIsActionsMenuOpen] = useState(false);
 
-  // Clients belonging to this directorate, filtered by date range
+  // Clients belonging to this directorate (no period cut)
+  const dirScopedClients = useMemo(() =>
+    clients.filter(c => (c as any).directorate_id === dirId),
+    [clients, dirId]
+  );
+
+  // Clients in the selected period (creation-based metric)
   const dirClients = useMemo(() =>
-    clients.filter(c => {
-      if ((c as any).directorate_id !== dirId) return false;
+    dirScopedClients.filter(c => {
       if (startDate && new Date(c.createdAt) < parseDateOnlyLocal(startDate)) return false;
       if (endDate && new Date(c.createdAt) > parseDateOnlyLocalEnd(endDate)) return false;
       return true;
     }),
-    [clients, dirId, startDate, endDate]
+    [dirScopedClients, startDate, endDate]
   );
 
   // Teams that belong to this directorate
@@ -809,7 +814,7 @@ function DiretoriaReportView({
 
   // ── Metrics
   const totalClientes = dirClients.length;
-  const vendas = dirClients.filter(c => isSaleInPeriod(c, startDate ? parseDateOnlyLocal(startDate).getTime() : null, endDate ? parseDateOnlyLocalEnd(endDate).getTime() : null));
+  const vendas = dirScopedClients.filter(c => isSaleInPeriod(c, startDate ? parseDateOnlyLocal(startDate).getTime() : null, endDate ? parseDateOnlyLocalEnd(endDate).getTime() : null));
   const totalVendas = vendas.length;
   const aprovados = dirClients.filter(c => c.stage === 'Aprovado').length;
   const taxaConversao = totalClientes > 0 ? ((totalVendas / totalClientes) * 100).toFixed(1) : '0.0';
@@ -895,7 +900,7 @@ function DiretoriaReportView({
             ...(team.manager_id ? [team.manager_id] : []),
           ]));
           const teamClients = dirClients.filter((c) => memberIds.includes((c as any).owner_id));
-          const vendasEquipe = dirClients.filter((c) => memberIds.includes((c as any).owner_id) && isSaleInPeriod(c, startDate ? parseDateOnlyLocal(startDate).getTime() : null, endDate ? parseDateOnlyLocalEnd(endDate).getTime() : null));
+          const vendasEquipe = dirScopedClients.filter((c) => memberIds.includes((c as any).owner_id) && isSaleInPeriod(c, startDate ? parseDateOnlyLocal(startDate).getTime() : null, endDate ? parseDateOnlyLocalEnd(endDate).getTime() : null));
           const vgvEquipe = vendasEquipe.reduce((acc, c) => acc + parseValue(c.intendedValue), 0);
           return {
             equipe: team.name,
@@ -1141,7 +1146,7 @@ function DiretoriaReportView({
               ]));
               const memberCount = memberIds.length;
               const teamClients = dirClients.filter(c => memberIds.includes((c as any).owner_id));
-              const teamSales = dirClients.filter(c => memberIds.includes((c as any).owner_id) && isSaleInPeriod(c, startDate ? parseDateOnlyLocal(startDate).getTime() : null, endDate ? parseDateOnlyLocalEnd(endDate).getTime() : null)).length;
+              const teamSales = dirScopedClients.filter(c => memberIds.includes((c as any).owner_id) && isSaleInPeriod(c, startDate ? parseDateOnlyLocal(startDate).getTime() : null, endDate ? parseDateOnlyLocalEnd(endDate).getTime() : null)).length;
               return (
                 <PremiumCard
                   key={team.id}
