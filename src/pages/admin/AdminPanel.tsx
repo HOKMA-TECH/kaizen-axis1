@@ -111,10 +111,34 @@ export default function AdminPanel() {
     return profileTeamName.length > 0 && profileTeamName === teamName;
   };
 
-  const getTeamMemberIds = (team: Team): string[] => Array.from(new Set([
-    ...(team.members || []),
-    ...allProfiles.filter((p: any) => profileMatchesTeam(p, team)).map((p: any) => p.id),
-  ]));
+  const getTeamMemberIds = (team: Team): string[] => {
+    const directMembers = allProfiles.filter((p: any) => profileMatchesTeam(p, team)).map((p: any) => p.id);
+    const managerId = team.manager_id || null;
+    const managerLinked = managerId
+      ? allProfiles.filter((p: any) => p.manager_id === managerId).map((p: any) => p.id)
+      : [];
+
+    const coordinatorIds = managerId
+      ? allProfiles
+        .filter((p: any) => p.role?.toUpperCase() === 'COORDENADOR' && p.manager_id === managerId)
+        .map((p: any) => p.id)
+      : [];
+
+    const coordinatorLinkedBrokers = coordinatorIds.length > 0
+      ? allProfiles
+        .filter((p: any) => p.role?.toUpperCase() === 'CORRETOR' && p.coordinator_id && coordinatorIds.includes(p.coordinator_id))
+        .map((p: any) => p.id)
+      : [];
+
+    return Array.from(new Set([
+      ...(team.members || []),
+      ...directMembers,
+      ...(managerId ? [managerId] : []),
+      ...managerLinked,
+      ...coordinatorIds,
+      ...coordinatorLinkedBrokers,
+    ]));
+  };
 
   const formatBrokerDisplayName = (name?: string | null): string => {
     const normalized = String(name || '').trim().replace(/\s+/g, ' ');
