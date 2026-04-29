@@ -144,7 +144,7 @@ function TeamReportView({
   team, startDate, endDate, period, onPeriodChange,
 }: { team: Team; startDate: string; endDate: string; period: string; onPeriodChange: (period: string) => void }) {
   const navigate = useNavigate();
-  const { allProfiles, clients } = useApp();
+  const { allProfiles, clients, teams } = useApp();
   const [selectedBrokerId, setSelectedBrokerId] = useState<string | null>(null);
   const [pdfLoading, setPdfLoading] = useState(false);
   const [isActionsMenuOpen, setIsActionsMenuOpen] = useState(false);
@@ -154,14 +154,23 @@ function TeamReportView({
   // - fallback: profile.team can store UUID or legacy team name
   // - always include the team manager themselves
   const memberIds = getTeamMemberIds(team, allProfiles);
+  const teamsInDirectorate = team.directorate_id
+    ? teams.filter((t) => t.directorate_id === team.directorate_id)
+    : [];
+  const isSingleTeamDirectorate = teamsInDirectorate.length === 1;
+  const teamDirectorateClients = team.directorate_id
+    ? clients.filter((c) => (c as any).directorate_id === team.directorate_id)
+    : [];
 
   // Clients belonging to team members, optionally filtered by date range
   const start = startDate ? parseDateOnlyLocal(startDate).getTime() : null;
   const end = endDate ? parseDateOnlyLocalEnd(endDate).getTime() : null;
 
-  const teamClients = clients.filter(c => {
+  const baseClients = isSingleTeamDirectorate ? teamDirectorateClients : clients;
+
+  const teamClients = baseClients.filter(c => {
     const ownerId = (c as any).owner_id;
-    if (!memberIds.includes(ownerId)) return false;
+    if (!isSingleTeamDirectorate && !memberIds.includes(ownerId)) return false;
     if (start && end) {
       const created = c.createdAt ? new Date(c.createdAt).getTime() : 0;
       return created >= start && created <= end;
@@ -169,9 +178,9 @@ function TeamReportView({
     return true;
   });
 
-  const teamSales = clients.filter(c => {
+  const teamSales = baseClients.filter(c => {
     const ownerId = (c as any).owner_id;
-    if (!memberIds.includes(ownerId)) return false;
+    if (!isSingleTeamDirectorate && !memberIds.includes(ownerId)) return false;
     return isSaleInPeriod(c, start, end);
   });
 
@@ -811,6 +820,7 @@ function DiretoriaReportView({
     teams.filter(t => t.directorate_id === dirId),
     [teams, dirId]
   );
+  const isSingleTeamDirectorate = dirTeams.length === 1;
 
   // ── Metrics
   const totalClientes = dirClients.length;
@@ -894,13 +904,13 @@ function DiretoriaReportView({
 
       const rows = dirTeams
         .map((team) => {
-          const memberIds = Array.from(new Set([
-            ...(team.members ?? []),
-            ...allProfiles.filter((p) => profileMatchesTeam(p, team)).map((p) => p.id),
-            ...(team.manager_id ? [team.manager_id] : []),
-          ]));
-          const teamClients = dirClients.filter((c) => memberIds.includes((c as any).owner_id));
-          const vendasEquipe = dirScopedClients.filter((c) => memberIds.includes((c as any).owner_id) && isSaleInPeriod(c, startDate ? parseDateOnlyLocal(startDate).getTime() : null, endDate ? parseDateOnlyLocalEnd(endDate).getTime() : null));
+          const memberIds = getTeamMemberIds(team, allProfiles as any);
+          const teamClients = isSingleTeamDirectorate
+            ? dirClients
+            : dirClients.filter((c) => memberIds.includes((c as any).owner_id));
+          const vendasEquipe = isSingleTeamDirectorate
+            ? dirScopedClients.filter((c) => isSaleInPeriod(c, startDate ? parseDateOnlyLocal(startDate).getTime() : null, endDate ? parseDateOnlyLocalEnd(endDate).getTime() : null))
+            : dirScopedClients.filter((c) => memberIds.includes((c as any).owner_id) && isSaleInPeriod(c, startDate ? parseDateOnlyLocal(startDate).getTime() : null, endDate ? parseDateOnlyLocalEnd(endDate).getTime() : null));
           const vgvEquipe = vendasEquipe.reduce((acc, c) => acc + parseValue(c.intendedValue), 0);
           return {
             equipe: team.name,
@@ -1139,14 +1149,14 @@ function DiretoriaReportView({
         ) : (
           <div className="grid grid-cols-1 gap-3">
             {dirTeams.map(team => {
-              const memberIds = Array.from(new Set([
-                ...(team.members ?? []),
-                ...allProfiles.filter(p => profileMatchesTeam(p, team)).map(p => p.id),
-                ...(team.manager_id ? [team.manager_id] : []),
-              ]));
+              const memberIds = getTeamMemberIds(team, allProfiles as any);
               const memberCount = memberIds.length;
-              const teamClients = dirClients.filter(c => memberIds.includes((c as any).owner_id));
-              const teamSales = dirScopedClients.filter(c => memberIds.includes((c as any).owner_id) && isSaleInPeriod(c, startDate ? parseDateOnlyLocal(startDate).getTime() : null, endDate ? parseDateOnlyLocalEnd(endDate).getTime() : null)).length;
+              const teamClients = isSingleTeamDirectorate
+                ? dirClients
+                : dirClients.filter(c => memberIds.includes((c as any).owner_id));
+              const teamSales = isSingleTeamDirectorate
+                ? dirScopedClients.filter(c => isSaleInPeriod(c, startDate ? parseDateOnlyLocal(startDate).getTime() : null, endDate ? parseDateOnlyLocalEnd(endDate).getTime() : null)).length
+                : dirScopedClients.filter(c => memberIds.includes((c as any).owner_id) && isSaleInPeriod(c, startDate ? parseDateOnlyLocal(startDate).getTime() : null, endDate ? parseDateOnlyLocalEnd(endDate).getTime() : null)).length;
               return (
                 <PremiumCard
                   key={team.id}
