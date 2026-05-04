@@ -412,7 +412,7 @@ export default function ClientDetails() {
     setDocumentToDelete(null);
   };
 
-  const canUseSalesMirror = !!client && client.stage === 'Concluído' && ['ADMIN', 'DIRETOR', 'GERENTE'].includes(role ?? '');
+  const canUseSalesMirror = !!client && client.stage === 'Concluído' && ['ADMIN', 'DIRETOR', 'GERENTE', 'COORDENADOR'].includes(role ?? '');
 
   const buildDefaultSalesMirror = (): SalesMirrorForm => {
     if (!client) return EMPTY_SALES_MIRROR;
