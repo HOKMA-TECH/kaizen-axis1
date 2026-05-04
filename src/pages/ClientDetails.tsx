@@ -10,6 +10,7 @@ import { useAuthorization } from '@/hooks/useAuthorization';
 import { supabase } from '@/lib/supabase';
 import { logAuditEvent } from '@/services/auditLogger';
 import { ClientHierarchyTags } from '@/components/ui/ClientHierarchyTags';
+import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
 
 type SalesMirrorForm = {
   constInvest: string;
@@ -464,6 +465,89 @@ export default function ClientDetails() {
       return;
     }
     alert('Espelho salvo com sucesso.');
+  };
+
+  const buildSalesMirrorPdf = async () => {
+    const pdf = await PDFDocument.create();
+    const page = pdf.addPage([595.28, 841.89]);
+    const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
+    const regular = await pdf.embedFont(StandardFonts.Helvetica);
+
+    const drawField = (label: string, value: string, x: number, y: number, width: number) => {
+      page.drawRectangle({ x, y: y - 16, width, height: 20, borderColor: rgb(0.7, 0.7, 0.7), borderWidth: 0.6 });
+      page.drawText(label, { x: x + 4, y: y + 6, size: 7, font: bold, color: rgb(0.35, 0.35, 0.35) });
+      page.drawText(String(value || '-').slice(0, 56), { x: x + 4, y: y - 8, size: 10, font: regular, color: rgb(0.1, 0.1, 0.1) });
+    };
+
+    page.drawText('PROCESSO DE VENDA', { x: 215, y: 805, size: 18, font: bold });
+
+    let y = 760;
+    drawField('CONST./INVEST.', salesMirrorForm.constInvest, 40, y, 250);
+    drawField('EMPREENDIMENTO', salesMirrorForm.empreendimento, 305, y, 250);
+    y -= 40;
+    drawField('CLIENTE 1', salesMirrorForm.cliente1, 40, y, 250);
+    drawField('CPF', salesMirrorForm.cpf1, 305, y, 250);
+    y -= 40;
+    drawField('CLIENTE 2', salesMirrorForm.cliente2, 40, y, 250);
+    drawField('CPF', salesMirrorForm.cpf2, 305, y, 250);
+    y -= 40;
+    drawField('VGV', salesMirrorForm.vgv, 40, y, 250);
+    drawField('ORIGEM', salesMirrorForm.origem, 305, y, 250);
+    y -= 40;
+    drawField('UNIDADE', salesMirrorForm.unidade, 40, y, 250);
+    drawField('GERENTE', salesMirrorForm.gerente, 305, y, 250);
+    y -= 40;
+    drawField('BLOCO', salesMirrorForm.bloco, 40, y, 250);
+    drawField('COORDENADOR', salesMirrorForm.coordenador, 305, y, 250);
+    y -= 40;
+    drawField('CORRETOR', salesMirrorForm.corretor, 305, y, 250);
+
+    y -= 60;
+    drawField('DATA DO ATO', salesMirrorForm.dataAto, 40, y, 95);
+    drawField('VALOR DO ATO', salesMirrorForm.valorAto, 140, y, 130);
+    drawField('PAGO PELA KAIZEN', salesMirrorForm.pagoPelaKaizen, 275, y, 130);
+    drawField('CCA', salesMirrorForm.cca, 410, y, 60);
+    drawField('DATA DO CONTRATO', salesMirrorForm.dataContrato, 475, y, 80);
+
+    y -= 80;
+    drawField('ASS. DO GERENTE', salesMirrorForm.assGerente, 420, y, 135);
+    y -= 60;
+    drawField('ASS. DIRETOR DE VENDA', salesMirrorForm.assDiretorVenda, 40, y, 250);
+    drawField('ASS. SETOR DE AVULSO', salesMirrorForm.assSetorAvulso, 305, y, 250);
+    y -= 60;
+    drawField('ASS. DIRETOR DE FINANCEIRO', salesMirrorForm.assDiretorFinanceiro, 40, y, 250);
+    drawField('ASS. DIRETOR COMERCIAL', salesMirrorForm.assDiretorComercial, 305, y, 250);
+
+    return pdf.save();
+  };
+
+  const downloadSalesMirrorPdf = async () => {
+    try {
+      const bytes = await buildSalesMirrorPdf();
+      const blob = new Blob([bytes], { type: 'application/pdf' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `espelho-vendas-${(client?.name || 'cliente').replace(/\s+/g, '-').toLowerCase()}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (e: any) {
+      alert(`Erro ao gerar PDF: ${e?.message || 'erro desconhecido'}`);
+    }
+  };
+
+  const printSalesMirrorPdf = async () => {
+    try {
+      const bytes = await buildSalesMirrorPdf();
+      const blob = new Blob([bytes], { type: 'application/pdf' });
+      const url = URL.createObjectURL(blob);
+      window.open(url, '_blank');
+      setTimeout(() => URL.revokeObjectURL(url), 30000);
+    } catch (e: any) {
+      alert(`Erro ao preparar impressão: ${e?.message || 'erro desconhecido'}`);
+    }
   };
 
   if (!client) return (
@@ -961,8 +1045,8 @@ export default function ClientDetails() {
             </>
           )}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-2 print:hidden">
-            <RoundedButton variant="secondary" onClick={() => window.print()}>Imprimir</RoundedButton>
-            <RoundedButton variant="secondary" onClick={() => window.print()}>Baixar PDF</RoundedButton>
+            <RoundedButton variant="secondary" onClick={printSalesMirrorPdf}>Imprimir</RoundedButton>
+            <RoundedButton variant="secondary" onClick={downloadSalesMirrorPdf}>Baixar PDF</RoundedButton>
             <RoundedButton onClick={saveSalesMirror} disabled={salesMirrorSaving}>{salesMirrorSaving ? 'Salvando...' : 'Salvar'}</RoundedButton>
           </div>
         </div>
