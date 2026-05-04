@@ -432,12 +432,39 @@ export default function ClientDetails() {
     if (!id || !canUseSalesMirror) return;
     setIsSalesMirrorOpen(true);
     setSalesMirrorLoading(true);
-    setSalesMirrorForm(buildDefaultSalesMirror());
+    const defaults = buildDefaultSalesMirror();
+    setSalesMirrorForm(defaults);
 
     const { data, error } = await supabase.from('sales_mirrors').select('*').eq('client_id', id).maybeSingle();
     if (!error && data) {
+      const pick = (value: any, fallback: string) => {
+        const normalized = String(value ?? '').trim();
+        return normalized ? normalized : fallback;
+      };
       setSalesMirrorForm({
-        constInvest: data.const_invest || '', empreendimento: data.empreendimento || '', cliente1: data.cliente_1 || '', cpf1: data.cpf_1 || '', cliente2: data.cliente_2 || '', cpf2: data.cpf_2 || '', vgv: data.vgv || '', origem: data.origem || '', unidade: data.unidade || '', gerente: data.gerente || '', bloco: data.bloco || '', coordenador: data.coordenador || '', corretor: data.corretor || '', dataAto: data.data_ato || '', valorAto: data.valor_ato || '', pagoPelaKaizen: data.pago_pela_kaizen || '', cca: data.cca || '', dataContrato: data.data_contrato || '', assGerente: data.ass_gerente || '', assDiretorVenda: data.ass_diretor_venda || '', assSetorAvulso: data.ass_setor_avulso || '', assDiretorFinanceiro: data.ass_diretor_financeiro || '', assDiretorComercial: data.ass_diretor_comercial || '',
+        constInvest: pick(data.const_invest, defaults.constInvest),
+        empreendimento: pick(data.empreendimento, defaults.empreendimento),
+        cliente1: pick(data.cliente_1, defaults.cliente1),
+        cpf1: pick(data.cpf_1, defaults.cpf1),
+        cliente2: pick(data.cliente_2, defaults.cliente2),
+        cpf2: pick(data.cpf_2, defaults.cpf2),
+        vgv: pick(data.vgv, defaults.vgv),
+        origem: pick(data.origem, defaults.origem),
+        unidade: pick(data.unidade, defaults.unidade),
+        gerente: pick(data.gerente, defaults.gerente),
+        bloco: pick(data.bloco, defaults.bloco),
+        coordenador: pick(data.coordenador, defaults.coordenador),
+        corretor: pick(data.corretor, defaults.corretor),
+        dataAto: pick(data.data_ato, defaults.dataAto),
+        valorAto: pick(data.valor_ato, defaults.valorAto),
+        pagoPelaKaizen: pick(data.pago_pela_kaizen, defaults.pagoPelaKaizen),
+        cca: pick(data.cca, defaults.cca),
+        dataContrato: pick(data.data_contrato, defaults.dataContrato),
+        assGerente: pick(data.ass_gerente, defaults.assGerente),
+        assDiretorVenda: pick(data.ass_diretor_venda, defaults.assDiretorVenda),
+        assSetorAvulso: pick(data.ass_setor_avulso, defaults.assSetorAvulso),
+        assDiretorFinanceiro: pick(data.ass_diretor_financeiro, defaults.assDiretorFinanceiro),
+        assDiretorComercial: pick(data.ass_diretor_comercial, defaults.assDiretorComercial),
       });
     }
 
