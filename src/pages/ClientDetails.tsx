@@ -1028,37 +1028,46 @@ export default function ClientDetails() {
         onClose={() => setIsSalesMirrorOpen(false)}
         title="Espelho de vendas"
       >
-        <div className="space-y-3 max-h-[80vh] overflow-y-auto pr-1 w-full sm:min-w-[720px]">
+        <div className="space-y-4 max-h-[82vh] overflow-y-auto pr-1 w-full sm:min-w-[920px] lg:min-w-[1040px]">
           {salesMirrorLoading ? (
             <p className="text-sm text-text-secondary">Carregando espelho...</p>
           ) : (
             <>
-              {[['CONST./INVEST.', 'constInvest'], ['EMPREENDIMENTO', 'empreendimento'], ['CLIENTE 1', 'cliente1'], ['CPF 1', 'cpf1'], ['CLIENTE 2', 'cliente2'], ['CPF 2', 'cpf2'], ['VGV', 'vgv'], ['ORIGEM', 'origem'], ['UNIDADE', 'unidade'], ['GERENTE', 'gerente'], ['BLOCO', 'bloco'], ['COORDENADOR', 'coordenador'], ['CORRETOR', 'corretor'], ['DATA DO ATO', 'dataAto'], ['VALOR DO ATO', 'valorAto'], ['CCA', 'cca'], ['DATA DO CONTRATO', 'dataContrato'], ['ASS. DO GERENTE', 'assGerente'], ['ASS. DIRETOR DE VENDA', 'assDiretorVenda'], ['ASS. SETOR DE AVULSO', 'assSetorAvulso'], ['ASS. DIRETOR DE FINANCEIRO', 'assDiretorFinanceiro'], ['ASS. DIRETOR COMERCIAL', 'assDiretorComercial']].map(([label, key]) => (
-                <div key={key} className="sm:grid sm:grid-cols-[180px_1fr] sm:items-center sm:gap-3">
-                  <label className="text-xs text-text-secondary uppercase tracking-wider mb-1 block">{label}</label>
-                  <input
-                    value={(salesMirrorForm as any)[key] || ''}
-                    onChange={(e) => {
-                      let value = e.target.value;
-                      if (key === 'vgv' || key === 'valorAto') value = formatCurrencyInput(value);
-                      if (key === 'dataAto' || key === 'dataContrato') value = formatDateInput(value);
-                      setSalesMirrorForm((prev) => ({ ...prev, [key]: value }));
-                    }}
-                    className="w-full p-2 bg-surface-50 rounded-lg border-none focus:ring-2 focus:ring-gold-400 text-sm text-text-primary"
-                  />
+              <div className="rounded-xl border border-surface-300 bg-white p-0 overflow-hidden">
+                <div className="px-4 py-3 border-b border-surface-200 bg-surface-50">
+                  <p className="text-sm font-semibold text-text-primary">Processo de venda</p>
                 </div>
-              ))}
-              <div className="sm:grid sm:grid-cols-[180px_1fr] sm:items-center sm:gap-3">
-                <label className="text-xs text-text-secondary uppercase tracking-wider mb-1 block">PAGO PELA KAIZEN</label>
-                <select
-                  value={salesMirrorForm.pagoPelaKaizen || ''}
-                  onChange={(e) => setSalesMirrorForm((prev) => ({ ...prev, pagoPelaKaizen: e.target.value }))}
-                  className="w-full p-2 bg-surface-50 rounded-lg border-none focus:ring-2 focus:ring-gold-400 text-sm text-text-primary"
-                >
-                  <option value="">Selecione</option>
-                  <option value="SIM">SIM</option>
-                  <option value="NÃO">NÃO</option>
-                </select>
+                <div className="grid grid-cols-1 md:grid-cols-2">
+                  {[['CONST./INVEST.', 'constInvest'], ['EMPREENDIMENTO', 'empreendimento'], ['CLIENTE 1', 'cliente1'], ['CPF 1', 'cpf1'], ['CLIENTE 2', 'cliente2'], ['CPF 2', 'cpf2'], ['VGV', 'vgv'], ['ORIGEM', 'origem'], ['UNIDADE', 'unidade'], ['GERENTE', 'gerente'], ['BLOCO', 'bloco'], ['COORDENADOR', 'coordenador'], ['CORRETOR', 'corretor'], ['DATA DO ATO', 'dataAto'], ['VALOR DO ATO', 'valorAto'], ['CCA', 'cca'], ['DATA DO CONTRATO', 'dataContrato'], ['ASS. DO GERENTE', 'assGerente'], ['ASS. DIRETOR DE VENDA', 'assDiretorVenda'], ['ASS. SETOR DE AVULSO', 'assSetorAvulso'], ['ASS. DIRETOR DE FINANCEIRO', 'assDiretorFinanceiro'], ['ASS. DIRETOR COMERCIAL', 'assDiretorComercial']].map(([label, key]) => (
+                    <div key={key} className="p-3 border-b border-surface-200 md:[&:nth-child(odd)]:border-r md:border-r-0 md:[&:nth-child(odd)]:border-surface-200">
+                      <label className="text-[10px] text-text-secondary uppercase tracking-[0.08em] block mb-1">{label}</label>
+                      <input
+                        value={(salesMirrorForm as any)[key] || ''}
+                        onChange={(e) => {
+                          let value = e.target.value;
+                          if (key === 'vgv' || key === 'valorAto') value = formatCurrencyInput(value);
+                          if (key === 'dataAto' || key === 'dataContrato') value = formatDateInput(value);
+                          setSalesMirrorForm((prev) => ({ ...prev, [key]: value }));
+                        }}
+                        className="w-full h-10 px-3 bg-surface-50 rounded-md border border-surface-200 focus:ring-2 focus:ring-gold-400/70 focus:border-gold-300 text-sm text-text-primary"
+                      />
+                    </div>
+                  ))}
+                </div>
+                <div className="p-3 bg-surface-50 border-t border-surface-200">
+                  <div className="space-y-1.5 md:max-w-[360px]">
+                    <label className="text-[10px] text-text-secondary uppercase tracking-[0.08em] block">PAGO PELA KAIZEN</label>
+                    <select
+                      value={salesMirrorForm.pagoPelaKaizen || ''}
+                      onChange={(e) => setSalesMirrorForm((prev) => ({ ...prev, pagoPelaKaizen: e.target.value }))}
+                      className="w-full h-10 px-3 bg-white rounded-md border border-surface-200 focus:ring-2 focus:ring-gold-400/70 focus:border-gold-300 text-sm text-text-primary"
+                    >
+                      <option value="">Selecione</option>
+                      <option value="SIM">SIM</option>
+                      <option value="NÃO">NÃO</option>
+                    </select>
+                  </div>
+                </div>
               </div>
             </>
           )}
