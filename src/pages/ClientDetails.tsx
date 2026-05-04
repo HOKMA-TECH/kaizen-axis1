@@ -483,58 +483,99 @@ export default function ClientDetails() {
 
   const buildSalesMirrorPdf = async () => {
     const pdf = await PDFDocument.create();
-    const page = pdf.addPage([595.28, 841.89]);
+    const page = pdf.addPage([841.89, 595.28]);
     const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
     const regular = await pdf.embedFont(StandardFonts.Helvetica);
 
-    const drawField = (label: string, value: string, x: number, y: number, width: number) => {
-      page.drawRectangle({ x, y: y - 16, width, height: 20, borderColor: rgb(0.7, 0.7, 0.7), borderWidth: 0.6 });
-      page.drawText(label, { x: x + 4, y: y + 6, size: 7, font: bold, color: rgb(0.35, 0.35, 0.35) });
-      page.drawText(String(value || '-').slice(0, 56), { x: x + 4, y: y - 8, size: 10, font: regular, color: rgb(0.1, 0.1, 0.1) });
+    const pageW = 841.89;
+    const pageH = 595.28;
+    const margin = 26;
+    const contentW = pageW - margin * 2;
+    const top = pageH - margin;
+
+    const colors = {
+      title: rgb(0.08, 0.16, 0.31),
+      label: rgb(0.38, 0.43, 0.51),
+      text: rgb(0.09, 0.12, 0.17),
+      border: rgb(0.82, 0.84, 0.88),
+      soft: rgb(0.95, 0.96, 0.98),
     };
 
-    const hasSecondClient = !!String(salesMirrorForm.cliente2 || '').trim() || !!String(salesMirrorForm.cpf2 || '').trim();
+    const fmtValue = (v?: string) => {
+      const value = String(v || '').trim();
+      return value ? value : '—';
+    };
 
-    page.drawText('PROCESSO DE VENDA', { x: 215, y: 805, size: 18, font: bold });
+    const drawCell = (opts: { label: string; value: string; x: number; y: number; w: number; h?: number }) => {
+      const h = opts.h ?? 38;
+      page.drawRectangle({ x: opts.x, y: opts.y - h, width: opts.w, height: h, borderColor: colors.border, borderWidth: 0.8, color: rgb(1, 1, 1) });
+      page.drawText(opts.label, { x: opts.x + 6, y: opts.y - 11, size: 7.5, font: bold, color: colors.label });
+      page.drawText(fmtValue(opts.value).slice(0, 62), { x: opts.x + 6, y: opts.y - 27, size: 11, font: regular, color: colors.text });
+    };
 
-    let y = 760;
-    drawField('CONST./INVEST.', salesMirrorForm.constInvest, 40, y, 250);
-    drawField('EMPREENDIMENTO', salesMirrorForm.empreendimento, 305, y, 250);
-    y -= 40;
-    drawField('CLIENTE 1', salesMirrorForm.cliente1, 40, y, 250);
-    drawField('CPF', salesMirrorForm.cpf1, 305, y, 250);
-    if (hasSecondClient) {
-      y -= 40;
-      drawField('CLIENTE 2', salesMirrorForm.cliente2, 40, y, 250);
-      drawField('CPF', salesMirrorForm.cpf2, 305, y, 250);
+    const logoBytes = await fetch('/pwa-192x192.png').then(r => r.arrayBuffer()).catch(() => null);
+    if (logoBytes) {
+      const logo = await pdf.embedPng(logoBytes);
+      page.drawImage(logo, { x: margin + 6, y: top - 48, width: 34, height: 34 });
     }
-    y -= 40;
-    drawField('VGV', salesMirrorForm.vgv, 40, y, 250);
-    drawField('ORIGEM', salesMirrorForm.origem, 305, y, 250);
-    y -= 40;
-    drawField('UNIDADE', salesMirrorForm.unidade, 40, y, 250);
-    drawField('GERENTE', salesMirrorForm.gerente, 305, y, 250);
-    y -= 40;
-    drawField('BLOCO', salesMirrorForm.bloco, 40, y, 250);
-    drawField('COORDENADOR', salesMirrorForm.coordenador, 305, y, 250);
-    y -= 40;
-    drawField('CORRETOR', salesMirrorForm.corretor, 305, y, 250);
 
-    y -= 60;
-    drawField('DATA DO ATO', salesMirrorForm.dataAto, 40, y, 95);
-    drawField('VALOR DO ATO', salesMirrorForm.valorAto, 140, y, 130);
-    drawField('PAGO PELA KAIZEN', salesMirrorForm.pagoPelaKaizen, 275, y, 130);
-    drawField('CCA', salesMirrorForm.cca, 410, y, 60);
-    drawField('DATA DO CONTRATO', salesMirrorForm.dataContrato, 475, y, 80);
+    page.drawRectangle({ x: margin, y: top - 60, width: contentW, height: 60, color: colors.soft, borderColor: colors.border, borderWidth: 0.8 });
+    page.drawText('KAIZEN-ESPELHO DE VENDAS', { x: margin + 50, y: top - 30, size: 18, font: bold, color: colors.title });
+    page.drawText(`Cliente: ${fmtValue(client?.name)}`, { x: margin + 50, y: top - 47, size: 9, font: regular, color: colors.label });
+    page.drawText(`Gerado em: ${new Date().toLocaleString('pt-BR')}`, { x: pageW - margin - 180, y: top - 47, size: 9, font: regular, color: colors.label });
 
-    y -= 80;
-    drawField('ASS. DO GERENTE', salesMirrorForm.assGerente, 420, y, 135);
-    y -= 60;
-    drawField('ASS. DIRETOR DE VENDA', salesMirrorForm.assDiretorVenda, 40, y, 250);
-    drawField('ASS. SETOR DE AVULSO', salesMirrorForm.assSetorAvulso, 305, y, 250);
-    y -= 60;
-    drawField('ASS. DIRETOR DE FINANCEIRO', salesMirrorForm.assDiretorFinanceiro, 40, y, 250);
-    drawField('ASS. DIRETOR COMERCIAL', salesMirrorForm.assDiretorComercial, 305, y, 250);
+    const hasSecondClient = !!String(salesMirrorForm.cliente2 || '').trim() || !!String(salesMirrorForm.cpf2 || '').trim();
+    const colGap = 12;
+    const colW = (contentW - colGap) / 2;
+    const leftX = margin;
+    const rightX = margin + colW + colGap;
+    let y = top - 78;
+
+    drawCell({ label: 'CONST./INVEST.', value: salesMirrorForm.constInvest, x: leftX, y, w: colW });
+    drawCell({ label: 'EMPREENDIMENTO', value: salesMirrorForm.empreendimento, x: rightX, y, w: colW });
+    y -= 43;
+    drawCell({ label: 'CLIENTE 1', value: salesMirrorForm.cliente1, x: leftX, y, w: colW });
+    drawCell({ label: 'CPF 1', value: salesMirrorForm.cpf1, x: rightX, y, w: colW });
+    if (hasSecondClient) {
+      y -= 43;
+      drawCell({ label: 'CLIENTE 2', value: salesMirrorForm.cliente2, x: leftX, y, w: colW });
+      drawCell({ label: 'CPF 2', value: salesMirrorForm.cpf2, x: rightX, y, w: colW });
+    }
+    y -= 43;
+    drawCell({ label: 'VGV', value: salesMirrorForm.vgv, x: leftX, y, w: colW });
+    drawCell({ label: 'ORIGEM', value: salesMirrorForm.origem, x: rightX, y, w: colW });
+    y -= 43;
+    drawCell({ label: 'UNIDADE', value: salesMirrorForm.unidade, x: leftX, y, w: colW });
+    drawCell({ label: 'GERENTE', value: salesMirrorForm.gerente, x: rightX, y, w: colW });
+    y -= 43;
+    drawCell({ label: 'BLOCO', value: salesMirrorForm.bloco, x: leftX, y, w: colW });
+    drawCell({ label: 'COORDENADOR', value: salesMirrorForm.coordenador, x: rightX, y, w: colW });
+    y -= 43;
+    drawCell({ label: 'CORRETOR', value: salesMirrorForm.corretor, x: rightX, y, w: colW });
+
+    y -= 50;
+    const widths = [110, 130, 130, 75, 120, 170];
+    const gap = 8;
+    let x = margin;
+    const row = [
+      ['DATA DO ATO', salesMirrorForm.dataAto],
+      ['VALOR DO ATO', salesMirrorForm.valorAto],
+      ['PAGO PELA KAIZEN', salesMirrorForm.pagoPelaKaizen],
+      ['CCA', salesMirrorForm.cca],
+      ['DATA DO CONTRATO', salesMirrorForm.dataContrato],
+      ['ASS. DO GERENTE', salesMirrorForm.assGerente],
+    ] as const;
+    row.forEach(([label, value], i) => {
+      drawCell({ label, value, x, y, w: widths[i] });
+      x += widths[i] + gap;
+    });
+
+    y -= 62;
+    drawCell({ label: 'ASS. DIRETOR DE VENDA', value: salesMirrorForm.assDiretorVenda, x: leftX, y, w: colW, h: 44 });
+    drawCell({ label: 'ASS. SETOR DE AVULSO', value: salesMirrorForm.assSetorAvulso, x: rightX, y, w: colW, h: 44 });
+    y -= 50;
+    drawCell({ label: 'ASS. DIRETOR DE FINANCEIRO', value: salesMirrorForm.assDiretorFinanceiro, x: leftX, y, w: colW, h: 44 });
+    drawCell({ label: 'ASS. DIRETOR COMERCIAL', value: salesMirrorForm.assDiretorComercial, x: rightX, y, w: colW, h: 44 });
 
     return pdf.save();
   };
