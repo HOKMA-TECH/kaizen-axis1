@@ -11,6 +11,36 @@ import { supabase } from '@/lib/supabase';
 import { logAuditEvent } from '@/services/auditLogger';
 import { ClientHierarchyTags } from '@/components/ui/ClientHierarchyTags';
 
+type SalesMirrorForm = {
+  constInvest: string;
+  empreendimento: string;
+  cliente1: string;
+  cpf1: string;
+  cliente2: string;
+  cpf2: string;
+  vgv: string;
+  origem: string;
+  unidade: string;
+  gerente: string;
+  bloco: string;
+  coordenador: string;
+  corretor: string;
+  dataAto: string;
+  valorAto: string;
+  pagoPelaKaizen: string;
+  cca: string;
+  dataContrato: string;
+  assGerente: string;
+  assDiretorVenda: string;
+  assSetorAvulso: string;
+  assDiretorFinanceiro: string;
+  assDiretorComercial: string;
+};
+
+const EMPTY_SALES_MIRROR: SalesMirrorForm = {
+  constInvest: '', empreendimento: '', cliente1: '', cpf1: '', cliente2: '', cpf2: '', vgv: '', origem: '', unidade: '', gerente: '', bloco: '', coordenador: '', corretor: '', dataAto: '', valorAto: '', pagoPelaKaizen: '', cca: '', dataContrato: '', assGerente: '', assDiretorVenda: '', assSetorAvulso: '', assDiretorFinanceiro: '', assDiretorComercial: '',
+};
+
 export default function ClientDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -71,6 +101,10 @@ export default function ClientDetails() {
     cotista: 'Não',
     socialFactor: 'Não',
   });
+  const [isSalesMirrorOpen, setIsSalesMirrorOpen] = useState(false);
+  const [salesMirrorLoading, setSalesMirrorLoading] = useState(false);
+  const [salesMirrorSaving, setSalesMirrorSaving] = useState(false);
+  const [salesMirrorForm, setSalesMirrorForm] = useState<SalesMirrorForm>(EMPTY_SALES_MIRROR);
 
   // Load from context
   useEffect(() => {
@@ -363,6 +397,75 @@ export default function ClientDetails() {
     setDocumentToDelete(null);
   };
 
+  const canUseSalesMirror = !!client && client.stage === 'Concluído' && ['ADMIN', 'DIRETOR', 'GERENTE'].includes(role ?? '');
+
+  const buildDefaultSalesMirror = (): SalesMirrorForm => {
+    if (!client) return EMPTY_SALES_MIRROR;
+    const firstProponent = (client.proponents || [])[0];
+    return {
+      ...EMPTY_SALES_MIRROR,
+      cliente1: client.name || '',
+      cpf1: client.cpf || '',
+      cliente2: firstProponent?.name || '',
+      cpf2: firstProponent?.cpf || '',
+      empreendimento: client.development || '',
+      vgv: client.intendedValue || '',
+    };
+  };
+
+  const openSalesMirror = async () => {
+    if (!id || !canUseSalesMirror) return;
+    setIsSalesMirrorOpen(true);
+    setSalesMirrorLoading(true);
+    setSalesMirrorForm(buildDefaultSalesMirror());
+
+    const { data, error } = await supabase.from('sales_mirrors').select('*').eq('client_id', id).maybeSingle();
+    if (!error && data) {
+      setSalesMirrorForm({
+        constInvest: data.const_invest || '', empreendimento: data.empreendimento || '', cliente1: data.cliente_1 || '', cpf1: data.cpf_1 || '', cliente2: data.cliente_2 || '', cpf2: data.cpf_2 || '', vgv: data.vgv || '', origem: data.origem || '', unidade: data.unidade || '', gerente: data.gerente || '', bloco: data.bloco || '', coordenador: data.coordenador || '', corretor: data.corretor || '', dataAto: data.data_ato || '', valorAto: data.valor_ato || '', pagoPelaKaizen: data.pago_pela_kaizen || '', cca: data.cca || '', dataContrato: data.data_contrato || '', assGerente: data.ass_gerente || '', assDiretorVenda: data.ass_diretor_venda || '', assSetorAvulso: data.ass_setor_avulso || '', assDiretorFinanceiro: data.ass_diretor_financeiro || '', assDiretorComercial: data.ass_diretor_comercial || '',
+      });
+    }
+
+    setSalesMirrorLoading(false);
+  };
+
+  const saveSalesMirror = async () => {
+    if (!id || !canUseSalesMirror) return;
+    setSalesMirrorSaving(true);
+    const { error } = await supabase.from('sales_mirrors').upsert({
+      client_id: id,
+      const_invest: salesMirrorForm.constInvest,
+      empreendimento: salesMirrorForm.empreendimento,
+      cliente_1: salesMirrorForm.cliente1,
+      cpf_1: salesMirrorForm.cpf1,
+      cliente_2: salesMirrorForm.cliente2,
+      cpf_2: salesMirrorForm.cpf2,
+      vgv: salesMirrorForm.vgv,
+      origem: salesMirrorForm.origem,
+      unidade: salesMirrorForm.unidade,
+      gerente: salesMirrorForm.gerente,
+      bloco: salesMirrorForm.bloco,
+      coordenador: salesMirrorForm.coordenador,
+      corretor: salesMirrorForm.corretor,
+      data_ato: salesMirrorForm.dataAto,
+      valor_ato: salesMirrorForm.valorAto,
+      pago_pela_kaizen: salesMirrorForm.pagoPelaKaizen,
+      cca: salesMirrorForm.cca,
+      data_contrato: salesMirrorForm.dataContrato,
+      ass_gerente: salesMirrorForm.assGerente,
+      ass_diretor_venda: salesMirrorForm.assDiretorVenda,
+      ass_setor_avulso: salesMirrorForm.assSetorAvulso,
+      ass_diretor_financeiro: salesMirrorForm.assDiretorFinanceiro,
+      ass_diretor_comercial: salesMirrorForm.assDiretorComercial,
+    }, { onConflict: 'client_id' });
+    setSalesMirrorSaving(false);
+    if (error) {
+      alert(`Erro ao salvar espelho: ${error.message}`);
+      return;
+    }
+    alert('Espelho salvo com sucesso.');
+  };
+
   if (!client) return (
     <div className="p-6 flex flex-col items-center justify-center min-h-[50vh] text-text-secondary">
       <p>Cliente não encontrado.</p>
@@ -418,6 +521,14 @@ export default function ClientDetails() {
             <Wallet size={18} />
             <span>{client.intendedValue || 'Valor não informado'}</span>
           </div>
+
+          {canUseSalesMirror && (
+            <div className="pt-1">
+              <RoundedButton size="sm" variant="secondary" onClick={openSalesMirror}>
+                Espelho de vendas
+              </RoundedButton>
+            </div>
+          )}
 
           <div className="grid grid-cols-2 gap-3 pt-2">
             <RoundedButton
@@ -827,6 +938,36 @@ export default function ClientDetails() {
       </div>
 
       {/* Modals */}
+      <Modal
+        isOpen={isSalesMirrorOpen}
+        onClose={() => setIsSalesMirrorOpen(false)}
+        title="Espelho de vendas"
+      >
+        <div className="space-y-3 max-h-[75vh] overflow-y-auto pr-1">
+          {salesMirrorLoading ? (
+            <p className="text-sm text-text-secondary">Carregando espelho...</p>
+          ) : (
+            <>
+              {[['CONST./INVEST.', 'constInvest'], ['EMPREENDIMENTO', 'empreendimento'], ['CLIENTE 1', 'cliente1'], ['CPF 1', 'cpf1'], ['CLIENTE 2', 'cliente2'], ['CPF 2', 'cpf2'], ['VGV', 'vgv'], ['ORIGEM', 'origem'], ['UNIDADE', 'unidade'], ['GERENTE', 'gerente'], ['BLOCO', 'bloco'], ['COORDENADOR', 'coordenador'], ['CORRETOR', 'corretor'], ['DATA DO ATO', 'dataAto'], ['VALOR DO ATO', 'valorAto'], ['PAGO PELA KAIZEN', 'pagoPelaKaizen'], ['CCA', 'cca'], ['DATA DO CONTRATO', 'dataContrato'], ['ASS. DO GERENTE', 'assGerente'], ['ASS. DIRETOR DE VENDA', 'assDiretorVenda'], ['ASS. SETOR DE AVULSO', 'assSetorAvulso'], ['ASS. DIRETOR DE FINANCEIRO', 'assDiretorFinanceiro'], ['ASS. DIRETOR COMERCIAL', 'assDiretorComercial']].map(([label, key]) => (
+                <div key={key}>
+                  <label className="text-xs text-text-secondary uppercase tracking-wider mb-1 block">{label}</label>
+                  <input
+                    value={(salesMirrorForm as any)[key] || ''}
+                    onChange={(e) => setSalesMirrorForm((prev) => ({ ...prev, [key]: e.target.value }))}
+                    className="w-full p-2 bg-surface-50 rounded-lg border-none focus:ring-2 focus:ring-gold-400 text-sm text-text-primary"
+                  />
+                </div>
+              ))}
+            </>
+          )}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-2 print:hidden">
+            <RoundedButton variant="secondary" onClick={() => window.print()}>Imprimir</RoundedButton>
+            <RoundedButton variant="secondary" onClick={() => window.print()}>Baixar PDF</RoundedButton>
+            <RoundedButton onClick={saveSalesMirror} disabled={salesMirrorSaving}>{salesMirrorSaving ? 'Salvando...' : 'Salvar'}</RoundedButton>
+          </div>
+        </div>
+      </Modal>
+
       <Modal
         isOpen={isDeleteClientModalOpen}
         onClose={() => setIsDeleteClientModalOpen(false)}
