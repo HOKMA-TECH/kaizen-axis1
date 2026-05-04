@@ -8,9 +8,11 @@ interface ModalProps {
   onClose: () => void;
   title: string;
   children: ReactNode;
+  panelClassName?: string;
+  contentClassName?: string;
 }
 
-export const Modal = ({ isOpen, onClose, title, children }: ModalProps) => {
+export const Modal = ({ isOpen, onClose, title, children, panelClassName, contentClassName }: ModalProps) => {
   const modalRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -39,7 +41,10 @@ export const Modal = ({ isOpen, onClose, title, children }: ModalProps) => {
       />
       <div 
         ref={modalRef}
-        className="bg-card-bg w-full max-w-md rounded-2xl shadow-2xl pointer-events-auto flex flex-col max-h-[90vh] relative z-10 animate-in fade-in zoom-in-95 duration-200"
+        className={cn(
+          "bg-card-bg w-full max-w-md rounded-2xl shadow-2xl pointer-events-auto flex flex-col max-h-[90vh] relative z-10 animate-in fade-in zoom-in-95 duration-200",
+          panelClassName
+        )}
       >
         <div className="flex items-center justify-between p-4 border-b border-surface-200">
           <h3 className="text-lg font-bold text-text-primary">{title}</h3>
@@ -50,7 +55,7 @@ export const Modal = ({ isOpen, onClose, title, children }: ModalProps) => {
             <X size={20} />
           </button>
         </div>
-        <div className="p-4 overflow-y-auto no-scrollbar">
+        <div className={cn("p-4 overflow-y-auto no-scrollbar", contentClassName)}>
           {children}
         </div>
       </div>
