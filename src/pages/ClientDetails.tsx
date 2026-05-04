@@ -42,6 +42,20 @@ const EMPTY_SALES_MIRROR: SalesMirrorForm = {
   constInvest: '', empreendimento: '', cliente1: '', cpf1: '', cliente2: '', cpf2: '', vgv: '', origem: '', unidade: '', gerente: '', bloco: '', coordenador: '', corretor: '', dataAto: '', valorAto: '', pagoPelaKaizen: '', cca: '', dataContrato: '', assGerente: '', assDiretorVenda: '', assSetorAvulso: '', assDiretorFinanceiro: '', assDiretorComercial: '',
 };
 
+const formatCurrencyInput = (raw: string) => {
+  const digits = raw.replace(/\D/g, '');
+  if (!digits) return '';
+  const value = Number(digits) / 100;
+  return value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+};
+
+const formatDateInput = (raw: string) => {
+  const digits = raw.replace(/\D/g, '').slice(0, 8);
+  if (digits.length <= 2) return digits;
+  if (digits.length <= 4) return `${digits.slice(0, 2)}/${digits.slice(2)}`;
+  return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`;
+};
+
 export default function ClientDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -479,6 +493,8 @@ export default function ClientDetails() {
       page.drawText(String(value || '-').slice(0, 56), { x: x + 4, y: y - 8, size: 10, font: regular, color: rgb(0.1, 0.1, 0.1) });
     };
 
+    const hasSecondClient = !!String(salesMirrorForm.cliente2 || '').trim() || !!String(salesMirrorForm.cpf2 || '').trim();
+
     page.drawText('PROCESSO DE VENDA', { x: 215, y: 805, size: 18, font: bold });
 
     let y = 760;
@@ -487,9 +503,11 @@ export default function ClientDetails() {
     y -= 40;
     drawField('CLIENTE 1', salesMirrorForm.cliente1, 40, y, 250);
     drawField('CPF', salesMirrorForm.cpf1, 305, y, 250);
-    y -= 40;
-    drawField('CLIENTE 2', salesMirrorForm.cliente2, 40, y, 250);
-    drawField('CPF', salesMirrorForm.cpf2, 305, y, 250);
+    if (hasSecondClient) {
+      y -= 40;
+      drawField('CLIENTE 2', salesMirrorForm.cliente2, 40, y, 250);
+      drawField('CPF', salesMirrorForm.cpf2, 305, y, 250);
+    }
     y -= 40;
     drawField('VGV', salesMirrorForm.vgv, 40, y, 250);
     drawField('ORIGEM', salesMirrorForm.origem, 305, y, 250);
@@ -519,23 +537,6 @@ export default function ClientDetails() {
     drawField('ASS. DIRETOR COMERCIAL', salesMirrorForm.assDiretorComercial, 305, y, 250);
 
     return pdf.save();
-  };
-
-  const downloadSalesMirrorPdf = async () => {
-    try {
-      const bytes = await buildSalesMirrorPdf();
-      const blob = new Blob([bytes], { type: 'application/pdf' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `espelho-vendas-${(client?.name || 'cliente').replace(/\s+/g, '-').toLowerCase()}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-    } catch (e: any) {
-      alert(`Erro ao gerar PDF: ${e?.message || 'erro desconhecido'}`);
-    }
   };
 
   const printSalesMirrorPdf = async () => {
@@ -1027,26 +1028,42 @@ export default function ClientDetails() {
         onClose={() => setIsSalesMirrorOpen(false)}
         title="Espelho de vendas"
       >
-        <div className="space-y-3 max-h-[75vh] overflow-y-auto pr-1">
+        <div className="space-y-3 max-h-[80vh] overflow-y-auto pr-1 w-full sm:min-w-[720px]">
           {salesMirrorLoading ? (
             <p className="text-sm text-text-secondary">Carregando espelho...</p>
           ) : (
             <>
-              {[['CONST./INVEST.', 'constInvest'], ['EMPREENDIMENTO', 'empreendimento'], ['CLIENTE 1', 'cliente1'], ['CPF 1', 'cpf1'], ['CLIENTE 2', 'cliente2'], ['CPF 2', 'cpf2'], ['VGV', 'vgv'], ['ORIGEM', 'origem'], ['UNIDADE', 'unidade'], ['GERENTE', 'gerente'], ['BLOCO', 'bloco'], ['COORDENADOR', 'coordenador'], ['CORRETOR', 'corretor'], ['DATA DO ATO', 'dataAto'], ['VALOR DO ATO', 'valorAto'], ['PAGO PELA KAIZEN', 'pagoPelaKaizen'], ['CCA', 'cca'], ['DATA DO CONTRATO', 'dataContrato'], ['ASS. DO GERENTE', 'assGerente'], ['ASS. DIRETOR DE VENDA', 'assDiretorVenda'], ['ASS. SETOR DE AVULSO', 'assSetorAvulso'], ['ASS. DIRETOR DE FINANCEIRO', 'assDiretorFinanceiro'], ['ASS. DIRETOR COMERCIAL', 'assDiretorComercial']].map(([label, key]) => (
-                <div key={key}>
+              {[['CONST./INVEST.', 'constInvest'], ['EMPREENDIMENTO', 'empreendimento'], ['CLIENTE 1', 'cliente1'], ['CPF 1', 'cpf1'], ['CLIENTE 2', 'cliente2'], ['CPF 2', 'cpf2'], ['VGV', 'vgv'], ['ORIGEM', 'origem'], ['UNIDADE', 'unidade'], ['GERENTE', 'gerente'], ['BLOCO', 'bloco'], ['COORDENADOR', 'coordenador'], ['CORRETOR', 'corretor'], ['DATA DO ATO', 'dataAto'], ['VALOR DO ATO', 'valorAto'], ['CCA', 'cca'], ['DATA DO CONTRATO', 'dataContrato'], ['ASS. DO GERENTE', 'assGerente'], ['ASS. DIRETOR DE VENDA', 'assDiretorVenda'], ['ASS. SETOR DE AVULSO', 'assSetorAvulso'], ['ASS. DIRETOR DE FINANCEIRO', 'assDiretorFinanceiro'], ['ASS. DIRETOR COMERCIAL', 'assDiretorComercial']].map(([label, key]) => (
+                <div key={key} className="sm:grid sm:grid-cols-[180px_1fr] sm:items-center sm:gap-3">
                   <label className="text-xs text-text-secondary uppercase tracking-wider mb-1 block">{label}</label>
                   <input
                     value={(salesMirrorForm as any)[key] || ''}
-                    onChange={(e) => setSalesMirrorForm((prev) => ({ ...prev, [key]: e.target.value }))}
+                    onChange={(e) => {
+                      let value = e.target.value;
+                      if (key === 'vgv' || key === 'valorAto') value = formatCurrencyInput(value);
+                      if (key === 'dataAto' || key === 'dataContrato') value = formatDateInput(value);
+                      setSalesMirrorForm((prev) => ({ ...prev, [key]: value }));
+                    }}
                     className="w-full p-2 bg-surface-50 rounded-lg border-none focus:ring-2 focus:ring-gold-400 text-sm text-text-primary"
                   />
                 </div>
               ))}
+              <div className="sm:grid sm:grid-cols-[180px_1fr] sm:items-center sm:gap-3">
+                <label className="text-xs text-text-secondary uppercase tracking-wider mb-1 block">PAGO PELA KAIZEN</label>
+                <select
+                  value={salesMirrorForm.pagoPelaKaizen || ''}
+                  onChange={(e) => setSalesMirrorForm((prev) => ({ ...prev, pagoPelaKaizen: e.target.value }))}
+                  className="w-full p-2 bg-surface-50 rounded-lg border-none focus:ring-2 focus:ring-gold-400 text-sm text-text-primary"
+                >
+                  <option value="">Selecione</option>
+                  <option value="SIM">SIM</option>
+                  <option value="NÃO">NÃO</option>
+                </select>
+              </div>
             </>
           )}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-2 print:hidden">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2 print:hidden">
             <RoundedButton variant="secondary" onClick={printSalesMirrorPdf}>Imprimir</RoundedButton>
-            <RoundedButton variant="secondary" onClick={downloadSalesMirrorPdf}>Baixar PDF</RoundedButton>
             <RoundedButton onClick={saveSalesMirror} disabled={salesMirrorSaving}>{salesMirrorSaving ? 'Salvando...' : 'Salvar'}</RoundedButton>
           </div>
         </div>
