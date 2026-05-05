@@ -48,7 +48,7 @@ interface ContextoNomes {
     cpf?: string;
 }
 
-type BancoDetectado = 'generic' | 'nubank' | 'inter' | 'neon' | 'bradesco' | 'mercadopago' | 'itau_mensal' | 'santander' | 'pagbank' | 'next';
+type BancoDetectado = 'generic' | 'nubank' | 'inter' | 'neon' | 'bradesco' | 'mercadopago' | 'picpay_pix' | 'itau_mensal' | 'santander' | 'pagbank' | 'next';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // UTILS — MOEDA
@@ -1142,6 +1142,40 @@ function isMercadoPagoBank(texto: string): boolean {
     if (!temMarcaMercadoPagoCabecalho && !temPadraoForteMercadoPago) return false;
 
     return (temMarcaMercadoPago && temContextoExtrato && temLayoutMP) || (temMarcaMercadoPago && temPadraoForteMercadoPago);
+}
+
+function isPicPayPixReportBank(texto: string): boolean {
+    const norm = removerAcentos(texto).toUpperCase();
+    const temMarca = norm.includes('PICPAY');
+    const temCabecalho = norm.includes('RELATORIO DE TRANSFERENCIAS PIX') || norm.includes('TRANSFERENCIAS PIX');
+    const temColunas = norm.includes('ID PIX') && norm.includes('VALOR') && norm.includes('PAGADOR');
+    return temMarca && temCabecalho && temColunas;
+}
+
+function extrairPicPayPixReport(texto: string): Array<{ dataRaw: string; descricaoRaw: string; valorRaw: string }> {
+    const compact = removerAcentos(texto)
+        .replace(/[–—−]/g, '-')
+        .replace(/\s+/g, ' ')
+        .trim();
+
+    const todos: Array<{ dataRaw: string; descricaoRaw: string; valorRaw: string }> = [];
+    const vistas = new Set<string>();
+    const re = /(\d{2}\/\d{2}\/\d{4})\s+(?:\d{2}:\d{2}:\d{2}\s+)?([A-Z0-9]{10,})\s+R\$\s*([+-]?\d{1,3}(?:\.\d{3})*,\d{2})/gi;
+
+    let m: RegExpExecArray | null;
+    while ((m = re.exec(compact)) !== null) {
+        const dataRaw = m[1];
+        const idPix = m[2];
+        const valorRaw = m[3];
+        const descricaoRaw = `PIX RECEBIDO (ID ${idPix})`;
+        const chave = `${dataRaw}|${descricaoRaw}|${valorRaw}`;
+        if (!vistas.has(chave)) {
+            vistas.add(chave);
+            todos.push({ dataRaw, descricaoRaw, valorRaw });
+        }
+    }
+
+    return todos;
 }
 
 function extrairMercadoPagoPorBloco(texto: string): Array<{ dataRaw: string; descricaoRaw: string; valorRaw: string }> {
@@ -2799,24 +2833,29 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const mesesReferencia = extrairMesesReferencia(textoExtrato);
 
         // ── Parsear e classificar ──────────────────────────────────────────────
-        const ehMercadoPago = isMercadoPagoBank(textoExtrato);
-        const ehNubank = !ehMercadoPago && isNubankBank(textoExtrato);
-        const ehPagBank = !ehMercadoPago && !ehNubank && isPagBankBank(textoExtrato);
-        const ehNext = !ehMercadoPago && !ehNubank && !ehPagBank && isNextBank(textoExtrato);
-        const ehInter = !ehMercadoPago && !ehNubank && !ehPagBank && !ehNext && isInterBank(textoExtrato);
-        const ehNeon = !ehMercadoPago && !ehNubank && !ehPagBank && !ehNext && !ehInter && isNeonBank(textoExtrato);
-        const ehItauMensal = !ehMercadoPago && !ehNubank && !ehInter && !ehNeon && !ehPagBank && !ehNext && isItauMensalBank(textoExtrato);
-        const ehSantander = !ehMercadoPago && !ehNubank && !ehInter && !ehNeon && !ehPagBank && !ehNext && !ehItauMensal && isSantanderBank(textoExtrato);
+        const ehPicPayPix = isPicPayPixReportBank(textoExtrato);
+        const ehMercadoPago = !ehPicPayPix && isMercadoPagoBank(textoExtrato);
+        const ehNubank = !ehPicPayPix && !ehMercadoPago && isNubankBank(textoExtrato);
+        const ehPagBank = !ehPicPayPix && !ehMercadoPago && !ehNubank && isPagBankBank(textoExtrato);
+        const ehNext = !ehPicPayPix && !ehMercadoPago && !ehNubank && !ehPagBank && isNextBank(textoExtrato);
+        const ehInter = !ehPicPayPix && !ehMercadoPago && !ehNubank && !ehPagBank && !ehNext && isInterBank(textoExtrato);
+        const ehNeon = !ehPicPayPix && !ehMercadoPago && !ehNubank && !ehPagBank && !ehNext && !ehInter && isNeonBank(textoExtrato);
+        const ehItauMensal = !ehPicPayPix && !ehMercadoPago && !ehNubank && !ehInter && !ehNeon && !ehPagBank && !ehNext && isItauMensalBank(textoExtrato);
+        const ehSantander = !ehPicPayPix && !ehMercadoPago && !ehNubank && !ehInter && !ehNeon && !ehPagBank && !ehNext && !ehItauMensal && isSantanderBank(textoExtrato);
         const mesesReferenciaSantander = ehSantander ? extrairMesesReferenciaSantanderEstrito(textoExtrato) : new Set<string>();
         const mesesReferenciaSantanderSaldo = ehSantander ? extrairMesesReferenciaSantanderPorSaldo(textoExtrato) : new Set<string>();
         const mesesReferenciaEfetivos = (ehSantander && mesesReferenciaSantander.size >= 2)
             ? mesesReferenciaSantander
             : ((ehSantander && mesesReferenciaSantanderSaldo.size >= 2) ? mesesReferenciaSantanderSaldo : mesesReferencia);
-        const isBradescoExtrato = !ehMercadoPago && !ehNubank && !ehInter && !ehNeon && !ehPagBank && !ehNext && !ehItauMensal && !ehSantander && (isBradescoBank(textoExtrato) || isBradescoHeuristico(textoExtrato));
-        const bankDetected: BancoDetectado = ehMercadoPago
+        const isBradescoExtrato = !ehPicPayPix && !ehMercadoPago && !ehNubank && !ehInter && !ehNeon && !ehPagBank && !ehNext && !ehItauMensal && !ehSantander && (isBradescoBank(textoExtrato) || isBradescoHeuristico(textoExtrato));
+        const bankDetected: BancoDetectado = ehPicPayPix
+            ? 'picpay_pix'
+            : ehMercadoPago
             ? 'mercadopago'
             : (ehNubank ? 'nubank' : (ehInter ? 'inter' : (ehNeon ? 'neon' : (ehPagBank ? 'pagbank' : (ehNext ? 'next' : (ehItauMensal ? 'itau_mensal' : (ehSantander ? 'santander' : (isBradescoExtrato ? 'bradesco' : 'generic'))))))));
-        let brutas = ehMercadoPago
+        let brutas = ehPicPayPix
+            ? extrairPicPayPixReport(textoExtrato)
+            : ehMercadoPago
             ? extrairMercadoPago(textoExtrato)
             : (ehNubank
                 ? extrairNubank(textoExtrato)
