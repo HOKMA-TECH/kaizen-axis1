@@ -1160,13 +1160,26 @@ function extrairPicPayPixReport(texto: string): Array<{ dataRaw: string; descric
 
     const todos: Array<{ dataRaw: string; descricaoRaw: string; valorRaw: string }> = [];
     const vistas = new Set<string>();
-    const re = /(\d{2}\/\d{2}\/\d{4})\s+(?:\d{2}:\d{2}:\d{2}\s+)?([A-Z0-9]{10,})\s+R\$\s*([+-]?\d{1,3}(?:\.\d{3})*,\d{2})/gi;
+    const dateRe = /(\d{2}\/\d{2}\/\d{4})/g;
+    const dateMatches = Array.from(compact.matchAll(dateRe));
 
-    let m: RegExpExecArray | null;
-    while ((m = re.exec(compact)) !== null) {
-        const dataRaw = m[1];
-        const idPix = m[2];
-        const valorRaw = m[3];
+    for (let i = 0; i < dateMatches.length; i++) {
+        const dataRaw = dateMatches[i][1];
+        const start = dateMatches[i].index ?? 0;
+        const end = i + 1 < dateMatches.length
+            ? (dateMatches[i + 1].index ?? compact.length)
+            : compact.length;
+
+        const bloco = compact.slice(start, end);
+        const valorMatch = bloco.match(/R\$\s*([+-]?\d{1,3}(?:\.\d{3})*,\d{2})/i);
+        if (!valorMatch) continue;
+
+        const valorRaw = valorMatch[1];
+
+        // ID PIX pode aparecer mais de uma vez no bloco. Usa o primeiro token alfanumérico longo.
+        const idMatch = bloco.match(/\b([A-Z0-9]{10,})\b/i);
+        const idPix = idMatch ? idMatch[1] : 'SEM-ID';
+
         const descricaoRaw = `PIX RECEBIDO (ID ${idPix})`;
         const chave = `${dataRaw}|${descricaoRaw}|${valorRaw}`;
         if (!vistas.has(chave)) {
