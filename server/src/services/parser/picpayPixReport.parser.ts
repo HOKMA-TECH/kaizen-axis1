@@ -9,7 +9,7 @@ import { limparTextoPdf, deduplicar } from './base.parser';
 export class PicPayPixReportParser implements BaseParser {
     nome = 'PicPayPixReportParser-v1';
 
-    private static readonly REGEX_LINHA_TABELA = /([A-ZÀ-ÿ][A-ZÀ-ÿ\s]{5,}?)\s+(\d{2}\/\d{2}\/\d{4})\s+(\d{2}:\d{2}:\d{2})\s+([A-Z0-9]{10,})\s+R\$\s*([+-]?\d{1,3}(?:\.\d{3})*,\d{2})\s+([A-ZÀ-ÿ][A-ZÀ-ÿ\s]{5,}?)\s+(PicPay|Banco\s+do\s+Brasil|CAIXA|Ita[uú]|Bradesco|Santander|Nubank)/gi;
+    private static readonly REGEX_TRANSACAO_PIX = /(\d{2}\/\d{2}\/\d{4})\s+([A-Z0-9]{10,})\s+R\$\s*([+-]?\d{1,3}(?:\.\d{3})*,\d{2})/gi;
 
     extrair(textoRaw: string): TransacaoBruta[] {
         const texto = limparTextoPdf(textoRaw);
@@ -18,12 +18,12 @@ export class PicPayPixReportParser implements BaseParser {
 
         const textoFlat = linhas.join(' ').replace(/\s+/g, ' ').trim();
         let match: RegExpExecArray | null;
-        PicPayPixReportParser.REGEX_LINHA_TABELA.lastIndex = 0;
+        PicPayPixReportParser.REGEX_TRANSACAO_PIX.lastIndex = 0;
 
-        while ((match = PicPayPixReportParser.REGEX_LINHA_TABELA.exec(textoFlat)) !== null) {
-            const dataRaw = match[2].trim();
-            const idPix = match[4].trim();
-            const valorRaw = match[5].trim();
+        while ((match = PicPayPixReportParser.REGEX_TRANSACAO_PIX.exec(textoFlat)) !== null) {
+            const dataRaw = match[1].trim();
+            const idPix = match[2].trim();
+            const valorRaw = match[3].trim();
             const descricaoRaw = `PIX recebido (ID ${idPix})`;
             resultado.push({ dataRaw, descricaoRaw, valorRaw });
         }
@@ -78,11 +78,9 @@ export class PicPayPixReportParser implements BaseParser {
             .normalize('NFD')
             .replace(/[\u0300-\u036f]/g, '')
             .toUpperCase();
-        return upper.includes('PICPAY')
-            && upper.includes('RELATORIO DE TRANSFERENCIAS PIX')
-            && upper.includes('NOME DO PAGADOR')
-            && upper.includes('ID PIX')
-            && upper.includes('BANCO DO RECEBEDOR');
+        const temCabecalhoPix = upper.includes('RELATORIO DE TRANSFERENCIAS PIX') || upper.includes('TRANSFERENCIAS PIX');
+        const temColunasMinimas = upper.includes('ID PIX') && upper.includes('VALOR') && (upper.includes('PAGADOR') || upper.includes('NOME DO PAGADOR'));
+        return upper.includes('PICPAY') && temCabecalhoPix && temColunasMinimas;
     }
 }
 
