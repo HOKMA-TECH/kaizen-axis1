@@ -21,11 +21,10 @@ export class PicPayPixReportParser implements BaseParser {
         PicPayPixReportParser.REGEX_LINHA_TABELA.lastIndex = 0;
 
         while ((match = PicPayPixReportParser.REGEX_LINHA_TABELA.exec(textoFlat)) !== null) {
-            const nomePagador = match[1].trim();
             const dataRaw = match[2].trim();
             const idPix = match[4].trim();
             const valorRaw = match[5].trim();
-            const descricaoRaw = `PIX recebido de ${nomePagador} (ID ${idPix})`;
+            const descricaoRaw = `PIX recebido (ID ${idPix})`;
             resultado.push({ dataRaw, descricaoRaw, valorRaw });
         }
 
@@ -61,7 +60,6 @@ export class PicPayPixReportParser implements BaseParser {
 
             const descricaoRaw = [
                 'PIX recebido',
-                nomePagador ? `de ${nomePagador}` : 'PicPay',
                 idPix ? `(ID ${idPix})` : '',
             ].filter(Boolean).join(' ');
 
