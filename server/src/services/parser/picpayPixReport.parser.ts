@@ -9,7 +9,7 @@ import { limparTextoPdf, deduplicar } from './base.parser';
 export class PicPayPixReportParser implements BaseParser {
     nome = 'PicPayPixReportParser-v1';
 
-    private static readonly REGEX_LINHA_TABELA = /([A-ZÀ-ÿ][A-ZÀ-ÿ\s]{5,}?)\s+(\d{2}\/\d{2}\/\d{4})\s+(\d{2}:\d{2}:\d{2})\s+([A-Z0-9]{10,})\s+R\$\s*([+-]?\d{1,3}(?:\.\d{3})*,\d{2})\s+([A-ZÀ-ÿ][A-ZÀ-ÿ\s]{5,}?)\s+(PicPay|PICPAY|Banco\s+do\s+Brasil|CAIXA|Ita[uú]|Bradesco|Santander|Nubank)/g;
+    private static readonly REGEX_LINHA_TABELA = /([A-ZÀ-ÿ][A-ZÀ-ÿ\s]{5,}?)\s+(\d{2}\/\d{2}\/\d{4})\s+(\d{2}:\d{2}:\d{2})\s+([A-Z0-9]{10,})\s+R\$\s*([+-]?\d{1,3}(?:\.\d{3})*,\d{2})\s+([A-ZÀ-ÿ][A-ZÀ-ÿ\s]{5,}?)\s+(PicPay|Banco\s+do\s+Brasil|CAIXA|Ita[uú]|Bradesco|Santander|Nubank)/gi;
 
     extrair(textoRaw: string): TransacaoBruta[] {
         const texto = limparTextoPdf(textoRaw);
@@ -74,7 +74,10 @@ export class PicPayPixReportParser implements BaseParser {
     }
 
     static detectar(texto: string): boolean {
-        const upper = texto.toUpperCase();
+        const upper = texto
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .toUpperCase();
         return upper.includes('PICPAY')
             && upper.includes('RELATORIO DE TRANSFERENCIAS PIX')
             && upper.includes('NOME DO PAGADOR')

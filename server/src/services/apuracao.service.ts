@@ -51,9 +51,15 @@ export async function processarExtrato(
 
     // ── ETAPA 3: Parsear transações brutas ─────────────────────────────────────
     const transacoesBrutas = bancoPadraoParser.extrair(textoPdf);
+    console.log('[apuracao][diag] transacoesBrutas:', transacoesBrutas.length);
 
     // ── ETAPA 4: Classificar ───────────────────────────────────────────────────
     const transacoes = classificarLote(transacoesBrutas, contexto);
+    const resumoClassificacao = transacoes.reduce((acc, t) => {
+        acc[t.classificacao] = (acc[t.classificacao] ?? 0) + 1;
+        return acc;
+    }, {} as Record<string, number>);
+    console.log('[apuracao][diag] resumoClassificacao:', resumoClassificacao);
 
     // ── ETAPA 5: Validar resultado do parsing ──────────────────────────────────
     const mesesUnicos = new Set(
