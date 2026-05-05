@@ -371,6 +371,7 @@ export default function IncomeAnalysis() {
   const [isSaving, setIsSaving] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
   const [showFinalModal, setShowFinalModal] = useState(false);
+  const [showValidationBanner, setShowValidationBanner] = useState(true);
   const fileRef = useRef<HTMLInputElement>(null);
 
   // ── Filtros Dinâmicos (Bolhas) e Overrides ─────────────────────────────────
@@ -902,6 +903,40 @@ export default function IncomeAnalysis() {
         </div>
       </Modal>
       <SectionHeader title="Apuração de Renda" subtitle="Motor determinístico v3 · Interactive Review" />
+
+      {showValidationBanner && (
+        <div className="relative mt-4 mb-4 rounded-2xl border border-red-300 bg-red-50 px-4 py-4 shadow-sm">
+          <button
+            type="button"
+            onClick={() => setShowValidationBanner(false)}
+            className="absolute right-3 top-3 rounded-lg p-1 text-red-700 hover:bg-red-100"
+            aria-label="Fechar aviso"
+          >
+            <XCircle size={18} />
+          </button>
+
+          <div className="flex items-start gap-3 pr-8">
+            <AlertTriangle size={18} className="mt-0.5 flex-shrink-0 text-red-700" />
+            <div className="space-y-2">
+              <p className="text-sm font-semibold text-red-800">Atenção — Módulo de Apuração em Validação Contínua</p>
+              <p className="text-xs leading-relaxed text-red-800">
+                Este módulo está em evolução técnica contínua. Em movimentações com inconsistência, baixa confiança ou dúvida operacional,
+                mantenha revisão manual obrigatória antes de qualquer decisão.
+              </p>
+              <p className="text-xs leading-relaxed text-red-800">
+                Para aceleração das melhorias, é crucial que a liderança encaminhe extratos já apurados para validação dos parsers e regras.
+                Todos os arquivos enviados para teste são destruídos após as validações, com proteção dos dados dos clientes durante todo o processo.
+              </p>
+              <p className="text-xs leading-relaxed text-red-800">
+                Para envio dos extratos, procurar <span className="font-semibold">Maciel</span>. A colaboração de todos é essencial para a robustez e o sucesso da operação.
+              </p>
+              <p className="text-xs font-medium text-red-900">
+                Bancos com cobertura operacional atual: Inter, Nubank, PagBank, Caixa Econômica, Itaú, Neon, Bradesco e PicPay.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       <AnimatePresence mode="wait">
         {/* ─── STEP 1: Formulário ─── */}
