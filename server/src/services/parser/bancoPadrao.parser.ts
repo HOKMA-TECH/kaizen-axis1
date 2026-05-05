@@ -8,6 +8,7 @@ import {
     deduplicar,
 } from './base.parser';
 import { C6BankParser } from './c6bank.parser';
+import { PicPayPixReportParser } from './picpayPixReport.parser';
 
 /**
  * BancoPadraoParser v2 — Parser multi-estratégia para extratos bancários brasileiros.
@@ -39,6 +40,12 @@ export class BancoPadraoParser implements BaseParser {
         if (C6BankParser.detectar(texto)) {
             const c6Parser = new C6BankParser();
             return c6Parser.extrair(textoRaw);
+        }
+
+        // PicPay (versao alternativa: Relatorio de Transferencias PIX)
+        if (PicPayPixReportParser.detectar(texto)) {
+            const picpayParser = new PicPayPixReportParser();
+            return picpayParser.extrair(textoRaw);
         }
 
         // ── Estratégia 1: Regex padrão (DD/MM DESCRIÇÃO VALOR) ──────────────
