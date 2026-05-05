@@ -115,6 +115,7 @@ function Sidebar() {
 
   const isLeadership = isAdmin || isDirector || isManager || isCoordinator;
   const isAdminOrDirector = isAdmin || isDirector;
+  const shouldShowIncomeLocked = !isAdmin && (isDirector || isManager || isCoordinator || isAnalyst);
 
   const canAccessCheckInDisplay = isAdmin || isDirector || isManager;
 
@@ -123,12 +124,12 @@ function Sidebar() {
     return (!item.leadershipOnly || isLeadership) && (!item.adminOnly || isAdminOrDirector);
   });
   const filteredReports = NAV_REPORTS.filter(item => {
-    if (item.path === '/income') return canAccessIncomeAnalysis;
+    if (item.path === '/income') return isAdmin || shouldShowIncomeLocked;
     return !item.leadershipOnly || isLeadership;
   });
   const filteredAdmin = NAV_ADMIN.filter(item => !item.adminOnly || isAdminOrDirector);
   const reportsForRole = isAnalyst
-    ? NAV_REPORTS.filter(item => item.path === '/income')
+    ? NAV_REPORTS.filter(item => item.path === '/income' && (isAdmin || shouldShowIncomeLocked))
     : filteredReports;
 
   const handleConfirmLogout = async () => {
@@ -171,8 +172,18 @@ function Sidebar() {
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-5 no-scrollbar">
         {allGroups.map(g => (
-          <NavGroup key={g.label} label={g.label} items={g.items} chatUnread={totalUnread} />
+          <NavGroup key={g.label} label={g.label} items={g.items.filter(i => !(shouldShowIncomeLocked && i.path === '/income'))} chatUnread={totalUnread} />
         ))}
+        {shouldShowIncomeLocked && (
+          <div className="space-y-0.5">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-text-secondary px-3 mb-1">Análise</p>
+            <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-text-secondary bg-surface-100/60 dark:bg-surface-200/10 cursor-not-allowed opacity-80">
+              <Calculator size={18} strokeWidth={2} />
+              <span>Apuração de Renda</span>
+              <Lock size={14} className="ml-auto" />
+            </div>
+          </div>
+        )}
       </nav>
 
       {/* User footer */}

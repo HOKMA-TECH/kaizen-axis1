@@ -5,18 +5,17 @@
  */
 
 const https = require('https');
-const http  = require('http');
+const http = require('http');
 const { randomUUID } = require('crypto');
 
 // ── CONFIGURAÇÕES ─────────────────────────────────────────────────────────────
-const N8N_URL    = 'https://kaizen-axis-n8n-n8n.2ut0z1.easypanel.host';
-const N8N_KEY    = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI1MTI1M2FkYy1jMWQ5LTRiMDYtOGUzMi01NTE5MGZhYzg4NGMiLCJpc3MiOiJuOG4iLCJhdWQiOiJwdWJsaWMtYXBpIiwiaWF0IjoxNzczMTA3MzU1fQ.7MYQnRjBHF2ss77o7-IVoQNJI-H2hgBlmE44vaxkyc4';
-const GEMINI_KEY = 'AIzaSyATK5Hb07gtfPTzZo6lwPz-RIz84oLSE0E';
-const COMPANY    = 'DIEGO';
+const N8N_URL = 'https://kaizen-axis-n8n-n8n.2ut0z1.easypanel.host';
+const N8N_KEY = ''
+const COMPANY = 'DIEGO';
 
 // Placeholders — preencha após ter credenciais da Evolution API
-const EVO_URL      = 'https://SEU_EVOLUTION_URL';
-const EVO_KEY      = 'SUA_EVO_API_KEY';
+const EVO_URL = 'https://SEU_EVOLUTION_URL';
+const EVO_KEY = 'SUA_EVO_API_KEY';
 const EVO_INSTANCE = 'NOME_DA_INSTANCIA';
 
 // ── HTTP HELPER ───────────────────────────────────────────────────────────────
@@ -340,22 +339,26 @@ function buildWorkflow() {
   ];
 
   const connections = {
-    'Webhook WhatsApp':      { main: [[{ node: 'Filtrar e Extrair',    type: 'main', index: 0 }]] },
-    'Filtrar e Extrair':     { main: [[{ node: 'Carregar Estado',      type: 'main', index: 0 }]] },
-    'Carregar Estado':       { main: [[{ node: 'Rotear Acao',          type: 'main', index: 0 }]] },
-    'Rotear Acao':           { main: [
-      [{ node: 'Ignorar Mensagem',    type: 'main', index: 0 }],
-      [{ node: 'Registrar Takeover',  type: 'main', index: 0 }],
-      [{ node: 'Preparar Request IA', type: 'main', index: 0 }]
-    ]},
-    'Preparar Request IA':    { main: [[{ node: 'Chamar Gemini',        type: 'main', index: 0 }]] },
-    'Chamar Gemini':          { main: [[{ node: 'Processar Resposta IA',type: 'main', index: 0 }]] },
-    'Processar Resposta IA':  { main: [[{ node: 'Enviar Mensagem',      type: 'main', index: 0 }]] },
-    'Enviar Mensagem':        { main: [[{ node: 'Verificar Conclusao',  type: 'main', index: 0 }]] },
-    'Verificar Conclusao':    { main: [
-      [{ node: 'Aplicar Etiqueta', type: 'main', index: 0 }],
-      [{ node: 'Continuar Ativo',  type: 'main', index: 0 }]
-    ]}
+    'Webhook WhatsApp': { main: [[{ node: 'Filtrar e Extrair', type: 'main', index: 0 }]] },
+    'Filtrar e Extrair': { main: [[{ node: 'Carregar Estado', type: 'main', index: 0 }]] },
+    'Carregar Estado': { main: [[{ node: 'Rotear Acao', type: 'main', index: 0 }]] },
+    'Rotear Acao': {
+      main: [
+        [{ node: 'Ignorar Mensagem', type: 'main', index: 0 }],
+        [{ node: 'Registrar Takeover', type: 'main', index: 0 }],
+        [{ node: 'Preparar Request IA', type: 'main', index: 0 }]
+      ]
+    },
+    'Preparar Request IA': { main: [[{ node: 'Chamar Gemini', type: 'main', index: 0 }]] },
+    'Chamar Gemini': { main: [[{ node: 'Processar Resposta IA', type: 'main', index: 0 }]] },
+    'Processar Resposta IA': { main: [[{ node: 'Enviar Mensagem', type: 'main', index: 0 }]] },
+    'Enviar Mensagem': { main: [[{ node: 'Verificar Conclusao', type: 'main', index: 0 }]] },
+    'Verificar Conclusao': {
+      main: [
+        [{ node: 'Aplicar Etiqueta', type: 'main', index: 0 }],
+        [{ node: 'Continuar Ativo', type: 'main', index: 0 }]
+      ]
+    }
   };
 
   return {
@@ -379,7 +382,7 @@ async function main() {
   try {
     const r = await request('GET', `${N8N_URL}/api/v1/workflows`, null);
     if (r.status === 200) { console.log(`OK (${r.status})`); }
-    else { console.log(`ERRO ${r.status}`); console.log(JSON.stringify(r.body).slice(0,300)); process.exit(1); }
+    else { console.log(`ERRO ${r.status}`); console.log(JSON.stringify(r.body).slice(0, 300)); process.exit(1); }
   } catch (e) { console.log(`FALHA: ${e.message}`); process.exit(1); }
 
   // 2. Criar workflow
@@ -403,7 +406,7 @@ async function main() {
   try {
     const r = await request('PATCH', `${N8N_URL}/api/v1/workflows/${wfId}/activate`, {});
     if (r.status === 200) { console.log('OK — Ativo!'); }
-    else { console.log(`Aviso ${r.status}: ${JSON.stringify(r.body).slice(0,200)}`); }
+    else { console.log(`Aviso ${r.status}: ${JSON.stringify(r.body).slice(0, 200)}`); }
   } catch (e) { console.log(`Aviso: ${e.message}`); }
 
   const webhookUrl = `${N8N_URL}/webhook/whatsapp-webhook`;
