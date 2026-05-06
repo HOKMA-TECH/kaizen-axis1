@@ -5,7 +5,7 @@ import { createClient } from 'jsr:@supabase/supabase-js@2';
 // ── Config ────────────────────────────────────────────────────────────────────
 const OFFICE_LAT  = parseFloat(Deno.env.get('OFFICE_LATITUDE')  || '-23.5505');
 const OFFICE_LNG  = parseFloat(Deno.env.get('OFFICE_LONGITUDE') || '-46.6333');
-const MAX_RADIUS  = 200;  // metros — raio máximo da imobiliária
+const MAX_RADIUS  = 1000; // metros — raio máximo da imobiliária
 const MAX_ACCURACY = 120; // metros — precisão mínima aceitável do GPS
 
 // ── Haversine ─────────────────────────────────────────────────────────────────

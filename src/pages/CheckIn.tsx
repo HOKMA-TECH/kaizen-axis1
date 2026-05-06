@@ -16,7 +16,7 @@ import { Modal } from '@/components/ui/Modal';
 interface CheckinRecord {
   id: string;
   user_id: string;
-  position_in_queue: number;
+  position_in_queue: number | null;
   checkin_time: string;
   profiles: { name: string | null; avatar_url: string | null; role: string | null } | null;
 }
@@ -227,7 +227,40 @@ export default function CheckIn() {
       .select('id, user_id, position_in_queue, checkin_time, profiles(name, avatar_url, role)')
       .eq('checkin_date', today)
       .order('position_in_queue', { ascending: true });
-    if (data) setQueue(data as unknown as CheckinRecord[]);
+
+    const realQueue = (data ?? []) as unknown as CheckinRecord[];
+
+    const { data: alwaysPresentRows } = await supabase
+      .from('checkin_always_present_users')
+      .select('user_id')
+      .eq('enabled', true)
+      .lte('start_date', today);
+
+    const alwaysPresentIds = Array.from(new Set((alwaysPresentRows ?? []).map((r: { user_id: string }) => r.user_id)));
+    const realIds = new Set(realQueue.map((row) => row.user_id));
+    const missingIds = alwaysPresentIds.filter((id) => !realIds.has(id));
+
+    let syntheticQueue: CheckinRecord[] = [];
+    if (missingIds.length > 0) {
+      const { data: profilesData } = await supabase
+        .from('profiles')
+        .select('id, name, avatar_url, role')
+        .in('id', missingIds);
+
+      syntheticQueue = (profilesData ?? []).map((p: { id: string; name: string | null; avatar_url: string | null; role: string | null }) => ({
+        id: `auto-${p.id}-${today}`,
+        user_id: p.id,
+        position_in_queue: null,
+        checkin_time: `${today}T08:00:00.000Z`,
+        profiles: {
+          name: p.name,
+          avatar_url: p.avatar_url,
+          role: p.role,
+        },
+      }));
+    }
+
+    setQueue([...realQueue, ...syntheticQueue]);
   }, []);
 
   useEffect(() => { fetchQueue(); }, [fetchQueue]);

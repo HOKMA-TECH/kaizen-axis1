@@ -85,11 +85,21 @@ export default function CheckInDisplay() {
   useEffect(() => {
     const today = new Date().toISOString().slice(0, 10);
     const fetchCount = async () => {
-      const { count } = await supabase
+      const { data: realRows } = await supabase
         .from('daily_checkins')
-        .select('id', { count: 'exact', head: true })
+        .select('user_id')
         .eq('checkin_date', today);
-      if (count !== null) setCheckins(count);
+
+      const { data: alwaysPresentRows } = await supabase
+        .from('checkin_always_present_users')
+        .select('user_id')
+        .eq('enabled', true)
+        .lte('start_date', today);
+
+      const uniqueUsers = new Set<string>();
+      (realRows ?? []).forEach((r: { user_id: string }) => uniqueUsers.add(r.user_id));
+      (alwaysPresentRows ?? []).forEach((r: { user_id: string }) => uniqueUsers.add(r.user_id));
+      setCheckins(uniqueUsers.size);
     };
     fetchCount();
     // Realtime para atualizar o contador
