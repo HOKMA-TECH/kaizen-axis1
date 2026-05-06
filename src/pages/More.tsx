@@ -1,5 +1,5 @@
 import { PremiumCard, SectionHeader } from '@/components/ui/PremiumComponents';
-import { Building2, CheckSquare, GraduationCap, Calculator, Settings, ChevronRight, BarChart3, Lock, FileType, Globe, QrCode, Home, Shield } from 'lucide-react';
+import { Building2, CheckSquare, GraduationCap, Calculator, Settings, ChevronRight, BarChart3, Lock, FileType, Globe, QrCode, Home } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuthorization } from '@/hooks/useAuthorization';
 
@@ -18,9 +18,8 @@ const menuItems = [
 
 export default function More() {
   const navigate = useNavigate();
-  const { isAdmin, isManager, isCoordinator, isDirector, isAnalyst } = useAuthorization();
+  const { isAdmin, isManager, isCoordinator, isDirector, canAccessIncomeAnalysis } = useAuthorization();
   const isAdminOrDirector = isAdmin || isDirector;
-  const shouldShowIncomeLocked = !isAdmin && (isDirector || isManager || isCoordinator || isAnalyst);
 
   return (
     <div className="p-6 pb-24 min-h-screen bg-surface-50">
@@ -71,7 +70,7 @@ export default function More() {
           .filter(item => {
             const leadershipOnly = !isAdmin && !isDirector && !isManager && !isCoordinator;
             if (item.path === '/amortization' && leadershipOnly) return false;
-            if (item.path === '/income' && shouldShowIncomeLocked) return false;
+            if (item.path === '/income' && !canAccessIncomeAnalysis) return false;
             return true;
           })
           .map((item) => {
@@ -91,22 +90,6 @@ export default function More() {
             );
           })}
       </div>
-
-      {shouldShowIncomeLocked && (
-        <div className="mt-3">
-          <PremiumCard className="flex items-center gap-4 py-4 opacity-80 cursor-not-allowed bg-surface-100/70 dark:bg-surface-100/10 border-surface-200/70">
-            <div className="w-10 h-10 rounded-full bg-surface-100 flex items-center justify-center text-text-secondary">
-              <Calculator size={20} />
-            </div>
-            <div className="flex-1">
-              <h4 className="font-semibold text-text-primary">Apuração de Renda</h4>
-              <p className="text-xs text-text-secondary">Disponível apenas para administrador</p>
-            </div>
-            <Shield size={16} className="text-text-secondary" />
-            <Lock size={16} className="text-text-secondary" />
-          </PremiumCard>
-        </div>
-      )}
     </div>
   );
 }
