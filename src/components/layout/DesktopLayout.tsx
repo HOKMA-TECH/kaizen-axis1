@@ -2,7 +2,7 @@ import React from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Users, Calendar, MessageSquare, Building2,
-  CheckSquare, GraduationCap, Calculator, Settings,
+  CheckSquare, GraduationCap, Calculator, Settings, BarChart3,
   FileType, Globe, QrCode, Home, Lock, ChevronRight, LogOut,
   Bell,
 } from 'lucide-react';
@@ -42,6 +42,7 @@ const NAV_TOOLS: NavItem[] = [
 ];
 
 const NAV_REPORTS: NavItem[] = [
+  { icon: BarChart3,  label: 'Relatórios',       path: '/reports',       leadershipOnly: true },
   { icon: Calculator, label: 'Apuração de Renda', path: '/income',       leadershipOnly: true },
   { icon: Home,       label: 'Amortização',       path: '/amortization', leadershipOnly: true },
 ];
