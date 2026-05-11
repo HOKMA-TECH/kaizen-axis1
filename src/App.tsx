@@ -150,7 +150,7 @@ function LegacyReportsRedirect() {
   const end = params.get('end');
 
   if (scope === 'diretoria' && directorateId) {
-    const target = new URLSearchParams({ tab: 'reports', directorateId });
+    const target = new URLSearchParams({ tab: 'directorates', directorateId });
     if (start) target.set('start', start);
     if (end) target.set('end', end);
     return <Navigate to={`/admin?${target.toString()}`} replace />;
