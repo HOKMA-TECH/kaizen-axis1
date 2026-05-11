@@ -141,24 +141,6 @@ function OfflineBanner() {
   );
 }
 
-function LegacyReportsRedirect() {
-  const location = useLocation();
-  const params = new URLSearchParams(location.search);
-  const scope = params.get('scope');
-  const directorateId = params.get('id');
-  const start = params.get('start');
-  const end = params.get('end');
-
-  if (scope === 'diretoria' && directorateId) {
-    const target = new URLSearchParams({ tab: 'directorates', directorateId });
-    if (start) target.set('start', start);
-    if (end) target.set('end', end);
-    return <Navigate to={`/admin?${target.toString()}`} replace />;
-  }
-
-  return <Navigate to="/admin" replace />;
-}
-
 export default function App() {
   return (
     <BrowserRouter>
@@ -203,8 +185,8 @@ export default function App() {
         } />
         <Route path="/portals" element={<ProtectedRoute><Portals /></ProtectedRoute>} />
 
-        <Route path="/reports" element={<LegacyReportsRedirect />} />
-        <Route path="/reports/potential-clients" element={<LegacyReportsRedirect />} />
+        <Route path="/reports" element={<Navigate to="/admin" replace />} />
+        <Route path="/reports/potential-clients" element={<Navigate to="/admin" replace />} />
 
         {/* Simulator placeholder */}
         <Route path="/simulator" element={<ProtectedRoute><div className="p-6"><h1 className="text-2xl font-bold">Simulador</h1><p>Em breve...</p></div></ProtectedRoute>} />
