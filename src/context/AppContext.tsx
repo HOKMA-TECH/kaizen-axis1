@@ -1327,7 +1327,28 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     try {
       const { data, error } = await supabase.from('tasks').select('*').order('created_at', { ascending: false });
       if (error) throw error;
-      setTasks(data || []);
+      const normalizedTasks = (data || []).map((task: any) => {
+        let subtasks = task?.subtasks;
+
+        if (typeof subtasks === 'string') {
+          try {
+            subtasks = JSON.parse(subtasks);
+          } catch {
+            subtasks = [];
+          }
+        }
+
+        if (!Array.isArray(subtasks)) {
+          subtasks = [];
+        }
+
+        return {
+          ...task,
+          subtasks,
+        };
+      });
+
+      setTasks(normalizedTasks);
     } catch (e) { console.error('Erro ao buscar tarefas:', e); }
   }, []);
 
