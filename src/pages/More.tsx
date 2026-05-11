@@ -1,5 +1,5 @@
 import { PremiumCard, SectionHeader } from '@/components/ui/PremiumComponents';
-import { Building2, CheckSquare, GraduationCap, Calculator, Settings, ChevronRight, Lock, FileType, Globe, QrCode, Home } from 'lucide-react';
+import { Building2, CheckSquare, GraduationCap, Calculator, Settings, ChevronRight, BarChart3, Lock, FileType, Globe, QrCode, Home } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuthorization } from '@/hooks/useAuthorization';
 
@@ -9,6 +9,7 @@ const menuItems = [
   { icon: Globe, label: 'Portais', path: '/portals', desc: 'Caixa e Construtoras' },
   { icon: Calculator, label: 'Apuração de Renda', path: '/income', desc: 'Análise de crédito' },
   { icon: Home, label: 'Amortização', path: '/amortization', desc: 'Simulador de Amortização' },
+  { icon: BarChart3, label: 'Relatórios', path: '/reports', desc: 'Inteligência e Forecast' },
   { icon: FileType, label: 'Conversor de PDF', path: '/pdf-tools', desc: 'Ferramentas de documentos' },
   { icon: CheckSquare, label: 'Tarefas', path: '/tasks', desc: 'Minhas pendências' },
   { icon: GraduationCap, label: 'Treinamentos', path: '/training', desc: 'Universidade corporativa' },
