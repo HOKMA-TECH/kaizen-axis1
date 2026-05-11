@@ -47,12 +47,18 @@ export interface Appointment {
 export interface Task {
   id: string;
   user_id?: string;
+  owner_id?: string;
+  created_by?: string;
+  assigned_to?: string;
+  assigned_by_role?: string;
+  assignment_scope?: 'INDIVIDUAL' | 'TEAM';
   title: string;
   responsible?: string;
   deadline?: string;
   status: 'Pendente' | 'Em Andamento' | 'Concluída';
   description?: string;
   subtasks: { id: string; title: string; completed: boolean }[];
+  completed_at?: string | null;
   created_at?: string;
 }
 
@@ -1334,13 +1340,21 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
       let { error } = await supabase.from('tasks').insert([{
         ...basePayload,
-        owner_id: user?.id
+        owner_id: user?.id,
+        created_by: user?.id,
+        assigned_to: data.assigned_to || user?.id,
+        assigned_by_role: profile?.role || null,
+        assignment_scope: data.assignment_scope || 'INDIVIDUAL'
       }]);
 
       if (error?.message?.toLowerCase().includes('owner_id')) {
         const retry = await supabase.from('tasks').insert([{
           ...basePayload,
-          user_id: user?.id
+          user_id: user?.id,
+          created_by: user?.id,
+          assigned_to: data.assigned_to || user?.id,
+          assigned_by_role: profile?.role || null,
+          assignment_scope: data.assignment_scope || 'INDIVIDUAL'
         }]);
         error = retry.error;
       }
@@ -1355,7 +1369,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const updateTask = useCallback(async (id: string, data: Partial<Task>) => {
     try {
-      const { error } = await supabase.from('tasks').update(data).eq('id', id);
+      const payload: Partial<Task> = {
+        ...data,
+        completed_at: data.status === 'Concluída' ? new Date().toISOString() : (data.status ? null : data.completed_at)
+      };
+      const { error } = await supabase.from('tasks').update(payload).eq('id', id);
       if (error) throw error;
       await refreshTasks();
     } catch (e: any) {
