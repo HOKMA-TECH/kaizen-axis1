@@ -1373,8 +1373,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const basePayload = {
         ...data,
         subtasks: normalizedSubtasks,
-        subtask: normalizedSubtasks,
-        sub_tasks: normalizedSubtasks,
         directorate_id: profile?.directorate_id || null
       };
 
@@ -1414,8 +1412,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         ...data,
         ...(normalizedSubtasks ? {
           subtasks: normalizedSubtasks,
-          subtask: normalizedSubtasks as any,
-          sub_tasks: normalizedSubtasks as any,
         } : {}),
         completed_at: data.status === 'Concluída' ? new Date().toISOString() : (data.status ? null : data.completed_at)
       };
