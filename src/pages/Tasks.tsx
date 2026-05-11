@@ -4,6 +4,7 @@ import { CheckCircle2, Calendar, User, Plus, Edit2, Trash2, X, Clock, Loader2 } 
 import { Modal } from '@/components/ui/Modal';
 import { useApp, Task } from '@/context/AppContext';
 import { supabase } from '@/lib/supabase';
+import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -127,42 +128,62 @@ export default function Tasks() {
         return;
       }
 
-      const escapeCsv = (value: unknown) => {
-        const text = String(value ?? '');
-        return `"${text.replace(/"/g, '""')}"`;
+      const pdfDoc = await PDFDocument.create();
+      const fontRegular = await pdfDoc.embedFont(StandardFonts.Helvetica);
+      const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+      const pageW = 842;
+      const pageH = 595;
+      const margin = 28;
+      const lineH = 16;
+      const colX = [margin, 220, 350, 500, 600, 710];
+      let page = pdfDoc.addPage([pageW, pageH]);
+      let y = pageH - margin;
+
+      const drawHeader = () => {
+        page.drawText('Relatorio de Tarefas Concluidas', { x: margin, y, size: 14, font: fontBold, color: rgb(0.12, 0.12, 0.15) });
+        y -= 18;
+        page.drawText(`Periodo: ${reportStartDate} a ${reportEndDate}`, { x: margin, y, size: 9, font: fontRegular, color: rgb(0.35, 0.35, 0.4) });
+        y -= 18;
+        page.drawLine({ start: { x: margin, y }, end: { x: pageW - margin, y }, thickness: 1, color: rgb(0.85, 0.85, 0.88) });
+        y -= 14;
+        page.drawText('Titulo', { x: colX[0], y, size: 8, font: fontBold });
+        page.drawText('Responsavel', { x: colX[1], y, size: 8, font: fontBold });
+        page.drawText('Atribuida por', { x: colX[2], y, size: 8, font: fontBold });
+        page.drawText('Prazo', { x: colX[3], y, size: 8, font: fontBold });
+        page.drawText('Concluida em', { x: colX[4], y, size: 8, font: fontBold });
+        y -= 10;
+        page.drawLine({ start: { x: margin, y }, end: { x: pageW - margin, y }, thickness: 0.8, color: rgb(0.85, 0.85, 0.88) });
+        y -= 12;
       };
 
-      const header = [
-        'Titulo',
-        'Responsavel',
-        'Atribuida por',
-        'Status',
-        'Prazo',
-        'Concluida em',
-        'Criada em'
-      ];
-
-      const csvLines = [header.map(escapeCsv).join(',')];
+      const truncate = (text: string, max = 30) => text.length > max ? `${text.slice(0, max - 1)}...` : text;
+      drawHeader();
 
       rows.forEach((task) => {
-        const responsibleName = allProfiles.find((p) => p.id === task.assigned_to)?.name || task.responsible || '';
-        const creatorName = allProfiles.find((p) => p.id === task.created_by)?.name || '';
-        csvLines.push([
-          task.title,
-          responsibleName,
-          creatorName,
-          task.status,
-          task.deadline || '',
-          task.completed_at ? new Date(task.completed_at).toLocaleString('pt-BR') : '',
-          task.created_at ? new Date(task.created_at).toLocaleString('pt-BR') : ''
-        ].map(escapeCsv).join(','));
+        if (y < margin + 20) {
+          page = pdfDoc.addPage([pageW, pageH]);
+          y = pageH - margin;
+          drawHeader();
+        }
+        const responsibleName = allProfiles.find((p) => p.id === task.assigned_to)?.name || task.responsible || '-';
+        const creatorName = allProfiles.find((p) => p.id === task.created_by)?.name || '-';
+        const deadline = task.deadline || '-';
+        const completedAt = task.completed_at ? new Date(task.completed_at).toLocaleDateString('pt-BR') : '-';
+
+        page.drawText(truncate(task.title || '-', 34), { x: colX[0], y, size: 8, font: fontRegular });
+        page.drawText(truncate(responsibleName, 20), { x: colX[1], y, size: 8, font: fontRegular });
+        page.drawText(truncate(creatorName, 20), { x: colX[2], y, size: 8, font: fontRegular });
+        page.drawText(deadline, { x: colX[3], y, size: 8, font: fontRegular });
+        page.drawText(completedAt, { x: colX[4], y, size: 8, font: fontRegular });
+        y -= lineH;
       });
 
-      const blob = new Blob([`\uFEFF${csvLines.join('\n')}`], { type: 'text/csv;charset=utf-8;' });
+      const pdfBytes = await pdfDoc.save();
+      const blob = new Blob([pdfBytes], { type: 'application/pdf' });
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.setAttribute('download', `relatorio-tarefas-concluidas-${reportStartDate}-a-${reportEndDate}.csv`);
+      link.setAttribute('download', `relatorio-tarefas-concluidas-${reportStartDate}-a-${reportEndDate}.pdf`);
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
