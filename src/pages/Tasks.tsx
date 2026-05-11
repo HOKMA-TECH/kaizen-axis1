@@ -285,7 +285,7 @@ export default function Tasks() {
       <div className="flex gap-2 mb-6 overflow-x-auto no-scrollbar pb-2">
         {['Todos', 'Pendente', 'Em Andamento', 'Concluída'].map((status) => (
           <button key={status} onClick={() => setFilter(status)}
-            className={`px-4 py-2 rounded-full text-xs font-medium whitespace-nowrap transition-colors ${filter === status ? 'bg-gray-900 dark:bg-white text-white dark:text-black shadow-md' : 'bg-card-bg text-text-secondary border border-surface-200'}`}>
+            className={`px-4 py-2 rounded-full text-xs font-medium whitespace-nowrap transition-colors ${filter === status ? 'bg-blue-600 text-white border border-blue-600 shadow-md' : 'bg-card-bg text-text-secondary border border-surface-200 hover:border-blue-300 hover:text-blue-600'}`}>
             {status}
           </button>
         ))}
