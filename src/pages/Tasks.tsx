@@ -131,51 +131,105 @@ export default function Tasks() {
       const pdfDoc = await PDFDocument.create();
       const fontRegular = await pdfDoc.embedFont(StandardFonts.Helvetica);
       const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
-      const pageW = 842;
-      const pageH = 595;
-      const margin = 28;
-      const lineH = 16;
-      const colX = [margin, 220, 350, 500, 600, 710];
-      let page = pdfDoc.addPage([pageW, pageH]);
-      let y = pageH - margin;
 
-      const drawHeader = () => {
-        page.drawText('Relatorio de Tarefas Concluidas', { x: margin, y, size: 14, font: fontBold, color: rgb(0.12, 0.12, 0.15) });
-        y -= 18;
-        page.drawText(`Periodo: ${reportStartDate} a ${reportEndDate}`, { x: margin, y, size: 9, font: fontRegular, color: rgb(0.35, 0.35, 0.4) });
-        y -= 18;
-        page.drawLine({ start: { x: margin, y }, end: { x: pageW - margin, y }, thickness: 1, color: rgb(0.85, 0.85, 0.88) });
-        y -= 14;
-        page.drawText('Titulo', { x: colX[0], y, size: 8, font: fontBold });
-        page.drawText('Responsavel', { x: colX[1], y, size: 8, font: fontBold });
-        page.drawText('Atribuida por', { x: colX[2], y, size: 8, font: fontBold });
-        page.drawText('Prazo', { x: colX[3], y, size: 8, font: fontBold });
-        page.drawText('Concluida em', { x: colX[4], y, size: 8, font: fontBold });
-        y -= 10;
-        page.drawLine({ start: { x: margin, y }, end: { x: pageW - margin, y }, thickness: 0.8, color: rgb(0.85, 0.85, 0.88) });
-        y -= 12;
+      const PAGE_W = 842;
+      const PAGE_H = 595;
+      const MARGIN = 28;
+      const TABLE_W = PAGE_W - (MARGIN * 2);
+      const ROW_H = 18;
+      const HEADER_H = 20;
+      const colorDark = rgb(0.11, 0.12, 0.15);
+      const colorGold = rgb(0.82, 0.66, 0.18);
+      const colorGray = rgb(0.43, 0.45, 0.5);
+      const colorLight = rgb(0.96, 0.96, 0.97);
+      const colorWhite = rgb(1, 1, 1);
+
+      const columns = [
+        { header: 'TITULO', width: 210 },
+        { header: 'RESPONSAVEL', width: 150 },
+        { header: 'ATRIBUIDA POR', width: 150 },
+        { header: 'PRAZO', width: 105 },
+        { header: 'CONCLUIDA EM', width: 105 },
+      ];
+
+      let page = pdfDoc.addPage([PAGE_W, PAGE_H]);
+      let y = PAGE_H - MARGIN;
+
+      const drawReportHeader = () => {
+        page.drawRectangle({ x: 0, y: PAGE_H - 72, width: PAGE_W, height: 72, color: colorDark });
+        page.drawText('KAIZEN AXIS - RELATORIO DE TAREFAS', { x: MARGIN, y: PAGE_H - 30, size: 15, font: fontBold, color: colorGold });
+        page.drawText(`Tarefas concluidas | Periodo: ${reportStartDate} a ${reportEndDate}`, { x: MARGIN, y: PAGE_H - 48, size: 9, font: fontRegular, color: colorWhite });
+        page.drawText(`Gerado em ${new Date().toLocaleString('pt-BR')}`, { x: MARGIN, y: PAGE_H - 63, size: 8, font: fontRegular, color: rgb(0.74, 0.76, 0.8) });
+        y = PAGE_H - 92;
       };
 
-      const truncate = (text: string, max = 30) => text.length > max ? `${text.slice(0, max - 1)}...` : text;
-      drawHeader();
+      const drawSummary = () => {
+        page.drawText('RESUMO', { x: MARGIN, y, size: 10, font: fontBold, color: colorGold });
+        y -= 16;
+        const total = rows.length;
+        const uniqueResponsibles = new Set(rows.map((r) => r.assigned_to).filter(Boolean)).size;
+        const doneInDeadline = rows.filter((r) => r.deadline && r.completed_at && new Date(r.completed_at) <= new Date(`${r.deadline}T23:59:59`)).length;
+        const onTimeRate = total > 0 ? Math.round((doneInDeadline / total) * 100) : 0;
+        [
+          `Total de tarefas concluidas: ${total}`,
+          `Corretores com entregas: ${uniqueResponsibles}`,
+          `Concluidas no prazo: ${doneInDeadline} (${onTimeRate}%)`,
+        ].forEach((line) => {
+          page.drawText(line, { x: MARGIN, y, size: 8.5, font: fontRegular, color: colorDark });
+          y -= 13;
+        });
+        y -= 4;
+      };
+
+      const drawTableHeader = () => {
+        page.drawRectangle({ x: MARGIN, y: y - HEADER_H, width: TABLE_W, height: HEADER_H, color: colorDark });
+        let cx = MARGIN + 4;
+        columns.forEach((col) => {
+          page.drawText(col.header, { x: cx, y: y - HEADER_H + 6, size: 7, font: fontBold, color: colorWhite });
+          cx += col.width;
+        });
+        y -= HEADER_H;
+      };
+
+      const truncate = (text: string, max = 32) => text.length > max ? `${text.slice(0, max - 1)}...` : text;
+      drawReportHeader();
+      drawSummary();
+      drawTableHeader();
 
       rows.forEach((task) => {
-        if (y < margin + 20) {
-          page = pdfDoc.addPage([pageW, pageH]);
-          y = pageH - margin;
-          drawHeader();
+        if (y < MARGIN + ROW_H) {
+          page = pdfDoc.addPage([PAGE_W, PAGE_H]);
+          drawReportHeader();
+          drawTableHeader();
         }
         const responsibleName = allProfiles.find((p) => p.id === task.assigned_to)?.name || task.responsible || '-';
         const creatorName = allProfiles.find((p) => p.id === task.created_by)?.name || '-';
         const deadline = task.deadline || '-';
         const completedAt = task.completed_at ? new Date(task.completed_at).toLocaleDateString('pt-BR') : '-';
 
-        page.drawText(truncate(task.title || '-', 34), { x: colX[0], y, size: 8, font: fontRegular });
-        page.drawText(truncate(responsibleName, 20), { x: colX[1], y, size: 8, font: fontRegular });
-        page.drawText(truncate(creatorName, 20), { x: colX[2], y, size: 8, font: fontRegular });
-        page.drawText(deadline, { x: colX[3], y, size: 8, font: fontRegular });
-        page.drawText(completedAt, { x: colX[4], y, size: 8, font: fontRegular });
-        y -= lineH;
+        const isEven = Math.floor((PAGE_H - y) / ROW_H) % 2 === 0;
+        page.drawRectangle({
+          x: MARGIN,
+          y: y - ROW_H + 2,
+          width: TABLE_W,
+          height: ROW_H,
+          color: isEven ? colorLight : colorWhite,
+        });
+
+        let cx = MARGIN + 4;
+        const values = [
+          truncate(task.title || '-', 38),
+          truncate(responsibleName, 24),
+          truncate(creatorName, 24),
+          deadline,
+          completedAt,
+        ];
+        values.forEach((value, index) => {
+          page.drawText(value, { x: cx, y: y - 11, size: 7.5, font: fontRegular, color: colorDark });
+          cx += columns[index].width;
+        });
+
+        y -= ROW_H;
       });
 
       const pdfBytes = await pdfDoc.save();
