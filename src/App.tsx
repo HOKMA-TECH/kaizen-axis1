@@ -22,8 +22,6 @@ import DevelopmentDetails from '@/pages/DevelopmentDetails';
 import Tasks from '@/pages/Tasks';
 import Training from '@/pages/Training';
 import Settings from '@/pages/Settings';
-import Reports from '@/pages/Reports';
-import PotentialClients from '@/pages/PotentialClients';
 import AdminPanel from '@/pages/admin/AdminPanel';
 import PresenceReport from '@/pages/admin/PresenceReport';
 import SecurityPanel from '@/pages/admin/SecurityPanel';
@@ -187,9 +185,8 @@ export default function App() {
         } />
         <Route path="/portals" element={<ProtectedRoute><Portals /></ProtectedRoute>} />
 
-        {/* Reports: accessible to all — RLS scopes data by role */}
-        <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
-        <Route path="/reports/potential-clients" element={<ProtectedRoute><PotentialClients /></ProtectedRoute>} />
+        <Route path="/reports" element={<Navigate to="/admin" replace />} />
+        <Route path="/reports/potential-clients" element={<Navigate to="/admin" replace />} />
 
         {/* Simulator placeholder */}
         <Route path="/simulator" element={<ProtectedRoute><div className="p-6"><h1 className="text-2xl font-bold">Simulador</h1><p>Em breve...</p></div></ProtectedRoute>} />
