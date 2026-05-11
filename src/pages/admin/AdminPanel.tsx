@@ -4,7 +4,7 @@ import { Users, Shield, ShieldCheck, Target, Megaphone, BarChart3, Plus, Search,
 import { Modal } from '@/components/ui/Modal';
 import { useApp, Team, Goal, Announcement, Directorate } from '@/context/AppContext';
 import { useAuthorization } from '@/hooks/useAuthorization';
-import { Navigate, useNavigate } from 'react-router-dom';
+import { Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, Legend } from 'recharts';
 import { supabase } from '@/lib/supabase';
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
@@ -32,6 +32,8 @@ export default function AdminPanel() {
   } = useApp();
 
   const [activeTab, setActiveTab] = useState<Tab>('users');
+  const [searchParams] = useSearchParams();
+  const [selectedDirectorateId, setSelectedDirectorateId] = useState<string | null>(null);
   const [activeGoalTab, setActiveGoalTab] = useState<'active' | 'ended'>('active');
   const [activeGamifSection, setActiveGamifSection] = useState<'xp' | 'conquistas'>('xp');
   const [searchTerm, setSearchTerm] = useState('');
@@ -91,6 +93,20 @@ export default function AdminPanel() {
   const [xpReportLoading, setXpReportLoading] = useState(false);
 
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const tabParam = searchParams.get('tab');
+    const directorateIdParam = searchParams.get('directorateId');
+    const validTabs: Tab[] = ['users', 'teams', 'goals', 'announcements', 'reports', 'directorates', 'gamification'];
+
+    if (tabParam && validTabs.includes(tabParam as Tab)) {
+      setActiveTab(tabParam as Tab);
+    }
+
+    if (directorateIdParam) {
+      setSelectedDirectorateId(directorateIdParam);
+    }
+  }, [searchParams]);
 
   // ── Client-side metrics (reliable, bypass broken RPC fields) ───────────────
   const { globalMetrics } = useReportsData({ startDate: reportDateRange.start, endDate: reportDateRange.end });
@@ -1726,7 +1742,7 @@ export default function AdminPanel() {
             </div>
             {loading ? <Loader2 size={24} className="animate-spin mx-auto text-gold-400 py-4" /> :
               directorates.map(d => (
-                <PremiumCard key={d.id} className="flex items-center justify-between p-4">
+                <PremiumCard key={d.id} className={`flex items-center justify-between p-4 transition-all ${selectedDirectorateId === d.id ? 'ring-2 ring-gold-400 border-gold-400' : ''}`}>
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-xl bg-gold-100 dark:bg-gold-900/30 flex items-center justify-center">
                       <Building2 size={18} className="text-gold-600 dark:text-gold-400" />
