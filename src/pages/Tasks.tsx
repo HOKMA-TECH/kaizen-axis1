@@ -8,7 +8,7 @@ import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
 export default function Tasks() {
-  const { tasks, addTask, updateTask, deleteTask, loading, profile, allProfiles } = useApp();
+  const { tasks, addTask, updateTask, deleteTask, loading, profile, allProfiles, teams } = useApp();
   const [filter, setFilter] = useState('Todos');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
@@ -29,7 +29,13 @@ export default function Tasks() {
     const role = String(p.role || '').toUpperCase();
     if (role !== 'CORRETOR') return false;
     if (currentRole === 'COORDENADOR') return p.coordinator_id === profile?.id;
-    if (currentRole === 'GERENTE') return p.manager_id === profile?.id || !!(p.coordinator_id && allProfiles.some((c) => c.id === p.coordinator_id && c.manager_id === profile?.id));
+    if (currentRole === 'GERENTE') {
+      const teamId = String(p.team_id || p.team || '');
+      const belongsToManagedTeam = !!teamId && teams.some((t) => t.id === teamId && t.manager_id === profile?.id);
+      const directManagerLink = p.manager_id === profile?.id;
+      const coordinatorLinkedToManager = !!(p.coordinator_id && allProfiles.some((c) => c.id === p.coordinator_id && c.manager_id === profile?.id));
+      return directManagerLink || coordinatorLinkedToManager || belongsToManagedTeam;
+    }
     return true;
   });
 
