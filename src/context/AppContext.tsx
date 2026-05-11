@@ -1328,19 +1328,34 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const { data, error } = await supabase.from('tasks').select('*').order('created_at', { ascending: false });
       if (error) throw error;
       const normalizedTasks = (data || []).map((task: any) => {
-        let subtasks = task?.subtasks;
+        let subtasks = task?.subtasks ?? task?.subtask ?? task?.sub_tasks;
 
-        if (typeof subtasks === 'string') {
+        const parseMaybeJson = (value: unknown) => {
+          if (typeof value !== 'string') return value;
           try {
-            subtasks = JSON.parse(subtasks);
+            return JSON.parse(value);
           } catch {
-            subtasks = [];
+            return value;
           }
+        };
+
+        subtasks = parseMaybeJson(subtasks);
+        subtasks = parseMaybeJson(subtasks);
+
+        if (!Array.isArray(subtasks) && subtasks && typeof subtasks === 'object') {
+          const maybeArray = (subtasks as any).items ?? (subtasks as any).subtasks ?? (subtasks as any).data;
+          subtasks = Array.isArray(maybeArray) ? maybeArray : [];
         }
 
-        if (!Array.isArray(subtasks)) {
-          subtasks = [];
-        }
+        if (!Array.isArray(subtasks)) subtasks = [];
+
+        subtasks = subtasks
+          .map((s: any, idx: number) => ({
+            id: String(s?.id ?? `${task?.id || 'task'}-${idx}`),
+            title: String(s?.title ?? s?.name ?? s?.label ?? ''),
+            completed: Boolean(s?.completed ?? s?.done ?? s?.is_done ?? false),
+          }))
+          .filter((s: any) => s.title.trim().length > 0);
 
         return {
           ...task,
