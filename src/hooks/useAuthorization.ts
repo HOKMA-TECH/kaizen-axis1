@@ -48,7 +48,7 @@ export function useAuthorization() {
         if (path === '/admin') return isAdmin;
 
         // Strategic creation routes — Admin + Director
-        if (['/developments', '/portals', '/training'].includes(path)) {
+        if (['/developments', '/portals', '/training', '/reports'].includes(path)) {
             return isAdmin || isDirector || isManager || isCoordinator;
         }
 

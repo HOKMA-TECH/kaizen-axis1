@@ -248,6 +248,7 @@ export function DesktopLayout({ children }: { children: React.ReactNode }) {
     '/tasks':         'Tarefas',
     '/training':      'Treinamentos',
     '/pdf-tools':     'Conversor de PDF',
+    '/reports':       'Relatórios',
     '/income':        'Apuração de Renda',
     '/amortization':  'Amortização',
     '/admin':         'Painel Administrativo',
