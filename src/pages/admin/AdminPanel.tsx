@@ -245,9 +245,14 @@ export default function AdminPanel() {
   // VGV aligned with selected report period and sales card criteria
   const vgvLocal = selectedPeriodSales.reduce((acc, c) => acc + parseCurrencyLocal(c.intendedValue), 0);
 
+  const isEligibleForBrokerRanking = (role?: string | null) => {
+    const normalizedRole = String(role || '').toUpperCase();
+    return normalizedRole === 'CORRETOR' || normalizedRole === 'COORDENADOR' || normalizedRole === 'GERENTE';
+  };
+
   // Broker ranking computed client-side (RPC Li=0 because leads table is empty per-broker)
   const localBrokerRanking = (() => {
-    const brokers = allProfiles.filter((p) => p.role?.toUpperCase() === 'CORRETOR');
+    const brokers = allProfiles.filter((p) => isEligibleForBrokerRanking(p.role));
 
     return brokers
       .map((p) => {
@@ -284,7 +289,7 @@ export default function AdminPanel() {
 
   const periodBrokerRanking = (() => {
 
-    const brokers = allProfiles.filter((p) => p.role?.toUpperCase() === 'CORRETOR');
+    const brokers = allProfiles.filter((p) => isEligibleForBrokerRanking(p.role));
 
     return brokers
       .map((p) => {
