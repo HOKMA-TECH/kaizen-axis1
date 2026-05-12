@@ -34,6 +34,7 @@ export function ChatDetailPanel({
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const galleryInputRef = useRef<HTMLInputElement>(null);
 
   const conversationId = isKAI
     ? `kai-${myId}`
@@ -99,6 +100,65 @@ export function ChatDetailPanel({
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages.length]);
 
+  const handleSendAudio = async (blob: Blob) => {
+    if (!myId || !otherId || isKAI) return;
+    setSending(true);
+    const ext = blob.type.includes('mp4') ? 'm4a' : 'webm';
+    const path = `${conversationId}/${Date.now()}_audio.${ext}`;
+    const { error: uploadError } = await supabase.storage
+      .from('chat-media')
+      .upload(path, blob, { contentType: blob.type });
+    if (uploadError) { setSending(false); return; }
+    const mediaUrl = supabase.storage.from('chat-media').getPublicUrl(path).data.publicUrl;
+    const tempId = `temp-${Date.now()}`;
+    const optimistic: BubbleMessage = {
+      id: tempId, type: 'audio', mediaUrl,
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      date: new Date().toLocaleDateString(),
+      isMe: true, deliveryStatus: 'sending',
+    };
+    setMessages(prev => [...prev, optimistic]);
+    const { error } = await supabase.from('chat_messages').insert({
+      sender_id: myId, receiver_id: otherId, conversation_id: conversationId,
+      content: null, type: 'audio', media_url: mediaUrl,
+    });
+    setMessages(prev => prev.map(m =>
+      m.id === tempId ? { ...m, deliveryStatus: error ? 'sending' : 'sent' as const } : m
+    ));
+    setSending(false);
+  };
+
+  const handleGalleryFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !myId || !otherId || isKAI) return;
+    const isVideo = file.type.startsWith('video/');
+    const type = isVideo ? 'video' : 'image';
+    setSending(true);
+    const ext = file.name.split('.').pop() ?? 'jpg';
+    const path = `${conversationId}/${Date.now()}_${type}.${ext}`;
+    const { error: uploadError } = await supabase.storage.from('chat-media').upload(path, file);
+    if (!uploadError) {
+      const mediaUrl = supabase.storage.from('chat-media').getPublicUrl(path).data.publicUrl;
+      const tempId = `temp-${Date.now()}`;
+      const optimistic: BubbleMessage = {
+        id: tempId, type, mediaUrl,
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        date: new Date().toLocaleDateString(),
+        isMe: true, deliveryStatus: 'sending',
+      };
+      setMessages(prev => [...prev, optimistic]);
+      const { error } = await supabase.from('chat_messages').insert({
+        sender_id: myId, receiver_id: otherId, conversation_id: conversationId,
+        content: null, type, media_url: mediaUrl,
+      });
+      setMessages(prev => prev.map(m =>
+        m.id === tempId ? { ...m, deliveryStatus: error ? 'sending' : 'sent' as const } : m
+      ));
+    }
+    setSending(false);
+    e.target.value = '';
+  };
+
   const handleSend = async (text: string) => {
     if (!myId || !otherId) return;
     setSending(true);
@@ -154,13 +214,21 @@ export function ChatDetailPanel({
   if (!otherId) return <ChatWelcome />;
 
   return (
-    <motion.div
-      key={otherId}
-      initial={{ opacity: 0, x: 8 }}
-      animate={{ opacity: 1, x: 0 }}
-      transition={{ duration: 0.2, ease: 'easeOut' }}
-      className="flex flex-col h-full bg-surface-50 dark:bg-surface-900/20"
-    >
+    <>
+      <input
+        ref={galleryInputRef}
+        type="file"
+        className="hidden"
+        accept="image/jpeg,image/png,image/gif,image/webp,image/heic,video/mp4,video/quicktime,video/webm"
+        onChange={handleGalleryFile}
+      />
+      <motion.div
+        key={otherId}
+        initial={{ opacity: 0, x: 8 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ duration: 0.2, ease: 'easeOut' }}
+        className="flex flex-col h-full bg-surface-50 dark:bg-surface-900/20"
+      >
       <ChatDetailHeader
         name={otherName}
         role={otherRole}
@@ -208,9 +276,13 @@ export function ChatDetailPanel({
 
       <ChatInputBar
         onSend={handleSend}
+        onSendAudio={handleSendAudio}
+        onGallery={() => galleryInputRef.current?.click()}
+        onCamera={() => alert('Câmera disponível em breve na versão desktop.')}
         sending={sending}
         disabled={!myId}
       />
     </motion.div>
+    </>
   );
 }

@@ -84,6 +84,12 @@ export function ChatMessageBubble({ message, index }: ChatMessageBubbleProps) {
               alt="imagem"
               className="rounded-xl max-w-full max-h-48 object-cover"
             />
+          ) : message.type === 'audio' && message.mediaUrl ? (
+            <audio
+              controls
+              src={message.mediaUrl}
+              className="max-w-[220px] h-8 opacity-90"
+            />
           ) : (
             <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">
               {message.text || ''}
