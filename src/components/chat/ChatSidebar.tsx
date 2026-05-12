@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { Search, PenSquare, MoreHorizontal, Users, X, Check } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { supabase } from '@/lib/supabase';
+import { useApp } from '@/context/AppContext';
 import { ChatKaiCard } from './ChatKaiCard';
 import { ChatConversationItem, ConversationItemData } from './ChatConversationItem';
 
@@ -21,12 +23,14 @@ export function ChatSidebar({
   conversations, selectedId, totalUnread, onSelect, onKaiClick,
   onNewConversation, onContextMenu, onTouchStart, onTouchEnd, loading,
 }: ChatSidebarProps) {
+  const { user } = useApp();
   const [search, setSearch] = useState('');
   const [focused, setFocused] = useState(false);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [showCreateGroup, setShowCreateGroup] = useState(false);
   const [groupName, setGroupName] = useState('');
   const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
+  const [creating, setCreating] = useState(false);
 
   const filtered = search.trim()
     ? conversations.filter(c => c.name.toLowerCase().includes(search.toLowerCase()))
@@ -208,16 +212,34 @@ export function ChatSidebar({
                 )}
               </div>
               <button
-                onClick={() => {
-                  alert('Funcionalidade de grupos em breve! 🚀');
-                  setShowCreateGroup(false);
-                  setGroupName('');
-                  setSelectedMembers([]);
+                onClick={async () => {
+                  if (!groupName.trim() || !user?.id) return;
+                  setCreating(true);
+                  try {
+                    const { data: group, error: groupError } = await supabase
+                      .from('chat_groups')
+                      .insert({ name: groupName.trim(), created_by: user.id })
+                      .select('id')
+                      .single();
+                    if (groupError || !group) throw groupError;
+                    const members = [
+                      { group_id: group.id, user_id: user.id },
+                      ...selectedMembers.map(uid => ({ group_id: group.id, user_id: uid })),
+                    ];
+                    await supabase.from('chat_group_members').insert(members);
+                    setShowCreateGroup(false);
+                    setGroupName('');
+                    setSelectedMembers([]);
+                  } catch {
+                    alert('Erro ao criar grupo. Tente novamente.');
+                  } finally {
+                    setCreating(false);
+                  }
                 }}
-                disabled={!groupName.trim()}
+                disabled={!groupName.trim() || creating}
                 className="w-full py-2.5 rounded-xl bg-primary-600 text-white text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed hover:bg-primary-700 transition-colors"
               >
-                Criar grupo
+                {creating ? 'Criando...' : 'Criar grupo'}
               </button>
             </motion.div>
           </motion.div>
