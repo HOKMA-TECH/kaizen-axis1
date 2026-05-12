@@ -138,7 +138,9 @@ export function useReportsData({ startDate, endDate }: UseReportsDataOptions = {
         let totalWeightedBRL = 0;
 
         const pipeline: WeightedPipelineEntry[] = months.map((m, i) => {
-            const monthClients = filteredClients.filter(c => new Date(c.createdAt).getMonth() === i);
+            // Pipeline uses ALL clients grouped by creation month — not period-filtered.
+            // A forecast chart must reflect the full active funnel regardless of the selected period.
+            const monthClients = clients.filter(c => new Date(c.createdAt).getMonth() === i);
 
             // weighted = sum of (intended_value * stage_weight)
             const weighted = monthClients.reduce((acc, c) => {
@@ -147,9 +149,15 @@ export function useReportsData({ startDate, endDate }: UseReportsDataOptions = {
                 return acc + val * weight;
             }, 0);
 
-            // confirmed = only 'Concluído' clients
-            const confirmed = monthClients
-                .filter(c => c.stage === 'Concluído')
+            // confirmed = Concluído clients whose closed_at (or updated_at) falls in month i.
+            // Groups by sale date, not creation date, to show when revenue was actually realized.
+            const confirmed = clients
+                .filter(c => {
+                    if (c.stage !== 'Concluído') return false;
+                    const closedRaw = c.closed_at || c.updated_at;
+                    if (!closedRaw) return false;
+                    return new Date(closedRaw).getMonth() === i;
+                })
                 .reduce((acc, c) => acc + parseCurrency(c.intendedValue), 0);
 
             totalWeightedBRL += weighted;
@@ -158,7 +166,7 @@ export function useReportsData({ startDate, endDate }: UseReportsDataOptions = {
         });
 
         return { weightedPipeline: pipeline, forecastTotal: totalWeightedBRL };
-    }, [filteredClients]);
+    }, [clients]);
 
     // ── Health Scores (top 5 clients) ─────────────────────────────────────────
     const healthScores = useMemo((): ClientHealthScore[] => {
