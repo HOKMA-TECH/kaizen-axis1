@@ -860,14 +860,23 @@ function DiretoriaReportView({
     const months = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
     let totalWeightedBRL = 0;
     const pipeline = months.map((m, i) => {
-      const mc = dirClients.filter(c => new Date(c.createdAt).getMonth() === i);
+      // Pipeline uses ALL directorate clients grouped by creation month — not period-filtered.
+      const mc = dirScopedClients.filter(c => new Date(c.createdAt).getMonth() === i);
       const weighted = mc.reduce((acc, c) => acc + parseValue(c.intendedValue ?? '') * (STAGE_WEIGHTS[c.stage] ?? 0), 0);
-      const confirmed = mc.filter(c => c.stage === 'Concluído').reduce((acc, c) => acc + parseValue(c.intendedValue ?? ''), 0);
+      // confirmed = Concluído clients whose closed_at (or updated_at) falls in month i.
+      const confirmed = dirScopedClients
+        .filter(c => {
+          if (c.stage !== 'Concluído') return false;
+          const closedRaw = c.closed_at || c.updated_at;
+          if (!closedRaw) return false;
+          return new Date(closedRaw).getMonth() === i;
+        })
+        .reduce((acc, c) => acc + parseValue(c.intendedValue ?? ''), 0);
       totalWeightedBRL += weighted;
       return { month: m, weighted: weighted / 1000, confirmed: confirmed / 1000 };
     });
     return { weightedPipeline: pipeline, forecastTotal: totalWeightedBRL };
-  }, [dirClients]);
+  }, [dirScopedClients]);
 
   const handleDownloadPdf = async () => {
     setPdfLoading(true);
