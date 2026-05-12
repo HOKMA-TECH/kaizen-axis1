@@ -5,18 +5,27 @@
  */
 
 const https = require('https');
-const http = require('http');
+const http  = require('http');
 const { randomUUID } = require('crypto');
 
+function requiredEnv(name) {
+  const value = process.env[name];
+  if (!value || !value.trim()) {
+    throw new Error(`Missing required environment variable: ${name}`);
+  }
+  return value.trim();
+}
+
 // ── CONFIGURAÇÕES ─────────────────────────────────────────────────────────────
-const N8N_URL = 'https://kaizen-axis-n8n-n8n.2ut0z1.easypanel.host';
-const N8N_KEY = ''
-const COMPANY = 'DIEGO';
+const N8N_URL    = process.env.N8N_URL || 'https://kaizen-axis-n8n-n8n.2ut0z1.easypanel.host';
+const N8N_KEY    = requiredEnv('N8N_KEY');
+const GEMINI_KEY = requiredEnv('GEMINI_KEY');
+const COMPANY    = process.env.COMPANY || 'DIEGO';
 
 // Placeholders — preencha após ter credenciais da Evolution API
-const EVO_URL = 'https://SEU_EVOLUTION_URL';
-const EVO_KEY = 'SUA_EVO_API_KEY';
-const EVO_INSTANCE = 'NOME_DA_INSTANCIA';
+const EVO_URL      = process.env.EVO_URL || 'https://SEU_EVOLUTION_URL';
+const EVO_KEY      = process.env.EVO_KEY || 'SUA_EVO_API_KEY';
+const EVO_INSTANCE = process.env.EVO_INSTANCE || 'NOME_DA_INSTANCIA';
 
 // ── HTTP HELPER ───────────────────────────────────────────────────────────────
 function request(method, url, body, extraHeaders = {}) {
@@ -339,26 +348,22 @@ function buildWorkflow() {
   ];
 
   const connections = {
-    'Webhook WhatsApp': { main: [[{ node: 'Filtrar e Extrair', type: 'main', index: 0 }]] },
-    'Filtrar e Extrair': { main: [[{ node: 'Carregar Estado', type: 'main', index: 0 }]] },
-    'Carregar Estado': { main: [[{ node: 'Rotear Acao', type: 'main', index: 0 }]] },
-    'Rotear Acao': {
-      main: [
-        [{ node: 'Ignorar Mensagem', type: 'main', index: 0 }],
-        [{ node: 'Registrar Takeover', type: 'main', index: 0 }],
-        [{ node: 'Preparar Request IA', type: 'main', index: 0 }]
-      ]
-    },
-    'Preparar Request IA': { main: [[{ node: 'Chamar Gemini', type: 'main', index: 0 }]] },
-    'Chamar Gemini': { main: [[{ node: 'Processar Resposta IA', type: 'main', index: 0 }]] },
-    'Processar Resposta IA': { main: [[{ node: 'Enviar Mensagem', type: 'main', index: 0 }]] },
-    'Enviar Mensagem': { main: [[{ node: 'Verificar Conclusao', type: 'main', index: 0 }]] },
-    'Verificar Conclusao': {
-      main: [
-        [{ node: 'Aplicar Etiqueta', type: 'main', index: 0 }],
-        [{ node: 'Continuar Ativo', type: 'main', index: 0 }]
-      ]
-    }
+    'Webhook WhatsApp':      { main: [[{ node: 'Filtrar e Extrair',    type: 'main', index: 0 }]] },
+    'Filtrar e Extrair':     { main: [[{ node: 'Carregar Estado',      type: 'main', index: 0 }]] },
+    'Carregar Estado':       { main: [[{ node: 'Rotear Acao',          type: 'main', index: 0 }]] },
+    'Rotear Acao':           { main: [
+      [{ node: 'Ignorar Mensagem',    type: 'main', index: 0 }],
+      [{ node: 'Registrar Takeover',  type: 'main', index: 0 }],
+      [{ node: 'Preparar Request IA', type: 'main', index: 0 }]
+    ]},
+    'Preparar Request IA':    { main: [[{ node: 'Chamar Gemini',        type: 'main', index: 0 }]] },
+    'Chamar Gemini':          { main: [[{ node: 'Processar Resposta IA',type: 'main', index: 0 }]] },
+    'Processar Resposta IA':  { main: [[{ node: 'Enviar Mensagem',      type: 'main', index: 0 }]] },
+    'Enviar Mensagem':        { main: [[{ node: 'Verificar Conclusao',  type: 'main', index: 0 }]] },
+    'Verificar Conclusao':    { main: [
+      [{ node: 'Aplicar Etiqueta', type: 'main', index: 0 }],
+      [{ node: 'Continuar Ativo',  type: 'main', index: 0 }]
+    ]}
   };
 
   return {
@@ -382,7 +387,7 @@ async function main() {
   try {
     const r = await request('GET', `${N8N_URL}/api/v1/workflows`, null);
     if (r.status === 200) { console.log(`OK (${r.status})`); }
-    else { console.log(`ERRO ${r.status}`); console.log(JSON.stringify(r.body).slice(0, 300)); process.exit(1); }
+    else { console.log(`ERRO ${r.status}`); console.log(JSON.stringify(r.body).slice(0,300)); process.exit(1); }
   } catch (e) { console.log(`FALHA: ${e.message}`); process.exit(1); }
 
   // 2. Criar workflow
@@ -406,7 +411,7 @@ async function main() {
   try {
     const r = await request('PATCH', `${N8N_URL}/api/v1/workflows/${wfId}/activate`, {});
     if (r.status === 200) { console.log('OK — Ativo!'); }
-    else { console.log(`Aviso ${r.status}: ${JSON.stringify(r.body).slice(0, 200)}`); }
+    else { console.log(`Aviso ${r.status}: ${JSON.stringify(r.body).slice(0,200)}`); }
   } catch (e) { console.log(`Aviso: ${e.message}`); }
 
   const webhookUrl = `${N8N_URL}/webhook/whatsapp-webhook`;

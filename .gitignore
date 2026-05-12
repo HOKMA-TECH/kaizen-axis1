@@ -2,6 +2,10 @@ nul
 kaizen-axis1/
 node_modules/
 .env
+.env.*
+!.env.example
 .env.local
 dist/
 .DS_Store
+*.log
+last_exec.json

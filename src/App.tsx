@@ -169,8 +169,8 @@ export default function App() {
         } />
         <Route path="/amortization" element={<ProtectedRoute><Amortization /></ProtectedRoute>} />
         <Route path="/schedule" element={<ProtectedRoute><Schedule /></ProtectedRoute>} />
-        <Route path="/chat" element={<ProtectedRoute><Chat /></ProtectedRoute>} />
-        <Route path="/chat/:id" element={<ProtectedRoute><ChatDetail /></ProtectedRoute>} />
+        <Route path="/chat" element={<RoleRoute allowed={['ADMIN']}><Chat /></RoleRoute>} />
+        <Route path="/chat/:id" element={<RoleRoute allowed={['ADMIN']}><ChatDetail /></RoleRoute>} />
         <Route path="/more" element={<ProtectedRoute><More /></ProtectedRoute>} />
 
         <Route path="/developments" element={<ProtectedRoute><Developments /></ProtectedRoute>} />
