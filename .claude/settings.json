@@ -160,11 +160,33 @@
       "Bash(head -10 grep -n \"import\\\\|logAuditEvent\" /c/Users/hokma/OneDrive/Desktop/Projetos/KAIZEN-AXIS/kaizen-axis1/src/components/admin/PipelinePdfExport.tsx)",
       "Bash(find c:UsershokmaOneDriveDesktopProjetosKAIZEN-AXISkaizen-axis1 -maxdepth 1 -name .env* -o -name .local*)",
       "Bash(git -C /c/Users/hokma/OneDrive/Desktop/Projetos/KAIZEN-AXIS/kaizen-axis1 log --all --oneline -- .env)",
-      "Bash(grep -E \"\\\\.ts$|\\\\.js$\")"
+      "Bash(grep -E \"\\\\.ts$|\\\\.js$\")",
+      "Bash(gh repo:*)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "WebFetch(domain:github.com)",
+      "Bash(gh api:*)",
+      "Bash(python3 -c \"import json,sys; data=json.load\\(sys.stdin\\); [print\\(f[''''name''''], f[''''type'''']\\) for f in data]\")",
+      "Bash(curl -s https://raw.githubusercontent.com/obra/superpowers/main/.claude-plugin/plugin.json)",
+      "Bash(curl -s https://raw.githubusercontent.com/obra/superpowers/main/CLAUDE.md)",
+      "Bash(curl -s https://raw.githubusercontent.com/obra/superpowers/main/README.md)",
+      "Bash(curl -s https://raw.githubusercontent.com/obra/superpowers/main/skills/using-superpowers/SKILL.md)",
+      "Read(//tmp/superpowers/**)",
+      "Bash(./node_modules/.bin/tsc --noEmit)",
+      "Bash(node_modules/.bin/tsc --noEmit)",
+      "Bash(\"c:/Users/hokma/OneDrive/Desktop/Projetos/KAIZEN-AXIS/kaizen-axis1/node_modules/.bin/tsc.cmd\" --noEmit --project tsconfig.json)",
+      "Bash([ -f using-superpowers.md ])",
+      "Bash(node_modules/.bin/tsc --noEmit --project tsconfig.json)",
+      "Bash(node_modules/.bin/tsc --noEmit src/lib/chat-utils.ts)",
+      "Read(//home/**)",
+      "Bash(find /c/Users/hokma/OneDrive/Desktop/Projetos/KAIZEN-AXIS/kaizen-axis-saas-template* -name \"ChatDetailPanel.tsx\" -type f)",
+      "Bash(git -C /c/Users/hokma/OneDrive/Desktop/Projetos/KAIZEN-AXIS/kaizen-axis1 status --short)",
+      "Bash(supabase projects:*)",
+      "Bash(supabase migration:*)"
     ],
     "additionalDirectories": [
       "\\tmp",
-      "C:\\Users\\hokma\\AppData\\Local\\Temp"
+      "C:\\Users\\hokma\\AppData\\Local\\Temp",
+      "C:\\Users\\hokma\\.claude"
     ]
   }
 }
