@@ -76,6 +76,7 @@ export function ChatDetailPanel({
       setMessages([]);
       return;
     }
+    setMessages([]);
     loadMessages();
     const channel = supabase
       .channel(`panel:${conversationId}`)
@@ -96,12 +97,6 @@ export function ChatDetailPanel({
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages.length]);
-
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => {
-    setMessages([]);
-    if (!isKAI) loadMessages();
-  }, [otherId]);
 
   const handleSend = async (text: string) => {
     if (!myId || !otherId) return;
