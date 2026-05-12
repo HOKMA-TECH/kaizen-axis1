@@ -87,7 +87,7 @@ export function ChatDetailPanel({
         filter: `conversation_id=eq.${conversationId}`,
       }, (p) => {
         const m = p.new as any;
-        if (m.sender_id === myId || m.receiver_id === myId) {
+        if (m.sender_id !== myId && m.receiver_id === myId) {
           setMessages(prev => [...prev, mapMsg(m)]);
           markConversationRead(conversationId);
         }
