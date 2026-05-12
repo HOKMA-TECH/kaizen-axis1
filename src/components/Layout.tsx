@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Users, Calendar, MessageSquare, Menu, Calculator, Settings, Lock } from 'lucide-react';
+import { LayoutDashboard, Users, Calendar, MessageSquare, Menu, Calculator, Settings } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { motion } from 'motion/react';
 import { useAuthorization } from '@/hooks/useAuthorization';
@@ -21,7 +21,7 @@ function useKeyboardOpen() {
 
 export const BottomNav = () => {
   const location = useLocation();
-  const { isAnalyst, isAdmin } = useAuthorization();
+  const { isAnalyst } = useAuthorization();
   const keyboardOpen = useKeyboardOpen();
   const { totalUnread } = useChatUnread();
 
@@ -45,22 +45,6 @@ export const BottomNav = () => {
           const isActive = item.path === '/'
             ? location.pathname === '/'
             : location.pathname.startsWith(item.path);
-          const isChatLocked = item.path === '/chat' && !isAdmin;
-
-          if (isChatLocked) {
-            return (
-              <div
-                key={item.path}
-                className="flex flex-col items-center justify-center p-2 rounded-xl w-16 text-text-secondary/40 cursor-not-allowed select-none"
-              >
-                <div className="relative">
-                  <item.icon size={24} strokeWidth={2} />
-                  <Lock size={10} className="absolute -bottom-1 -right-1 text-text-secondary/50" />
-                </div>
-                <span className="text-[10px] font-medium mt-1">{item.label}</span>
-              </div>
-            );
-          }
 
           return (
             <NavLink

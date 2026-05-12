@@ -142,15 +142,10 @@ function Sidebar() {
     }
   };
 
-  // Lock Chat for non-admins while refactoring
-  const coreItems = NAV_CORE.map(item =>
-    item.path === '/chat' && !isAdmin ? { ...item, locked: true } : item
-  );
-
   const allGroups = isAnalyst
     ? [{ label: 'Análise', items: reportsForRole }]
     : [
-      { label: 'Principal', items: coreItems },
+      { label: 'Principal', items: NAV_CORE },
       { label: 'Ferramentas', items: filteredTools },
       { label: 'Análise', items: reportsForRole },
       { label: 'Administrativo', items: filteredAdmin },
