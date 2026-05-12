@@ -47,6 +47,7 @@ export function ChatDetailPanel({
     type: m.type as BubbleMessage['type'],
     mediaUrl: m.media_url,
     timestamp: new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    date: new Date(m.created_at).toLocaleDateString(),
     isMe: m.sender_id === myId,
     isKAI: isKAI && m.sender_id !== myId,
     deliveryStatus: 'sent' as const,
@@ -107,6 +108,7 @@ export function ChatDetailPanel({
       const userMsg: BubbleMessage = {
         id: tempId, text, type: 'text',
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        date: new Date().toLocaleDateString(),
         isMe: true, deliveryStatus: 'sent',
       };
       setMessages(prev => [...prev, userMsg]);
@@ -115,6 +117,7 @@ export function ChatDetailPanel({
         const kaiMsg: BubbleMessage = {
           id: `kai-${Date.now()}`, text: reply, type: 'text',
           timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          date: new Date().toLocaleDateString(),
           isMe: false, isKAI: true, deliveryStatus: 'sent',
         };
         setMessages(prev => [...prev, kaiMsg]);
@@ -126,6 +129,7 @@ export function ChatDetailPanel({
       const optimistic: BubbleMessage = {
         id: tempId, text, type: 'text',
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        date: new Date().toLocaleDateString(),
         isMe: true, deliveryStatus: 'sending',
       };
       setMessages(prev => [...prev, optimistic]);
@@ -179,9 +183,24 @@ export function ChatDetailPanel({
           </div>
         ) : (
           <AnimatePresence initial={false}>
-            {messages.map((msg, i) => (
-              <ChatMessageBubble key={msg.id} message={msg} index={i} />
-            ))}
+            {messages.map((msg, i) => {
+              const showDateSep = i === 0 || (msg.date && messages[i - 1]?.date !== msg.date);
+              const today = new Date().toLocaleDateString();
+              const isToday = msg.date === today;
+              const dateLabel = isToday ? 'Hoje' : (msg.date ?? 'Hoje');
+              return (
+                <div key={msg.id}>
+                  {showDateSep && (
+                    <div className="flex items-center gap-2 my-3">
+                      <div className="flex-1 h-px bg-surface-200" />
+                      <span className="text-xs text-text-secondary">{dateLabel}</span>
+                      <div className="flex-1 h-px bg-surface-200" />
+                    </div>
+                  )}
+                  <ChatMessageBubble message={msg} index={i} />
+                </div>
+              );
+            })}
           </AnimatePresence>
         )}
         <div ref={bottomRef} />

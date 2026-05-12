@@ -54,24 +54,20 @@ export function ChatInputBar({
         )}
       >
         <div className="flex items-center gap-1 pb-0.5 flex-shrink-0">
-          {onAttach && (
-            <button
-              onClick={onAttach}
-              className="p-1.5 rounded-lg text-text-secondary hover:text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-colors"
-              title="Anexar"
-            >
-              <Paperclip size={16} />
-            </button>
-          )}
-          {onImage && (
-            <button
-              onClick={onImage}
-              className="p-1.5 rounded-lg text-text-secondary hover:text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-colors"
-              title="Imagem"
-            >
-              <Image size={16} />
-            </button>
-          )}
+          <button
+            onClick={onAttach}
+            className="p-1.5 rounded-lg text-text-secondary hover:text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-colors"
+            title="Anexar"
+          >
+            <Paperclip size={16} />
+          </button>
+          <button
+            onClick={onImage}
+            className="p-1.5 rounded-lg text-text-secondary hover:text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-colors"
+            title="Imagem"
+          >
+            <Image size={16} />
+          </button>
         </div>
 
         <textarea
@@ -87,7 +83,7 @@ export function ChatInputBar({
         />
 
         <motion.button
-          whileTap={canSend ? { scale: 0.88 } : {}}
+          whileTap={canSend ? { scale: 0.9 } : {}}
           onClick={handleSend}
           disabled={!canSend}
           className={cn(

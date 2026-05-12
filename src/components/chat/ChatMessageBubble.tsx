@@ -10,6 +10,7 @@ export interface BubbleMessage {
   type: 'text' | 'image' | 'audio' | 'video' | 'document';
   mediaUrl?: string;
   timestamp: string;
+  date?: string;
   isMe: boolean;
   deliveryStatus?: 'sending' | 'sent';
   isKAI?: boolean;
