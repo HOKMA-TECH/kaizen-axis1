@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { motion } from 'motion/react';
-import { CheckCheck, Check, Smile } from 'lucide-react';
+import { CheckCheck, Check, Smile, FileText } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import ReactMarkdown from 'react-markdown';
+import { AudioPlayer } from './AudioPlayer';
 
 export interface BubbleMessage {
   id: string;
@@ -85,11 +86,20 @@ export function ChatMessageBubble({ message, index }: ChatMessageBubbleProps) {
               className="rounded-xl max-w-full max-h-48 object-cover"
             />
           ) : message.type === 'audio' && message.mediaUrl ? (
-            <audio
-              controls
-              src={message.mediaUrl}
-              className="max-w-[220px] h-8 opacity-90"
-            />
+            <AudioPlayer src={message.mediaUrl} isMe={message.isMe} />
+          ) : message.type === 'document' && message.mediaUrl ? (
+            <a
+              href={message.mediaUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={cn(
+                'flex items-center gap-2 min-w-[160px] px-1 py-0.5',
+                message.isMe ? 'text-white' : 'text-text-primary'
+              )}
+            >
+              <FileText size={20} className={message.isMe ? 'text-white/80' : 'text-primary-500'} />
+              <span className="text-sm font-medium truncate max-w-[180px]">{message.text || 'Documento'}</span>
+            </a>
           ) : (
             <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">
               {message.text || ''}
