@@ -193,7 +193,7 @@ export function ChatDetailPanel({
                   {showDateSep && (
                     <div className="flex items-center gap-2 my-3">
                       <div className="flex-1 h-px bg-surface-200" />
-                      <span className="text-xs text-text-secondary">{dateLabel}</span>
+                      <span className="text-xs text-text-secondary">— {dateLabel} —</span>
                       <div className="flex-1 h-px bg-surface-200" />
                     </div>
                   )}
