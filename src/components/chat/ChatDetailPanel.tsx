@@ -1,7 +1,7 @@
 // src/components/chat/ChatDetailPanel.tsx
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Loader2 } from 'lucide-react';
+import { Loader2, X } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useApp } from '@/context/AppContext';
 import { useChatUnread } from '@/context/ChatUnreadContext';
@@ -33,8 +33,13 @@ export function ChatDetailPanel({
   const [messages, setMessages] = useState<BubbleMessage[]>([]);
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState(false);
+  const [showCamera, setShowCamera] = useState(false);
+
   const bottomRef = useRef<HTMLDivElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
+  const documentInputRef = useRef<HTMLInputElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const cameraStreamRef = useRef<MediaStream | null>(null);
 
   const conversationId = isKAI
     ? `kai-${myId}`
@@ -100,6 +105,13 @@ export function ChatDetailPanel({
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages.length]);
 
+  // Cleanup camera stream on unmount
+  useEffect(() => {
+    return () => {
+      cameraStreamRef.current?.getTracks().forEach(t => t.stop());
+    };
+  }, []);
+
   const handleSendAudio = async (blob: Blob) => {
     if (!myId || !otherId || isKAI) return;
     setSending(true);
@@ -157,6 +169,88 @@ export function ChatDetailPanel({
     }
     setSending(false);
     e.target.value = '';
+  };
+
+  const handleDocumentFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !myId || !otherId || isKAI) return;
+    setSending(true);
+    const ext = file.name.split('.').pop() ?? 'pdf';
+    const path = `${conversationId}/${Date.now()}_doc.${ext}`;
+    const { error: uploadError } = await supabase.storage.from('chat-media').upload(path, file, { contentType: file.type });
+    if (!uploadError) {
+      const mediaUrl = supabase.storage.from('chat-media').getPublicUrl(path).data.publicUrl;
+      const tempId = `temp-${Date.now()}`;
+      const optimistic: BubbleMessage = {
+        id: tempId, text: file.name, type: 'document', mediaUrl,
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        date: new Date().toLocaleDateString(),
+        isMe: true, deliveryStatus: 'sending',
+      };
+      setMessages(prev => [...prev, optimistic]);
+      const { error } = await supabase.from('chat_messages').insert({
+        sender_id: myId, receiver_id: otherId, conversation_id: conversationId,
+        content: file.name, type: 'document', media_url: mediaUrl,
+      });
+      setMessages(prev => prev.map(m =>
+        m.id === tempId ? { ...m, deliveryStatus: error ? 'sending' : 'sent' as const } : m
+      ));
+    }
+    setSending(false);
+    e.target.value = '';
+  };
+
+  const openCamera = async () => {
+    setShowCamera(true);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
+      cameraStreamRef.current = stream;
+      if (videoRef.current) videoRef.current.srcObject = stream;
+    } catch {
+      alert('Não foi possível acessar a câmera.');
+      setShowCamera(false);
+    }
+  };
+
+  const closeCamera = () => {
+    cameraStreamRef.current?.getTracks().forEach(t => t.stop());
+    cameraStreamRef.current = null;
+    setShowCamera(false);
+  };
+
+  const capturePhoto = async () => {
+    const video = videoRef.current;
+    if (!video || !myId || !otherId || isKAI) return;
+    const canvas = document.createElement('canvas');
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    canvas.getContext('2d')?.drawImage(video, 0, 0);
+    canvas.toBlob(async (blob) => {
+      if (!blob) return;
+      closeCamera();
+      setSending(true);
+      const path = `${conversationId}/${Date.now()}_camera.jpg`;
+      const { error: uploadError } = await supabase.storage.from('chat-media').upload(path, blob, { contentType: 'image/jpeg' });
+      if (!uploadError) {
+        const mediaUrl = supabase.storage.from('chat-media').getPublicUrl(path).data.publicUrl;
+        const tempId = `temp-${Date.now()}`;
+        const optimistic: BubbleMessage = {
+          id: tempId, type: 'image', mediaUrl,
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          date: new Date().toLocaleDateString(),
+          isMe: true, deliveryStatus: 'sending',
+        };
+        setMessages(prev => [...prev, optimistic]);
+        const { error } = await supabase.from('chat_messages').insert({
+          sender_id: myId, receiver_id: otherId, conversation_id: conversationId,
+          content: null, type: 'image', media_url: mediaUrl,
+        });
+        setMessages(prev => prev.map(m =>
+          m.id === tempId ? { ...m, deliveryStatus: error ? 'sending' : 'sent' as const } : m
+        ));
+      }
+      setSending(false);
+    }, 'image/jpeg', 0.92);
   };
 
   const handleSend = async (text: string) => {
@@ -222,6 +316,42 @@ export function ChatDetailPanel({
         accept="image/jpeg,image/png,image/gif,image/webp,image/heic,video/mp4,video/quicktime,video/webm"
         onChange={handleGalleryFile}
       />
+      <input
+        ref={documentInputRef}
+        type="file"
+        className="hidden"
+        accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,.csv"
+        onChange={handleDocumentFile}
+      />
+
+      {/* Camera modal */}
+      {showCamera && (
+        <div className="fixed inset-0 z-50 bg-black flex flex-col">
+          <div className="flex items-center justify-between p-4">
+            <button onClick={closeCamera} className="text-white p-2 hover:opacity-70 transition-opacity">
+              <X size={24} />
+            </button>
+            <span className="text-white font-medium">Câmera</span>
+            <div className="w-10" />
+          </div>
+          <div className="flex-1 relative overflow-hidden">
+            <video
+              ref={videoRef}
+              autoPlay
+              playsInline
+              muted
+              className="w-full h-full object-cover"
+            />
+          </div>
+          <div className="flex justify-center p-8">
+            <button
+              onClick={capturePhoto}
+              className="w-16 h-16 rounded-full bg-white border-4 border-white/40 hover:scale-95 active:scale-90 transition-transform"
+            />
+          </div>
+        </div>
+      )}
+
       <motion.div
         key={otherId}
         initial={{ opacity: 0, x: 8 }}
@@ -278,7 +408,8 @@ export function ChatDetailPanel({
         onSend={handleSend}
         onSendAudio={handleSendAudio}
         onGallery={() => galleryInputRef.current?.click()}
-        onCamera={() => alert('Câmera disponível em breve na versão desktop.')}
+        onAttach={() => documentInputRef.current?.click()}
+        onCamera={openCamera}
         sending={sending}
         disabled={!myId}
       />

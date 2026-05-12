@@ -1,6 +1,6 @@
 import { useRef, useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Image, Send, Loader2, Mic, Camera, X } from 'lucide-react';
+import { Image, Send, Loader2, Mic, Camera, X, Paperclip } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface ChatInputBarProps {
@@ -8,13 +8,14 @@ interface ChatInputBarProps {
   onSendAudio?: (blob: Blob) => void;
   onGallery?: () => void;
   onCamera?: () => void;
+  onAttach?: () => void;
   disabled?: boolean;
   sending?: boolean;
   placeholder?: string;
 }
 
 export function ChatInputBar({
-  onSend, onSendAudio, onGallery, onCamera, disabled, sending, placeholder = 'Digite sua mensagem...',
+  onSend, onSendAudio, onGallery, onCamera, onAttach, disabled, sending, placeholder = 'Digite sua mensagem...',
 }: ChatInputBarProps) {
   const [text, setText] = useState('');
   const [showMediaMenu, setShowMediaMenu] = useState(false);
@@ -181,6 +182,13 @@ export function ChatInputBar({
               >
                 <Camera size={16} className="text-primary-600" />
                 Câmera
+              </button>
+              <button
+                onClick={() => { setShowMediaMenu(false); onAttach?.(); }}
+                className="flex items-center gap-3 w-full px-4 py-3 text-sm text-text-primary hover:bg-surface-100 transition-colors border-t border-surface-100"
+              >
+                <Paperclip size={16} className="text-primary-600" />
+                Arquivo
               </button>
             </motion.div>
           </>
