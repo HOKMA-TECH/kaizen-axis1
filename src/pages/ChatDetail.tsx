@@ -13,6 +13,7 @@ import ReactMarkdown from 'react-markdown';
 import { supabase } from '@/lib/supabase';
 import { useApp } from '@/context/AppContext';
 import { useChatUnread } from '@/context/ChatUnreadContext';
+import { ChatDetailHeader } from '@/components/chat/ChatDetailHeader';
 
 interface ChatMessage {
   id: string;
@@ -1210,48 +1211,16 @@ export default function ChatDetail() {
   return (
     <div className="flex flex-col h-screen bg-white dark:bg-[#0b141a]">
       {/* Header */}
-      <div className="bg-card-bg px-4 py-3 shadow-sm flex items-center justify-between sticky top-0 z-20">
-        <div className="flex items-center gap-3">
-          <button onClick={() => navigate(-1)} className="text-text-secondary hover:text-text-primary">
-            <ChevronLeft size={24} />
-          </button>
-          <div className="flex items-center gap-3">
-            <div className="relative">
-              {chatUser.isAI ? (
-                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-gold-400 to-gold-600 flex items-center justify-center">
-                  <Bot className="text-white" size={20} />
-                </div>
-              ) : chatUser.avatar ? (
-                <img src={chatUser.avatar} alt={chatUser.name} className="w-10 h-10 rounded-full object-cover" referrerPolicy="no-referrer" />
-              ) : (
-                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white font-bold text-sm">
-                  {initials}
-                </div>
-              )}
-              <div className="absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-card-bg bg-green-500" />
-            </div>
-            <div>
-              <h3 className="font-bold text-text-primary text-sm">{chatUser.name}</h3>
-              <p className="text-xs min-h-[16px]">
-                {isTypingVisible ? (
-                  <span className="text-green-500 font-medium animate-pulse">{typingLabel}</span>
-                ) : (
-                  <span className="text-text-secondary">
-                    {chatUser.isAI ? 'IA • Especialista Imobiliário' : chatUser.role || 'Online'}
-                  </span>
-                )}
-              </p>
-            </div>
-          </div>
-        </div>
-        <div className="flex gap-4 text-gold-600 dark:text-gold-400">
-          <button onClick={() => { setShowSearch(s => !s); setSearchQuery(''); }}>
-            <SearchIcon size={20} />
-          </button>
-          {!isKAI && <Phone size={20} />}
-          <MoreVertical size={20} />
-        </div>
-      </div>
+      <ChatDetailHeader
+        name={chatUser.name}
+        role={chatUser.role}
+        avatarUrl={chatUser.isAI ? null : (chatUser.avatar ?? null)}
+        otherId={id ?? ''}
+        isKAI={isKAI}
+        isOnline={isKAI ? true : isOtherOnline}
+        onBack={() => navigate(-1)}
+        onMore={() => { setShowSearch(s => !s); setSearchQuery(''); }}
+      />
 
       {/* Search bar */}
       {showSearch && (
@@ -1273,6 +1242,18 @@ export default function ChatDetail() {
           <span className="text-xs text-gold-700 dark:text-gold-400 truncate">
             KAI no contexto de <strong>{clientContext.name}</strong>
           </span>
+        </div>
+      )}
+
+      {/* Typing indicator banner */}
+      {isTypingVisible && (
+        <div className="bg-card-bg border-b border-surface-100 px-4 py-1 flex items-center gap-2">
+          <div className="flex gap-1">
+            {[0, 150, 300].map(d => (
+              <span key={d} className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-bounce" style={{ animationDelay: `${d}ms` }} />
+            ))}
+          </div>
+          <span className="text-xs text-emerald-600 font-medium animate-pulse">{typingLabel}</span>
         </div>
       )}
 
