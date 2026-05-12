@@ -95,11 +95,22 @@ export function useReportsData({ startDate, endDate }: UseReportsDataOptions = {
     // ── Global Metrics ─────────────────────────────────────────────────────────
     const globalMetrics = useMemo((): GlobalMetrics => {
         const total = filteredClients.length;
-        const vendas = filteredClients.filter(c => c.stage === 'Concluído');
+
+        // Sales = clients with stage 'Concluído' whose closed_at (or updated_at) falls within the period.
+        // Mirrors AdminPanel logic: filter ALL clients by sale date, not by creation date.
+        const vendas = clients.filter(c => {
+            if (c.stage !== 'Concluído') return false;
+            const closedRaw = c.closed_at || c.updated_at;
+            if (!closedRaw) return false;
+            const closedDate = new Date(closedRaw);
+            if (rangeStart && closedDate < rangeStart) return false;
+            if (rangeEnd && closedDate > rangeEnd) return false;
+            return true;
+        });
         const totalVendas = vendas.length;
         const taxaConversao = total > 0 ? (totalVendas / total) * 100 : 0;
 
-        // Real average sales cycle: closed_at → fallback updated_at → fallback createdAt
+        // Real average sales cycle: closed_at → fallback updated_at
         const ciclosComDados = vendas.filter(c => c.closed_at || c.updated_at);
         const cicloMedioDias =
             ciclosComDados.length > 0
@@ -118,7 +129,7 @@ export function useReportsData({ startDate, endDate }: UseReportsDataOptions = {
             taxaConversao: parseFloat(taxaConversao.toFixed(1)),
             cicloMedioDias: parseFloat(cicloMedioDias.toFixed(1)),
         };
-    }, [filteredClients, filteredLeads]);
+    }, [clients, filteredClients, filteredLeads, rangeStart, rangeEnd]);
 
     // ── Weighted Pipeline (chart data) ────────────────────────────────────────
     const { weightedPipeline, forecastTotal } = useMemo(() => {
