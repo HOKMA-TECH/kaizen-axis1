@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { Search, PenSquare, MoreHorizontal, Users, X, Check, UserCircle, Camera, MessageSquarePlus } from 'lucide-react';
+import { Search, PenSquare, MoreHorizontal, Users, X, Check, UserCircle, Camera, MessageSquarePlus, Plus } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { supabase } from '@/lib/supabase';
 import { useApp } from '@/context/AppContext';
@@ -40,6 +40,7 @@ export function ChatSidebar({
   const [showCreateGroup, setShowCreateGroup] = useState(false);
   const [groupName, setGroupName] = useState('');
   const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
+  const [memberSearch, setMemberSearch] = useState('');
   const [creating, setCreating] = useState(false);
 
   // Perfil modal
@@ -135,6 +136,58 @@ export function ChatSidebar({
         (p.name || '').toLowerCase().includes(searchTerm)
       )
     : [];
+
+  const closeCreateGroup = () => {
+    setShowCreateGroup(false);
+    setGroupName('');
+    setSelectedMembers([]);
+    setMemberSearch('');
+  };
+
+  const allGroupCandidates = (() => {
+    const byId = new Map<string, {
+      id: string;
+      name: string;
+      role?: string | null;
+      avatarUrl?: string | null;
+    }>();
+
+    for (const p of allProfiles ?? []) {
+      if (!p.id || p.id === user?.id) continue;
+      byId.set(p.id, {
+        id: p.id,
+        name: p.chat_display_name || p.name || 'Usuario',
+        role: p.role,
+        avatarUrl: p.chat_avatar_url || p.avatar_url || null,
+      });
+    }
+
+    for (const c of conversations) {
+      if (c.isKAI || c.isGroup || !c.otherId || c.otherId === user?.id) continue;
+      if (!byId.has(c.otherId)) {
+        byId.set(c.otherId, {
+          id: c.otherId,
+          name: c.name || 'Usuario',
+          role: c.role,
+          avatarUrl: c.avatarUrl || null,
+        });
+      }
+    }
+
+    return Array.from(byId.values())
+      .sort((a, b) => a.name.localeCompare(b.name));
+  })();
+
+  const groupCandidates = (() => {
+    const term = memberSearch.trim().toLowerCase();
+    return allGroupCandidates.filter(member =>
+      !term || `${member.name} ${member.role || ''}`.toLowerCase().includes(term)
+    );
+  })();
+
+  const selectedGroupMembers = selectedMembers
+    .map(id => allGroupCandidates.find(member => member.id === id))
+    .filter(Boolean) as typeof groupCandidates;
 
   return (
     <div className="relative flex flex-col h-full bg-card-bg border-r border-surface-200 dark:border-surface-100/10">
@@ -424,7 +477,7 @@ export function ChatSidebar({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="absolute inset-0 z-30 bg-black/40 backdrop-blur-sm flex items-end"
-            onClick={() => setShowCreateGroup(false)}
+            onClick={closeCreateGroup}
           >
             <motion.div
               initial={{ y: 40, opacity: 0 }}
@@ -437,7 +490,7 @@ export function ChatSidebar({
               <div className="flex items-center justify-between mb-4">
                 <h3 className="font-bold text-text-primary text-base">Criar grupo</h3>
                 <button
-                  onClick={() => { setShowCreateGroup(false); setGroupName(''); setSelectedMembers([]); }}
+                  onClick={closeCreateGroup}
                   className="p-1.5 rounded-xl text-text-secondary hover:bg-surface-100 transition-colors"
                 >
                   <X size={16} />
@@ -450,26 +503,75 @@ export function ChatSidebar({
                 onChange={e => setGroupName(e.target.value)}
                 className="w-full px-4 py-2.5 rounded-xl bg-surface-100 dark:bg-surface-200/10 text-sm text-text-primary placeholder:text-text-secondary focus:outline-none focus:ring-2 focus:ring-primary-400/40 mb-4"
               />
-              <p className="text-xs font-semibold text-text-secondary uppercase tracking-widest mb-2">Participantes</p>
-              <div className="flex flex-wrap gap-2 mb-4 max-h-32 overflow-y-auto">
-                {conversations.filter(c => !c.isKAI).map(c => (
-                  <button
-                    key={c.otherId}
-                    onClick={() => setSelectedMembers(prev =>
-                      prev.includes(c.otherId) ? prev.filter(id => id !== c.otherId) : [...prev, c.otherId]
-                    )}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
-                      selectedMembers.includes(c.otherId)
-                        ? 'bg-primary-600 text-white'
-                        : 'bg-surface-100 text-text-secondary hover:bg-surface-200'
-                    }`}
-                  >
-                    {selectedMembers.includes(c.otherId) && <Check size={10} />}
-                    {c.name}
-                  </button>
-                ))}
-                {conversations.filter(c => !c.isKAI).length === 0 && (
-                  <p className="text-xs text-text-secondary">Inicie conversas primeiro para adicionar membros.</p>
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-xs font-semibold text-text-secondary uppercase tracking-widest">Participantes</p>
+                {selectedMembers.length > 0 && (
+                  <span className="text-[11px] font-semibold text-primary-600">{selectedMembers.length} selecionado(s)</span>
+                )}
+              </div>
+              {selectedGroupMembers.length > 0 && (
+                <div className="flex flex-wrap gap-2 mb-3">
+                  {selectedGroupMembers.map(member => (
+                    <button
+                      key={member.id}
+                      onClick={() => setSelectedMembers(prev => prev.filter(id => id !== member.id))}
+                      className="inline-flex items-center gap-1.5 rounded-full bg-primary-50 px-3 py-1.5 text-xs font-semibold text-primary-700 hover:bg-primary-100 transition-colors"
+                    >
+                      <Check size={11} />
+                      {member.name}
+                      <X size={11} />
+                    </button>
+                  ))}
+                </div>
+              )}
+              <div className="relative mb-3">
+                <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary pointer-events-none" />
+                <input
+                  type="text"
+                  placeholder="Pesquisar usuário..."
+                  value={memberSearch}
+                  onChange={e => setMemberSearch(e.target.value)}
+                  className="w-full pl-8 pr-3 py-2.5 rounded-xl bg-surface-100 dark:bg-surface-200/10 text-sm text-text-primary placeholder:text-text-secondary focus:outline-none focus:ring-2 focus:ring-primary-400/40"
+                />
+              </div>
+              <div className="space-y-2 mb-4 max-h-52 overflow-y-auto pr-1">
+                {groupCandidates.map(member => {
+                  const selected = selectedMembers.includes(member.id);
+                  return (
+                    <div key={member.id} className="flex items-center gap-3 rounded-xl border border-surface-200 bg-card-bg px-3 py-2">
+                      {member.avatarUrl ? (
+                        <img src={member.avatarUrl} alt={member.name} referrerPolicy="no-referrer" className="w-9 h-9 rounded-full object-cover" />
+                      ) : (
+                        <div className={cn('w-9 h-9 rounded-full bg-gradient-to-br flex items-center justify-center text-white font-semibold text-xs', getColor(member.id))}>
+                          {getInitials(member.name)}
+                        </div>
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-semibold text-text-primary truncate">{member.name}</p>
+                        {member.role && <p className="text-xs text-text-secondary truncate">{member.role}</p>}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedMembers(prev =>
+                          selected ? prev.filter(id => id !== member.id) : [...prev, member.id]
+                        )}
+                        className={cn(
+                          'w-8 h-8 rounded-full flex items-center justify-center transition-colors',
+                          selected
+                            ? 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100'
+                            : 'bg-primary-600 text-white hover:bg-primary-700'
+                        )}
+                        title={selected ? 'Remover da seleção' : 'Adicionar ao grupo'}
+                      >
+                        {selected ? <Check size={16} /> : <Plus size={16} />}
+                      </button>
+                    </div>
+                  );
+                })}
+                {groupCandidates.length === 0 && (
+                  <p className="text-xs text-text-secondary text-center py-4">
+                    {memberSearch.trim() ? 'Nenhum usuário encontrado.' : 'Nenhum usuário disponível para adicionar.'}
+                  </p>
                 )}
               </div>
               <button
@@ -488,9 +590,7 @@ export function ChatSidebar({
                       ...selectedMembers.map(uid => ({ group_id: group.id, user_id: uid })),
                     ];
                     await supabase.from('chat_group_members').insert(members);
-                    setShowCreateGroup(false);
-                    setGroupName('');
-                    setSelectedMembers([]);
+                    closeCreateGroup();
                   } catch {
                     alert('Erro ao criar grupo. Tente novamente.');
                   } finally {

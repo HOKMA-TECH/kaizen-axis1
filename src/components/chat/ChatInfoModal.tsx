@@ -1,4 +1,4 @@
-import { X, Users, Shield } from 'lucide-react';
+import { X, Users, Shield, Minus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { getColor, getInitials } from '@/lib/chat-utils';
 
@@ -29,6 +29,9 @@ interface ChatInfoModalProps {
   userInfo?: ChatProfileInfo | null;
   groupInfo?: ChatGroupInfo | null;
   loading?: boolean;
+  currentUserId?: string | null;
+  removingMemberId?: string | null;
+  onRemoveGroupMember?: (memberId: string) => void;
 }
 
 const availabilityMeta = (value: Availability) => {
@@ -73,11 +76,21 @@ function Avatar({ profile, fallbackId, size = 'lg' }: { profile?: ChatProfileInf
   );
 }
 
-export function ChatInfoModal({ open, onClose, userInfo, groupInfo, loading }: ChatInfoModalProps) {
+export function ChatInfoModal({
+  open,
+  onClose,
+  userInfo,
+  groupInfo,
+  loading,
+  currentUserId,
+  removingMemberId,
+  onRemoveGroupMember,
+}: ChatInfoModalProps) {
   if (!open) return null;
   const isGroup = Boolean(groupInfo);
   const title = isGroup ? groupInfo?.name || 'Grupo' : displayName(userInfo);
   const availability = availabilityMeta(userInfo?.chat_availability);
+  const canManageGroup = Boolean(groupInfo?.created_by && currentUserId && groupInfo.created_by === currentUserId);
 
   return (
     <div className="fixed inset-0 z-[520] bg-black/45 flex items-end sm:items-center justify-center" onClick={onClose}>
@@ -115,6 +128,7 @@ export function ChatInfoModal({ open, onClose, userInfo, groupInfo, loading }: C
               <div className="space-y-2">
                 {(groupInfo?.members || []).map(member => {
                   const isAdmin = member.id === groupInfo?.created_by;
+                  const canRemove = canManageGroup && !isAdmin;
                   return (
                     <div key={member.id} className="flex items-center gap-3 rounded-xl border border-surface-200 px-3 py-2">
                       <Avatar profile={member} fallbackId={member.id} size="sm" />
@@ -126,6 +140,21 @@ export function ChatInfoModal({ open, onClose, userInfo, groupInfo, loading }: C
                         <span className="inline-flex items-center gap-1 rounded-full bg-primary-50 px-2 py-1 text-[10px] font-semibold text-primary-700">
                           <Shield size={11} /> Admin
                         </span>
+                      )}
+                      {canRemove && (
+                        <button
+                          type="button"
+                          onClick={() => onRemoveGroupMember?.(member.id)}
+                          disabled={removingMemberId === member.id}
+                          className="w-8 h-8 rounded-full bg-red-50 text-red-600 hover:bg-red-100 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center transition-colors"
+                          title="Remover do grupo"
+                        >
+                          {removingMemberId === member.id ? (
+                            <span className="w-3.5 h-3.5 rounded-full border-2 border-red-300 border-t-red-600 animate-spin" />
+                          ) : (
+                            <Minus size={16} />
+                          )}
+                        </button>
                       )}
                     </div>
                   );

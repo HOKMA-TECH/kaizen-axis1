@@ -42,6 +42,7 @@ export function ChatDetailPanel({
   const [infoLoading, setInfoLoading] = useState(false);
   const [userInfo, setUserInfo] = useState<ChatProfileInfo | null>(null);
   const [groupInfo, setGroupInfo] = useState<ChatGroupInfo | null>(null);
+  const [removingMemberId, setRemovingMemberId] = useState<string | null>(null);
 
   const bottomRef = useRef<HTMLDivElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
@@ -262,6 +263,28 @@ export function ChatDetailPanel({
     });
     setInfoLoading(false);
   }, [groupId, isGroup, isKAI, otherAvatar, otherId, otherName, otherRole]);
+
+  const handleRemoveGroupMember = useCallback(async (memberId: string) => {
+    if (!groupId || !myId || groupInfo?.created_by !== myId || memberId === myId) return;
+    setRemovingMemberId(memberId);
+    const { error } = await supabase
+      .from('chat_group_members')
+      .delete()
+      .eq('group_id', groupId)
+      .eq('user_id', memberId);
+
+    if (error) {
+      alert('Erro ao remover participante do grupo.');
+      setRemovingMemberId(null);
+      return;
+    }
+
+    setGroupInfo(prev => prev
+      ? { ...prev, members: prev.members.filter(member => member.id !== memberId) }
+      : prev
+    );
+    setRemovingMemberId(null);
+  }, [groupId, groupInfo?.created_by, myId]);
 
   const handleSendAudio = async (blob: Blob) => {
     if (!myId || !otherId || isKAI) return;
@@ -676,6 +699,9 @@ export function ChatDetailPanel({
       loading={infoLoading}
       userInfo={userInfo}
       groupInfo={groupInfo}
+      currentUserId={myId}
+      removingMemberId={removingMemberId}
+      onRemoveGroupMember={handleRemoveGroupMember}
     />
     </>
   );
