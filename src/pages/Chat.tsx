@@ -23,6 +23,15 @@ interface ConversationPreview {
   senderIsMe: boolean;
 }
 
+type ChatProfile = {
+  id: string;
+  name?: string | null;
+  role?: string | null;
+  avatar_url?: string | null;
+  chat_display_name?: string | null;
+  chat_avatar_url?: string | null;
+};
+
 type EnrichedConvo = ConversationPreview & {
   name: string;
   role: string;
@@ -37,6 +46,7 @@ export default function Chat() {
   const navigate = useNavigate();
   const { allProfiles, user } = useApp();
   const [conversations, setConversations] = useState<ConversationPreview[]>([]);
+  const [chatProfiles, setChatProfiles] = useState<Record<string, ChatProfile>>({});
   const [loading, setLoading] = useState(true);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [ctxConvo, setCtxConvo] = useState<{ convo: ConversationItemData; x: number; y: number } | null>(null);
@@ -131,6 +141,33 @@ export default function Chat() {
     return () => { supabase.removeChannel(ch); };
   }, [myId, fetchConversations]);
 
+  useEffect(() => {
+    const ids = Array.from(new Set(
+      conversations
+        .filter(c => !c.isKAI && !c.isGroup && c.otherId)
+        .map(c => c.otherId)
+    ));
+    const missingIds = ids.filter(id =>
+      !allProfiles?.some(p => p.id === id) && !chatProfiles[id]
+    );
+    if (missingIds.length === 0) return;
+
+    let cancelled = false;
+    supabase
+      .from('profiles')
+      .select('id, name, role, avatar_url, chat_display_name, chat_avatar_url')
+      .in('id', missingIds)
+      .then(({ data, error }) => {
+        if (cancelled || error || !data?.length) return;
+        setChatProfiles(prev => ({
+          ...prev,
+          ...Object.fromEntries((data as ChatProfile[]).map(p => [p.id, p])),
+        }));
+      });
+
+    return () => { cancelled = true; };
+  }, [allProfiles, chatProfiles, conversations]);
+
   // ── Delete conversation (apenas para mim — oculta via localStorage) ───────
   const handleDeleteConversation = (conversationId: string) => {
     if (!myId) return;
@@ -182,17 +219,17 @@ export default function Chat() {
           unreadCount,
         };
       }
-      const p = allProfiles?.find(pr => pr.id === c.otherId);
+      const p = allProfiles?.find(pr => pr.id === c.otherId) ?? chatProfiles[c.otherId];
       return {
         ...c,
-        name: p?.name || 'Usuário',
+        name: p?.chat_display_name || p?.name || 'Usuário',
         role: p?.role || '',
-        avatarUrl: p?.avatar_url,
+        avatarUrl: p?.chat_avatar_url || p?.avatar_url,
         isUnread,
         unreadCount,
       };
     }),
-  [conversations, allProfiles, unreadByConversation]);
+  [conversations, allProfiles, chatProfiles, unreadByConversation]);
 
   // ── Map to ConversationItemData for sidebar ───────────────────────────────
   const sidebarConvos = useMemo<ConversationItemData[]>(() => {

@@ -6,6 +6,8 @@ import { cn } from '@/lib/utils';
 interface ChatInputBarProps {
   onSend: (text: string) => void;
   onSendAudio?: (blob: Blob) => void;
+  onTypingChange?: (isTyping: boolean) => void;
+  onRecordingChange?: (isRecording: boolean) => void;
   onGallery?: () => void;
   onCamera?: () => void;
   onAttach?: () => void;
@@ -15,7 +17,7 @@ interface ChatInputBarProps {
 }
 
 export function ChatInputBar({
-  onSend, onSendAudio, onGallery, onCamera, onAttach, disabled, sending, placeholder = 'Digite sua mensagem...',
+  onSend, onSendAudio, onTypingChange, onRecordingChange, onGallery, onCamera, onAttach, disabled, sending, placeholder = 'Digite sua mensagem...',
 }: ChatInputBarProps) {
   const [text, setText] = useState('');
   const [showMediaMenu, setShowMediaMenu] = useState(false);
@@ -45,13 +47,16 @@ export function ChatInputBar({
       if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
       audioContextRef.current?.close();
       if (holdTimerRef.current) clearTimeout(holdTimerRef.current);
+      onTypingChange?.(false);
+      onRecordingChange?.(false);
     };
-  }, []);
+  }, [onTypingChange, onRecordingChange]);
 
   const handleSend = () => {
     if (!canSend) return;
     onSend(text.trim());
     setText('');
+    onTypingChange?.(false);
     if (textareaRef.current) textareaRef.current.style.height = 'auto';
   };
 
@@ -64,6 +69,7 @@ export function ChatInputBar({
 
   const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setText(e.target.value);
+    onTypingChange?.(e.target.value.trim().length > 0);
     const el = e.target;
     el.style.height = 'auto';
     el.style.height = `${Math.min(el.scrollHeight, 96)}px`;
@@ -90,6 +96,7 @@ export function ChatInputBar({
         if (blob.size > 0) onSendAudio?.(blob);
         isRecordingRef.current = false;
         setIsRecording(false);
+        onRecordingChange?.(false);
         setAudioVolumes(Array(15).fill(10));
       };
       const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
@@ -110,6 +117,8 @@ export function ChatInputBar({
       recorder.start();
       isRecordingRef.current = true;
       setIsRecording(true);
+      onTypingChange?.(false);
+      onRecordingChange?.(true);
     } catch {
       alert('Não foi possível acessar o microfone.');
     }
@@ -133,6 +142,7 @@ export function ChatInputBar({
     }
     isRecordingRef.current = false;
     setIsRecording(false);
+    onRecordingChange?.(false);
     setRecordingSeconds(0);
     setAudioVolumes(Array(15).fill(10));
   };

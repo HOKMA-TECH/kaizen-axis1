@@ -27,20 +27,25 @@ const PAGE_SIZE = 50;
 export function ChatDetailPanel({
   otherId, otherName, otherRole, otherAvatar, isKAI, isGroup, isOnline, onClose,
 }: ChatDetailPanelProps) {
-  const { user } = useApp();
+  const { user, profile } = useApp();
   const { markConversationRead } = useChatUnread();
   const myId = user?.id;
+  const myName = profile?.chat_display_name || profile?.name || user?.email || 'Usuario';
 
   const [messages, setMessages] = useState<BubbleMessage[]>([]);
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState(false);
   const [showCamera, setShowCamera] = useState(false);
+  const [remoteActivity, setRemoteActivity] = useState<{ name: string; type: 'typing' | 'recording' } | null>(null);
 
   const bottomRef = useRef<HTMLDivElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
   const documentInputRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const cameraStreamRef = useRef<MediaStream | null>(null);
+  const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+  const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const remoteActivityTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const groupId = isGroup && otherId ? otherId.replace('group-', '') : null;
 
@@ -122,7 +127,7 @@ export function ChatDetailPanel({
     loadMessages();
     if (isKAI) return; // KAI responses are added directly after send, no realtime needed
     const channel = supabase
-      .channel(`panel:${conversationId}`)
+      .channel(`panel:${conversationId}`, { config: { broadcast: { self: false } } })
       .on('postgres_changes', {
         event: 'INSERT', schema: 'public', table: 'chat_messages',
         filter: `conversation_id=eq.${conversationId}`,
@@ -136,9 +141,30 @@ export function ChatDetailPanel({
           markConversationRead(conversationId);
         }
       })
+      .on('broadcast', { event: 'chat-activity' }, ({ payload }) => {
+        if (!payload || payload.userId === myId) return;
+        if (payload.type === 'typing' || payload.type === 'recording') {
+          setRemoteActivity({ name: payload.name || otherName || 'Usuario', type: payload.type });
+          if (remoteActivityTimeoutRef.current) clearTimeout(remoteActivityTimeoutRef.current);
+          remoteActivityTimeoutRef.current = setTimeout(() => setRemoteActivity(null), payload.type === 'recording' ? 6000 : 2500);
+        } else if (payload.type === 'idle') {
+          setRemoteActivity(null);
+        }
+      })
       .subscribe();
-    return () => { supabase.removeChannel(channel); };
-  }, [conversationId, myId, isKAI, loadMessages, mapMsg, markConversationRead]);
+    channelRef.current = channel;
+    return () => {
+      channelRef.current?.send({
+        type: 'broadcast',
+        event: 'chat-activity',
+        payload: { userId: myId, name: myName, type: 'idle' },
+      });
+      channelRef.current = null;
+      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+      if (remoteActivityTimeoutRef.current) clearTimeout(remoteActivityTimeoutRef.current);
+      supabase.removeChannel(channel);
+    };
+  }, [conversationId, myId, myName, otherName, isKAI, isGroup, loadMessages, mapMsg, markConversationRead]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -148,8 +174,38 @@ export function ChatDetailPanel({
   useEffect(() => {
     return () => {
       cameraStreamRef.current?.getTracks().forEach(t => t.stop());
+      channelRef.current?.send({
+        type: 'broadcast',
+        event: 'chat-activity',
+        payload: { userId: myId, name: myName, type: 'idle' },
+      });
     };
-  }, []);
+  }, [myId, myName]);
+
+  const sendActivity = useCallback((type: 'typing' | 'recording' | 'idle') => {
+    if (!myId || isKAI) return;
+    channelRef.current?.send({
+      type: 'broadcast',
+      event: 'chat-activity',
+      payload: { userId: myId, name: myName, type },
+    });
+  }, [isKAI, myId, myName]);
+
+  const handleTypingChange = useCallback((isTyping: boolean) => {
+    if (isTyping) {
+      sendActivity('typing');
+      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+      typingTimeoutRef.current = setTimeout(() => sendActivity('idle'), 1800);
+    } else {
+      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+      sendActivity('idle');
+    }
+  }, [sendActivity]);
+
+  const handleRecordingChange = useCallback((isRecordingAudio: boolean) => {
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+    sendActivity(isRecordingAudio ? 'recording' : 'idle');
+  }, [sendActivity]);
 
   const handleSendAudio = async (blob: Blob) => {
     if (!myId || !otherId || isKAI) return;
@@ -539,9 +595,17 @@ export function ChatDetailPanel({
         <div ref={bottomRef} />
       </div>
 
+      {remoteActivity && (
+        <div className="px-4 pb-2 text-xs font-medium text-emerald-600 animate-pulse">
+          {remoteActivity.name} {remoteActivity.type === 'recording' ? 'está gravando áudio...' : 'está digitando...'}
+        </div>
+      )}
+
       <ChatInputBar
         onSend={handleSend}
         onSendAudio={handleSendAudio}
+        onTypingChange={handleTypingChange}
+        onRecordingChange={handleRecordingChange}
         onGallery={() => galleryInputRef.current?.click()}
         onAttach={() => documentInputRef.current?.click()}
         onCamera={openCamera}

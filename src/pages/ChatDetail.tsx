@@ -420,6 +420,7 @@ export default function ChatDetail() {
   const [showAttachments, setShowAttachments] = useState(false);
   const [isKaiTyping, setIsKaiTyping] = useState(false);
   const [typingUser, setTypingUser] = useState<string | null>(null);
+  const [recordingUser, setRecordingUser] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [isSendingMessage, setIsSendingMessage] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
@@ -496,14 +497,32 @@ export default function ChatDetail() {
     if (found) {
       setChatUser({
         id: found.id,
-        name: found.name,
-        avatar: (found as any).avatar_url,
+        name: found.chat_display_name || found.name,
+        avatar: (found as any).chat_avatar_url || (found as any).avatar_url,
         role: found.role,
       });
       return;
     }
-    // Fallback when profile is not visible by RLS/scoping, but chat is valid.
-    setChatUser({ id, name: 'Usuario' });
+    let cancelled = false;
+    supabase
+      .from('profiles')
+      .select('id, name, role, avatar_url, chat_display_name, chat_avatar_url')
+      .eq('id', id)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (cancelled) return;
+        if (data) {
+          setChatUser({
+            id: data.id,
+            name: data.chat_display_name || data.name,
+            avatar: data.chat_avatar_url || data.avatar_url,
+            role: data.role,
+          });
+        } else {
+          setChatUser({ id, name: 'Usuario' });
+        }
+      });
+    return () => { cancelled = true; };
   }, [id, allProfiles, isKAI]);
 
   // ─── Upload to Supabase Storage (public) ─────────────────────────────────
@@ -667,11 +686,13 @@ export default function ChatDetail() {
 
     // Presence for typing indicator + online status
     channel.on('presence', { event: 'sync' }, () => {
-      const state = channel.presenceState<{ name: string; isTyping: boolean }>();
+      const state = channel.presenceState<{ name: string; isTyping: boolean; isRecordingAudio?: boolean }>();
       const others = Object.values(state)
         .flat()
         .filter((p: any) => p.userId !== myId);
+      const recording = others.find((p: any) => p.isRecordingAudio);
       const typing = others.find((p: any) => p.isTyping);
+      setRecordingUser(recording ? (recording as any).name : null);
       setTypingUser(typing ? (typing as any).name : null);
       setIsOtherOnline(others.length > 0);
     });
@@ -679,7 +700,7 @@ export default function ChatDetail() {
     channel.subscribe(async (status) => {
       if (status === 'SUBSCRIBED') {
         // Track our presence
-        await channel.track({ userId: myId, name: myName, isTyping: false });
+        await channel.track({ userId: myId, name: myName, isTyping: false, isRecordingAudio: false });
       }
     });
 
@@ -691,7 +712,7 @@ export default function ChatDetail() {
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, isKaiTyping, typingUser]);
+  }, [messages, isKaiTyping, typingUser, recordingUser]);
 
   // Mark conversation as read when opening
   useEffect(() => {
@@ -744,6 +765,8 @@ export default function ChatDetail() {
       if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
       audioContextRef.current?.close();
       if (mediaRecorderRef.current?.state === 'recording') mediaRecorderRef.current.stop();
+      const ch = supabase.getChannels().find(c => c.topic === `realtime:chat:${conversationId}`);
+      ch?.track({ userId: myId, name: myName, isTyping: false, isRecordingAudio: false });
       stopCamera();
       if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
       if (pressTimer.current) clearTimeout(pressTimer.current);
@@ -773,12 +796,17 @@ export default function ChatDetail() {
     // Update presence with isTyping = true
     const allChannels = supabase.getChannels();
     const ch = allChannels.find(c => c.topic === `realtime:chat:${conversationId}`);
-    ch?.track({ userId: myId, name: myName, isTyping: true });
+    const isTyping = value.trim().length > 0;
+    ch?.track({ userId: myId, name: myName, isTyping, isRecordingAudio: false });
+    if (!isTyping) {
+      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+      return;
+    }
 
     // Reset typing after 2 seconds of inactivity
     if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
     typingTimeoutRef.current = setTimeout(() => {
-      ch?.track({ userId: myId, name: myName, isTyping: false });
+      ch?.track({ userId: myId, name: myName, isTyping: false, isRecordingAudio: false });
     }, 2000);
   };
 
@@ -927,7 +955,7 @@ export default function ChatDetail() {
     // Stop typing indicator
     const allChannels = supabase.getChannels();
     const ch = allChannels.find(c => c.topic === `realtime:chat:${conversationId}`);
-    ch?.track({ userId: myId, name: myName, isTyping: false });
+    ch?.track({ userId: myId, name: myName, isTyping: false, isRecordingAudio: false });
     setIsSendingMessage(false);
   };
 
@@ -1108,6 +1136,8 @@ export default function ChatDetail() {
       update();
       recorder.start();
       setIsRecording(true);
+      const ch = supabase.getChannels().find(c => c.topic === `realtime:chat:${conversationId}`);
+      ch?.track({ userId: myId, name: myName, isTyping: false, isRecordingAudio: true });
     } catch { alert('Não foi possível acessar o microfone.'); }
   };
 
@@ -1115,6 +1145,8 @@ export default function ChatDetail() {
     if (mediaRecorderRef.current?.state === 'recording') {
       mediaRecorderRef.current.stop();
       setIsRecording(false);
+      const ch = supabase.getChannels().find(c => c.topic === `realtime:chat:${conversationId}`);
+      ch?.track({ userId: myId, name: myName, isTyping: false, isRecordingAudio: false });
     }
   };
 
@@ -1128,6 +1160,8 @@ export default function ChatDetail() {
       mediaRecorderRef.current.stop();
       setIsRecording(false);
       setAudioVolumes(Array(15).fill(10));
+      const ch = supabase.getChannels().find(c => c.topic === `realtime:chat:${conversationId}`);
+      ch?.track({ userId: myId, name: myName, isTyping: false, isRecordingAudio: false });
     }
   };
 
@@ -1205,9 +1239,14 @@ export default function ChatDetail() {
   );
 
   const initials = chatUser.name.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase();
-  const isTypingVisible = typingUser || isKaiTyping;
-  const typingLabel = isKaiTyping ? 'KAI está digitando...' : typingUser ? `${typingUser} está digitando...` : '';
-
+  const isTypingVisible = recordingUser || typingUser || isKaiTyping;
+  const activityLabel = recordingUser
+    ? `${recordingUser} está gravando áudio...`
+    : isKaiTyping
+      ? 'KAI está digitando...'
+      : typingUser
+        ? `${typingUser} está digitando...`
+        : '';
   return (
     <div className="flex flex-col h-screen bg-white dark:bg-[#0b141a]">
       {/* Header */}
@@ -1253,7 +1292,7 @@ export default function ChatDetail() {
               <span key={d} className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-bounce" style={{ animationDelay: `${d}ms` }} />
             ))}
           </div>
-          <span className="text-xs text-emerald-600 font-medium animate-pulse">{typingLabel}</span>
+          <span className="text-xs text-emerald-600 font-medium animate-pulse">{activityLabel}</span>
         </div>
       )}
 
@@ -1456,7 +1495,7 @@ export default function ChatDetail() {
                   <span key={d} className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: `${d}ms` }} />
                 ))}
               </div>
-              <span className="text-xs text-text-secondary ml-1">{typingLabel}</span>
+              <span className="text-xs text-text-secondary ml-1">{activityLabel}</span>
             </div>
           </div>
         )}
