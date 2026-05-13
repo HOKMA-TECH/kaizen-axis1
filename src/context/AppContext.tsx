@@ -28,6 +28,10 @@ export interface Profile {
   manager_id?: string | null;
   coordinator_id?: string | null;
   avatar_url?: string | null;
+  chat_display_name?: string | null;
+  chat_avatar_url?: string | null;
+  chat_status_text?: string | null;
+  chat_availability?: string | null;
 }
 
 export interface Appointment {

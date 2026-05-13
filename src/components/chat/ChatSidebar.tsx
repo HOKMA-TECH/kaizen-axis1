@@ -1,10 +1,18 @@
-import { useState } from 'react';
-import { Search, PenSquare, MoreHorizontal, Users, X, Check } from 'lucide-react';
+import { useState, useRef } from 'react';
+import { Search, PenSquare, MoreHorizontal, Users, X, Check, UserCircle, Camera } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { supabase } from '@/lib/supabase';
 import { useApp } from '@/context/AppContext';
 import { ChatKaiCard } from './ChatKaiCard';
 import { ChatConversationItem, ConversationItemData } from './ChatConversationItem';
+
+type Availability = 'available' | 'busy' | 'dnd';
+
+const AVAILABILITY_OPTIONS: { value: Availability; label: string; color: string }[] = [
+  { value: 'available', label: 'Disponível',     color: 'bg-emerald-500' },
+  { value: 'busy',      label: 'Ocupado',         color: 'bg-yellow-400' },
+  { value: 'dnd',       label: 'Não perturbe',    color: 'bg-red-500' },
+];
 
 interface ChatSidebarProps {
   conversations: ConversationItemData[];
@@ -23,7 +31,7 @@ export function ChatSidebar({
   conversations, selectedId, totalUnread, onSelect, onKaiClick,
   onNewConversation, onContextMenu, onTouchStart, onTouchEnd, loading,
 }: ChatSidebarProps) {
-  const { user } = useApp();
+  const { user, profile, updateProfile } = useApp();
   const [search, setSearch] = useState('');
   const [focused, setFocused] = useState(false);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
@@ -31,6 +39,50 @@ export function ChatSidebar({
   const [groupName, setGroupName] = useState('');
   const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
   const [creating, setCreating] = useState(false);
+
+  // Perfil modal
+  const [showProfile, setShowProfile] = useState(false);
+  const [profileName, setProfileName] = useState('');
+  const [profileStatus, setProfileStatus] = useState('');
+  const [profileAvailability, setProfileAvailability] = useState<Availability>('available');
+  const [profileAvatar, setProfileAvatar] = useState<string | null>(null);
+  const [savingProfile, setSavingProfile] = useState(false);
+  const avatarInputRef = useRef<HTMLInputElement>(null);
+
+  const openProfile = () => {
+    setProfileName(profile?.chat_display_name || profile?.name || '');
+    setProfileStatus(profile?.chat_status_text || '');
+    setProfileAvailability((profile?.chat_availability as Availability) || 'available');
+    setProfileAvatar(profile?.chat_avatar_url || profile?.avatar_url || null);
+    setShowMoreMenu(false);
+    setShowProfile(true);
+  };
+
+  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user?.id) return;
+    const ext = file.name.split('.').pop() ?? 'jpg';
+    const path = `chat-avatars/${user.id}.${ext}`;
+    const { error } = await supabase.storage.from('chat-media').upload(path, file, { upsert: true, contentType: file.type });
+    if (!error) {
+      const url = supabase.storage.from('chat-media').getPublicUrl(path).data.publicUrl;
+      setProfileAvatar(url);
+    }
+    e.target.value = '';
+  };
+
+  const saveProfile = async () => {
+    if (!user?.id) return;
+    setSavingProfile(true);
+    await updateProfile(user.id, {
+      chat_display_name: profileName.trim() || null,
+      chat_status_text: profileStatus.trim() || null,
+      chat_availability: profileAvailability,
+      chat_avatar_url: profileAvatar || null,
+    });
+    setSavingProfile(false);
+    setShowProfile(false);
+  };
 
   const filtered = search.trim()
     ? conversations.filter(c => c.name.toLowerCase().includes(search.toLowerCase()))
@@ -80,6 +132,13 @@ export function ChatSidebar({
                     transition={{ duration: 0.15 }}
                     className="absolute right-0 top-full mt-1 bg-card-bg border border-surface-200 rounded-2xl shadow-xl overflow-hidden z-20 min-w-[180px]"
                   >
+                    <button
+                      onClick={openProfile}
+                      className="flex items-center gap-3 w-full px-4 py-3 text-sm text-text-primary hover:bg-surface-100 transition-colors"
+                    >
+                      <UserCircle size={16} className="text-primary-600" />
+                      Perfil
+                    </button>
                     <button
                       onClick={() => { setShowMoreMenu(false); setShowCreateGroup(true); }}
                       className="flex items-center gap-3 w-full px-4 py-3 text-sm text-text-primary hover:bg-surface-100 transition-colors"
@@ -154,6 +213,108 @@ export function ChatSidebar({
           )}
         </AnimatePresence>
       </div>
+
+      {/* Profile Modal */}
+      <AnimatePresence>
+        {showProfile && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="absolute inset-0 z-30 bg-black/40 backdrop-blur-sm flex items-end"
+            onClick={() => setShowProfile(false)}
+          >
+            <motion.div
+              initial={{ y: 40, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 40, opacity: 0 }}
+              transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+              className="w-full bg-card-bg rounded-t-3xl p-5 max-h-[90vh] overflow-y-auto"
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between mb-5">
+                <h3 className="font-bold text-text-primary text-base">Meu Perfil no Chat</h3>
+                <button onClick={() => setShowProfile(false)} className="p-1.5 rounded-xl text-text-secondary hover:bg-surface-100 transition-colors">
+                  <X size={16} />
+                </button>
+              </div>
+
+              {/* Avatar */}
+              <div className="flex justify-center mb-5">
+                <div className="relative">
+                  <input ref={avatarInputRef} type="file" className="hidden" accept="image/*" onChange={handleAvatarChange} />
+                  {profileAvatar ? (
+                    <img src={profileAvatar} alt="avatar" className="w-20 h-20 rounded-full object-cover ring-2 ring-surface-200" />
+                  ) : (
+                    <div className="w-20 h-20 rounded-full bg-surface-100 flex items-center justify-center ring-2 ring-surface-200">
+                      <UserCircle size={36} className="text-text-secondary" />
+                    </div>
+                  )}
+                  <button
+                    onClick={() => avatarInputRef.current?.click()}
+                    className="absolute bottom-0 right-0 p-1.5 rounded-full bg-primary-600 text-white shadow-md hover:bg-primary-700 transition-colors"
+                  >
+                    <Camera size={12} />
+                  </button>
+                </div>
+              </div>
+
+              {/* Nome no chat */}
+              <div className="mb-3">
+                <label className="text-xs font-semibold text-text-secondary uppercase tracking-widest block mb-1.5">Nome no chat</label>
+                <input
+                  type="text"
+                  placeholder={profile?.name || 'Seu nome'}
+                  value={profileName}
+                  onChange={e => setProfileName(e.target.value)}
+                  className="w-full px-4 py-2.5 rounded-xl bg-surface-100 dark:bg-surface-200/10 text-sm text-text-primary placeholder:text-text-secondary focus:outline-none focus:ring-2 focus:ring-primary-400/40"
+                />
+              </div>
+
+              {/* Status */}
+              <div className="mb-4">
+                <label className="text-xs font-semibold text-text-secondary uppercase tracking-widest block mb-1.5">Status</label>
+                <input
+                  type="text"
+                  placeholder="Ex: No trabalho, Disponível para conversar..."
+                  value={profileStatus}
+                  onChange={e => setProfileStatus(e.target.value)}
+                  className="w-full px-4 py-2.5 rounded-xl bg-surface-100 dark:bg-surface-200/10 text-sm text-text-primary placeholder:text-text-secondary focus:outline-none focus:ring-2 focus:ring-primary-400/40"
+                />
+              </div>
+
+              {/* Disponibilidade */}
+              <div className="mb-5">
+                <label className="text-xs font-semibold text-text-secondary uppercase tracking-widest block mb-2">Disponibilidade</label>
+                <div className="flex flex-col gap-2">
+                  {AVAILABILITY_OPTIONS.map(opt => (
+                    <button
+                      key={opt.value}
+                      onClick={() => setProfileAvailability(opt.value)}
+                      className={`flex items-center gap-3 px-4 py-2.5 rounded-xl border transition-colors text-sm font-medium ${
+                        profileAvailability === opt.value
+                          ? 'border-primary-400 bg-primary-50 dark:bg-primary-900/20 text-text-primary'
+                          : 'border-surface-200 bg-surface-50 dark:bg-surface-200/10 text-text-secondary hover:bg-surface-100'
+                      }`}
+                    >
+                      <span className={`w-3 h-3 rounded-full flex-shrink-0 ${opt.color}`} />
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <button
+                onClick={saveProfile}
+                disabled={savingProfile}
+                className="w-full py-2.5 rounded-xl bg-primary-600 text-white text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed hover:bg-primary-700 transition-colors"
+              >
+                {savingProfile ? 'Salvando...' : 'Salvar perfil'}
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Create Group Modal */}
       <AnimatePresence>

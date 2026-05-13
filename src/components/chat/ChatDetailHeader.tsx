@@ -1,4 +1,4 @@
-import { Phone, Video, MoreVertical, Bot, ArrowLeft } from 'lucide-react';
+import { MoreVertical, Bot, ArrowLeft } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { getColor, getInitials } from '@/lib/chat-utils';
 
@@ -58,16 +58,6 @@ export function ChatDetailHeader({
       </div>
 
       <div className="flex items-center gap-1 flex-shrink-0">
-        {!isKAI && (
-          <>
-            <button className="p-2 rounded-xl text-text-secondary hover:text-text-primary hover:bg-surface-100 dark:hover:bg-surface-200/10 transition-colors" title="Ligar">
-              <Phone size={16} />
-            </button>
-            <button className="p-2 rounded-xl text-text-secondary hover:text-text-primary hover:bg-surface-100 dark:hover:bg-surface-200/10 transition-colors" title="Vídeo">
-              <Video size={16} />
-            </button>
-          </>
-        )}
         {onMore && (
           <button
             onClick={onMore}
