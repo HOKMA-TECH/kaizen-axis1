@@ -53,17 +53,34 @@ export function ChatMessageBubble({ message, index, onDeleteForMe, onDeleteForAl
     }
   };
 
-  const downloadMedia = (e?: React.MouseEvent) => {
+  const isPdf = message.type === 'document' && (
+    mediaName.toLowerCase().endsWith('.pdf') ||
+    message.mediaUrl?.toLowerCase().includes('.pdf')
+  );
+
+  const downloadMedia = async (e?: React.MouseEvent) => {
     e?.stopPropagation();
     if (!message.mediaUrl) return;
-    const a = document.createElement('a');
-    a.href = message.mediaUrl;
-    a.download = mediaName;
-    a.target = '_blank';
-    a.rel = 'noopener noreferrer';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
+    try {
+      const response = await fetch(message.mediaUrl);
+      if (!response.ok) throw new Error('download failed');
+      const blob = await response.blob();
+      const objectUrl = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = objectUrl;
+      a.download = mediaName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(objectUrl);
+    } catch {
+      const a = document.createElement('a');
+      a.href = message.mediaUrl;
+      a.download = mediaName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    }
   };
 
   const handleTouchStart = () => {
@@ -325,13 +342,29 @@ export function ChatMessageBubble({ message, index, onDeleteForMe, onDeleteForAl
                 onClick={e => e.stopPropagation()}
               />
             )}
-            {message.type === 'document' && (
+            {message.type === 'document' && isPdf && (
               <iframe
-                src={message.mediaUrl}
+                src={`${message.mediaUrl}#toolbar=1&navpanes=0`}
                 title={mediaName}
                 className="w-full h-full max-w-5xl bg-white border-0 shadow-sm"
                 onClick={e => e.stopPropagation()}
               />
+            )}
+            {message.type === 'document' && !isPdf && (
+              <div
+                className="max-w-md w-full bg-card-bg border border-surface-200 rounded-xl p-6 text-center shadow-sm"
+                onClick={e => e.stopPropagation()}
+              >
+                <FileText size={42} className="mx-auto mb-3 text-primary-500" />
+                <p className="text-sm font-semibold text-text-primary truncate">{mediaName}</p>
+                <p className="text-xs text-text-secondary mt-1 mb-4">Este arquivo nao pode ser visualizado aqui.</p>
+                <button
+                  onClick={downloadMedia}
+                  className="inline-flex items-center gap-2 rounded-xl bg-primary-600 px-4 py-2 text-sm font-semibold text-white hover:bg-primary-700 transition-colors"
+                >
+                  <Download size={16} /> Baixar arquivo
+                </button>
+              </div>
             )}
           </div>
         </div>

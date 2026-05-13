@@ -10,6 +10,7 @@ import { ChatDetailHeader } from './ChatDetailHeader';
 import { ChatMessageBubble, BubbleMessage } from './ChatMessageBubble';
 import { ChatInputBar } from './ChatInputBar';
 import { ChatWelcome } from './ChatWelcome';
+import { ChatInfoModal, ChatProfileInfo, ChatGroupInfo } from './ChatInfoModal';
 
 interface ChatDetailPanelProps {
   otherId: string | null;
@@ -37,6 +38,10 @@ export function ChatDetailPanel({
   const [sending, setSending] = useState(false);
   const [showCamera, setShowCamera] = useState(false);
   const [remoteActivity, setRemoteActivity] = useState<{ name: string; type: 'typing' | 'recording' } | null>(null);
+  const [showInfo, setShowInfo] = useState(false);
+  const [infoLoading, setInfoLoading] = useState(false);
+  const [userInfo, setUserInfo] = useState<ChatProfileInfo | null>(null);
+  const [groupInfo, setGroupInfo] = useState<ChatGroupInfo | null>(null);
 
   const bottomRef = useRef<HTMLDivElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
@@ -207,6 +212,56 @@ export function ChatDetailPanel({
     if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
     sendActivity(isRecordingAudio ? 'recording' : 'idle');
   }, [sendActivity]);
+
+  const openInfo = useCallback(async () => {
+    if (!otherId || isKAI) return;
+    setShowInfo(true);
+    setInfoLoading(true);
+    setUserInfo(null);
+    setGroupInfo(null);
+
+    if (isGroup && groupId) {
+      const [{ data: group }, { data: members }] = await Promise.all([
+        supabase
+          .from('chat_groups')
+          .select('id, name, avatar_url, created_by')
+          .eq('id', groupId)
+          .maybeSingle(),
+        supabase
+          .from('chat_group_members')
+          .select('user_id, profiles:user_id(id, name, role, avatar_url, chat_display_name, chat_avatar_url, chat_status_text, chat_availability)')
+          .eq('group_id', groupId),
+      ]);
+
+      const memberProfiles = (members || [])
+        .map((row: any) => row.profiles)
+        .filter(Boolean) as ChatProfileInfo[];
+
+      setGroupInfo({
+        id: group?.id || groupId,
+        name: group?.name || otherName || 'Grupo',
+        avatar_url: group?.avatar_url || null,
+        created_by: group?.created_by || null,
+        members: memberProfiles,
+      });
+      setInfoLoading(false);
+      return;
+    }
+
+    const { data } = await supabase
+      .from('profiles')
+      .select('id, name, role, avatar_url, chat_display_name, chat_avatar_url, chat_status_text, chat_availability')
+      .eq('id', otherId)
+      .maybeSingle();
+
+    setUserInfo((data as ChatProfileInfo | null) || {
+      id: otherId,
+      name: otherName,
+      role: otherRole,
+      avatar_url: otherAvatar || null,
+    });
+    setInfoLoading(false);
+  }, [groupId, isGroup, isKAI, otherAvatar, otherId, otherName, otherRole]);
 
   const handleSendAudio = async (blob: Blob) => {
     if (!myId || !otherId || isKAI) return;
@@ -554,6 +609,7 @@ export function ChatDetailPanel({
         isOnline={isOnline}
         onBack={onClose}
         onMore={undefined}
+        onProfileClick={openInfo}
       />
 
       <div className="flex-1 overflow-y-auto no-scrollbar px-4 py-4">
@@ -614,6 +670,13 @@ export function ChatDetailPanel({
         disabled={!myId}
       />
     </motion.div>
+    <ChatInfoModal
+      open={showInfo}
+      onClose={() => setShowInfo(false)}
+      loading={infoLoading}
+      userInfo={userInfo}
+      groupInfo={groupInfo}
+    />
     </>
   );
 }
