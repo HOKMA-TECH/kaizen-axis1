@@ -265,10 +265,10 @@ export default function Chat() {
         <div className="flex-1 min-w-0 flex flex-col">
           <ChatDetailPanel
             otherId={selectedId}
-            otherName={selectedConvo?.name ?? ''}
+            otherName={selectedId === 'kai-agent' ? 'KAI' : (selectedConvo?.name ?? '')}
             otherRole={selectedConvo?.role}
             otherAvatar={selectedConvo?.avatarUrl}
-            isKAI={selectedConvo?.isKAI}
+            isKAI={selectedId === 'kai-agent' || selectedConvo?.isKAI}
             isGroup={selectedConvo?.isGroup}
             isOnline={selectedConvo?.isOnline}
             onClose={() => setSelectedId(null)}
