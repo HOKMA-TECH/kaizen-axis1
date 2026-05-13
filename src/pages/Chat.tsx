@@ -195,8 +195,8 @@ export default function Chat() {
   [conversations, allProfiles, unreadByConversation]);
 
   // ── Map to ConversationItemData for sidebar ───────────────────────────────
-  const sidebarConvos = useMemo<ConversationItemData[]>(() =>
-    enrichedConvos.map(c => ({
+  const sidebarConvos = useMemo<ConversationItemData[]>(() => {
+    const mapped = enrichedConvos.map(c => ({
       conversationId: c.conversationId,
       otherId: c.otherId,
       isKAI: c.isKAI,
@@ -208,8 +208,13 @@ export default function Chat() {
       timestamp: formatTime(c.lastAt),
       unreadCount: c.unreadCount,
       isOnline: c.isKAI ? true : undefined,
-    })),
-  [enrichedConvos]);
+    }));
+    // grupos primeiro, depois KAI, depois conversas individuais — cada grupo mantém ordem original
+    return [
+      ...mapped.filter(c => c.isGroup),
+      ...mapped.filter(c => !c.isGroup),
+    ];
+  }, [enrichedConvos]);
 
   // ── Selected convo info ───────────────────────────────────────────────────
   const selectedConvo = useMemo(() =>
