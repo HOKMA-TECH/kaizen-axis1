@@ -173,7 +173,8 @@ export function ChatMessageBubble({ message, index, onDeleteForMe, onDeleteForAl
         )}
 
         <div className={cn(
-          'px-3.5 py-2 shadow-sm',
+          'shadow-sm',
+          message.type === 'text' || message.type === 'audio' ? 'px-3.5 py-2' : 'p-1',
           message.isMe
             ? 'bg-primary-600 text-white rounded-2xl rounded-tr-sm'
             : message.isKAI
@@ -233,7 +234,8 @@ export function ChatMessageBubble({ message, index, onDeleteForMe, onDeleteForAl
           )}
 
           <div className={cn(
-            'flex items-center gap-1 mt-1 justify-end',
+            'flex items-center gap-1 mt-0.5 justify-end',
+            message.type !== 'text' && message.type !== 'audio' && 'px-1.5 pb-0.5',
             message.isMe ? 'text-white/60' : 'text-text-secondary'
           )}>
             <span className="text-[10px]">{message.timestamp}</span>
