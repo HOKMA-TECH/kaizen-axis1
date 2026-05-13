@@ -1,6 +1,6 @@
 import { useRef, useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Image, Send, Loader2, Mic, Camera, X, Paperclip } from 'lucide-react';
+import { Image, Send, Loader2, Mic, Camera, X, Paperclip, EyeOff, Eye } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface ChatInputBarProps {
@@ -14,10 +14,12 @@ interface ChatInputBarProps {
   disabled?: boolean;
   sending?: boolean;
   placeholder?: string;
+  viewOnceActive?: boolean;
+  onViewOnceToggle?: () => void;
 }
 
 export function ChatInputBar({
-  onSend, onSendAudio, onTypingChange, onRecordingChange, onGallery, onCamera, onAttach, disabled, sending, placeholder = 'Digite sua mensagem...',
+  onSend, onSendAudio, onTypingChange, onRecordingChange, onGallery, onCamera, onAttach, disabled, sending, placeholder = 'Digite sua mensagem...', viewOnceActive, onViewOnceToggle,
 }: ChatInputBarProps) {
   const [text, setText] = useState('');
   const [showMediaMenu, setShowMediaMenu] = useState(false);
@@ -214,13 +216,30 @@ export function ChatInputBar({
         )}
       >
         {!isRecording && (
-          <button
-            onClick={() => setShowMediaMenu(v => !v)}
-            className="p-1.5 rounded-lg text-text-secondary hover:text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-colors flex-shrink-0 mb-0.5"
-            title="Mídia"
-          >
-            <Image size={16} />
-          </button>
+          <div className="flex items-center gap-0.5 flex-shrink-0 mb-0.5">
+            <button
+              onClick={() => setShowMediaMenu(v => !v)}
+              className="p-1.5 rounded-lg text-text-secondary hover:text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-colors"
+              title="Mídia"
+            >
+              <Image size={16} />
+            </button>
+            <button
+              onClick={onViewOnceToggle}
+              title={viewOnceActive ? 'Visualização única ativada' : 'Enviar como visualização única'}
+              className={cn(
+                'relative p-1 rounded-md transition-all duration-150',
+                viewOnceActive
+                  ? 'text-primary-600 bg-primary-50 dark:bg-primary-900/30'
+                  : 'text-text-secondary/50 hover:text-text-secondary hover:bg-surface-100'
+              )}
+            >
+              {viewOnceActive ? <Eye size={13} /> : <EyeOff size={13} />}
+              {viewOnceActive && (
+                <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full bg-primary-500" />
+              )}
+            </button>
+          </div>
         )}
 
         {isRecording ? (

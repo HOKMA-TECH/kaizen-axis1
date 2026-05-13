@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { motion } from 'motion/react';
-import { CheckCheck, Check, Smile, FileText, Download, X, Play } from 'lucide-react';
+import { CheckCheck, Check, Smile, FileText, Download, X, Play, Eye, EyeOff } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import ReactMarkdown from 'react-markdown';
 import { AudioPlayer } from './AudioPlayer';
@@ -18,6 +18,8 @@ export interface BubbleMessage {
   isKAI?: boolean;
   is_deleted?: boolean;
   reactions?: { emoji: string; count: number; reacted: boolean }[];
+  viewOnce?: boolean;
+  viewOnceOpened?: boolean;
 }
 
 interface ChatMessageBubbleProps {
@@ -26,11 +28,12 @@ interface ChatMessageBubbleProps {
   onDeleteForMe?: (id: string) => void;
   onDeleteForAll?: (id: string) => void;
   onReact?: (id: string, emoji: string) => void;
+  onMarkViewOnceOpened?: (id: string) => void;
 }
 
 const QUICK_EMOJIS = ['❤️', '😂', '😮', '😢', '👍', '🙏'];
 
-export function ChatMessageBubble({ message, index, onDeleteForMe, onDeleteForAll, onReact }: ChatMessageBubbleProps) {
+export function ChatMessageBubble({ message, index, onDeleteForMe, onDeleteForAll, onReact, onMarkViewOnceOpened }: ChatMessageBubbleProps) {
   const [showMenu, setShowMenu] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [hovered, setHovered] = useState(false);
@@ -46,10 +49,19 @@ export function ChatMessageBubble({ message, index, onDeleteForMe, onDeleteForAl
 
   const openViewer = (e?: React.MouseEvent) => {
     e?.stopPropagation();
-    if (message.mediaUrl && ['image', 'video', 'document'].includes(message.type)) {
+    const hasMedia = message.mediaUrl && ['image', 'video', 'document'].includes(message.type);
+    const isViewOnceText = message.viewOnce && message.type === 'text';
+    if (hasMedia || isViewOnceText) {
       setViewerOpen(true);
       setShowMenu(false);
       setShowEmojiPicker(false);
+    }
+  };
+
+  const closeViewer = () => {
+    setViewerOpen(false);
+    if (!message.isMe && message.viewOnce && !message.viewOnceOpened) {
+      onMarkViewOnceOpened?.(message.id);
     }
   };
 
@@ -181,7 +193,54 @@ export function ChatMessageBubble({ message, index, onDeleteForMe, onDeleteForAl
               ? 'bg-gradient-to-br from-surface-100 to-surface-50 dark:from-surface-200/20 dark:to-surface-100/10 text-text-primary rounded-2xl rounded-tl-sm border border-surface-200'
               : 'bg-card-bg text-text-primary rounded-2xl rounded-tl-sm border border-surface-200 dark:border-surface-100/10'
         )}>
-          {message.type === 'text' && message.isKAI ? (
+          {/* View-once: receiver taps to open */}
+          {message.viewOnce && !message.isMe && !message.viewOnceOpened ? (
+            <button
+              onClick={openViewer}
+              className={cn(
+                'flex items-center gap-2.5 min-w-[180px] px-1 py-0.5 text-left group'
+              )}
+            >
+              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-white/20 group-hover:bg-white/30 transition-colors flex-shrink-0">
+                <Eye size={18} />
+              </span>
+              <div>
+                <p className="text-sm font-medium leading-tight">
+                  {message.type === 'audio' ? 'Toque para ouvir' : message.type === 'video' ? 'Toque para assistir' : message.type === 'image' ? 'Toque para ver foto' : message.type === 'document' ? 'Toque para ver arquivo' : 'Toque para ler'}
+                </p>
+                <p className="text-[10px] opacity-60 mt-0.5">Visualização única</p>
+              </div>
+            </button>
+          ) : message.viewOnce && !message.isMe && message.viewOnceOpened ? (
+            /* View-once: receiver already opened */
+            <div className="flex items-center gap-2.5 min-w-[160px] px-1 py-0.5 opacity-50">
+              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-current/10 flex-shrink-0">
+                <EyeOff size={18} />
+              </span>
+              <div>
+                <p className="text-sm font-medium leading-tight">Já visualizada</p>
+                <p className="text-[10px] opacity-60 mt-0.5">Visualização única</p>
+              </div>
+            </div>
+          ) : message.viewOnce && message.isMe ? (
+            /* View-once: sender side */
+            <div className={cn('flex items-center gap-2.5 min-w-[180px] px-1 py-0.5', message.viewOnceOpened && 'opacity-60')}>
+              <span className={cn(
+                'flex h-9 w-9 items-center justify-center rounded-full flex-shrink-0',
+                message.isMe ? 'bg-white/20' : 'bg-current/10'
+              )}>
+                {message.viewOnceOpened ? <EyeOff size={18} /> : <Eye size={18} />}
+              </span>
+              <div>
+                <p className="text-sm font-medium leading-tight">
+                  {message.type === 'audio' ? 'Áudio' : message.type === 'video' ? 'Vídeo' : message.type === 'image' ? 'Foto' : message.type === 'document' ? 'Arquivo' : 'Mensagem'} · Visualização única
+                </p>
+                <p className="text-[10px] opacity-60 mt-0.5">
+                  {message.viewOnceOpened ? 'Aberta' : 'Aguardando abertura'}
+                </p>
+              </div>
+            </div>
+          ) : message.type === 'text' && message.isKAI ? (
             <div className={cn(
               'text-sm leading-relaxed prose prose-sm max-w-none',
               'prose-p:my-0.5 prose-ul:my-1 prose-li:my-0',
@@ -295,17 +354,17 @@ export function ChatMessageBubble({ message, index, onDeleteForMe, onDeleteForAl
         )}
       </div>
 
-      {viewerOpen && message.mediaUrl && (
+      {viewerOpen && (message.mediaUrl || (message.viewOnce && message.type === 'text')) && (
         <div
           className="fixed inset-0 z-[500] bg-white dark:bg-[#0b141a] flex flex-col"
-          onClick={() => setViewerOpen(false)}
+          onClick={closeViewer}
         >
           <div
             className="h-16 px-4 flex items-center gap-3 border-b border-surface-200 bg-card-bg text-text-primary"
             onClick={e => e.stopPropagation()}
           >
             <button
-              onClick={() => setViewerOpen(false)}
+              onClick={closeViewer}
               className="p-2 rounded-full hover:bg-surface-100 transition-colors"
               aria-label="Fechar"
             >
@@ -313,19 +372,37 @@ export function ChatMessageBubble({ message, index, onDeleteForMe, onDeleteForAl
             </button>
             <div className="min-w-0 flex-1">
               <p className="text-sm font-semibold truncate">{mediaName}</p>
-              <p className="text-xs text-text-secondary">{message.timestamp}</p>
+              {message.viewOnce ? (
+                <p className="text-xs text-primary-500 font-medium flex items-center gap-1">
+                  <Eye size={10} /> Visualização única
+                </p>
+              ) : (
+                <p className="text-xs text-text-secondary">{message.timestamp}</p>
+              )}
             </div>
-            <button
-              onClick={downloadMedia}
-              className="p-2 rounded-full hover:bg-surface-100 transition-colors"
-              aria-label="Baixar arquivo"
-              title="Baixar"
-            >
-              <Download size={22} />
-            </button>
+            {!message.viewOnce && (
+              <button
+                onClick={downloadMedia}
+                className="p-2 rounded-full hover:bg-surface-100 transition-colors"
+                aria-label="Baixar arquivo"
+                title="Baixar"
+              >
+                <Download size={22} />
+              </button>
+            )}
           </div>
 
           <div className="flex-1 min-h-0 flex items-center justify-center bg-surface-50 dark:bg-black/40 p-4">
+            {message.viewOnce && message.type === 'text' && (
+              <div
+                className="max-w-md w-full bg-card-bg border border-surface-200 rounded-2xl p-6 shadow-sm"
+                onClick={e => e.stopPropagation()}
+              >
+                <p className="text-sm leading-relaxed text-text-primary whitespace-pre-wrap break-words">
+                  {message.text}
+                </p>
+              </div>
+            )}
             {message.type === 'image' && (
               <img
                 src={message.mediaUrl}

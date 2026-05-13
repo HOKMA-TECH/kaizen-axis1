@@ -47,6 +47,7 @@ export function ChatDetailPanel({
   const [addingMemberId, setAddingMemberId] = useState<string | null>(null);
   const [leavingGroup, setLeavingGroup] = useState(false);
   const [deletingGroup, setDeletingGroup] = useState(false);
+  const [viewOnce, setViewOnce] = useState(false);
 
   const bottomRef = useRef<HTMLDivElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
@@ -98,6 +99,8 @@ export function ChatDetailPanel({
     deliveryStatus: 'sent' as const,
     is_deleted: m.is_deleted ?? false,
     reactions: [],
+    viewOnce: m.view_once ?? false,
+    viewOnceOpened: m.view_once_opened ?? false,
   }), [myId, isKAI]);
 
   const loadReactions = useCallback(async (msgs: BubbleMessage[]) => {
@@ -392,6 +395,8 @@ export function ChatDetailPanel({
   const handleSendAudio = async (blob: Blob) => {
     if (!myId || !otherId || isKAI) return;
     setSending(true);
+    const isViewOnce = viewOnce;
+    setViewOnce(false);
     const ext = blob.type.includes('mp4') ? 'm4a' : 'webm';
     const path = `${conversationId}/${Date.now()}_audio.${ext}`;
     const { error: uploadError } = await supabase.storage
@@ -405,6 +410,7 @@ export function ChatDetailPanel({
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       date: new Date().toLocaleDateString(),
       isMe: true, deliveryStatus: 'sending',
+      viewOnce: isViewOnce, viewOnceOpened: false,
     };
     setMessages(prev => [...prev, optimistic]);
     const { error } = await supabase.from('chat_messages').insert({
@@ -412,6 +418,7 @@ export function ChatDetailPanel({
       ...(isGroup ? { group_id: groupId } : { receiver_id: otherId }),
       conversation_id: conversationId,
       content: null, type: 'audio', media_url: mediaUrl,
+      view_once: isViewOnce,
     });
     setMessages(prev => prev.map(m =>
       m.id === tempId ? { ...m, deliveryStatus: error ? 'sending' : 'sent' as const } : m
@@ -424,6 +431,8 @@ export function ChatDetailPanel({
     if (!file || !myId || !otherId || isKAI) return;
     const isVideo = file.type.startsWith('video/');
     const type = isVideo ? 'video' : 'image';
+    const isViewOnce = viewOnce;
+    setViewOnce(false);
     setSending(true);
     const ext = file.name.split('.').pop() ?? 'jpg';
     const path = `${conversationId}/${Date.now()}_${type}.${ext}`;
@@ -436,6 +445,7 @@ export function ChatDetailPanel({
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         date: new Date().toLocaleDateString(),
         isMe: true, deliveryStatus: 'sending',
+        viewOnce: isViewOnce, viewOnceOpened: false,
       };
       setMessages(prev => [...prev, optimistic]);
       const { error } = await supabase.from('chat_messages').insert({
@@ -443,6 +453,7 @@ export function ChatDetailPanel({
         ...(isGroup ? { group_id: groupId } : { receiver_id: otherId }),
         conversation_id: conversationId,
         content: null, type, media_url: mediaUrl, file_name: file.name,
+        view_once: isViewOnce,
       });
       setMessages(prev => prev.map(m =>
         m.id === tempId ? { ...m, deliveryStatus: error ? 'sending' : 'sent' as const } : m
@@ -455,6 +466,8 @@ export function ChatDetailPanel({
   const handleDocumentFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !myId || !otherId || isKAI) return;
+    const isViewOnce = viewOnce;
+    setViewOnce(false);
     setSending(true);
     const ext = file.name.split('.').pop() ?? 'pdf';
     const path = `${conversationId}/${Date.now()}_doc.${ext}`;
@@ -467,6 +480,7 @@ export function ChatDetailPanel({
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         date: new Date().toLocaleDateString(),
         isMe: true, deliveryStatus: 'sending',
+        viewOnce: isViewOnce, viewOnceOpened: false,
       };
       setMessages(prev => [...prev, optimistic]);
       const { error } = await supabase.from('chat_messages').insert({
@@ -474,6 +488,7 @@ export function ChatDetailPanel({
         ...(isGroup ? { group_id: groupId } : { receiver_id: otherId }),
         conversation_id: conversationId,
         content: file.name, type: 'document', media_url: mediaUrl, file_name: file.name,
+        view_once: isViewOnce,
       });
       setMessages(prev => prev.map(m =>
         m.id === tempId ? { ...m, deliveryStatus: error ? 'sending' : 'sent' as const } : m
@@ -504,6 +519,8 @@ export function ChatDetailPanel({
   const capturePhoto = async () => {
     const video = videoRef.current;
     if (!video || !myId || !otherId || isKAI) return;
+    const isViewOnce = viewOnce;
+    setViewOnce(false);
     const canvas = document.createElement('canvas');
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
@@ -522,6 +539,7 @@ export function ChatDetailPanel({
           timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
           date: new Date().toLocaleDateString(),
           isMe: true, deliveryStatus: 'sending',
+          viewOnce: isViewOnce, viewOnceOpened: false,
         };
         setMessages(prev => [...prev, optimistic]);
         const { error } = await supabase.from('chat_messages').insert({
@@ -529,6 +547,7 @@ export function ChatDetailPanel({
           ...(isGroup ? { group_id: groupId } : { receiver_id: otherId }),
           conversation_id: conversationId,
           content: null, type: 'image', media_url: mediaUrl,
+          view_once: isViewOnce,
         });
         setMessages(prev => prev.map(m =>
           m.id === tempId ? { ...m, deliveryStatus: error ? 'sending' : 'sent' as const } : m
@@ -595,6 +614,16 @@ export function ChatDetailPanel({
     }
   }, [myId]);
 
+  const handleMarkViewOnceOpened = useCallback(async (msgId: string) => {
+    setMessages(prev => prev.map(m =>
+      m.id === msgId ? { ...m, viewOnceOpened: true } : m
+    ));
+    await supabase
+      .from('chat_messages')
+      .update({ view_once_opened: true })
+      .eq('id', msgId);
+  }, []);
+
   const handleSend = async (text: string) => {
     if (!myId || !otherId) return;
     setSending(true);
@@ -652,14 +681,17 @@ export function ChatDetailPanel({
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         date: new Date().toLocaleDateString(),
         isMe: true, deliveryStatus: 'sending',
+        viewOnce, viewOnceOpened: false,
       };
       setMessages(prev => [...prev, optimistic]);
+      setViewOnce(false);
       const { error } = await supabase.from('chat_messages').insert({
         sender_id: myId,
         ...(isGroup ? { group_id: groupId } : { receiver_id: otherId }),
         conversation_id: conversationId,
         content: text,
         type: 'text',
+        view_once: viewOnce,
       });
       if (error) {
         setMessages(prev => prev.filter(m => m.id !== tempId));
@@ -769,6 +801,7 @@ export function ChatDetailPanel({
                     onDeleteForMe={handleDeleteForMe}
                     onDeleteForAll={handleDeleteForAll}
                     onReact={handleReact}
+                    onMarkViewOnceOpened={handleMarkViewOnceOpened}
                   />
                 </div>
               );
@@ -794,6 +827,8 @@ export function ChatDetailPanel({
         onCamera={openCamera}
         sending={sending}
         disabled={!myId}
+        viewOnceActive={viewOnce}
+        onViewOnceToggle={() => setViewOnce(v => !v)}
       />
     </motion.div>
     <ChatInfoModal
