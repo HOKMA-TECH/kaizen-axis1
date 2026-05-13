@@ -86,20 +86,35 @@ export function ChatSidebar({
     setSavingProfile(true);
     setSaveSuccess(false);
     setAvatarError(null);
-    try {
-      await updateProfile(user.id, {
+
+    const avatarUrl = profileAvatar ? profileAvatar.split('?')[0] : null;
+
+    // Direct update — bypasses the complex updateProfile team-sync logic
+    // which can silently skip the update if unrelated validations fail.
+    const { error } = await supabase
+      .from('profiles')
+      .update({
         chat_display_name: profileName.trim() || null,
         chat_status_text: profileStatus.trim() || null,
         chat_availability: profileAvailability,
-        chat_avatar_url: profileAvatar ? profileAvatar.split('?')[0] : null,
-      });
-      setSaveSuccess(true);
-      setTimeout(() => { setSaveSuccess(false); setShowProfile(false); }, 1200);
-    } catch (err: any) {
-      setAvatarError('Erro ao salvar perfil: ' + (err?.message ?? 'tente novamente'));
-    } finally {
+        chat_avatar_url: avatarUrl,
+      })
+      .eq('id', user.id);
+
+    if (error) {
+      setAvatarError(`Erro ao salvar: ${error.message}`);
       setSavingProfile(false);
+      return;
     }
+
+    // Refresh profile state so the sidebar/header reflects the change immediately
+    try {
+      await updateProfile(user.id, {});
+    } catch {}
+
+    setSavingProfile(false);
+    setSaveSuccess(true);
+    setTimeout(() => { setSaveSuccess(false); setShowProfile(false); }, 1200);
   };
 
   const searchTerm = search.trim().toLowerCase();
