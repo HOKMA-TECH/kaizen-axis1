@@ -11,13 +11,14 @@ export const CHAT_COLORS = [
   'from-teal-400 to-teal-500',
 ];
 
-export function getColor(id: string): string {
+export function getColor(id?: string | null): string {
+  const safeId = id || '?';
   return CHAT_COLORS[
-    id.split('').reduce((a, c) => a + c.charCodeAt(0), 0) % CHAT_COLORS.length
+    safeId.split('').reduce((a, c) => a + c.charCodeAt(0), 0) % CHAT_COLORS.length
   ];
 }
 
-export function getInitials(name: string): string {
+export function getInitials(name?: string | null): string {
   return (name || '?').split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase();
 }
 

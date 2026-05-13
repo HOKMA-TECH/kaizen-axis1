@@ -46,6 +46,9 @@ interface ChatUser {
   isAI?: boolean;
 }
 
+const resolveChatName = (profile?: { chat_display_name?: string | null; name?: string | null } | null) =>
+  profile?.chat_display_name?.trim() || profile?.name?.trim() || 'Usuario';
+
 // Detect best supported video MIME type for this device/browser
 function getSupportedVideoMimeType(): string {
   const types = [
@@ -497,7 +500,7 @@ export default function ChatDetail() {
     if (found) {
       setChatUser({
         id: found.id,
-        name: found.chat_display_name || found.name,
+        name: resolveChatName(found),
         avatar: (found as any).chat_avatar_url || (found as any).avatar_url,
         role: found.role,
       });
@@ -514,7 +517,7 @@ export default function ChatDetail() {
         if (data) {
           setChatUser({
             id: data.id,
-            name: data.chat_display_name || data.name,
+            name: resolveChatName(data),
             avatar: data.chat_avatar_url || data.avatar_url,
             role: data.role,
           });
@@ -1238,7 +1241,6 @@ export default function ChatDetail() {
     </div>
   );
 
-  const initials = chatUser.name.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase();
   const isTypingVisible = recordingUser || typingUser || isKaiTyping;
   const activityLabel = recordingUser
     ? `${recordingUser} está gravando áudio...`
