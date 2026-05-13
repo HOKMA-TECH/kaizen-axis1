@@ -69,10 +69,15 @@ export function ChatDetailPanel({
   const loadReactions = useCallback(async (msgs: BubbleMessage[]) => {
     if (msgs.length === 0) return msgs;
     const ids = msgs.map(m => m.id);
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('chat_message_reactions')
       .select('message_id, user_id, emoji')
       .in('message_id', ids);
+
+    if (error) {
+      console.error('[loadReactions]', error.message);
+      return msgs;
+    }
 
     const byMsg: Record<string, { emoji: string; count: number; reacted: boolean }[]> = {};
     for (const r of (data ?? [])) {
@@ -294,45 +299,62 @@ export function ChatDetailPanel({
     }, 'image/jpeg', 0.92);
   };
 
-  const handleDeleteForMe = async (msgId: string) => {
+  const handleDeleteForMe = useCallback(async (msgId: string) => {
     if (!myId) return;
     setMessages(prev => prev.filter(m => m.id !== msgId));
     await supabase.rpc('chat_delete_for_me', { p_message_id: msgId, p_user_id: myId });
-  };
+  }, [myId]);
 
-  const handleDeleteForAll = async (msgId: string) => {
+  const handleDeleteForAll = useCallback(async (msgId: string) => {
     if (!myId) return;
     setMessages(prev => prev.map(m =>
-      m.id === msgId ? { ...m, is_deleted: true, text: undefined, mediaUrl: undefined } : m
+      m.id === msgId && m.isMe
+        ? { ...m, is_deleted: true, text: undefined, mediaUrl: undefined }
+        : m
     ));
     await supabase
       .from('chat_messages')
       .update({ is_deleted: true, content: null, media_url: null })
       .eq('id', msgId)
       .eq('sender_id', myId);
-  };
+  }, [myId]);
 
-  const handleReact = async (msgId: string, emoji: string) => {
+  const handleReact = useCallback(async (msgId: string, emoji: string) => {
     if (!myId) return;
+
+    // Capture state before optimistic update for potential rollback
+    let isTogglingOff = false;
+
     setMessages(prev => prev.map(m => {
       if (m.id !== msgId) return m;
       const reactions = [...(m.reactions ?? [])];
       const existing = reactions.find(r => r.emoji === emoji);
+      if (existing && existing.reacted) {
+        isTogglingOff = true;
+        const updated = reactions
+          .map(r => r.emoji === emoji ? { ...r, count: r.count - 1, reacted: false } : r)
+          .filter(r => r.count > 0);
+        return { ...m, reactions: updated };
+      }
       if (existing) {
-        if (existing.reacted) {
-          const updated = reactions
-            .map(r => r.emoji === emoji ? { ...r, count: r.count - 1, reacted: false } : r)
-            .filter(r => r.count > 0);
-          return { ...m, reactions: updated };
-        }
         return { ...m, reactions: reactions.map(r => r.emoji === emoji ? { ...r, count: r.count + 1, reacted: true } : r) };
       }
       return { ...m, reactions: [...reactions, { emoji, count: 1, reacted: true }] };
     }));
-    await supabase
-      .from('chat_message_reactions')
-      .upsert({ message_id: msgId, user_id: myId, emoji }, { onConflict: 'message_id,user_id' });
-  };
+
+    if (isTogglingOff) {
+      await supabase
+        .from('chat_message_reactions')
+        .delete()
+        .eq('message_id', msgId)
+        .eq('user_id', myId)
+        .eq('emoji', emoji);
+    } else {
+      await supabase
+        .from('chat_message_reactions')
+        .upsert({ message_id: msgId, user_id: myId, emoji }, { onConflict: 'message_id,user_id' });
+    }
+  }, [myId]);
 
   const handleSend = async (text: string) => {
     if (!myId || !otherId) return;
