@@ -63,7 +63,30 @@ export function ChatDetailPanel({
     isKAI: isKAI && m.sender_id !== myId,
     deliveryStatus: 'sent' as const,
     is_deleted: m.is_deleted ?? false,
+    reactions: [],
   }), [myId, isKAI]);
+
+  const loadReactions = useCallback(async (msgs: BubbleMessage[]) => {
+    if (msgs.length === 0) return msgs;
+    const ids = msgs.map(m => m.id);
+    const { data } = await supabase
+      .from('chat_message_reactions')
+      .select('message_id, user_id, emoji')
+      .in('message_id', ids);
+
+    const byMsg: Record<string, { emoji: string; count: number; reacted: boolean }[]> = {};
+    for (const r of (data ?? [])) {
+      if (!byMsg[r.message_id]) byMsg[r.message_id] = [];
+      const existing = byMsg[r.message_id].find(x => x.emoji === r.emoji);
+      if (existing) {
+        existing.count++;
+        if (r.user_id === myId) existing.reacted = true;
+      } else {
+        byMsg[r.message_id].push({ emoji: r.emoji, count: 1, reacted: r.user_id === myId });
+      }
+    }
+    return msgs.map(m => ({ ...m, reactions: byMsg[m.id] ?? [] }));
+  }, [myId]);
 
   const loadMessages = useCallback(async () => {
     if (!conversationId || isKAI) return;
@@ -75,9 +98,11 @@ export function ChatDetailPanel({
       .not('deleted_for', 'cs', `{"${myId}"}`)
       .order('created_at', { ascending: false })
       .range(0, PAGE_SIZE - 1);
-    setMessages((data ?? []).map(mapMsg).reverse());
+    const msgs = (data ?? []).map(mapMsg).reverse();
+    const withReactions = await loadReactions(msgs);
+    setMessages(withReactions);
     setLoading(false);
-  }, [conversationId, isKAI, myId, mapMsg]);
+  }, [conversationId, isKAI, myId, mapMsg, loadReactions]);
 
   useEffect(() => {
     if (conversationId) markConversationRead(conversationId);
@@ -269,6 +294,46 @@ export function ChatDetailPanel({
     }, 'image/jpeg', 0.92);
   };
 
+  const handleDeleteForMe = async (msgId: string) => {
+    if (!myId) return;
+    setMessages(prev => prev.filter(m => m.id !== msgId));
+    await supabase.rpc('chat_delete_for_me', { p_message_id: msgId, p_user_id: myId });
+  };
+
+  const handleDeleteForAll = async (msgId: string) => {
+    if (!myId) return;
+    setMessages(prev => prev.map(m =>
+      m.id === msgId ? { ...m, is_deleted: true, text: undefined, mediaUrl: undefined } : m
+    ));
+    await supabase
+      .from('chat_messages')
+      .update({ is_deleted: true, content: null, media_url: null })
+      .eq('id', msgId)
+      .eq('sender_id', myId);
+  };
+
+  const handleReact = async (msgId: string, emoji: string) => {
+    if (!myId) return;
+    setMessages(prev => prev.map(m => {
+      if (m.id !== msgId) return m;
+      const reactions = [...(m.reactions ?? [])];
+      const existing = reactions.find(r => r.emoji === emoji);
+      if (existing) {
+        if (existing.reacted) {
+          const updated = reactions
+            .map(r => r.emoji === emoji ? { ...r, count: r.count - 1, reacted: false } : r)
+            .filter(r => r.count > 0);
+          return { ...m, reactions: updated };
+        }
+        return { ...m, reactions: reactions.map(r => r.emoji === emoji ? { ...r, count: r.count + 1, reacted: true } : r) };
+      }
+      return { ...m, reactions: [...reactions, { emoji, count: 1, reacted: true }] };
+    }));
+    await supabase
+      .from('chat_message_reactions')
+      .upsert({ message_id: msgId, user_id: myId, emoji }, { onConflict: 'message_id,user_id' });
+  };
+
   const handleSend = async (text: string) => {
     if (!myId || !otherId) return;
     setSending(true);
@@ -411,7 +476,13 @@ export function ChatDetailPanel({
                       <div className="flex-1 h-px bg-surface-200" />
                     </div>
                   )}
-                  <ChatMessageBubble message={msg} index={i} />
+                  <ChatMessageBubble
+                    message={msg}
+                    index={i}
+                    onDeleteForMe={handleDeleteForMe}
+                    onDeleteForAll={handleDeleteForAll}
+                    onReact={handleReact}
+                  />
                 </div>
               );
             })}
