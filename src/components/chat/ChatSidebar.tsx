@@ -1,8 +1,10 @@
 import { useState, useRef } from 'react';
-import { Search, PenSquare, MoreHorizontal, Users, X, Check, UserCircle, Camera } from 'lucide-react';
+import { Search, PenSquare, MoreHorizontal, Users, X, Check, UserCircle, Camera, MessageSquarePlus } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { supabase } from '@/lib/supabase';
 import { useApp } from '@/context/AppContext';
+import { cn } from '@/lib/utils';
+import { getColor, getInitials } from '@/lib/chat-utils';
 import { ChatKaiCard } from './ChatKaiCard';
 import { ChatConversationItem, ConversationItemData } from './ChatConversationItem';
 
@@ -31,7 +33,7 @@ export function ChatSidebar({
   conversations, selectedId, totalUnread, onSelect, onKaiClick,
   onNewConversation, onContextMenu, onTouchStart, onTouchEnd, loading,
 }: ChatSidebarProps) {
-  const { user, profile, updateProfile } = useApp();
+  const { user, profile, allProfiles, updateProfile } = useApp();
   const [search, setSearch] = useState('');
   const [focused, setFocused] = useState(false);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
@@ -84,9 +86,21 @@ export function ChatSidebar({
     setShowProfile(false);
   };
 
-  const filtered = search.trim()
-    ? conversations.filter(c => c.name.toLowerCase().includes(search.toLowerCase()))
+  const searchTerm = search.trim().toLowerCase();
+
+  const filtered = searchTerm
+    ? conversations.filter(c => c.name.toLowerCase().includes(searchTerm))
     : conversations;
+
+  // Users without an existing conversation that match the search
+  const existingOtherIds = new Set(conversations.map(c => c.otherId));
+  const newUsers = searchTerm
+    ? (allProfiles ?? []).filter(p =>
+        p.id !== user?.id &&
+        !existingOtherIds.has(p.id) &&
+        (p.name || '').toLowerCase().includes(searchTerm)
+      )
+    : [];
 
   return (
     <div className="relative flex flex-col h-full bg-card-bg border-r border-surface-200 dark:border-surface-100/10">
@@ -183,33 +197,74 @@ export function ChatSidebar({
             <div className="flex items-center justify-center py-12">
               <div className="w-5 h-5 rounded-full border-2 border-surface-200 border-t-primary-500 animate-spin" />
             </div>
-          ) : filtered.length === 0 ? (
+          ) : filtered.length === 0 && newUsers.length === 0 ? (
             <motion.p
               key="empty"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               className="text-center text-sm text-text-secondary py-10"
             >
-              {search ? 'Nenhuma conversa encontrada' : 'Nenhuma conversa ainda'}
+              {search ? 'Nenhum resultado encontrado' : 'Nenhuma conversa ainda'}
             </motion.p>
           ) : (
-            filtered.map((convo, i) => (
-              <motion.div
-                key={convo.conversationId}
-                initial={{ opacity: 0, y: 6 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.04, duration: 0.2 }}
-              >
-                <ChatConversationItem
-                  convo={convo}
-                  isSelected={selectedId === convo.otherId}
-                  onClick={() => onSelect(convo.otherId)}
-                  onContextMenu={onContextMenu ? e => onContextMenu(e, convo) : undefined}
-                  onTouchStart={onTouchStart ? e => onTouchStart(e, convo) : undefined}
-                  onTouchEnd={onTouchEnd}
-                />
-              </motion.div>
-            ))
+            <>
+              {filtered.map((convo, i) => (
+                <motion.div
+                  key={convo.conversationId}
+                  initial={{ opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: i * 0.04, duration: 0.2 }}
+                >
+                  <ChatConversationItem
+                    convo={convo}
+                    isSelected={selectedId === convo.otherId}
+                    onClick={() => onSelect(convo.otherId)}
+                    onContextMenu={onContextMenu ? e => onContextMenu(e, convo) : undefined}
+                    onTouchStart={onTouchStart ? e => onTouchStart(e, convo) : undefined}
+                    onTouchEnd={onTouchEnd}
+                  />
+                </motion.div>
+              ))}
+
+              {newUsers.length > 0 && (
+                <motion.div key="new-users-section" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+                  {filtered.length > 0 && (
+                    <p className="px-3 pt-3 pb-1.5 text-[10px] font-semibold text-text-secondary uppercase tracking-widest">
+                      Iniciar conversa
+                    </p>
+                  )}
+                  {newUsers.map((p, i) => (
+                    <motion.button
+                      key={p.id}
+                      initial={{ opacity: 0, y: 6 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: i * 0.04, duration: 0.2 }}
+                      onClick={() => onSelect(p.id)}
+                      className="flex items-center gap-3 w-full px-3 py-2.5 rounded-2xl hover:bg-surface-100 dark:hover:bg-surface-200/10 transition-colors text-left"
+                    >
+                      <div className="relative flex-shrink-0">
+                        {p.avatar_url ? (
+                          <img src={p.avatar_url} alt={p.name} referrerPolicy="no-referrer"
+                            className="w-10 h-10 rounded-full object-cover" />
+                        ) : (
+                          <div className={cn(
+                            'w-10 h-10 rounded-full bg-gradient-to-br flex items-center justify-center text-white font-semibold text-xs',
+                            getColor(p.id)
+                          )}>
+                            {getInitials(p.name || '')}
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-text-primary truncate">{p.name}</p>
+                        {p.role && <p className="text-[11px] text-text-secondary truncate">{p.role}</p>}
+                      </div>
+                      <MessageSquarePlus size={15} className="text-primary-500 flex-shrink-0" />
+                    </motion.button>
+                  ))}
+                </motion.div>
+              )}
+            </>
           )}
         </AnimatePresence>
       </div>
