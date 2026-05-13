@@ -230,8 +230,9 @@ export function ChatSidebar({
                     setShowCreateGroup(false);
                     setGroupName('');
                     setSelectedMembers([]);
-                  } catch {
-                    alert('Erro ao criar grupo. Tente novamente.');
+                  } catch (err: unknown) {
+                    const msg = err && typeof err === 'object' && 'message' in err ? (err as {message:string}).message : JSON.stringify(err);
+                    alert('Erro ao criar grupo: ' + msg);
                   } finally {
                     setCreating(false);
                   }
