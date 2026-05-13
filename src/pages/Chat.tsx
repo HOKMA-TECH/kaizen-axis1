@@ -147,9 +147,7 @@ export default function Chat() {
         .filter(c => !c.isKAI && !c.isGroup && c.otherId)
         .map(c => c.otherId)
     ));
-    const missingIds = ids.filter(id =>
-      !allProfiles?.some(p => p.id === id) && !chatProfiles[id]
-    );
+    const missingIds = ids.filter(id => !chatProfiles[id]);
     if (missingIds.length === 0) return;
 
     let cancelled = false;
@@ -158,7 +156,12 @@ export default function Chat() {
       .select('id, name, role, avatar_url, chat_display_name, chat_avatar_url')
       .in('id', missingIds)
       .then(({ data, error }) => {
-        if (cancelled || error || !data?.length) return;
+        if (cancelled) return;
+        if (error) {
+          console.warn('[chat profiles] failed to resolve conversation profiles:', error.message);
+          return;
+        }
+        if (!data?.length) return;
         setChatProfiles(prev => ({
           ...prev,
           ...Object.fromEntries((data as ChatProfile[]).map(p => [p.id, p])),
