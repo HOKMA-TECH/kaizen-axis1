@@ -69,7 +69,7 @@ export function ChatSidebar({
     setAvatarUploading(true);
     setAvatarError(null);
     const ext = file.name.split('.').pop() ?? 'jpg';
-    const path = `chat-avatars/${user.id}.${ext}`;
+    const path = `chat-avatars/${user.id}/${Date.now()}.${ext}`;
     const { error } = await supabase.storage.from('chat-media').upload(path, file, { upsert: true, contentType: file.type });
     if (error) {
       setAvatarError('Falha ao enviar foto: ' + error.message);
@@ -87,29 +87,32 @@ export function ChatSidebar({
     setSaveSuccess(false);
     setAvatarError(null);
 
-    const avatarUrl = profileAvatar ? profileAvatar.split('?')[0] : null;
+    const avatarUrl = profileAvatar || null;
+    const nextProfile = {
+      chat_display_name: profileName.trim() || null,
+      chat_status_text: profileStatus.trim() || null,
+      chat_availability: profileAvailability,
+      chat_avatar_url: avatarUrl,
+    };
 
     // Direct update — bypasses the complex updateProfile team-sync logic
     // which can silently skip the update if unrelated validations fail.
-    const { error } = await supabase
+    const { data: savedProfile, error } = await supabase
       .from('profiles')
-      .update({
-        chat_display_name: profileName.trim() || null,
-        chat_status_text: profileStatus.trim() || null,
-        chat_availability: profileAvailability,
-        chat_avatar_url: avatarUrl,
-      })
-      .eq('id', user.id);
+      .update(nextProfile)
+      .eq('id', user.id)
+      .select('id, chat_avatar_url')
+      .single();
 
-    if (error) {
-      setAvatarError(`Erro ao salvar: ${error.message}`);
+    if (error || savedProfile?.chat_avatar_url !== avatarUrl) {
+      setAvatarError(`Erro ao salvar: ${error?.message || 'a alteração não foi persistida no banco.'}`);
       setSavingProfile(false);
       return;
     }
 
     // Refresh profile state so the sidebar/header reflects the change immediately
     try {
-      await updateProfile(user.id, {});
+      await updateProfile(user.id, nextProfile);
     } catch {}
 
     setSavingProfile(false);
