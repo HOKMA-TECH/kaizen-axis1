@@ -861,7 +861,7 @@ export function ChatDetailPanel({
         sending={sending}
         disabled={!myId}
         viewOnceActive={viewOnce}
-        onViewOnceToggle={() => setViewOnce(v => !v)}
+        onViewOnceToggle={isKAI ? undefined : () => setViewOnce(v => !v)}
       />
     </motion.div>
     <ChatInfoModal
