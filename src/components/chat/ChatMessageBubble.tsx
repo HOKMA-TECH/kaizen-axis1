@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { motion } from 'motion/react';
-import { CheckCheck, Check, Smile, FileText } from 'lucide-react';
+import { CheckCheck, Check, Smile, FileText, Download, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import ReactMarkdown from 'react-markdown';
 import { AudioPlayer } from './AudioPlayer';
@@ -10,6 +10,7 @@ export interface BubbleMessage {
   text?: string;
   type: 'text' | 'image' | 'audio' | 'video' | 'document';
   mediaUrl?: string;
+  fileName?: string;
   timestamp: string;
   date?: string;
   isMe: boolean;
@@ -33,8 +34,37 @@ export function ChatMessageBubble({ message, index, onDeleteForMe, onDeleteForAl
   const [showMenu, setShowMenu] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [hovered, setHovered] = useState(false);
+  const [viewerOpen, setViewerOpen] = useState(false);
 
   const pressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const mediaName = message.fileName || message.text || (
+    message.type === 'image' ? 'Imagem' :
+    message.type === 'video' ? 'Video' :
+    message.type === 'document' ? 'Documento' :
+    'Midia'
+  );
+
+  const openViewer = (e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    if (message.mediaUrl && ['image', 'video', 'document'].includes(message.type)) {
+      setViewerOpen(true);
+      setShowMenu(false);
+      setShowEmojiPicker(false);
+    }
+  };
+
+  const downloadMedia = (e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    if (!message.mediaUrl) return;
+    const a = document.createElement('a');
+    a.href = message.mediaUrl;
+    a.download = mediaName;
+    a.target = '_blank';
+    a.rel = 'noopener noreferrer';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  };
 
   const handleTouchStart = () => {
     pressTimer.current = setTimeout(() => setShowMenu(true), 500);
@@ -142,26 +172,35 @@ export function ChatMessageBubble({ message, index, onDeleteForMe, onDeleteForAl
               <ReactMarkdown>{message.text || ''}</ReactMarkdown>
             </div>
           ) : message.type === 'image' && message.mediaUrl ? (
-            <img
-              src={message.mediaUrl}
-              alt="imagem"
-              className="rounded-xl max-w-full max-h-48 object-cover"
-            />
+            <button onClick={openViewer} className="block rounded-xl overflow-hidden text-left">
+              <img
+                src={message.mediaUrl}
+                alt="imagem"
+                className="rounded-xl max-w-full max-h-48 object-cover hover:opacity-95 transition-opacity"
+              />
+            </button>
+          ) : message.type === 'video' && message.mediaUrl ? (
+            <button onClick={openViewer} className="block rounded-xl overflow-hidden text-left">
+              <video
+                src={message.mediaUrl}
+                className="rounded-xl max-w-full max-h-48 object-cover hover:opacity-95 transition-opacity"
+                muted
+                playsInline
+              />
+            </button>
           ) : message.type === 'audio' && message.mediaUrl ? (
             <AudioPlayer src={message.mediaUrl} isMe={message.isMe} />
           ) : message.type === 'document' && message.mediaUrl ? (
-            <a
-              href={message.mediaUrl}
-              target="_blank"
-              rel="noopener noreferrer"
+            <button
+              onClick={openViewer}
               className={cn(
-                'flex items-center gap-2 min-w-[160px] px-1 py-0.5',
+                'flex items-center gap-2 min-w-[160px] px-1 py-0.5 text-left',
                 message.isMe ? 'text-white' : 'text-text-primary'
               )}
             >
               <FileText size={20} className={message.isMe ? 'text-white/80' : 'text-primary-500'} />
-              <span className="text-sm font-medium truncate max-w-[180px]">{message.text || 'Documento'}</span>
-            </a>
+              <span className="text-sm font-medium truncate max-w-[180px]">{mediaName}</span>
+            </button>
           ) : (
             <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">
               {message.text || ''}
@@ -228,6 +267,67 @@ export function ChatMessageBubble({ message, index, onDeleteForMe, onDeleteForAl
           </>
         )}
       </div>
+
+      {viewerOpen && message.mediaUrl && (
+        <div
+          className="fixed inset-0 z-[500] bg-white dark:bg-[#0b141a] flex flex-col"
+          onClick={() => setViewerOpen(false)}
+        >
+          <div
+            className="h-16 px-4 flex items-center gap-3 border-b border-surface-200 bg-card-bg text-text-primary"
+            onClick={e => e.stopPropagation()}
+          >
+            <button
+              onClick={() => setViewerOpen(false)}
+              className="p-2 rounded-full hover:bg-surface-100 transition-colors"
+              aria-label="Fechar"
+            >
+              <X size={22} />
+            </button>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-semibold truncate">{mediaName}</p>
+              <p className="text-xs text-text-secondary">{message.timestamp}</p>
+            </div>
+            <button
+              onClick={downloadMedia}
+              className="p-2 rounded-full hover:bg-surface-100 transition-colors"
+              aria-label="Baixar arquivo"
+              title="Baixar"
+            >
+              <Download size={22} />
+            </button>
+          </div>
+
+          <div className="flex-1 min-h-0 flex items-center justify-center bg-surface-50 dark:bg-black/40 p-4">
+            {message.type === 'image' && (
+              <img
+                src={message.mediaUrl}
+                alt={mediaName}
+                className="max-w-full max-h-full object-contain"
+                onClick={e => e.stopPropagation()}
+              />
+            )}
+            {message.type === 'video' && (
+              <video
+                src={message.mediaUrl}
+                controls
+                autoPlay
+                playsInline
+                className="max-w-full max-h-full"
+                onClick={e => e.stopPropagation()}
+              />
+            )}
+            {message.type === 'document' && (
+              <iframe
+                src={message.mediaUrl}
+                title={mediaName}
+                className="w-full h-full max-w-5xl bg-white border-0 shadow-sm"
+                onClick={e => e.stopPropagation()}
+              />
+            )}
+          </div>
+        </div>
+      )}
     </motion.div>
   );
 }

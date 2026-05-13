@@ -62,6 +62,7 @@ export function ChatDetailPanel({
     text: m.content,
     type: m.type === 'kai_reply' ? 'text' : m.type as BubbleMessage['type'],
     mediaUrl: m.media_url,
+    fileName: m.file_name,
     timestamp: new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     date: new Date(m.created_at).toLocaleDateString(),
     isMe: m.sender_id === myId && m.type !== 'kai_reply',
@@ -250,7 +251,7 @@ export function ChatDetailPanel({
       const mediaUrl = supabase.storage.from('chat-media').getPublicUrl(path).data.publicUrl;
       const tempId = `temp-${Date.now()}`;
       const optimistic: BubbleMessage = {
-        id: tempId, type, mediaUrl,
+        id: tempId, type, mediaUrl, fileName: file.name,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         date: new Date().toLocaleDateString(),
         isMe: true, deliveryStatus: 'sending',
@@ -260,7 +261,7 @@ export function ChatDetailPanel({
         sender_id: myId,
         ...(isGroup ? { group_id: groupId } : { receiver_id: otherId }),
         conversation_id: conversationId,
-        content: null, type, media_url: mediaUrl,
+        content: null, type, media_url: mediaUrl, file_name: file.name,
       });
       setMessages(prev => prev.map(m =>
         m.id === tempId ? { ...m, deliveryStatus: error ? 'sending' : 'sent' as const } : m
@@ -281,7 +282,7 @@ export function ChatDetailPanel({
       const mediaUrl = supabase.storage.from('chat-media').getPublicUrl(path).data.publicUrl;
       const tempId = `temp-${Date.now()}`;
       const optimistic: BubbleMessage = {
-        id: tempId, text: file.name, type: 'document', mediaUrl,
+        id: tempId, text: file.name, type: 'document', mediaUrl, fileName: file.name,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         date: new Date().toLocaleDateString(),
         isMe: true, deliveryStatus: 'sending',
@@ -291,7 +292,7 @@ export function ChatDetailPanel({
         sender_id: myId,
         ...(isGroup ? { group_id: groupId } : { receiver_id: otherId }),
         conversation_id: conversationId,
-        content: file.name, type: 'document', media_url: mediaUrl,
+        content: file.name, type: 'document', media_url: mediaUrl, file_name: file.name,
       });
       setMessages(prev => prev.map(m =>
         m.id === tempId ? { ...m, deliveryStatus: error ? 'sending' : 'sent' as const } : m
