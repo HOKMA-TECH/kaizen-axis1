@@ -15,6 +15,8 @@ interface ConversationPreview {
   conversationId: string;
   otherId: string;
   isKAI: boolean;
+  isGroup?: boolean;
+  groupName?: string;
   lastContent: string;
   lastType: string;
   lastAt: string;
@@ -83,6 +85,31 @@ export default function Chat() {
       });
     }
 
+    // Also fetch groups the user belongs to
+    const { data: groupMemberships } = await supabase
+      .from('chat_group_members')
+      .select('group_id, chat_groups!inner(id, name, created_at)')
+      .eq('user_id', myId);
+
+    for (const m of (groupMemberships ?? [])) {
+      const group = (m as any).chat_groups;
+      if (!group) continue;
+      const convId = `group-${group.id}`;
+      if (seen.has(convId)) continue;
+      seen.add(convId);
+      convos.push({
+        conversationId: convId,
+        otherId: convId,
+        isKAI: false,
+        isGroup: true,
+        groupName: group.name,
+        lastContent: 'Grupo criado',
+        lastType: 'text',
+        lastAt: group.created_at,
+        senderIsMe: false,
+      });
+    }
+
     setConversations(convos);
     setLoading(false);
   }, [myId]);
@@ -145,6 +172,16 @@ export default function Chat() {
           unreadCount,
         };
       }
+      if (c.isGroup) {
+        return {
+          ...c,
+          name: c.groupName || 'Grupo',
+          role: 'Grupo',
+          avatarUrl: null as string | null | undefined,
+          isUnread,
+          unreadCount,
+        };
+      }
       const p = allProfiles?.find(pr => pr.id === c.otherId);
       return {
         ...c,
@@ -163,6 +200,7 @@ export default function Chat() {
       conversationId: c.conversationId,
       otherId: c.otherId,
       isKAI: c.isKAI,
+      isGroup: c.isGroup,
       name: c.name,
       role: c.role,
       avatarUrl: c.avatarUrl,
@@ -226,6 +264,7 @@ export default function Chat() {
             otherRole={selectedConvo?.role}
             otherAvatar={selectedConvo?.avatarUrl}
             isKAI={selectedConvo?.isKAI}
+            isGroup={selectedConvo?.isGroup}
             isOnline={selectedConvo?.isOnline}
             onClose={() => setSelectedId(null)}
           />

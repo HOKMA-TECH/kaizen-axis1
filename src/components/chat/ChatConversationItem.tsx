@@ -7,6 +7,7 @@ export interface ConversationItemData {
   conversationId: string;
   otherId: string;
   isKAI: boolean;
+  isGroup?: boolean;
   name: string;
   role: string;
   avatarUrl?: string | null;

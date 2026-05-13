@@ -17,6 +17,7 @@ interface ChatDetailPanelProps {
   otherRole?: string;
   otherAvatar?: string | null;
   isKAI?: boolean;
+  isGroup?: boolean;
   isOnline?: boolean;
   onClose?: () => void;
 }
@@ -24,7 +25,7 @@ interface ChatDetailPanelProps {
 const PAGE_SIZE = 50;
 
 export function ChatDetailPanel({
-  otherId, otherName, otherRole, otherAvatar, isKAI, isOnline, onClose,
+  otherId, otherName, otherRole, otherAvatar, isKAI, isGroup, isOnline, onClose,
 }: ChatDetailPanelProps) {
   const { user } = useApp();
   const { markConversationRead } = useChatUnread();
@@ -41,11 +42,15 @@ export function ChatDetailPanel({
   const videoRef = useRef<HTMLVideoElement>(null);
   const cameraStreamRef = useRef<MediaStream | null>(null);
 
+  const groupId = isGroup && otherId ? otherId.replace('group-', '') : null;
+
   const conversationId = isKAI
     ? `kai-${myId}`
-    : otherId && myId
-      ? [myId, otherId].sort().join('-')
-      : null;
+    : isGroup
+      ? otherId
+      : otherId && myId
+        ? [myId, otherId].sort().join('-')
+        : null;
 
   const mapMsg = useCallback((m: any): BubbleMessage => ({
     id: m.id,
@@ -92,7 +97,10 @@ export function ChatDetailPanel({
         filter: `conversation_id=eq.${conversationId}`,
       }, (p) => {
         const m = p.new as any;
-        if (m.sender_id !== myId && m.receiver_id === myId) {
+        const isFromOther = isGroup
+          ? m.sender_id !== myId
+          : (m.sender_id !== myId && m.receiver_id === myId);
+        if (isFromOther) {
           setMessages(prev => [...prev, mapMsg(m)]);
           markConversationRead(conversationId);
         }
@@ -131,7 +139,9 @@ export function ChatDetailPanel({
     };
     setMessages(prev => [...prev, optimistic]);
     const { error } = await supabase.from('chat_messages').insert({
-      sender_id: myId, receiver_id: otherId, conversation_id: conversationId,
+      sender_id: myId,
+      ...(isGroup ? { group_id: groupId } : { receiver_id: otherId }),
+      conversation_id: conversationId,
       content: null, type: 'audio', media_url: mediaUrl,
     });
     setMessages(prev => prev.map(m =>
@@ -160,7 +170,9 @@ export function ChatDetailPanel({
       };
       setMessages(prev => [...prev, optimistic]);
       const { error } = await supabase.from('chat_messages').insert({
-        sender_id: myId, receiver_id: otherId, conversation_id: conversationId,
+        sender_id: myId,
+        ...(isGroup ? { group_id: groupId } : { receiver_id: otherId }),
+        conversation_id: conversationId,
         content: null, type, media_url: mediaUrl,
       });
       setMessages(prev => prev.map(m =>
@@ -189,7 +201,9 @@ export function ChatDetailPanel({
       };
       setMessages(prev => [...prev, optimistic]);
       const { error } = await supabase.from('chat_messages').insert({
-        sender_id: myId, receiver_id: otherId, conversation_id: conversationId,
+        sender_id: myId,
+        ...(isGroup ? { group_id: groupId } : { receiver_id: otherId }),
+        conversation_id: conversationId,
         content: file.name, type: 'document', media_url: mediaUrl,
       });
       setMessages(prev => prev.map(m =>
@@ -242,7 +256,9 @@ export function ChatDetailPanel({
         };
         setMessages(prev => [...prev, optimistic]);
         const { error } = await supabase.from('chat_messages').insert({
-          sender_id: myId, receiver_id: otherId, conversation_id: conversationId,
+          sender_id: myId,
+          ...(isGroup ? { group_id: groupId } : { receiver_id: otherId }),
+          conversation_id: conversationId,
           content: null, type: 'image', media_url: mediaUrl,
         });
         setMessages(prev => prev.map(m =>
@@ -289,7 +305,7 @@ export function ChatDetailPanel({
       setMessages(prev => [...prev, optimistic]);
       const { error } = await supabase.from('chat_messages').insert({
         sender_id: myId,
-        receiver_id: otherId,
+        ...(isGroup ? { group_id: groupId } : { receiver_id: otherId }),
         conversation_id: conversationId,
         content: text,
         type: 'text',
