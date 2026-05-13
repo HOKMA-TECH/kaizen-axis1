@@ -1,0 +1,892 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sketch 001 — Agenda Layout</title>
+<link rel="stylesheet" href="../themes/default.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* ───── Sketch Toolbar ───── */
+.toolbar {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 9999;
+  background: #18181b; color: #f4f4f5;
+  display: flex; align-items: center; gap: 8px;
+  padding: 0 16px; height: 44px; font-size: 12px;
+}
+.toolbar .badge { background: #3f3f46; padding: 2px 8px; border-radius: 4px; font-weight: 600; }
+.toolbar .sep { color: #52525b; }
+.tabs { display: flex; gap: 2px; }
+.tabs button {
+  padding: 5px 14px; border-radius: 6px; border: none; cursor: pointer;
+  font-size: 12px; font-weight: 500; background: transparent; color: #a1a1aa;
+  transition: all .15s;
+}
+.tabs button.active { background: var(--brand-primary); color: #fff; }
+.tabs button:hover:not(.active) { background: #3f3f46; color: #f4f4f5; }
+.toolbar .label { color: #a1a1aa; margin-left: auto; }
+.toolbar .winner-btn {
+  padding: 4px 12px; background: #16a34a; color: #fff;
+  border: none; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 600;
+}
+
+body { padding-top: 44px; }
+
+/* ───── Variant panels ───── */
+.variant { display: none; height: calc(100vh - 44px); overflow: hidden; }
+.variant.active { display: flex; flex-direction: column; }
+
+/* ============================================================
+   VARIANT A — Linear-style: left sidebar + event feed
+   ============================================================ */
+#va {
+  display: none;
+  flex-direction: row;
+}
+#va.active { display: flex; }
+
+/* Sidebar */
+.va-sidebar {
+  width: 240px; min-width: 240px;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  display: flex; flex-direction: column;
+  padding: 20px 0; overflow-y: auto;
+}
+.va-sidebar-section { padding: 0 16px 16px; }
+.va-sidebar-section + .va-sidebar-section { border-top: 1px solid var(--border); padding-top: 16px; }
+
+.va-logo { font-size: 14px; font-weight: 700; color: var(--text-primary); margin-bottom: 20px; padding: 0 16px; display: flex; align-items: center; gap: 8px; }
+.va-logo-icon { width: 24px; height: 24px; background: var(--brand-primary); border-radius: 6px; display: flex; align-items: center; justify-content: center; }
+.va-logo-icon svg { color: white; width: 14px; height: 14px; }
+
+.va-nav-item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 8px; border-radius: 6px; cursor: pointer;
+  font-size: 13px; font-weight: 500; color: var(--text-secondary);
+  transition: all .12s; margin-bottom: 1px;
+}
+.va-nav-item:hover { background: var(--surface-raised); color: var(--text-primary); }
+.va-nav-item.active { background: var(--brand-light); color: var(--brand-primary); }
+.va-nav-item svg { width: 15px; height: 15px; }
+
+.va-section-label {
+  font-size: 11px; font-weight: 600; color: var(--text-muted);
+  text-transform: uppercase; letter-spacing: .06em;
+  padding: 0 8px 6px; margin-top: 4px;
+}
+
+/* Mini calendar */
+.mini-cal { padding: 0 8px; }
+.mini-cal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.mini-cal-header span { font-size: 12px; font-weight: 600; color: var(--text-primary); }
+.mini-cal-header button { background: none; border: none; cursor: pointer; color: var(--text-muted); padding: 2px; border-radius: 4px; display: flex; }
+.mini-cal-header button:hover { background: var(--surface-raised); color: var(--text-primary); }
+.mini-cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 1px; }
+.mini-cal-day-label { text-align: center; font-size: 10px; font-weight: 500; color: var(--text-muted); padding: 2px 0; }
+.mini-cal-cell {
+  text-align: center; font-size: 11px; padding: 3px 0;
+  border-radius: 4px; cursor: pointer; color: var(--text-secondary);
+  position: relative; transition: all .1s;
+}
+.mini-cal-cell:hover { background: var(--surface-raised); color: var(--text-primary); }
+.mini-cal-cell.today { font-weight: 700; color: var(--brand-primary); }
+.mini-cal-cell.selected { background: var(--brand-primary); color: white; border-radius: 50%; }
+.mini-cal-cell.has-event::after {
+  content: ''; position: absolute; bottom: 1px; left: 50%; transform: translateX(-50%);
+  width: 3px; height: 3px; background: var(--brand-primary); border-radius: 50%;
+}
+.mini-cal-cell.selected::after { background: rgba(255,255,255,.7); }
+
+/* Main content */
+.va-main {
+  flex: 1; display: flex; flex-direction: column; overflow: hidden; background: var(--bg);
+}
+.va-main-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 20px 24px 16px; border-bottom: 1px solid var(--border);
+}
+.va-main-header h1 { font-size: 18px; font-weight: 700; color: var(--text-primary); }
+.va-main-header p { font-size: 13px; color: var(--text-secondary); margin-top: 1px; }
+.va-add-btn {
+  display: flex; align-items: center; gap: 6px;
+  padding: 7px 14px; background: var(--brand-primary); color: white;
+  border: none; border-radius: var(--radius-md); cursor: pointer; font-size: 13px; font-weight: 600;
+  transition: background .15s;
+}
+.va-add-btn:hover { background: var(--brand-dark); }
+
+.va-filter-bar {
+  display: flex; align-items: center; gap: 8px;
+  padding: 12px 24px; border-bottom: 1px solid var(--border);
+}
+.filter-chip {
+  padding: 4px 12px; border-radius: 20px; border: 1px solid var(--border);
+  font-size: 12px; font-weight: 500; cursor: pointer; color: var(--text-secondary);
+  background: var(--bg); transition: all .12s;
+}
+.filter-chip:hover { border-color: var(--brand-primary); color: var(--brand-primary); }
+.filter-chip.active { background: var(--brand-light); border-color: var(--brand-primary); color: var(--brand-primary); }
+
+.va-feed { flex: 1; overflow-y: auto; padding: 0 24px 24px; }
+
+.feed-section { margin-top: 20px; }
+.feed-section-label {
+  font-size: 11px; font-weight: 700; color: var(--text-muted);
+  text-transform: uppercase; letter-spacing: .06em; margin-bottom: 8px;
+  display: flex; align-items: center; gap: 8px;
+}
+.feed-section-label::after {
+  content: ''; flex: 1; height: 1px; background: var(--border);
+}
+
+.event-row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 12px; border-radius: var(--radius-md);
+  cursor: pointer; transition: background .1s; margin-bottom: 2px;
+  border: 1px solid transparent;
+}
+.event-row:hover { background: var(--surface); border-color: var(--border); }
+.event-row.completed { opacity: .45; }
+
+.event-type-dot {
+  width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+}
+.dot-visit    { background: var(--type-visit); }
+.dot-meeting  { background: var(--type-meeting); }
+.dot-sig      { background: var(--type-signature); }
+.dot-other    { background: var(--type-other); }
+
+.event-time { font-size: 12px; color: var(--text-muted); min-width: 42px; font-variant-numeric: tabular-nums; }
+.event-title { flex: 1; font-size: 13px; font-weight: 500; color: var(--text-primary); }
+.event-row.completed .event-title { text-decoration: line-through; color: var(--text-muted); }
+.event-client { font-size: 12px; color: var(--text-secondary); }
+.event-location { font-size: 11px; color: var(--text-muted); display: flex; align-items: center; gap: 3px; }
+.event-badge {
+  padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: .04em;
+}
+.badge-visit    { background: #d1fae5; color: #065f46; }
+.badge-meeting  { background: #dbeafe; color: #1e40af; }
+.badge-sig      { background: #ede9fe; color: #5b21b6; }
+.badge-other    { background: #fef3c7; color: #92400e; }
+.badge-done     { background: var(--surface-raised); color: var(--text-muted); }
+
+.event-actions { display: flex; gap: 4px; opacity: 0; transition: opacity .1s; }
+.event-row:hover .event-actions { opacity: 1; }
+.event-actions button {
+  width: 26px; height: 26px; border: none; border-radius: 6px; background: transparent;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  color: var(--text-muted); transition: all .1s;
+}
+.event-actions button:hover { background: var(--surface-raised); color: var(--text-primary); }
+
+/* ============================================================
+   VARIANT B — Compact header + full-width list (simpler)
+   ============================================================ */
+#vb { flex-direction: column; background: var(--bg); }
+
+.vb-header {
+  padding: 20px 24px 0;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+}
+.vb-title-row {
+  display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 16px;
+}
+.vb-title-row h1 { font-size: 22px; font-weight: 800; color: var(--text-primary); }
+.vb-title-row p { font-size: 13px; color: var(--text-secondary); margin-top: 2px; }
+
+.vb-week-nav {
+  display: flex; align-items: center; gap: 4px; margin-bottom: 16px;
+}
+.vb-week-btn { background: none; border: none; cursor: pointer; color: var(--text-muted); padding: 4px; border-radius: 6px; }
+.vb-week-btn:hover { background: var(--surface); color: var(--text-primary); }
+.vb-week-label { font-size: 13px; font-weight: 600; color: var(--text-primary); padding: 0 8px; }
+
+.vb-week-strip {
+  display: flex; gap: 4px; overflow-x: auto; padding-bottom: 1px;
+}
+.vb-day {
+  display: flex; flex-direction: column; align-items: center;
+  min-width: 44px; padding: 8px 6px; border-radius: var(--radius-md);
+  cursor: pointer; transition: all .12s; position: relative;
+}
+.vb-day:hover { background: var(--surface); }
+.vb-day.today .vb-day-num { color: var(--brand-primary); font-weight: 700; }
+.vb-day.selected { background: var(--brand-primary); }
+.vb-day.selected .vb-day-label, .vb-day.selected .vb-day-num { color: white; }
+.vb-day-label { font-size: 10px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: .04em; }
+.vb-day-num { font-size: 16px; font-weight: 600; color: var(--text-primary); margin-top: 2px; }
+.vb-day-dot { width: 4px; height: 4px; border-radius: 50%; background: var(--brand-primary); margin-top: 3px; }
+.vb-day.selected .vb-day-dot { background: rgba(255,255,255,.7); }
+
+.vb-content { flex: 1; overflow-y: auto; padding: 0 24px 24px; }
+
+.vb-day-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 16px 0 8px;
+}
+.vb-day-header h2 { font-size: 15px; font-weight: 700; color: var(--text-primary); }
+.vb-day-header span { font-size: 12px; color: var(--text-muted); }
+
+.vb-event-card {
+  display: flex; align-items: stretch; gap: 0;
+  background: var(--bg); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); overflow: hidden;
+  margin-bottom: 8px; cursor: pointer; transition: all .15s;
+  box-shadow: var(--shadow-sm);
+}
+.vb-event-card:hover { border-color: var(--border-focus); box-shadow: var(--shadow-md); }
+.vb-event-card.completed { opacity: .5; }
+
+.vb-event-accent { width: 3px; flex-shrink: 0; }
+.accent-visit    { background: var(--type-visit); }
+.accent-meeting  { background: var(--type-meeting); }
+.accent-sig      { background: var(--type-signature); }
+.accent-other    { background: var(--type-other); }
+
+.vb-event-body { flex: 1; padding: 12px 16px; }
+.vb-event-meta { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+.vb-event-time { font-size: 12px; font-weight: 600; color: var(--text-secondary); }
+.vb-event-type-chip {
+  font-size: 10px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .05em; padding: 1px 6px; border-radius: 3px;
+}
+.vb-event-title { font-size: 14px; font-weight: 600; color: var(--text-primary); }
+.vb-event-card.completed .vb-event-title { text-decoration: line-through; color: var(--text-muted); }
+.vb-event-client { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
+.vb-event-loc { font-size: 11px; color: var(--text-muted); margin-top: 4px; display: flex; align-items: center; gap: 4px; }
+.vb-event-actions {
+  display: flex; flex-direction: column; justify-content: center; gap: 4px;
+  padding: 12px; border-left: 1px solid var(--border);
+  opacity: 0; transition: opacity .1s;
+}
+.vb-event-card:hover .vb-event-actions { opacity: 1; }
+.vb-event-actions button {
+  width: 28px; height: 28px; border: none; background: none; cursor: pointer;
+  border-radius: 6px; display: flex; align-items: center; justify-content: center;
+  color: var(--text-muted); transition: all .1s;
+}
+.vb-event-actions button:hover { background: var(--surface); color: var(--text-primary); }
+
+/* ============================================================
+   VARIANT C — Split: mini monthly calendar left + feed right
+   ============================================================ */
+#vc { flex-direction: row; }
+
+.vc-left {
+  width: 280px; min-width: 280px;
+  background: var(--bg); border-right: 1px solid var(--border);
+  display: flex; flex-direction: column; padding: 24px;
+}
+.vc-left-title { font-size: 20px; font-weight: 800; color: var(--text-primary); margin-bottom: 4px; }
+.vc-left-sub { font-size: 12px; color: var(--text-secondary); margin-bottom: 20px; }
+
+.vc-month-nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.vc-month-nav span { font-size: 14px; font-weight: 700; color: var(--text-primary); }
+.vc-month-nav button { background: none; border: none; cursor: pointer; color: var(--text-muted); padding: 4px; border-radius: 6px; }
+.vc-month-nav button:hover { background: var(--surface); }
+
+.vc-cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+.vc-cal-label { text-align: center; font-size: 10px; font-weight: 600; color: var(--text-muted); padding: 4px 0; }
+.vc-cal-cell {
+  aspect-ratio: 1; display: flex; align-items: center; justify-content: center;
+  border-radius: 50%; cursor: pointer; font-size: 12px; font-weight: 500;
+  color: var(--text-secondary); transition: all .1s; position: relative;
+}
+.vc-cal-cell:hover { background: var(--surface); color: var(--text-primary); }
+.vc-cal-cell.today { font-weight: 700; color: var(--brand-primary); }
+.vc-cal-cell.selected { background: var(--brand-primary); color: white; }
+.vc-cal-cell.has-event::after {
+  content: ''; position: absolute; bottom: 2px; left: 50%; transform: translateX(-50%);
+  width: 4px; height: 4px; background: currentColor; border-radius: 50%; opacity: .6;
+}
+.vc-cal-cell.selected::after { background: rgba(255,255,255,.8); }
+
+.vc-upcoming-label {
+  font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em;
+  color: var(--text-muted); margin: 20px 0 8px;
+}
+.vc-upcoming-item {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 8px 0; border-bottom: 1px solid var(--border); cursor: pointer;
+}
+.vc-upcoming-item:last-child { border-bottom: none; }
+.vc-upcoming-date {
+  min-width: 36px; text-align: center;
+  font-size: 10px; font-weight: 700; color: var(--text-muted); text-transform: uppercase;
+}
+.vc-upcoming-date span { display: block; font-size: 18px; font-weight: 800; color: var(--text-primary); line-height: 1; }
+.vc-upcoming-dot { width: 6px; height: 6px; border-radius: 50%; margin-top: 5px; flex-shrink: 0; }
+.vc-upcoming-info { flex: 1; }
+.vc-upcoming-title { font-size: 12px; font-weight: 600; color: var(--text-primary); }
+.vc-upcoming-client { font-size: 11px; color: var(--text-secondary); margin-top: 1px; }
+.vc-upcoming-time { font-size: 11px; color: var(--text-muted); margin-top: 1px; }
+
+.vc-right {
+  flex: 1; overflow-y: auto; display: flex; flex-direction: column;
+}
+.vc-right-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 24px 28px 16px; border-bottom: 1px solid var(--border);
+  position: sticky; top: 0; background: var(--bg); z-index: 10;
+}
+.vc-right-header h2 { font-size: 16px; font-weight: 700; color: var(--text-primary); }
+.vc-right-header p { font-size: 12px; color: var(--text-secondary); }
+.vc-new-btn {
+  display: flex; align-items: center; gap: 6px;
+  padding: 7px 14px; background: var(--brand-primary); color: white;
+  border: none; border-radius: var(--radius-md); cursor: pointer; font-size: 13px; font-weight: 600;
+}
+.vc-new-btn:hover { background: var(--brand-dark); }
+
+.vc-view-toggle {
+  display: flex; gap: 0;
+  background: var(--surface); border-radius: var(--radius-md); padding: 3px;
+  margin: 0 28px 0; flex-shrink: 0;
+}
+.vc-view-toggle button {
+  padding: 5px 14px; border-radius: 6px; border: none; cursor: pointer;
+  font-size: 12px; font-weight: 500; background: transparent; color: var(--text-muted);
+  transition: all .12s;
+}
+.vc-view-toggle button.active { background: var(--bg); color: var(--text-primary); box-shadow: var(--shadow-sm); }
+
+.vc-feed { flex: 1; padding: 16px 28px 28px; }
+
+.vc-event-item {
+  display: flex; align-items: center; gap: 14px;
+  padding: 10px 12px; border-radius: var(--radius-md);
+  cursor: pointer; transition: background .1s; margin-bottom: 4px;
+}
+.vc-event-item:hover { background: var(--surface); }
+.vc-event-item.completed { opacity: .4; }
+
+.vc-event-time-col { min-width: 44px; }
+.vc-event-time-col .time { font-size: 12px; font-weight: 600; color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+.vc-event-time-col .dur { font-size: 10px; color: var(--text-muted); }
+.vc-event-line { width: 1px; height: 32px; background: var(--border); flex-shrink: 0; }
+.vc-event-body2 { flex: 1; }
+.vc-event-title2 { font-size: 13px; font-weight: 600; color: var(--text-primary); }
+.vc-event-item.completed .vc-event-title2 { text-decoration: line-through; color: var(--text-muted); }
+.vc-event-meta2 { font-size: 11px; color: var(--text-secondary); margin-top: 2px; }
+.vc-event-loc2 { font-size: 11px; color: var(--text-muted); display: flex; align-items: center; gap: 3px; margin-top: 1px; }
+.vc-type-pill {
+  padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600;
+}
+.pill-visit    { background: #d1fae5; color: #065f46; }
+.pill-meeting  { background: #dbeafe; color: #1e40af; }
+.pill-sig      { background: #ede9fe; color: #5b21b6; }
+.pill-other    { background: #fef3c7; color: #92400e; }
+.vc-done-btn {
+  width: 28px; height: 28px; border: 1.5px solid var(--border); background: none;
+  border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center;
+  color: var(--text-muted); transition: all .15s; flex-shrink: 0;
+}
+.vc-done-btn:hover { border-color: var(--success); color: var(--success); }
+.vc-done-btn.done { border-color: var(--success); background: var(--success); color: white; }
+
+/* ───── Empty states ───── */
+.empty-state {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  padding: 48px 24px; color: var(--text-muted); gap: 12px;
+}
+.empty-state svg { width: 40px; height: 40px; opacity: .3; }
+.empty-state p { font-size: 14px; font-weight: 500; }
+.empty-state span { font-size: 12px; text-align: center; max-width: 240px; }
+.empty-new-btn {
+  margin-top: 8px; padding: 8px 20px; background: var(--brand-primary); color: white;
+  border: none; border-radius: var(--radius-md); cursor: pointer; font-size: 13px; font-weight: 600;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+</style>
+</head>
+<body>
+
+<!-- ───── Toolbar ───── -->
+<div class="toolbar">
+  <span class="badge">SKT 001</span>
+  <span class="sep">—</span>
+  <span>Agenda Layout</span>
+  <div class="tabs">
+    <button class="active" onclick="show('va',this)">A: Sidebar Linear</button>
+    <button onclick="show('vb',this)">B: Header Compacto</button>
+    <button onclick="show('vc',this)">C: Split Calendário</button>
+  </div>
+  <span class="label" id="winner-label"></span>
+  <button class="winner-btn" onclick="markWinner()">★ Marcar Vencedor</button>
+</div>
+
+<!-- ═══════════════════════════════════════
+     VARIANT A — Sidebar Linear-style
+══════════════════════════════════════════ -->
+<div id="va" class="variant active">
+  <!-- Sidebar -->
+  <nav class="va-sidebar">
+    <div class="va-logo">
+      <div class="va-logo-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>
+      </div>
+      Kaizen Axis
+    </div>
+
+    <div class="va-sidebar-section">
+      <div class="va-section-label">Navegação</div>
+      <div class="va-nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg> Dashboard</div>
+      <div class="va-nav-item active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/></svg> Agenda</div>
+      <div class="va-nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg> Clientes</div>
+      <div class="va-nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg> Chat</div>
+    </div>
+
+    <div class="va-sidebar-section">
+      <div class="va-section-label">Calendário</div>
+      <div class="mini-cal">
+        <div class="mini-cal-header">
+          <span>Maio 2026</span>
+          <div style="display:flex;gap:2px">
+            <button>◀</button><button>▶</button>
+          </div>
+        </div>
+        <div class="mini-cal-grid">
+          <div class="mini-cal-day-label">D</div><div class="mini-cal-day-label">S</div><div class="mini-cal-day-label">T</div><div class="mini-cal-day-label">Q</div><div class="mini-cal-day-label">Q</div><div class="mini-cal-day-label">S</div><div class="mini-cal-day-label">S</div>
+          <!-- Week 1 -->
+          <div class="mini-cal-cell"></div><div class="mini-cal-cell"></div><div class="mini-cal-cell"></div><div class="mini-cal-cell">1</div><div class="mini-cal-cell">2</div><div class="mini-cal-cell">3</div><div class="mini-cal-cell">4</div>
+          <!-- Week 2 -->
+          <div class="mini-cal-cell">5</div><div class="mini-cal-cell has-event">6</div><div class="mini-cal-cell">7</div><div class="mini-cal-cell">8</div><div class="mini-cal-cell has-event">9</div><div class="mini-cal-cell">10</div><div class="mini-cal-cell">11</div>
+          <!-- Week 3 -->
+          <div class="mini-cal-cell">12</div><div class="mini-cal-cell today selected">13</div><div class="mini-cal-cell has-event">14</div><div class="mini-cal-cell">15</div><div class="mini-cal-cell has-event">16</div><div class="mini-cal-cell">17</div><div class="mini-cal-cell">18</div>
+          <!-- Week 4 -->
+          <div class="mini-cal-cell">19</div><div class="mini-cal-cell">20</div><div class="mini-cal-cell has-event">21</div><div class="mini-cal-cell">22</div><div class="mini-cal-cell">23</div><div class="mini-cal-cell">24</div><div class="mini-cal-cell">25</div>
+          <!-- Week 5 -->
+          <div class="mini-cal-cell">26</div><div class="mini-cal-cell">27</div><div class="mini-cal-cell">28</div><div class="mini-cal-cell">29</div><div class="mini-cal-cell">30</div><div class="mini-cal-cell">31</div><div class="mini-cal-cell"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="va-sidebar-section">
+      <div class="va-section-label">Filtros</div>
+      <div class="va-nav-item active"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--type-visit);margin-right:2px"></span> Visita</div>
+      <div class="va-nav-item"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--type-meeting);margin-right:2px"></span> Reunião</div>
+      <div class="va-nav-item"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--type-signature);margin-right:2px"></span> Assinatura</div>
+      <div class="va-nav-item"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--type-other);margin-right:2px"></span> Outro</div>
+    </div>
+  </nav>
+
+  <!-- Main -->
+  <main class="va-main">
+    <div class="va-main-header">
+      <div>
+        <h1>Agenda</h1>
+        <p>Quarta, 13 de maio de 2026</p>
+      </div>
+      <button class="va-add-btn">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Novo Evento
+      </button>
+    </div>
+
+    <div class="va-filter-bar">
+      <span class="filter-chip active">Hoje</span>
+      <span class="filter-chip">Esta semana</span>
+      <span class="filter-chip">Este mês</span>
+      <span class="filter-chip">Todos</span>
+    </div>
+
+    <div class="va-feed">
+      <!-- Today -->
+      <div class="feed-section">
+        <div class="feed-section-label">Hoje · 13 mai</div>
+        <div class="event-row" onclick>
+          <span class="event-type-dot dot-visit"></span>
+          <span class="event-time">09:00</span>
+          <span class="event-title">Visita Residencial Aurora</span>
+          <span class="event-client">Ana Silva</span>
+          <span class="event-location"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/></svg> Rua das Flores, 42</span>
+          <span class="event-badge badge-visit">Visita</span>
+          <div class="event-actions">
+            <button title="Editar">✏️</button>
+            <button title="Concluir">✓</button>
+          </div>
+        </div>
+        <div class="event-row">
+          <span class="event-type-dot dot-meeting"></span>
+          <span class="event-time">14:00</span>
+          <span class="event-title">Reunião de Equipe</span>
+          <span class="event-client">Ricardo Almeida</span>
+          <span class="event-location"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/></svg> Sala de Conf. A</span>
+          <span class="event-badge badge-meeting">Reunião</span>
+          <div class="event-actions">
+            <button title="Editar">✏️</button>
+            <button title="Concluir">✓</button>
+          </div>
+        </div>
+        <div class="event-row">
+          <span class="event-type-dot dot-sig"></span>
+          <span class="event-time">16:00</span>
+          <span class="event-title">Apresentação Edifício Cristal</span>
+          <span class="event-client">Maria Santos</span>
+          <span class="event-badge badge-sig">Assinatura</span>
+          <div class="event-actions">
+            <button title="Editar">✏️</button>
+            <button title="Concluir">✓</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tomorrow -->
+      <div class="feed-section">
+        <div class="feed-section-label">Amanhã · 14 mai</div>
+        <div class="event-row">
+          <span class="event-type-dot dot-visit"></span>
+          <span class="event-time">10:00</span>
+          <span class="event-title">Visita Apartamento Central</span>
+          <span class="event-client">Carlos Mendes</span>
+          <span class="event-badge badge-visit">Visita</span>
+          <div class="event-actions">
+            <button title="Editar">✏️</button>
+            <button title="Concluir">✓</button>
+          </div>
+        </div>
+        <div class="event-row completed">
+          <span class="event-type-dot dot-other"></span>
+          <span class="event-time">11:30</span>
+          <span class="event-title">Ligação de follow-up</span>
+          <span class="event-client">Júlia Ferreira</span>
+          <span class="event-badge badge-done">Concluído</span>
+          <div class="event-actions">
+            <button title="Editar">✏️</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- This week -->
+      <div class="feed-section">
+        <div class="feed-section-label">Esta semana · 16 mai</div>
+        <div class="event-row">
+          <span class="event-type-dot dot-meeting"></span>
+          <span class="event-time">09:30</span>
+          <span class="event-title">Revisão de metas mensais</span>
+          <span class="event-client">Equipe Vendas</span>
+          <span class="event-badge badge-meeting">Reunião</span>
+          <div class="event-actions">
+            <button title="Editar">✏️</button>
+            <button title="Concluir">✓</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- ═══════════════════════════════════════
+     VARIANT B — Header Compacto + Lista
+══════════════════════════════════════════ -->
+<div id="vb" class="variant">
+  <div class="vb-header">
+    <div class="vb-title-row">
+      <div>
+        <h1>Agenda</h1>
+        <p>Gerencie seus compromissos e visitas</p>
+      </div>
+      <button class="va-add-btn">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Novo Evento
+      </button>
+    </div>
+
+    <!-- Week strip -->
+    <div class="vb-week-nav">
+      <button class="vb-week-btn">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
+      </button>
+      <span class="vb-week-label">10 – 16 de Maio, 2026</span>
+      <button class="vb-week-btn">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+      </button>
+    </div>
+    <div class="vb-week-strip">
+      <div class="vb-day"><span class="vb-day-label">DOM</span><span class="vb-day-num">10</span><span style="height:4px"></span></div>
+      <div class="vb-day"><span class="vb-day-label">SEG</span><span class="vb-day-num">11</span><span style="height:4px"></span></div>
+      <div class="vb-day"><span class="vb-day-label">TER</span><span class="vb-day-num">12</span><span style="height:4px"></span></div>
+      <div class="vb-day today selected"><span class="vb-day-label">QUA</span><span class="vb-day-num">13</span><div class="vb-day-dot"></div></div>
+      <div class="vb-day"><span class="vb-day-label">QUI</span><span class="vb-day-num">14</span><div class="vb-day-dot"></div></div>
+      <div class="vb-day"><span class="vb-day-label">SEX</span><span class="vb-day-num">15</span><span style="height:4px"></span></div>
+      <div class="vb-day"><span class="vb-day-label">SÁB</span><span class="vb-day-num">16</span><div class="vb-day-dot"></div></div>
+    </div>
+  </div>
+
+  <div class="vb-content">
+    <div class="vb-day-header">
+      <h2>Quarta-feira, 13 de maio</h2>
+      <span>3 compromissos</span>
+    </div>
+
+    <div class="vb-event-card">
+      <div class="vb-event-accent accent-visit"></div>
+      <div class="vb-event-body">
+        <div class="vb-event-meta">
+          <span class="vb-event-time">09:00</span>
+          <span class="vb-event-type-chip badge-visit">Visita</span>
+        </div>
+        <div class="vb-event-title">Visita Residencial Aurora</div>
+        <div class="vb-event-client">Ana Silva</div>
+        <div class="vb-event-loc">
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/></svg>
+          Rua das Flores, 42
+        </div>
+      </div>
+      <div class="vb-event-actions">
+        <button title="Editar"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
+        <button title="Concluir"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg></button>
+        <button title="Excluir" style="color:var(--error)"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg></button>
+      </div>
+    </div>
+
+    <div class="vb-event-card">
+      <div class="vb-event-accent accent-meeting"></div>
+      <div class="vb-event-body">
+        <div class="vb-event-meta">
+          <span class="vb-event-time">14:00</span>
+          <span class="vb-event-type-chip badge-meeting">Reunião</span>
+        </div>
+        <div class="vb-event-title">Reunião de Equipe</div>
+        <div class="vb-event-client">Ricardo Almeida</div>
+        <div class="vb-event-loc">
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/></svg>
+          Sala de Conferência A
+        </div>
+      </div>
+      <div class="vb-event-actions">
+        <button title="Editar"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
+        <button title="Concluir"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg></button>
+        <button title="Excluir" style="color:var(--error)"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg></button>
+      </div>
+    </div>
+
+    <div class="vb-event-card completed">
+      <div class="vb-event-accent accent-sig"></div>
+      <div class="vb-event-body">
+        <div class="vb-event-meta">
+          <span class="vb-event-time">16:00</span>
+          <span class="vb-event-type-chip badge-sig">Assinatura</span>
+        </div>
+        <div class="vb-event-title">Apresentação Edifício Cristal</div>
+        <div class="vb-event-client">Maria Santos</div>
+      </div>
+      <div class="vb-event-actions">
+        <button title="Editar"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
+        <button title="Excluir" style="color:var(--error)"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg></button>
+      </div>
+    </div>
+
+    <!-- empty state example -->
+    <div class="vb-day-header" style="margin-top:24px">
+      <h2>Quinta-feira, 14 de maio</h2>
+      <span>1 compromisso</span>
+    </div>
+    <div class="vb-event-card">
+      <div class="vb-event-accent accent-visit"></div>
+      <div class="vb-event-body">
+        <div class="vb-event-meta">
+          <span class="vb-event-time">10:00</span>
+          <span class="vb-event-type-chip badge-visit">Visita</span>
+        </div>
+        <div class="vb-event-title">Visita Apartamento Central</div>
+        <div class="vb-event-client">Carlos Mendes</div>
+      </div>
+      <div class="vb-event-actions">
+        <button title="Editar"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
+        <button title="Concluir"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg></button>
+        <button title="Excluir" style="color:var(--error)"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg></button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     VARIANT C — Split: Mini Calendar + Feed
+══════════════════════════════════════════ -->
+<div id="vc" class="variant">
+  <!-- Left panel -->
+  <aside class="vc-left">
+    <div class="vc-left-title">Agenda</div>
+    <div class="vc-left-sub">Seus compromissos</div>
+
+    <!-- Month calendar -->
+    <div class="vc-month-nav">
+      <span>Maio 2026</span>
+      <div style="display:flex;gap:2px">
+        <button><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg></button>
+        <button><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg></button>
+      </div>
+    </div>
+    <div class="vc-cal-grid">
+      <div class="vc-cal-label">D</div><div class="vc-cal-label">S</div><div class="vc-cal-label">T</div><div class="vc-cal-label">Q</div><div class="vc-cal-label">Q</div><div class="vc-cal-label">S</div><div class="vc-cal-label">S</div>
+      <div class="vc-cal-cell"></div><div class="vc-cal-cell"></div><div class="vc-cal-cell"></div><div class="vc-cal-cell">1</div><div class="vc-cal-cell">2</div><div class="vc-cal-cell">3</div><div class="vc-cal-cell">4</div>
+      <div class="vc-cal-cell">5</div><div class="vc-cal-cell has-event">6</div><div class="vc-cal-cell">7</div><div class="vc-cal-cell">8</div><div class="vc-cal-cell has-event">9</div><div class="vc-cal-cell">10</div><div class="vc-cal-cell">11</div>
+      <div class="vc-cal-cell">12</div><div class="vc-cal-cell today selected">13</div><div class="vc-cal-cell has-event">14</div><div class="vc-cal-cell">15</div><div class="vc-cal-cell has-event">16</div><div class="vc-cal-cell">17</div><div class="vc-cal-cell">18</div>
+      <div class="vc-cal-cell">19</div><div class="vc-cal-cell">20</div><div class="vc-cal-cell has-event">21</div><div class="vc-cal-cell">22</div><div class="vc-cal-cell">23</div><div class="vc-cal-cell">24</div><div class="vc-cal-cell">25</div>
+      <div class="vc-cal-cell">26</div><div class="vc-cal-cell">27</div><div class="vc-cal-cell">28</div><div class="vc-cal-cell">29</div><div class="vc-cal-cell">30</div><div class="vc-cal-cell">31</div><div class="vc-cal-cell"></div>
+    </div>
+
+    <!-- Upcoming mini list -->
+    <div class="vc-upcoming-label">Próximos eventos</div>
+
+    <div class="vc-upcoming-item">
+      <div class="vc-upcoming-date">MAI<span>16</span></div>
+      <div class="vc-upcoming-dot dot-meeting"></div>
+      <div class="vc-upcoming-info">
+        <div class="vc-upcoming-title">Revisão de metas</div>
+        <div class="vc-upcoming-time">09:30</div>
+      </div>
+    </div>
+    <div class="vc-upcoming-item">
+      <div class="vc-upcoming-date">MAI<span>21</span></div>
+      <div class="vc-upcoming-dot dot-visit"></div>
+      <div class="vc-upcoming-info">
+        <div class="vc-upcoming-title">Visita Park Residences</div>
+        <div class="vc-upcoming-time">11:00</div>
+      </div>
+    </div>
+    <div class="vc-upcoming-item">
+      <div class="vc-upcoming-date">JAN<span>16</span></div>
+      <div class="vc-upcoming-dot dot-sig"></div>
+      <div class="vc-upcoming-info">
+        <div class="vc-upcoming-title">Assinatura Contrato</div>
+        <div class="vc-upcoming-time">15:00</div>
+      </div>
+    </div>
+
+    <div style="margin-top:auto; padding-top:16px">
+      <button class="va-add-btn" style="width:100%;justify-content:center">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Novo Evento
+      </button>
+    </div>
+  </aside>
+
+  <!-- Right panel -->
+  <div class="vc-right">
+    <div class="vc-right-header">
+      <div>
+        <h2>Quarta-feira, 13 de maio</h2>
+        <p>3 compromissos · Hoje</p>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <div class="vc-view-toggle">
+          <button class="active">Dia</button>
+          <button>Semana</button>
+          <button>Todos</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="vc-feed">
+      <!-- Date group -->
+      <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;margin:0 0 12px;display:flex;align-items:center;gap:8px">
+        Hoje
+        <span style="flex:1;height:1px;background:var(--border)"></span>
+      </div>
+
+      <div class="vc-event-item">
+        <div class="vc-event-time-col"><div class="time">09:00</div></div>
+        <div class="vc-event-line"></div>
+        <div class="vc-event-body2">
+          <div class="vc-event-title2">Visita Residencial Aurora</div>
+          <div class="vc-event-meta2">Ana Silva · Rua das Flores, 42</div>
+        </div>
+        <span class="vc-type-pill pill-visit">Visita</span>
+        <button class="vc-done-btn"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg></button>
+      </div>
+
+      <div class="vc-event-item">
+        <div class="vc-event-time-col"><div class="time">14:00</div></div>
+        <div class="vc-event-line"></div>
+        <div class="vc-event-body2">
+          <div class="vc-event-title2">Reunião de Equipe</div>
+          <div class="vc-event-meta2">Ricardo Almeida · Sala Conf. A</div>
+        </div>
+        <span class="vc-type-pill pill-meeting">Reunião</span>
+        <button class="vc-done-btn"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg></button>
+      </div>
+
+      <div class="vc-event-item completed">
+        <div class="vc-event-time-col"><div class="time">16:00</div></div>
+        <div class="vc-event-line"></div>
+        <div class="vc-event-body2">
+          <div class="vc-event-title2">Apresentação Edifício Cristal</div>
+          <div class="vc-event-meta2">Maria Santos</div>
+        </div>
+        <span class="vc-type-pill pill-sig">Assinatura</span>
+        <button class="vc-done-btn done"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg></button>
+      </div>
+
+      <!-- Next day -->
+      <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;margin:24px 0 12px;display:flex;align-items:center;gap:8px">
+        Quinta · 14 mai
+        <span style="flex:1;height:1px;background:var(--border)"></span>
+      </div>
+
+      <div class="vc-event-item">
+        <div class="vc-event-time-col"><div class="time">10:00</div></div>
+        <div class="vc-event-line"></div>
+        <div class="vc-event-body2">
+          <div class="vc-event-title2">Visita Apartamento Central</div>
+          <div class="vc-event-meta2">Carlos Mendes</div>
+        </div>
+        <span class="vc-type-pill pill-visit">Visita</span>
+        <button class="vc-done-btn"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg></button>
+      </div>
+
+      <!-- sexta -->
+      <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;margin:24px 0 12px;display:flex;align-items:center;gap:8px">
+        Sexta · 16 mai
+        <span style="flex:1;height:1px;background:var(--border)"></span>
+      </div>
+      <div class="vc-event-item">
+        <div class="vc-event-time-col"><div class="time">09:30</div></div>
+        <div class="vc-event-line"></div>
+        <div class="vc-event-body2">
+          <div class="vc-event-title2">Revisão de metas mensais</div>
+          <div class="vc-event-meta2">Equipe Vendas</div>
+        </div>
+        <span class="vc-type-pill pill-meeting">Reunião</span>
+        <button class="vc-done-btn"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg></button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+let currentWinner = null;
+
+function show(id, btn) {
+  document.querySelectorAll('.variant').forEach(v => v.classList.remove('active'));
+  document.querySelectorAll('.tabs button').forEach(b => b.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  btn.classList.add('active');
+}
+
+function markWinner() {
+  const active = document.querySelector('.variant.active');
+  const activeBtn = document.querySelector('.tabs button.active');
+  if (!active || !activeBtn) return;
+  currentWinner = activeBtn.textContent;
+  document.getElementById('winner-label').textContent = '★ Vencedor: ' + currentWinner;
+  document.getElementById('winner-label').style.color = '#4ade80';
+  // Visual indicator on tab
+  document.querySelectorAll('.tabs button').forEach(b => {
+    b.textContent = b.textContent.replace(' ★', '');
+  });
+  activeBtn.textContent = activeBtn.textContent + ' ★';
+}
+</script>
+</body>
+</html>

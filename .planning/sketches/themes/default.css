@@ -1,0 +1,64 @@
+/* =====================================================
+   KAIZEN-AXIS — Sketch Theme
+   Direction: Minimalista & Clean / Linear-Notion style
+   ===================================================== */
+
+:root {
+  /* Brand */
+  --brand-primary:   #2563eb;
+  --brand-light:     #eff6ff;
+  --brand-dark:      #1d4ed8;
+
+  /* Neutrals */
+  --bg:              #ffffff;
+  --surface:         #f9fafb;
+  --surface-raised:  #f3f4f6;
+  --border:          #e5e7eb;
+  --border-focus:    #93c5fd;
+
+  /* Text */
+  --text-primary:    #111827;
+  --text-secondary:  #6b7280;
+  --text-muted:      #9ca3af;
+  --text-inverse:    #ffffff;
+
+  /* Event type colors */
+  --type-visit:      #10b981;  /* emerald */
+  --type-meeting:    #3b82f6;  /* blue    */
+  --type-signature:  #8b5cf6;  /* violet  */
+  --type-other:      #f59e0b;  /* amber   */
+
+  /* Status */
+  --success:         #10b981;
+  --warning:         #f59e0b;
+  --error:           #ef4444;
+
+  /* Spacing & Shape */
+  --radius-sm:       4px;
+  --radius-md:       8px;
+  --radius-lg:       12px;
+  --radius-xl:       16px;
+
+  /* Shadow */
+  --shadow-sm:       0 1px 2px rgba(0,0,0,.05);
+  --shadow-md:       0 4px 6px -1px rgba(0,0,0,.07), 0 2px 4px -1px rgba(0,0,0,.04);
+  --shadow-lg:       0 10px 15px -3px rgba(0,0,0,.08), 0 4px 6px -2px rgba(0,0,0,.03);
+
+  /* Typography */
+  --font:            'Inter', system-ui, -apple-system, sans-serif;
+  --font-mono:       'JetBrains Mono', 'Fira Code', monospace;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: var(--font);
+  background: var(--bg);
+  color: var(--text-primary);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Utility */
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; }
