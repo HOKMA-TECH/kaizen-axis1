@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { motion } from 'motion/react';
-import { CheckCheck, Check, Smile, FileText, Download, X } from 'lucide-react';
+import { CheckCheck, Check, Smile, FileText, Download, X, Play } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import ReactMarkdown from 'react-markdown';
 import { AudioPlayer } from './AudioPlayer';
@@ -180,13 +180,21 @@ export function ChatMessageBubble({ message, index, onDeleteForMe, onDeleteForAl
               />
             </button>
           ) : message.type === 'video' && message.mediaUrl ? (
-            <button onClick={openViewer} className="block rounded-xl overflow-hidden text-left">
+            <button onClick={openViewer} className="relative block rounded-xl overflow-hidden text-left group">
               <video
                 src={message.mediaUrl}
                 className="rounded-xl max-w-full max-h-48 object-cover hover:opacity-95 transition-opacity"
                 muted
                 playsInline
               />
+              <span className="absolute left-2 top-2 rounded-full bg-black/60 px-2 py-0.5 text-[10px] font-semibold text-white backdrop-blur-sm">
+                Vídeo
+              </span>
+              <span className="absolute inset-0 flex items-center justify-center bg-black/20 transition-colors group-hover:bg-black/30">
+                <span className="flex h-12 w-12 items-center justify-center rounded-full bg-black/55 text-white shadow-lg backdrop-blur-sm">
+                  <Play size={22} className="ml-0.5 fill-current" />
+                </span>
+              </span>
             </button>
           ) : message.type === 'audio' && message.mediaUrl ? (
             <AudioPlayer src={message.mediaUrl} isMe={message.isMe} />
