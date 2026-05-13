@@ -55,12 +55,12 @@ export function ChatDetailPanel({
   const mapMsg = useCallback((m: any): BubbleMessage => ({
     id: m.id,
     text: m.content,
-    type: m.type as BubbleMessage['type'],
+    type: m.type === 'kai_reply' ? 'text' : m.type as BubbleMessage['type'],
     mediaUrl: m.media_url,
     timestamp: new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     date: new Date(m.created_at).toLocaleDateString(),
-    isMe: m.sender_id === myId,
-    isKAI: isKAI && m.sender_id !== myId,
+    isMe: m.sender_id === myId && m.type !== 'kai_reply',
+    isKAI: isKAI && m.type === 'kai_reply',
     deliveryStatus: 'sent' as const,
     is_deleted: m.is_deleted ?? false,
     reactions: [],
@@ -94,7 +94,7 @@ export function ChatDetailPanel({
   }, [myId]);
 
   const loadMessages = useCallback(async () => {
-    if (!conversationId || isKAI) return;
+    if (!conversationId) return;
     setLoading(true);
     const { data } = await supabase
       .from('chat_messages')
@@ -107,19 +107,20 @@ export function ChatDetailPanel({
     const withReactions = await loadReactions(msgs);
     setMessages(withReactions);
     setLoading(false);
-  }, [conversationId, isKAI, myId, mapMsg, loadReactions]);
+  }, [conversationId, myId, mapMsg, loadReactions]);
 
   useEffect(() => {
     if (conversationId) markConversationRead(conversationId);
   }, [conversationId, markConversationRead]);
 
   useEffect(() => {
-    if (!conversationId || !myId || isKAI) {
+    if (!conversationId || !myId) {
       setMessages([]);
       return;
     }
     setMessages([]);
     loadMessages();
+    if (isKAI) return; // KAI responses are added directly after send, no realtime needed
     const channel = supabase
       .channel(`panel:${conversationId}`)
       .on('postgres_changes', {
@@ -366,21 +367,46 @@ export function ChatDetailPanel({
         id: tempId, text, type: 'text',
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         date: new Date().toLocaleDateString(),
-        isMe: true, deliveryStatus: 'sent',
+        isMe: true, deliveryStatus: 'sending',
       };
       setMessages(prev => [...prev, userMsg]);
-      try {
-        const reply = await sendMessageToKai(text, []);
-        const kaiMsg: BubbleMessage = {
-          id: `kai-${Date.now()}`, text: reply, type: 'text',
-          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          date: new Date().toLocaleDateString(),
-          isMe: false, isKAI: true, deliveryStatus: 'sent',
-        };
-        setMessages(prev => [...prev, kaiMsg]);
-      } catch {
-        setMessages(prev => prev.filter(m => m.id !== tempId));
-      }
+
+      // Persist user message to DB
+      const { data: savedUserMsg } = await supabase.from('chat_messages').insert({
+        sender_id: myId,
+        receiver_id: myId,
+        conversation_id: conversationId,
+        content: text,
+        type: 'text',
+      }).select('id').single();
+      const realUserMsgId = savedUserMsg?.id ?? tempId;
+      setMessages(prev => prev.map(m =>
+        m.id === tempId ? { ...m, id: realUserMsgId, deliveryStatus: 'sent' as const } : m
+      ));
+
+      // Get KAI reply
+      const reply = await sendMessageToKai(text, []);
+      const tempKaiId = `kai-temp-${Date.now()}`;
+      const kaiMsg: BubbleMessage = {
+        id: tempKaiId, text: reply, type: 'text',
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        date: new Date().toLocaleDateString(),
+        isMe: false, isKAI: true, deliveryStatus: 'sending',
+      };
+      setMessages(prev => [...prev, kaiMsg]);
+
+      // Persist KAI reply to DB
+      const { data: savedKaiMsg } = await supabase.from('chat_messages').insert({
+        sender_id: myId,
+        receiver_id: myId,
+        conversation_id: conversationId,
+        content: reply,
+        type: 'kai_reply',
+      }).select('id').single();
+      const realKaiMsgId = savedKaiMsg?.id ?? tempKaiId;
+      setMessages(prev => prev.map(m =>
+        m.id === tempKaiId ? { ...m, id: realKaiMsgId, deliveryStatus: 'sent' as const } : m
+      ));
     } else {
       const tempId = `temp-${Date.now()}`;
       const optimistic: BubbleMessage = {
