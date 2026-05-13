@@ -785,6 +785,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       }
 
       await refreshProfiles();
+      // If the current user updated their own profile, refresh profile state so
+      // chat UI reflects changes immediately without requiring a page reload.
+      if (id === userRef.current?.id) {
+        const { data: freshProfile } = await supabase.from('profiles').select('*').eq('id', id).single();
+        if (freshProfile) setProfile(freshProfile as Profile);
+      }
       logAuditEvent({
         action: data.role ? 'permissions_updated' : 'profile_updated',
         entity: 'profile',
