@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { CheckCheck, Check, Smile, FileText } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -27,11 +27,12 @@ interface ChatMessageBubbleProps {
   onReact?: (id: string, emoji: string) => void;
 }
 
+const QUICK_EMOJIS = ['❤️', '😂', '😮', '😢', '👍', '🙏'];
+
 export function ChatMessageBubble({ message, index, onDeleteForMe, onDeleteForAll, onReact }: ChatMessageBubbleProps) {
   const [showMenu, setShowMenu] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
-
-  const QUICK_EMOJIS = ['❤️', '😂', '😮', '😢', '👍', '🙏'];
+  const [hovered, setHovered] = useState(false);
 
   const pressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -45,6 +46,12 @@ export function ChatMessageBubble({ message, index, onDeleteForMe, onDeleteForAl
     e.preventDefault();
     setShowMenu(true);
   };
+
+  useEffect(() => {
+    return () => {
+      if (pressTimer.current) clearTimeout(pressTimer.current);
+    };
+  }, []);
 
   if (message.is_deleted) {
     return (
@@ -70,7 +77,8 @@ export function ChatMessageBubble({ message, index, onDeleteForMe, onDeleteForAl
       onContextMenu={handleContextMenu}
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
-      onMouseLeave={() => { handleTouchEnd(); }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => { setHovered(false); handleTouchEnd(); }}
     >
       <div className="relative max-w-[75%]">
         {/* Emoji picker trigger */}
@@ -83,8 +91,10 @@ export function ChatMessageBubble({ message, index, onDeleteForMe, onDeleteForAl
           >
             <motion.button
               initial={{ opacity: 0, scale: 0.8 }}
-              animate={{ opacity: showMenu || showEmojiPicker ? 1 : 0, scale: showMenu || showEmojiPicker ? 1 : 0.8 }}
+              animate={{ opacity: hovered || showMenu || showEmojiPicker ? 1 : 0, scale: hovered || showMenu || showEmojiPicker ? 1 : 0.8 }}
+              transition={{ duration: 0.15 }}
               className="p-1 rounded-full bg-card-bg border border-surface-200 shadow-sm"
+              aria-label="Reagir à mensagem"
               onClick={(e) => { e.stopPropagation(); setShowEmojiPicker(v => !v); setShowMenu(false); }}
             >
               <Smile size={12} className="text-text-secondary" />
@@ -191,7 +201,7 @@ export function ChatMessageBubble({ message, index, onDeleteForMe, onDeleteForAl
           </div>
         )}
 
-        {showMenu && !message.is_deleted && (
+        {showMenu && (
           <>
             <div className="fixed inset-0 z-20" onClick={() => setShowMenu(false)} />
             <div
