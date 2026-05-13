@@ -49,6 +49,9 @@ export function ChatSidebar({
   const [profileAvailability, setProfileAvailability] = useState<Availability>('available');
   const [profileAvatar, setProfileAvatar] = useState<string | null>(null);
   const [savingProfile, setSavingProfile] = useState(false);
+  const [avatarUploading, setAvatarUploading] = useState(false);
+  const [avatarError, setAvatarError] = useState<string | null>(null);
+  const [saveSuccess, setSaveSuccess] = useState(false);
   const avatarInputRef = useRef<HTMLInputElement>(null);
 
   const openProfile = () => {
@@ -63,27 +66,40 @@ export function ChatSidebar({
   const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !user?.id) return;
+    setAvatarUploading(true);
+    setAvatarError(null);
     const ext = file.name.split('.').pop() ?? 'jpg';
     const path = `chat-avatars/${user.id}.${ext}`;
     const { error } = await supabase.storage.from('chat-media').upload(path, file, { upsert: true, contentType: file.type });
-    if (!error) {
+    if (error) {
+      setAvatarError('Falha ao enviar foto: ' + error.message);
+    } else {
       const url = supabase.storage.from('chat-media').getPublicUrl(path).data.publicUrl;
-      setProfileAvatar(url);
+      setProfileAvatar(url + `?t=${Date.now()}`);
     }
+    setAvatarUploading(false);
     e.target.value = '';
   };
 
   const saveProfile = async () => {
     if (!user?.id) return;
     setSavingProfile(true);
-    await updateProfile(user.id, {
-      chat_display_name: profileName.trim() || null,
-      chat_status_text: profileStatus.trim() || null,
-      chat_availability: profileAvailability,
-      chat_avatar_url: profileAvatar || null,
-    });
-    setSavingProfile(false);
-    setShowProfile(false);
+    setSaveSuccess(false);
+    setAvatarError(null);
+    try {
+      await updateProfile(user.id, {
+        chat_display_name: profileName.trim() || null,
+        chat_status_text: profileStatus.trim() || null,
+        chat_availability: profileAvailability,
+        chat_avatar_url: profileAvatar ? profileAvatar.split('?')[0] : null,
+      });
+      setSaveSuccess(true);
+      setTimeout(() => { setSaveSuccess(false); setShowProfile(false); }, 1200);
+    } catch (err: any) {
+      setAvatarError('Erro ao salvar perfil: ' + (err?.message ?? 'tente novamente'));
+    } finally {
+      setSavingProfile(false);
+    }
   };
 
   const searchTerm = search.trim().toLowerCase();
@@ -307,12 +323,23 @@ export function ChatSidebar({
                   )}
                   <button
                     onClick={() => avatarInputRef.current?.click()}
-                    className="absolute bottom-0 right-0 p-1.5 rounded-full bg-primary-600 text-white shadow-md hover:bg-primary-700 transition-colors"
+                    disabled={avatarUploading}
+                    className="absolute bottom-0 right-0 p-1.5 rounded-full bg-primary-600 text-white shadow-md hover:bg-primary-700 transition-colors disabled:opacity-60"
                   >
-                    <Camera size={12} />
+                    {avatarUploading
+                      ? <div className="w-3 h-3 rounded-full border-2 border-white border-t-transparent animate-spin" />
+                      : <Camera size={12} />
+                    }
                   </button>
                 </div>
               </div>
+
+              {avatarError && (
+                <p className="text-xs text-red-500 text-center mb-3 bg-red-50 dark:bg-red-900/20 rounded-xl px-3 py-2">{avatarError}</p>
+              )}
+              {saveSuccess && (
+                <p className="text-xs text-emerald-600 text-center mb-3 bg-emerald-50 dark:bg-emerald-900/20 rounded-xl px-3 py-2 font-medium">Perfil salvo com sucesso!</p>
+              )}
 
               {/* Nome no chat */}
               <div className="mb-3">
