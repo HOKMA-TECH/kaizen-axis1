@@ -57,6 +57,8 @@ export function ChatMessageBubble({ message, index, onDeleteForMe, onDeleteForAl
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [hovered, setHovered] = useState(false);
   const [viewerOpen, setViewerOpen] = useState(false);
+  // Snapshot the mediaUrl when opening the viewer so view-once wipe doesn't break playback
+  const [viewerMediaUrl, setViewerMediaUrl] = useState<string | undefined>(undefined);
 
   const pressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const mediaName = message.fileName || message.text || (
@@ -68,9 +70,10 @@ export function ChatMessageBubble({ message, index, onDeleteForMe, onDeleteForAl
 
   const openViewer = (e?: React.MouseEvent) => {
     e?.stopPropagation();
-    const hasMedia = message.mediaUrl && ['image', 'video', 'document'].includes(message.type);
+    const hasMedia = message.mediaUrl && ['image', 'video', 'document', 'audio'].includes(message.type);
     const isViewOnceText = message.viewOnce && message.type === 'text';
     if (hasMedia || isViewOnceText) {
+      setViewerMediaUrl(message.mediaUrl); // snapshot before potential view-once wipe
       setViewerOpen(true);
       setShowMenu(false);
       setShowEmojiPicker(false);
@@ -423,17 +426,25 @@ export function ChatMessageBubble({ message, index, onDeleteForMe, onDeleteForAl
                 </p>
               </div>
             )}
-            {message.type === 'image' && isTrustedMediaUrl(message.mediaUrl) && (
+            {message.type === 'audio' && isTrustedMediaUrl(viewerMediaUrl) && (
+              <div
+                className="w-full max-w-sm bg-card-bg border border-surface-200 rounded-2xl p-4 shadow-sm"
+                onClick={e => e.stopPropagation()}
+              >
+                <AudioPlayer src={viewerMediaUrl!} isMe={false} />
+              </div>
+            )}
+            {message.type === 'image' && isTrustedMediaUrl(viewerMediaUrl) && (
               <img
-                src={message.mediaUrl}
+                src={viewerMediaUrl}
                 alt={mediaName}
                 className="max-w-full max-h-full object-contain"
                 onClick={e => e.stopPropagation()}
               />
             )}
-            {message.type === 'video' && isTrustedMediaUrl(message.mediaUrl) && (
+            {message.type === 'video' && isTrustedMediaUrl(viewerMediaUrl) && (
               <video
-                src={message.mediaUrl}
+                src={viewerMediaUrl}
                 controls
                 autoPlay
                 playsInline
@@ -442,9 +453,9 @@ export function ChatMessageBubble({ message, index, onDeleteForMe, onDeleteForAl
               />
             )}
             {/* C-06: only render iframe for trusted Supabase URLs; sandbox blocks scripts */}
-            {message.type === 'document' && isPdf && isTrustedMediaUrl(message.mediaUrl) && (
+            {message.type === 'document' && isPdf && isTrustedMediaUrl(viewerMediaUrl) && (
               <iframe
-                src={`${message.mediaUrl}#toolbar=1&navpanes=0`}
+                src={`${viewerMediaUrl}#toolbar=1&navpanes=0`}
                 title={mediaName}
                 sandbox="allow-scripts allow-same-origin"
                 className="w-full h-full max-w-5xl bg-white border-0 shadow-sm"
