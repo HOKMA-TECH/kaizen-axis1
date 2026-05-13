@@ -21,12 +21,13 @@ interface ChatDetailPanelProps {
   isGroup?: boolean;
   isOnline?: boolean;
   onClose?: () => void;
+  onLeftGroup?: (groupId: string) => void;
 }
 
 const PAGE_SIZE = 50;
 
 export function ChatDetailPanel({
-  otherId, otherName, otherRole, otherAvatar, isKAI, isGroup, isOnline, onClose,
+  otherId, otherName, otherRole, otherAvatar, isKAI, isGroup, isOnline, onClose, onLeftGroup,
 }: ChatDetailPanelProps) {
   const { user, profile } = useApp();
   const { markConversationRead } = useChatUnread();
@@ -43,6 +44,7 @@ export function ChatDetailPanel({
   const [userInfo, setUserInfo] = useState<ChatProfileInfo | null>(null);
   const [groupInfo, setGroupInfo] = useState<ChatGroupInfo | null>(null);
   const [removingMemberId, setRemovingMemberId] = useState<string | null>(null);
+  const [leavingGroup, setLeavingGroup] = useState(false);
 
   const bottomRef = useRef<HTMLDivElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
@@ -285,6 +287,31 @@ export function ChatDetailPanel({
     );
     setRemovingMemberId(null);
   }, [groupId, groupInfo?.created_by, myId]);
+
+  const handleLeaveGroup = useCallback(async () => {
+    if (!groupId || !myId || groupInfo?.created_by === myId) return;
+    if (!confirm('Sair deste grupo?')) return;
+
+    setLeavingGroup(true);
+    const { error } = await supabase
+      .from('chat_group_members')
+      .delete()
+      .eq('group_id', groupId)
+      .eq('user_id', myId);
+
+    if (error) {
+      alert('Erro ao sair do grupo.');
+      setLeavingGroup(false);
+      return;
+    }
+
+    setLeavingGroup(false);
+    setShowInfo(false);
+    setGroupInfo(null);
+    setMessages([]);
+    onLeftGroup?.(groupId);
+    onClose?.();
+  }, [groupId, groupInfo?.created_by, myId, onClose, onLeftGroup]);
 
   const handleSendAudio = async (blob: Blob) => {
     if (!myId || !otherId || isKAI) return;
@@ -701,7 +728,9 @@ export function ChatDetailPanel({
       groupInfo={groupInfo}
       currentUserId={myId}
       removingMemberId={removingMemberId}
+      leavingGroup={leavingGroup}
       onRemoveGroupMember={handleRemoveGroupMember}
+      onLeaveGroup={handleLeaveGroup}
     />
     </>
   );

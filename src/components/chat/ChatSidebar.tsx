@@ -590,6 +590,22 @@ export function ChatSidebar({
                       ...selectedMembers.map(uid => ({ group_id: group.id, user_id: uid })),
                     ];
                     await supabase.from('chat_group_members').insert(members);
+
+                    if (selectedMembers.length > 0) {
+                      const creatorName = profile?.chat_display_name || profile?.name || 'Usuario';
+                      const trimmedGroupName = groupName.trim();
+                      await supabase.from('notifications').insert(
+                        selectedMembers.map(uid => ({
+                          title: 'Novo grupo',
+                          message: `${creatorName} colocou vc no grupo ${trimmedGroupName}`,
+                          type: 'chat',
+                          target_user_id: uid,
+                          reference_id: group.id,
+                          reference_route: '/chat',
+                        }))
+                      );
+                    }
+
                     closeCreateGroup();
                   } catch {
                     alert('Erro ao criar grupo. Tente novamente.');

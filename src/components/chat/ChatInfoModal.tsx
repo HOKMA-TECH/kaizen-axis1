@@ -1,4 +1,4 @@
-import { X, Users, Shield, Minus } from 'lucide-react';
+import { X, Users, Shield, Minus, LogOut } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { getColor, getInitials } from '@/lib/chat-utils';
 
@@ -31,7 +31,9 @@ interface ChatInfoModalProps {
   loading?: boolean;
   currentUserId?: string | null;
   removingMemberId?: string | null;
+  leavingGroup?: boolean;
   onRemoveGroupMember?: (memberId: string) => void;
+  onLeaveGroup?: () => void;
 }
 
 const availabilityMeta = (value: Availability) => {
@@ -84,13 +86,16 @@ export function ChatInfoModal({
   loading,
   currentUserId,
   removingMemberId,
+  leavingGroup,
   onRemoveGroupMember,
+  onLeaveGroup,
 }: ChatInfoModalProps) {
   if (!open) return null;
   const isGroup = Boolean(groupInfo);
   const title = isGroup ? groupInfo?.name || 'Grupo' : displayName(userInfo);
   const availability = availabilityMeta(userInfo?.chat_availability);
   const canManageGroup = Boolean(groupInfo?.created_by && currentUserId && groupInfo.created_by === currentUserId);
+  const canLeaveGroup = Boolean(isGroup && groupInfo?.created_by && currentUserId && groupInfo.created_by !== currentUserId);
 
   return (
     <div className="fixed inset-0 z-[520] bg-black/45 flex items-end sm:items-center justify-center" onClick={onClose}>
@@ -161,6 +166,22 @@ export function ChatInfoModal({
                 })}
               </div>
             </div>
+
+            {canLeaveGroup && (
+              <button
+                type="button"
+                onClick={onLeaveGroup}
+                disabled={leavingGroup}
+                className="mt-5 w-full inline-flex items-center justify-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-semibold text-red-600 hover:bg-red-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                {leavingGroup ? (
+                  <span className="w-4 h-4 rounded-full border-2 border-red-300 border-t-red-600 animate-spin" />
+                ) : (
+                  <LogOut size={16} />
+                )}
+                Sair do grupo
+              </button>
+            )}
           </div>
         ) : (
           <div className="p-5">

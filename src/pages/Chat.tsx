@@ -137,6 +137,14 @@ export default function Chat() {
             fetchConversations();
           }
         })
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'chat_group_members',
+        filter: `user_id=eq.${myId}`,
+      }, () => {
+        fetchConversations();
+      })
       .subscribe();
     return () => { supabase.removeChannel(ch); };
   }, [myId, fetchConversations]);
@@ -282,6 +290,12 @@ export default function Chat() {
     }
   };
 
+  const handleLeftGroup = (groupId: string) => {
+    const conversationId = `group-${groupId}`;
+    setConversations(prev => prev.filter(c => c.conversationId !== conversationId));
+    setSelectedId(prev => prev === conversationId ? null : prev);
+  };
+
   return (
     <>
       {/* Desktop split-view */}
@@ -312,6 +326,7 @@ export default function Chat() {
             isGroup={selectedConvo?.isGroup}
             isOnline={selectedConvo?.isOnline}
             onClose={() => setSelectedId(null)}
+            onLeftGroup={handleLeftGroup}
           />
         </div>
       </div>
