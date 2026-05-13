@@ -1,4 +1,5 @@
-import { X, Users, Shield, Minus, LogOut } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { X, Users, Shield, Minus, LogOut, Plus, Search, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { getColor, getInitials } from '@/lib/chat-utils';
 
@@ -31,9 +32,14 @@ interface ChatInfoModalProps {
   loading?: boolean;
   currentUserId?: string | null;
   removingMemberId?: string | null;
+  addingMemberId?: string | null;
   leavingGroup?: boolean;
+  deletingGroup?: boolean;
+  availableMembers?: ChatProfileInfo[];
   onRemoveGroupMember?: (memberId: string) => void;
+  onAddGroupMember?: (memberId: string) => void;
   onLeaveGroup?: () => void;
+  onDeleteGroup?: () => void;
 }
 
 const availabilityMeta = (value: Availability) => {
@@ -86,10 +92,24 @@ export function ChatInfoModal({
   loading,
   currentUserId,
   removingMemberId,
+  addingMemberId,
   leavingGroup,
+  deletingGroup,
+  availableMembers = [],
   onRemoveGroupMember,
+  onAddGroupMember,
   onLeaveGroup,
+  onDeleteGroup,
 }: ChatInfoModalProps) {
+  const [showAddMembers, setShowAddMembers] = useState(false);
+  const [memberSearch, setMemberSearch] = useState('');
+  const filteredAvailableMembers = useMemo(() => {
+    const term = memberSearch.trim().toLowerCase();
+    return availableMembers.filter(member =>
+      !term || `${displayName(member)} ${member.role || ''}`.toLowerCase().includes(term)
+    );
+  }, [availableMembers, memberSearch]);
+
   if (!open) return null;
   const isGroup = Boolean(groupInfo);
   const title = isGroup ? groupInfo?.name || 'Grupo' : displayName(userInfo);
@@ -127,9 +147,66 @@ export function ChatInfoModal({
             </div>
 
             <div className="mt-6">
-              <div className="flex items-center gap-2 mb-3 text-sm font-semibold text-text-primary">
-                <Users size={16} /> Participantes ({groupInfo?.members.length || 0})
+              <div className="flex items-center justify-between gap-3 mb-3">
+                <div className="flex items-center gap-2 text-sm font-semibold text-text-primary">
+                  <Users size={16} /> Participantes ({groupInfo?.members.length || 0})
+                </div>
+                {canManageGroup && (
+                  <button
+                    type="button"
+                    onClick={() => setShowAddMembers(v => !v)}
+                    className="w-8 h-8 rounded-full bg-primary-600 text-white hover:bg-primary-700 flex items-center justify-center transition-colors"
+                    title="Adicionar participantes"
+                  >
+                    <Plus size={17} />
+                  </button>
+                )}
               </div>
+
+              {canManageGroup && showAddMembers && (
+                <div className="mb-4 rounded-xl border border-surface-200 bg-surface-50 p-3">
+                  <div className="relative mb-3">
+                    <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary pointer-events-none" />
+                    <input
+                      type="text"
+                      placeholder="Pesquisar usuário..."
+                      value={memberSearch}
+                      onChange={e => setMemberSearch(e.target.value)}
+                      className="w-full pl-8 pr-3 py-2 rounded-xl bg-card-bg text-sm text-text-primary placeholder:text-text-secondary border border-surface-200 focus:outline-none focus:ring-2 focus:ring-primary-400/40"
+                    />
+                  </div>
+                  <div className="space-y-2 max-h-44 overflow-y-auto pr-1">
+                    {filteredAvailableMembers.map(member => (
+                      <div key={member.id} className="flex items-center gap-3 rounded-xl border border-surface-200 bg-card-bg px-3 py-2">
+                        <Avatar profile={member} fallbackId={member.id} size="sm" />
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-semibold text-text-primary truncate">{displayName(member)}</p>
+                          <p className="text-xs text-text-secondary truncate">{roleLabel(member.role)}</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => onAddGroupMember?.(member.id)}
+                          disabled={addingMemberId === member.id}
+                          className="w-8 h-8 rounded-full bg-primary-600 text-white hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center transition-colors"
+                          title="Adicionar ao grupo"
+                        >
+                          {addingMemberId === member.id ? (
+                            <span className="w-3.5 h-3.5 rounded-full border-2 border-white/60 border-t-white animate-spin" />
+                          ) : (
+                            <Plus size={16} />
+                          )}
+                        </button>
+                      </div>
+                    ))}
+                    {filteredAvailableMembers.length === 0 && (
+                      <p className="text-xs text-text-secondary text-center py-3">
+                        {memberSearch.trim() ? 'Nenhum usuário encontrado.' : 'Todos os usuários disponíveis já estão no grupo.'}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
+
               <div className="space-y-2">
                 {(groupInfo?.members || []).map(member => {
                   const isAdmin = member.id === groupInfo?.created_by;
@@ -180,6 +257,22 @@ export function ChatInfoModal({
                   <LogOut size={16} />
                 )}
                 Sair do grupo
+              </button>
+            )}
+
+            {canManageGroup && (
+              <button
+                type="button"
+                onClick={onDeleteGroup}
+                disabled={deletingGroup}
+                className="mt-5 w-full inline-flex items-center justify-center gap-2 rounded-xl border border-red-200 bg-red-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                {deletingGroup ? (
+                  <span className="w-4 h-4 rounded-full border-2 border-white/60 border-t-white animate-spin" />
+                ) : (
+                  <Trash2 size={16} />
+                )}
+                Excluir grupo
               </button>
             )}
           </div>

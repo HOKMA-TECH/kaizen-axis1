@@ -1,5 +1,5 @@
 // src/components/chat/ChatDetailPanel.tsx
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Loader2, X } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
@@ -29,7 +29,7 @@ const PAGE_SIZE = 50;
 export function ChatDetailPanel({
   otherId, otherName, otherRole, otherAvatar, isKAI, isGroup, isOnline, onClose, onLeftGroup,
 }: ChatDetailPanelProps) {
-  const { user, profile } = useApp();
+  const { user, profile, allProfiles } = useApp();
   const { markConversationRead } = useChatUnread();
   const myId = user?.id;
   const myName = profile?.chat_display_name || profile?.name || user?.email || 'Usuario';
@@ -44,7 +44,9 @@ export function ChatDetailPanel({
   const [userInfo, setUserInfo] = useState<ChatProfileInfo | null>(null);
   const [groupInfo, setGroupInfo] = useState<ChatGroupInfo | null>(null);
   const [removingMemberId, setRemovingMemberId] = useState<string | null>(null);
+  const [addingMemberId, setAddingMemberId] = useState<string | null>(null);
   const [leavingGroup, setLeavingGroup] = useState(false);
+  const [deletingGroup, setDeletingGroup] = useState(false);
 
   const bottomRef = useRef<HTMLDivElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
@@ -64,6 +66,24 @@ export function ChatDetailPanel({
       : otherId && myId
         ? [myId, otherId].sort().join('-')
         : null;
+
+  const availableGroupMembers = useMemo<ChatProfileInfo[]>(() => {
+    if (!groupInfo || !myId) return [];
+    const currentMemberIds = new Set(groupInfo.members.map(member => member.id));
+    return (allProfiles ?? [])
+      .filter(member => member.id && member.id !== myId && !currentMemberIds.has(member.id))
+      .map(member => ({
+        id: member.id,
+        name: member.name,
+        role: member.role,
+        avatar_url: member.avatar_url,
+        chat_display_name: member.chat_display_name,
+        chat_avatar_url: member.chat_avatar_url,
+        chat_status_text: member.chat_status_text,
+        chat_availability: member.chat_availability,
+      }))
+      .sort((a, b) => (a.chat_display_name || a.name || '').localeCompare(b.chat_display_name || b.name || ''));
+  }, [allProfiles, groupInfo, myId]);
 
   const mapMsg = useCallback((m: any): BubbleMessage => ({
     id: m.id,
@@ -288,6 +308,38 @@ export function ChatDetailPanel({
     setRemovingMemberId(null);
   }, [groupId, groupInfo?.created_by, myId]);
 
+  const handleAddGroupMember = useCallback(async (memberId: string) => {
+    if (!groupId || !myId || groupInfo?.created_by !== myId || groupInfo.members.some(member => member.id === memberId)) return;
+    const member = availableGroupMembers.find(candidate => candidate.id === memberId);
+    if (!member) return;
+
+    setAddingMemberId(memberId);
+    const { error } = await supabase
+      .from('chat_group_members')
+      .insert({ group_id: groupId, user_id: memberId });
+
+    if (error) {
+      alert('Erro ao adicionar participante ao grupo.');
+      setAddingMemberId(null);
+      return;
+    }
+
+    await supabase.from('notifications').insert({
+      title: 'Novo grupo',
+      message: `${myName} colocou vc no grupo ${groupInfo.name}`,
+      type: 'chat',
+      target_user_id: memberId,
+      reference_id: groupId,
+      reference_route: '/chat',
+    });
+
+    setGroupInfo(prev => prev
+      ? { ...prev, members: [...prev.members, member].sort((a, b) => (a.chat_display_name || a.name || '').localeCompare(b.chat_display_name || b.name || '')) }
+      : prev
+    );
+    setAddingMemberId(null);
+  }, [availableGroupMembers, groupId, groupInfo, myId, myName]);
+
   const handleLeaveGroup = useCallback(async () => {
     if (!groupId || !myId || groupInfo?.created_by === myId) return;
     if (!confirm('Sair deste grupo?')) return;
@@ -312,6 +364,30 @@ export function ChatDetailPanel({
     onLeftGroup?.(groupId);
     onClose?.();
   }, [groupId, groupInfo?.created_by, myId, onClose, onLeftGroup]);
+
+  const handleDeleteGroup = useCallback(async () => {
+    if (!groupId || !myId || groupInfo?.created_by !== myId) return;
+    if (!confirm(`Excluir o grupo "${groupInfo.name}"? Essa ação removerá o grupo para todos.`)) return;
+
+    setDeletingGroup(true);
+    const { error } = await supabase
+      .from('chat_groups')
+      .delete()
+      .eq('id', groupId);
+
+    if (error) {
+      alert('Erro ao excluir grupo.');
+      setDeletingGroup(false);
+      return;
+    }
+
+    setDeletingGroup(false);
+    setShowInfo(false);
+    setGroupInfo(null);
+    setMessages([]);
+    onLeftGroup?.(groupId);
+    onClose?.();
+  }, [groupId, groupInfo, myId, onClose, onLeftGroup]);
 
   const handleSendAudio = async (blob: Blob) => {
     if (!myId || !otherId || isKAI) return;
@@ -728,9 +804,14 @@ export function ChatDetailPanel({
       groupInfo={groupInfo}
       currentUserId={myId}
       removingMemberId={removingMemberId}
+      addingMemberId={addingMemberId}
       leavingGroup={leavingGroup}
+      deletingGroup={deletingGroup}
+      availableMembers={availableGroupMembers}
       onRemoveGroupMember={handleRemoveGroupMember}
+      onAddGroupMember={handleAddGroupMember}
       onLeaveGroup={handleLeaveGroup}
+      onDeleteGroup={handleDeleteGroup}
     />
     </>
   );
