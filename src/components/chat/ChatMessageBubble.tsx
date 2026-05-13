@@ -3,7 +3,26 @@ import { motion } from 'motion/react';
 import { CheckCheck, Check, Smile, FileText, Download, X, Play, Eye, EyeOff } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import ReactMarkdown from 'react-markdown';
+import rehypeSanitize from 'rehype-sanitize';
 import { AudioPlayer } from './AudioPlayer';
+
+const SUPABASE_STORAGE_HOST = import.meta.env.VITE_SUPABASE_URL
+  ? new URL(import.meta.env.VITE_SUPABASE_URL).hostname
+  : '';
+
+/** Only allow URLs from our own Supabase storage domain. */
+function isTrustedMediaUrl(url: string | undefined): boolean {
+  if (!url) return false;
+  try {
+    const parsed = new URL(url);
+    return (
+      parsed.hostname === SUPABASE_STORAGE_HOST &&
+      (parsed.protocol === 'https:' || parsed.protocol === 'http:')
+    );
+  } catch {
+    return false;
+  }
+}
 
 export interface BubbleMessage {
   id: string;
@@ -246,9 +265,10 @@ export function ChatMessageBubble({ message, index, onDeleteForMe, onDeleteForAl
               'prose-p:my-0.5 prose-ul:my-1 prose-li:my-0',
               'prose-headings:text-text-primary prose-p:text-text-primary prose-li:text-text-primary'
             )}>
-              <ReactMarkdown>{message.text || ''}</ReactMarkdown>
+              {/* C-07: rehype-sanitize blocks javascript: links and dangerous HTML */}
+              <ReactMarkdown rehypePlugins={[rehypeSanitize]}>{message.text || ''}</ReactMarkdown>
             </div>
-          ) : message.type === 'image' && message.mediaUrl ? (
+          ) : message.type === 'image' && isTrustedMediaUrl(message.mediaUrl) ? (
             <button onClick={openViewer} className="block rounded-xl overflow-hidden text-left">
               <img
                 src={message.mediaUrl}
@@ -256,7 +276,7 @@ export function ChatMessageBubble({ message, index, onDeleteForMe, onDeleteForAl
                 className="rounded-xl max-w-full max-h-48 object-cover hover:opacity-95 transition-opacity"
               />
             </button>
-          ) : message.type === 'video' && message.mediaUrl ? (
+          ) : message.type === 'video' && isTrustedMediaUrl(message.mediaUrl) ? (
             <button onClick={openViewer} className="relative block rounded-xl overflow-hidden text-left group">
               <video
                 src={message.mediaUrl}
@@ -273,9 +293,9 @@ export function ChatMessageBubble({ message, index, onDeleteForMe, onDeleteForAl
                 </span>
               </span>
             </button>
-          ) : message.type === 'audio' && message.mediaUrl ? (
-            <AudioPlayer src={message.mediaUrl} isMe={message.isMe} />
-          ) : message.type === 'document' && message.mediaUrl ? (
+          ) : message.type === 'audio' && isTrustedMediaUrl(message.mediaUrl) ? (
+            <AudioPlayer src={message.mediaUrl!} isMe={message.isMe} />
+          ) : message.type === 'document' && isTrustedMediaUrl(message.mediaUrl) ? (
             <button
               onClick={openViewer}
               className={cn(
@@ -403,7 +423,7 @@ export function ChatMessageBubble({ message, index, onDeleteForMe, onDeleteForAl
                 </p>
               </div>
             )}
-            {message.type === 'image' && (
+            {message.type === 'image' && isTrustedMediaUrl(message.mediaUrl) && (
               <img
                 src={message.mediaUrl}
                 alt={mediaName}
@@ -411,7 +431,7 @@ export function ChatMessageBubble({ message, index, onDeleteForMe, onDeleteForAl
                 onClick={e => e.stopPropagation()}
               />
             )}
-            {message.type === 'video' && (
+            {message.type === 'video' && isTrustedMediaUrl(message.mediaUrl) && (
               <video
                 src={message.mediaUrl}
                 controls
@@ -421,10 +441,12 @@ export function ChatMessageBubble({ message, index, onDeleteForMe, onDeleteForAl
                 onClick={e => e.stopPropagation()}
               />
             )}
-            {message.type === 'document' && isPdf && (
+            {/* C-06: only render iframe for trusted Supabase URLs; sandbox blocks scripts */}
+            {message.type === 'document' && isPdf && isTrustedMediaUrl(message.mediaUrl) && (
               <iframe
                 src={`${message.mediaUrl}#toolbar=1&navpanes=0`}
                 title={mediaName}
+                sandbox="allow-scripts allow-same-origin"
                 className="w-full h-full max-w-5xl bg-white border-0 shadow-sm"
                 onClick={e => e.stopPropagation()}
               />

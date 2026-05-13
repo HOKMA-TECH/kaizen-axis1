@@ -174,9 +174,13 @@ export function ChatDetailPanel({
         }
       })
       .on('broadcast', { event: 'chat-activity' }, ({ payload }) => {
-        if (!payload || payload.userId === myId) return;
+        // A-06: validate payload shape and restrict allowed activity types
+        if (!payload || typeof payload.userId !== 'string' || payload.userId === myId) return;
+        const allowedTypes = ['typing', 'recording', 'idle'] as const;
+        if (!allowedTypes.includes(payload.type)) return;
+        // Sanitize name: only use the known otherName, never trust payload.name
         if (payload.type === 'typing' || payload.type === 'recording') {
-          setRemoteActivity({ name: payload.name || otherName || 'Usuario', type: payload.type });
+          setRemoteActivity({ name: otherName || 'Usuario', type: payload.type });
           if (remoteActivityTimeoutRef.current) clearTimeout(remoteActivityTimeoutRef.current);
           remoteActivityTimeoutRef.current = setTimeout(() => setRemoteActivity(null), payload.type === 'recording' ? 6000 : 2500);
         } else if (payload.type === 'idle') {
@@ -290,7 +294,11 @@ export function ChatDetailPanel({
   }, [groupId, isGroup, isKAI, otherAvatar, otherId, otherName, otherRole]);
 
   const handleRemoveGroupMember = useCallback(async (memberId: string) => {
-    if (!groupId || !myId || groupInfo?.created_by !== myId || memberId === myId) return;
+    if (!groupId || !myId || memberId === myId) return;
+    // M-02: re-fetch creator from DB — don't trust stale in-memory groupInfo.created_by
+    const { data: freshGroup } = await supabase
+      .from('chat_groups').select('created_by').eq('id', groupId).maybeSingle();
+    if (!freshGroup || freshGroup.created_by !== myId) return;
     setRemovingMemberId(memberId);
     const { error } = await supabase
       .from('chat_group_members')
@@ -327,9 +335,12 @@ export function ChatDetailPanel({
       return;
     }
 
+    // A-09: strip newlines/control chars from user-supplied names before inserting
+    const safeName = myName.replace(/[\r\n\t]/g, ' ').slice(0, 100);
+    const safeGroupName = groupInfo.name.replace(/[\r\n\t]/g, ' ').slice(0, 100);
     await supabase.from('notifications').insert({
       title: 'Novo grupo',
-      message: `${myName} colocou vc no grupo ${groupInfo.name}`,
+      message: `${safeName} colocou vc no grupo ${safeGroupName}`,
       type: 'chat',
       target_user_id: memberId,
       reference_id: groupId,
@@ -370,7 +381,9 @@ export function ChatDetailPanel({
 
   const handleDeleteGroup = useCallback(async () => {
     if (!groupId || !myId || groupInfo?.created_by !== myId) return;
-    if (!confirm(`Excluir o grupo "${groupInfo.name}"? Essa ação removerá o grupo para todos.`)) return;
+    // M-05: strip control chars from group name to prevent UI spoofing via \n
+    const safeGroupName = groupInfo.name.replace(/[\r\n\t]/g, ' ').slice(0, 100);
+    if (!confirm(`Excluir o grupo "${safeGroupName}"? Essa ação removerá o grupo para todos.`)) return;
 
     setDeletingGroup(true);
     const { error } = await supabase
@@ -397,8 +410,9 @@ export function ChatDetailPanel({
     setSending(true);
     const isViewOnce = viewOnce;
     setViewOnce(false);
+    // A-05: UUID path to prevent enumeration
     const ext = blob.type.includes('mp4') ? 'm4a' : 'webm';
-    const path = `${conversationId}/${Date.now()}_audio.${ext}`;
+    const path = `${conversationId}/${crypto.randomUUID()}.${ext}`;
     const { error: uploadError } = await supabase.storage
       .from('chat-media')
       .upload(path, blob, { contentType: blob.type });
@@ -429,13 +443,17 @@ export function ChatDetailPanel({
   const handleGalleryFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !myId || !otherId || isKAI) return;
+    // A-04: validate MIME type — reject anything not explicitly allowed
+    const ALLOWED_GALLERY = ['image/jpeg','image/png','image/gif','image/webp','image/heic','video/mp4','video/quicktime','video/webm'];
+    if (!ALLOWED_GALLERY.includes(file.type)) { e.target.value = ''; return; }
     const isVideo = file.type.startsWith('video/');
     const type = isVideo ? 'video' : 'image';
     const isViewOnce = viewOnce;
     setViewOnce(false);
     setSending(true);
-    const ext = file.name.split('.').pop() ?? 'jpg';
-    const path = `${conversationId}/${Date.now()}_${type}.${ext}`;
+    // A-05: use UUID to prevent path enumeration
+    const ext = file.name.split('.').pop()?.toLowerCase() ?? 'jpg';
+    const path = `${conversationId}/${crypto.randomUUID()}.${ext}`;
     const { error: uploadError } = await supabase.storage.from('chat-media').upload(path, file);
     if (!uploadError) {
       const mediaUrl = supabase.storage.from('chat-media').getPublicUrl(path).data.publicUrl;
@@ -466,11 +484,15 @@ export function ChatDetailPanel({
   const handleDocumentFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !myId || !otherId || isKAI) return;
+    // A-04: validate MIME type
+    const ALLOWED_DOCS = ['application/pdf','application/msword','application/vnd.openxmlformats-officedocument.wordprocessingml.document','application/vnd.ms-excel','application/vnd.openxmlformats-officedocument.spreadsheetml.sheet','text/plain','text/csv'];
+    if (!ALLOWED_DOCS.includes(file.type)) { e.target.value = ''; return; }
     const isViewOnce = viewOnce;
     setViewOnce(false);
     setSending(true);
-    const ext = file.name.split('.').pop() ?? 'pdf';
-    const path = `${conversationId}/${Date.now()}_doc.${ext}`;
+    // A-05: use UUID to prevent path enumeration
+    const ext = file.name.split('.').pop()?.toLowerCase() ?? 'pdf';
+    const path = `${conversationId}/${crypto.randomUUID()}.${ext}`;
     const { error: uploadError } = await supabase.storage.from('chat-media').upload(path, file, { contentType: file.type });
     if (!uploadError) {
       const mediaUrl = supabase.storage.from('chat-media').getPublicUrl(path).data.publicUrl;
@@ -529,7 +551,8 @@ export function ChatDetailPanel({
       if (!blob) return;
       closeCamera();
       setSending(true);
-      const path = `${conversationId}/${Date.now()}_camera.jpg`;
+      // A-05: UUID path to prevent enumeration
+      const path = `${conversationId}/${crypto.randomUUID()}.jpg`;
       const { error: uploadError } = await supabase.storage.from('chat-media').upload(path, blob, { contentType: 'image/jpeg' });
       if (!uploadError) {
         const mediaUrl = supabase.storage.from('chat-media').getPublicUrl(path).data.publicUrl;
@@ -559,23 +582,32 @@ export function ChatDetailPanel({
 
   const handleDeleteForMe = useCallback(async (msgId: string) => {
     if (!myId) return;
-    setMessages(prev => prev.filter(m => m.id !== msgId));
-    await supabase.rpc('chat_delete_for_me', { p_message_id: msgId, p_user_id: myId });
+    // A-01: check error before mutating local state
+    // C-01: new RPC signature — p_user_id removed, uses auth.uid() internally
+    const { error } = await supabase.rpc('chat_delete_for_me', { p_message_id: msgId });
+    if (!error) {
+      setMessages(prev => prev.filter(m => m.id !== msgId));
+    }
   }, [myId]);
 
   const handleDeleteForAll = useCallback(async (msgId: string) => {
     if (!myId) return;
+    // M-03: snapshot for rollback
+    const previous = messages.find(m => m.id === msgId);
     setMessages(prev => prev.map(m =>
       m.id === msgId && m.isMe
         ? { ...m, is_deleted: true, text: undefined, mediaUrl: undefined }
         : m
     ));
-    await supabase
+    const { error } = await supabase
       .from('chat_messages')
       .update({ is_deleted: true, content: null, media_url: null })
       .eq('id', msgId)
       .eq('sender_id', myId);
-  }, [myId]);
+    if (error && previous) {
+      setMessages(prev => prev.map(m => m.id === msgId ? previous : m));
+    }
+  }, [myId, messages]);
 
   const handleReact = useCallback(async (msgId: string, emoji: string) => {
     if (!myId) return;
@@ -615,13 +647,14 @@ export function ChatDetailPanel({
   }, [myId]);
 
   const handleMarkViewOnceOpened = useCallback(async (msgId: string) => {
-    setMessages(prev => prev.map(m =>
-      m.id === msgId ? { ...m, viewOnceOpened: true } : m
-    ));
-    await supabase
-      .from('chat_messages')
-      .update({ view_once_opened: true })
-      .eq('id', msgId);
+    // C-02: use RPC instead of direct UPDATE (receiver can't UPDATE directly)
+    // A-02: RPC verifies receiver_id = auth.uid() server-side
+    const { error } = await supabase.rpc('chat_open_view_once', { p_message_id: msgId });
+    if (!error) {
+      setMessages(prev => prev.map(m =>
+        m.id === msgId ? { ...m, viewOnceOpened: true, mediaUrl: undefined } : m
+      ));
+    }
   }, []);
 
   const handleSend = async (text: string) => {
