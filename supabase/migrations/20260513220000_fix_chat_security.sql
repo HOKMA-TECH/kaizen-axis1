@@ -3,6 +3,11 @@
 -- Fixes: C-01, C-02, C-03, A-03, A-07
 -- ============================================================
 
+-- ── Pre-requisite: ensure view_once columns exist ───────────────────────────
+ALTER TABLE public.chat_messages
+  ADD COLUMN IF NOT EXISTS view_once        boolean NOT NULL DEFAULT false,
+  ADD COLUMN IF NOT EXISTS view_once_opened boolean NOT NULL DEFAULT false;
+
 -- ── C-01: Fix chat_delete_for_me — remove p_user_id, use auth.uid() ─────────
 -- Drop old function with two parameters
 DROP FUNCTION IF EXISTS public.chat_delete_for_me(uuid, uuid);
