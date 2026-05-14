@@ -19,15 +19,19 @@ const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const ALLOWED_ROLES = new Set(['ADMIN', 'DIRETOR', 'GERENTE']);
 const MAX_PUSH_REQUESTS_PER_MINUTE = 20;
 
+const CORS_ORIGIN = Deno.env.get('APP_ORIGIN') ?? '*';
+
 const JSON_HEADERS = {
   'Content-Type': 'application/json',
-  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Origin': CORS_ORIGIN,
+  'Vary': 'Origin',
 };
 
 const CORS_HEADERS = {
-  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Origin': CORS_ORIGIN,
   'Access-Control-Allow-Headers': 'authorization, apikey, content-type',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Vary': 'Origin',
 };
 
 type PushNotificationPayload = {
@@ -391,18 +395,20 @@ Deno.serve(async (req) => {
       return badRequest('Forbidden', 403);
     }
 
+    const pushWindowStart = new Date(
+      Math.floor(Date.now() / 60_000) * 60_000
+    ).toISOString();
     const { data: throttleData, error: throttleError } = await supabase.rpc('increment_request_counter', {
       _scope: 'send_push',
-      _identifier: `${userId}:${notification.target_user_id}`,
-      _max_requests: MAX_PUSH_REQUESTS_PER_MINUTE,
-      _window_seconds: 60,
+      _identifier: userId,
+      _window_start: pushWindowStart,
     });
 
     if (throttleError) {
       console.warn('send-push rate-limit unavailable:', throttleError.message);
     }
 
-    if (!throttleError && (throttleData ?? 0) > MAX_PUSH_REQUESTS_PER_MINUTE) {
+    if (!throttleError && (throttleData ?? 0) >= MAX_PUSH_REQUESTS_PER_MINUTE) {
       logStructured('send_push_denied', {
         correlation_id: correlationId,
         actor_user_id: userId,

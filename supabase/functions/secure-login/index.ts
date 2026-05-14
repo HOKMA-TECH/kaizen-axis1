@@ -10,10 +10,12 @@ type SecureLoginBody = {
 
 const LOGIN_LIMIT = { limit: 10, windowSeconds: 60 };
 
+const CORS_ORIGIN = Deno.env.get('APP_ORIGIN') ?? '*';
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Origin': CORS_ORIGIN,
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type, Authorization, apikey, x-client-info',
+  'Vary': 'Origin',
 };
 
 function jsonResponse(payload: Record<string, unknown>, status = 200) {
@@ -69,6 +71,30 @@ Deno.serve(async (req: Request) => {
   const captchaToken = String(body?.captchaToken || '').trim();
   if (!email || !password) {
     return jsonResponse({ message: 'E-mail e senha são obrigatórios' }, 400);
+  }
+
+  // ── Verificação server-side do Turnstile CAPTCHA (A-03) ────────────────────
+  // Se TURNSTILE_SECRET_KEY estiver configurado nos Supabase Secrets,
+  // o token é verificado na Cloudflare. Sem a secret, comportamento inalterado.
+  const turnstileSecret = Deno.env.get('TURNSTILE_SECRET_KEY');
+  if (turnstileSecret) {
+    if (!captchaToken) {
+      return jsonResponse({ message: 'Verificação de segurança obrigatória.' }, 400);
+    }
+    const ip = resolveIp(req);
+    const formData = new FormData();
+    formData.append('secret', turnstileSecret);
+    formData.append('response', captchaToken);
+    formData.append('remoteip', ip);
+    const verifyRes = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
+      method: 'POST',
+      body: formData,
+    }).catch(() => null);
+    const verifyJson = verifyRes ? await verifyRes.json().catch(() => null) : null;
+    if (!verifyJson?.success) {
+      console.warn('[secure-login] CAPTCHA verification failed', { ip });
+      return jsonResponse({ message: 'Verificação de segurança inválida ou expirada. Tente novamente.' }, 400);
+    }
   }
 
   const ip = resolveIp(req);
@@ -137,6 +163,18 @@ Deno.serve(async (req: Request) => {
 
     if (authRes.status === 400 || authRes.status === 401 || authRes.status === 422) {
       console.warn('[secure-login] Invalid credentials', { ip, status: authRes.status });
+      // Audit server-side via service role (não depende de sessão do cliente)
+      adminClient.from('audit_logs').insert({
+        user_id: null,
+        action: 'login_failed',
+        entity: 'auth',
+        entity_id: null,
+        ip_address: ip,
+        device_info: req.headers.get('user-agent') || 'unknown',
+        metadata: { email_domain: email.split('@')[1] ?? null, reason: 'invalid_credentials' },
+      }).then(({ error }) => {
+        if (error) console.warn('[secure-login] audit insert failed', error.message);
+      });
       return jsonResponse({ message: 'Credenciais inválidas' }, 401);
     }
     if (authRes.status === 429) {

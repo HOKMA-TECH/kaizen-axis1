@@ -41,10 +41,12 @@ function getBRTMinutes(): number {
 }
 
 // ── CORS ──────────────────────────────────────────────────────────────────────
+const CORS_ORIGIN = Deno.env.get('APP_ORIGIN') ?? '*';
 const corsHeaders = {
-  'Access-Control-Allow-Origin':  '*',
+  'Access-Control-Allow-Origin':  CORS_ORIGIN,
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type, Authorization, apikey, x-client-info',
+  'Vary': 'Origin',
 };
 
 function json(body: unknown, status = 200) {

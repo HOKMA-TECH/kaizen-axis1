@@ -15,10 +15,12 @@ const LIMITS: Record<string, { limit: number; windowSeconds: number }> = {
   document_upload: { limit: 20, windowSeconds: 60 }
 };
 
+const CORS_ORIGIN = Deno.env.get('APP_ORIGIN') ?? '*';
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Origin': CORS_ORIGIN,
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, Authorization, apikey, x-client-info'
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization, apikey, x-client-info',
+  'Vary': 'Origin',
 };
 
 function errJson(message: string, status = 400) {

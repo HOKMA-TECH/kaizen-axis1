@@ -13,10 +13,12 @@ const KAI_KNOWLEDGE_MATCH_COUNT = Number(Deno.env.get('KAI_KNOWLEDGE_MATCH_COUNT
 const SUPABASE_URL = String(Deno.env.get('SUPABASE_URL') || '').trim();
 const SUPABASE_SERVICE_ROLE_KEY = String(Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '').trim();
 
+const CORS_ORIGIN = Deno.env.get('APP_ORIGIN') ?? '*';
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Origin': CORS_ORIGIN,
   'Access-Control-Allow-Headers': 'authorization, apikey, content-type',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Vary': 'Origin',
 };
 
 type ChatRole = 'user' | 'assistant';
