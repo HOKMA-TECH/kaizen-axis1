@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { PremiumCard, SectionHeader } from '@/components/ui/PremiumComponents';
-import { Loader2, Users, TrendingUp, Target, Calendar, Building2 } from 'lucide-react';
+import { Loader2, Users, TrendingUp, Target, Calendar, Building2, ChevronDown } from 'lucide-react';
 import { SalesProgressCard } from '@/components/dashboard/SalesProgressCard';
 import { FunnelChart } from '@/components/ui/FunnelChart';
 import { useNavigate } from 'react-router-dom';
@@ -21,6 +21,7 @@ export default function Dashboard() {
   const [period, setPeriod] = useState<'este_mes' | '30_dias' | '60_dias' | '90_dias' | 'custom'>('30_dias');
   const [customStartDate, setCustomStartDate] = useState('');
   const [customEndDate, setCustomEndDate] = useState('');
+  const [mobilePeriodOpen, setMobilePeriodOpen] = useState(false);
 
   const { periodStart, periodEnd, periodLabel } = useMemo(() => {
     const end = new Date();
@@ -138,26 +139,89 @@ export default function Dashboard() {
       )}
 
       <section className="space-y-3">
-        <div className="flex flex-wrap gap-2">
+        {/* ── Mobile period selector (below md) ──────────────────────────── */}
+        <div className="flex gap-2 items-center md:hidden">
+          {(['este_mes', '30_dias'] as const).map(id => (
+            <button
+              key={id}
+              onClick={() => setPeriod(id)}
+              className={`px-4 py-2 rounded-full text-xs font-semibold border transition-all ${
+                period === id
+                  ? 'bg-gold-500 text-white border-gold-500 shadow-sm'
+                  : 'bg-card-bg text-text-secondary border-surface-200 hover:border-gold-300'
+              }`}
+            >
+              {id === 'este_mes' ? 'Este mês' : '30 dias'}
+            </button>
+          ))}
+          <div className="relative">
+            <button
+              onClick={() => setMobilePeriodOpen(o => !o)}
+              className={`flex items-center gap-1 px-4 py-2 rounded-full text-xs font-semibold border transition-all ${
+                ['60_dias', '90_dias', 'custom'].includes(period)
+                  ? 'bg-gold-500 text-white border-gold-500 shadow-sm'
+                  : 'bg-card-bg text-text-secondary border-surface-200 hover:border-gold-300'
+              }`}
+            >
+              {period === '60_dias'
+                ? '60 dias'
+                : period === '90_dias'
+                ? '90 dias'
+                : period === 'custom'
+                ? 'Person.'
+                : 'Mais'}
+              <ChevronDown size={11} className={`transition-transform ${mobilePeriodOpen ? 'rotate-180' : ''}`} />
+            </button>
+            {mobilePeriodOpen && (
+              <>
+                <div className="fixed inset-0 z-10" onClick={() => setMobilePeriodOpen(false)} />
+                <div className="absolute left-0 top-full mt-1.5 z-20 bg-card-bg border border-surface-200 rounded-2xl shadow-lg py-1.5 min-w-[160px]">
+                  {[
+                    { id: '60_dias' as const, label: '60 dias' },
+                    { id: '90_dias' as const, label: '90 dias' },
+                    { id: 'custom'  as const, label: 'Personalizado' },
+                  ].map(opt => (
+                    <button
+                      key={opt.id}
+                      onClick={() => { setPeriod(opt.id); setMobilePeriodOpen(false); }}
+                      className={`w-full text-left px-4 py-2 text-xs font-medium transition-colors hover:bg-surface-50 ${
+                        period === opt.id ? 'text-gold-600 font-bold' : 'text-text-primary'
+                      }`}
+                    >
+                      {opt.label}
+                      {period === opt.id && <span className="ml-1 text-gold-500">✓</span>}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* ── Desktop period selector (md and above) ─────────────────────── */}
+        <div className="hidden md:flex flex-wrap gap-2">
           {[
-            { id: 'este_mes', label: 'Este mês' },
-            { id: '30_dias', label: '30 dias' },
-            { id: '60_dias', label: '60 dias' },
-            { id: '90_dias', label: '90 dias' },
-            { id: 'custom', label: 'Personalizado' },
+            { id: 'este_mes' as const, label: 'Este mês' },
+            { id: '30_dias'  as const, label: '30 dias' },
+            { id: '60_dias'  as const, label: '60 dias' },
+            { id: '90_dias'  as const, label: '90 dias' },
+            { id: 'custom'   as const, label: 'Personalizado' },
           ].map(opt => (
             <button
               key={opt.id}
-              onClick={() => setPeriod(opt.id as typeof period)}
-              className={`px-4 py-2 rounded-full text-xs font-semibold border transition-all ${period === opt.id
-                ? 'bg-gold-500 text-white border-gold-500 shadow-sm'
-                : 'bg-card-bg text-text-secondary border-surface-200 hover:border-gold-300'
-                }`}
+              onClick={() => setPeriod(opt.id)}
+              className={`px-4 py-2 rounded-full text-xs font-semibold border transition-all ${
+                period === opt.id
+                  ? 'bg-gold-500 text-white border-gold-500 shadow-sm'
+                  : 'bg-card-bg text-text-secondary border-surface-200 hover:border-gold-300'
+              }`}
             >
               {opt.label}
             </button>
           ))}
         </div>
+
+        {/* Custom date inputs (both breakpoints) */}
         {period === 'custom' && (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-xl">
             <input
