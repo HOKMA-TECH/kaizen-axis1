@@ -86,6 +86,11 @@ Deno.serve(async (req: Request) => {
 
   const corretorName = corretorProfile?.name || 'Corretor';
 
+  const safeCorretorName = (corretorName || 'corretor')
+    .replace(/[^\w\s\-áéíóúàâêôãõüçÁÉÍÓÚÀÂÊÔÃÕÜÇ]/g, '_')
+    .replace(/\s+/g, '-')
+    .slice(0, 80);
+
   // ── Query: clientes ativos do corretor ──────────────────────────────────────
   const { data: clients, error: clientsError } = await supabase
     .from('clients')
@@ -261,7 +266,7 @@ Deno.serve(async (req: Request) => {
     headers: {
       ...corsHeaders,
       'Content-Type': 'application/pdf',
-      'Content-Disposition': `attachment; filename="pipeline-${corretorName.replace(/\s+/g, '-')}.pdf"`,
+      'Content-Disposition': `attachment; filename="pipeline-${safeCorretorName}.pdf"`,
     },
   });
 });
