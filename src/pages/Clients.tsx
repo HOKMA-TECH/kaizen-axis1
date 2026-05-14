@@ -530,7 +530,7 @@ export default function Clients() {
               {moreDropdownOpen && (
                 <>
                   <div className="fixed inset-0 z-40" onClick={() => setMoreDropdownOpen(false)} />
-                  <div className="absolute left-0 top-full mt-1.5 z-50 bg-card-bg border border-surface-200 rounded-2xl shadow-lg p-3 min-w-[220px]">
+                  <div className="absolute right-0 top-full mt-1.5 z-50 bg-card-bg border border-surface-200 rounded-2xl shadow-lg p-3 min-w-[220px]">
                     {/* Primary stages (excluding Documentação already pinned) */}
                     <div className="grid grid-cols-2 gap-1.5 mb-2">
                       {PRIMARY_STAGES.filter(s => s !== 'Documentação').map(stage => (
