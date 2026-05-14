@@ -319,6 +319,7 @@ export default function Clients() {
   const [searchTerm, setSearchTerm] = useState('');
   const [convertSuccess, setConvertSuccess] = useState(false);
   const [stageDropdownOpen, setStageDropdownOpen] = useState(false);
+  const [moreDropdownOpen, setMoreDropdownOpen] = useState(false);
 
   // Estágios principais (visíveis) e secundários (dropdown "Outros")
   const PRIMARY_STAGES = CLIENT_STAGES.slice(0, 8); // até "Contrato"
@@ -484,7 +485,95 @@ export default function Clients() {
       {mainTab === 'clientes' && (
         <>
           {/* Stage Filter Chips */}
-          <div className="pt-2 pb-2 px-4 flex gap-1.5 flex-wrap items-center">
+
+          {/* ── Mobile filter (below md): Todos + Documentação + Mais ▼ ───── */}
+          <div className="md:hidden pt-2 pb-2 px-4 flex gap-1.5 items-center">
+            {/* Todos */}
+            <button
+              onClick={() => { setActiveStage('Todos'); setMoreDropdownOpen(false); }}
+              className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+                activeStage === 'Todos'
+                  ? 'bg-gold-500 text-white shadow-md'
+                  : 'bg-card-bg text-text-secondary border border-surface-200'
+              }`}
+            >
+              Todos ({clients.length})
+            </button>
+
+            {/* Documentação — always visible on mobile */}
+            <button
+              onClick={() => { setActiveStage('Documentação'); setMoreDropdownOpen(false); }}
+              className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+                activeStage === 'Documentação'
+                  ? 'bg-gold-500 text-white shadow-md'
+                  : 'bg-card-bg text-text-secondary border border-surface-200'
+              }`}
+            >
+              Documentação
+            </button>
+
+            {/* Mais ▼ — opens grid with all remaining stages */}
+            <div className="relative flex-shrink-0">
+              <button
+                onClick={() => setMoreDropdownOpen(o => !o)}
+                className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+                  activeStage !== 'Todos' && activeStage !== 'Documentação'
+                    ? 'bg-gold-500 text-white shadow-md'
+                    : 'bg-card-bg text-text-secondary border border-surface-200'
+                }`}
+              >
+                {activeStage !== 'Todos' && activeStage !== 'Documentação'
+                  ? activeStage.length > 8 ? activeStage.slice(0, 8) + '…' : activeStage
+                  : 'Mais'}
+                <ChevronDown size={11} className={`transition-transform ${moreDropdownOpen ? 'rotate-180' : ''}`} />
+              </button>
+              {moreDropdownOpen && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setMoreDropdownOpen(false)} />
+                  <div className="absolute left-0 top-full mt-1.5 z-50 bg-card-bg border border-surface-200 rounded-2xl shadow-lg p-3 min-w-[220px]">
+                    {/* Primary stages (excluding Documentação already pinned) */}
+                    <div className="grid grid-cols-2 gap-1.5 mb-2">
+                      {PRIMARY_STAGES.filter(s => s !== 'Documentação').map(stage => (
+                        <button
+                          key={stage}
+                          onClick={() => { setActiveStage(stage); setMoreDropdownOpen(false); }}
+                          className={`px-2 py-1.5 rounded-xl text-xs font-medium transition-colors text-center ${
+                            activeStage === stage
+                              ? 'bg-gold-500 text-white'
+                              : 'bg-surface-50 text-text-primary hover:bg-surface-100'
+                          }`}
+                        >
+                          {stage}
+                        </button>
+                      ))}
+                    </div>
+                    {/* Divider + secondary stages */}
+                    <div className="border-t border-surface-200 pt-2">
+                      <p className="text-[10px] font-bold text-text-secondary uppercase tracking-wider mb-1.5 px-1">Outros</p>
+                      <div className="grid grid-cols-2 gap-1.5">
+                        {SECONDARY_STAGES.map(stage => (
+                          <button
+                            key={stage}
+                            onClick={() => { setActiveStage(stage); setMoreDropdownOpen(false); }}
+                            className={`px-2 py-1.5 rounded-xl text-xs font-medium transition-colors text-center ${
+                              activeStage === stage
+                                ? 'bg-gold-500 text-white'
+                                : 'bg-surface-50 text-text-primary hover:bg-surface-100'
+                            }`}
+                          >
+                            {stage}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+
+          {/* ── Desktop filter (md and above): all pills + Outros dropdown ── */}
+          <div className="hidden md:flex pt-2 pb-2 px-4 gap-1.5 flex-wrap items-center">
             {/* Chip: Todos */}
             <button
               onClick={() => setActiveStage('Todos')}
@@ -526,8 +615,8 @@ export default function Clients() {
               {stageDropdownOpen && (
                 <>
                   {/* Overlay para fechar */}
-                  <div className="fixed inset-0 z-10" onClick={() => setStageDropdownOpen(false)} />
-                  <div className="absolute left-0 top-full mt-1.5 z-20 bg-card-bg border border-surface-200 rounded-2xl shadow-lg py-1.5 min-w-[160px]">
+                  <div className="fixed inset-0 z-40" onClick={() => setStageDropdownOpen(false)} />
+                  <div className="absolute left-0 top-full mt-1.5 z-50 bg-card-bg border border-surface-200 rounded-2xl shadow-lg py-1.5 min-w-[160px]">
                     {SECONDARY_STAGES.map(stage => (
                       <button
                         key={stage}
