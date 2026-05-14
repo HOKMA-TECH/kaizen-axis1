@@ -101,6 +101,7 @@ export function useGamification() {
                     if (
                         t === 'goal_achieved' ||
                         t === 'mission_completed' ||
+                        t === 'training_completed' ||
                         t === 'sale_completed' ||
                         t === 'achievement_unlocked'
                     ) {

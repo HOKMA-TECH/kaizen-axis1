@@ -340,7 +340,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           if (
             eventInfo.type === 'achievement_unlocked' ||
             eventInfo.type === 'goal_achieved' ||
-            eventInfo.type === 'mission_completed'
+            eventInfo.type === 'mission_completed' ||
+            eventInfo.type === 'training_completed'
           ) {
             confetti({
               particleCount: 200,

@@ -30,7 +30,7 @@ export interface UserAchievement {
 
 export interface SystemEvent {
     id: string;
-    type: 'sale_completed' | 'goal_achieved' | 'mission_completed' | 'achievement_unlocked';
+    type: 'sale_completed' | 'goal_achieved' | 'mission_completed' | 'training_completed' | 'achievement_unlocked';
     user_id: string;
     payload: any;
     created_at: string;
