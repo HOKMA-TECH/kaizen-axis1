@@ -347,6 +347,22 @@ Deno.serve(async (req: Request) => {
     return jsonResponse({ error: 'Server misconfigured: missing OPENAI_API_KEY' }, 500);
   }
 
+  // ── Rate limit: 20 mensagens por minuto por usuário ───────────────────────
+  const kaiWindowStart = new Date(
+    Math.floor(Date.now() / 60_000) * 60_000,
+  ).toISOString();
+  const serviceClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+  const { data: kaiCount, error: kaiRateErr } = await serviceClient.rpc('increment_request_counter', {
+    _scope: 'kai_agent',
+    _identifier: user.id,
+    _window_start: kaiWindowStart,
+  });
+  if (!kaiRateErr && (kaiCount ?? 0) >= 20) {
+    return jsonResponse({ error: 'Limite de mensagens atingido. Aguarde 1 minuto.' }, 429);
+  }
+
   let body: ChatBody;
   try {
     body = await req.json();

@@ -75,7 +75,8 @@ export function ChatSidebar({
     if (error) {
       setAvatarError('Falha ao enviar foto: ' + error.message);
     } else {
-      const url = supabase.storage.from('chat-media').getPublicUrl(path).data.publicUrl;
+      const { data: signedAvatar } = await supabase.storage.from('chat-media').createSignedUrl(path, 60 * 60 * 24 * 365);
+      const url = signedAvatar?.signedUrl ?? '';
       setProfileAvatar(url + `?t=${Date.now()}`);
     }
     setAvatarUploading(false);

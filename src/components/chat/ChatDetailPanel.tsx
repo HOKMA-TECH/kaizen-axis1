@@ -25,6 +25,33 @@ interface ChatDetailPanelProps {
 }
 
 const PAGE_SIZE = 50;
+const SIGNED_URL_TTL = 60 * 60 * 24 * 365; // 1 ano
+
+// Extrai o path de uma URL pública do chat-media (bucket era público antes de 2026-05-14)
+function extractPublicChatMediaPath(url: string): string | null {
+  const marker = '/object/public/chat-media/';
+  const idx = url.indexOf(marker);
+  return idx !== -1 ? url.slice(idx + marker.length) : null;
+}
+
+async function resolveMediaUrls(msgs: BubbleMessage[]): Promise<BubbleMessage[]> {
+  const needConversion = msgs.filter(
+    m => m.mediaUrl && m.mediaUrl.includes('/object/public/chat-media/')
+  );
+  if (needConversion.length === 0) return msgs;
+
+  const resolved = await Promise.all(
+    needConversion.map(async m => {
+      const path = extractPublicChatMediaPath(m.mediaUrl!);
+      if (!path) return { id: m.id, signedUrl: m.mediaUrl! };
+      const { data } = await supabase.storage.from('chat-media').createSignedUrl(path, SIGNED_URL_TTL);
+      return { id: m.id, signedUrl: data?.signedUrl ?? m.mediaUrl! };
+    })
+  );
+
+  const map = new Map(resolved.map(r => [r.id, r.signedUrl]));
+  return msgs.map(m => map.has(m.id) ? { ...m, mediaUrl: map.get(m.id) } : m);
+}
 
 export function ChatDetailPanel({
   otherId, otherName, otherRole, otherAvatar, isKAI, isGroup, isOnline, onClose, onLeftGroup,
@@ -142,7 +169,8 @@ export function ChatDetailPanel({
       .range(0, PAGE_SIZE - 1);
     const msgs = (data ?? []).map(mapMsg).reverse();
     const withReactions = await loadReactions(msgs);
-    setMessages(withReactions);
+    const withMedia = await resolveMediaUrls(withReactions);
+    setMessages(withMedia);
     setLoading(false);
   }, [conversationId, myId, mapMsg, loadReactions]);
 
@@ -417,7 +445,8 @@ export function ChatDetailPanel({
       .from('chat-media')
       .upload(path, blob, { contentType: blob.type });
     if (uploadError) { setSending(false); return; }
-    const mediaUrl = supabase.storage.from('chat-media').getPublicUrl(path).data.publicUrl;
+    const { data: signedAudio } = await supabase.storage.from('chat-media').createSignedUrl(path, SIGNED_URL_TTL);
+    const mediaUrl = signedAudio?.signedUrl ?? '';
     const tempId = `temp-${Date.now()}`;
     const optimistic: BubbleMessage = {
       id: tempId, type: 'audio', mediaUrl,
@@ -456,7 +485,8 @@ export function ChatDetailPanel({
     const path = `${conversationId}/${crypto.randomUUID()}.${ext}`;
     const { error: uploadError } = await supabase.storage.from('chat-media').upload(path, file);
     if (!uploadError) {
-      const mediaUrl = supabase.storage.from('chat-media').getPublicUrl(path).data.publicUrl;
+      const { data: signedGallery } = await supabase.storage.from('chat-media').createSignedUrl(path, SIGNED_URL_TTL);
+      const mediaUrl = signedGallery?.signedUrl ?? '';
       const tempId = `temp-${Date.now()}`;
       const optimistic: BubbleMessage = {
         id: tempId, type, mediaUrl, fileName: file.name,
@@ -495,7 +525,8 @@ export function ChatDetailPanel({
     const path = `${conversationId}/${crypto.randomUUID()}.${ext}`;
     const { error: uploadError } = await supabase.storage.from('chat-media').upload(path, file, { contentType: file.type });
     if (!uploadError) {
-      const mediaUrl = supabase.storage.from('chat-media').getPublicUrl(path).data.publicUrl;
+      const { data: signedDoc } = await supabase.storage.from('chat-media').createSignedUrl(path, SIGNED_URL_TTL);
+      const mediaUrl = signedDoc?.signedUrl ?? '';
       const tempId = `temp-${Date.now()}`;
       const optimistic: BubbleMessage = {
         id: tempId, text: file.name, type: 'document', mediaUrl, fileName: file.name,
@@ -555,7 +586,8 @@ export function ChatDetailPanel({
       const path = `${conversationId}/${crypto.randomUUID()}.jpg`;
       const { error: uploadError } = await supabase.storage.from('chat-media').upload(path, blob, { contentType: 'image/jpeg' });
       if (!uploadError) {
-        const mediaUrl = supabase.storage.from('chat-media').getPublicUrl(path).data.publicUrl;
+        const { data: signedPhoto } = await supabase.storage.from('chat-media').createSignedUrl(path, SIGNED_URL_TTL);
+        const mediaUrl = signedPhoto?.signedUrl ?? '';
         const tempId = `temp-${Date.now()}`;
         const optimistic: BubbleMessage = {
           id: tempId, type: 'image', mediaUrl,

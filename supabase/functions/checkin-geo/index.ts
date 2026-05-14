@@ -86,7 +86,20 @@ Deno.serve(async (req: Request) => {
     { auth: { persistSession: false } },
   );
 
-  // ── 2. Body ───────────────────────────────────────────────────────────────
+  // ── 2. Rate limit: 3 tentativas por minuto por usuário ───────────────────
+  const checkinWindowStart = new Date(
+    Math.floor(Date.now() / 60_000) * 60_000,
+  ).toISOString();
+  const { data: checkinCount, error: checkinRateErr } = await supabase.rpc('increment_request_counter', {
+    _scope: 'checkin_geo',
+    _identifier: userId,
+    _window_start: checkinWindowStart,
+  });
+  if (!checkinRateErr && (checkinCount ?? 0) >= 3) {
+    return json({ error: 'rate_limit', message: 'Muitas tentativas. Aguarde 1 minuto.' }, 429);
+  }
+
+  // ── 3. Body ───────────────────────────────────────────────────────────────
   let body: { latitude: number; longitude: number; accuracy?: number; qrToken?: string };
   try { body = await req.json(); }
   catch { return json({ error: 'invalid_json' }, 400); }

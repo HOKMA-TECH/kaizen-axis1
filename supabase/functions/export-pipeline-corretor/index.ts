@@ -60,13 +60,26 @@ Deno.serve(async (req: Request) => {
   // ── Auth: verifica role ─────────────────────────────────────────────────────
   const { data: callerProfile } = await supabase
     .from('profiles')
-    .select('role, name')
+    .select('role, name, directorate_id')
     .eq('id', user.id)
     .single();
 
   const role = (callerProfile?.role || '').toUpperCase();
   if (role !== 'ADMIN' && role !== 'DIRETOR') {
     return errJson('Acesso negado. Apenas ADMIN e DIRETOR podem exportar pipelines.', 403);
+  }
+
+  // ── Rate limit: 10 exportações por minuto por usuário ───────────────────────
+  const exportWindowStart = new Date(
+    Math.floor(Date.now() / 60_000) * 60_000,
+  ).toISOString();
+  const { data: exportCount, error: exportRateErr } = await supabase.rpc('increment_request_counter', {
+    _scope: 'export_pipeline',
+    _identifier: user.id,
+    _window_start: exportWindowStart,
+  });
+  if (!exportRateErr && (exportCount ?? 0) >= 10) {
+    return errJson('Limite de exportações atingido. Aguarde 1 minuto.', 429);
   }
 
   // ── Body ────────────────────────────────────────────────────────────────────
@@ -79,12 +92,21 @@ Deno.serve(async (req: Request) => {
     return errJson('corretor_id é obrigatório');
   }
 
-  // ── Busca nome do corretor ──────────────────────────────────────────────────
+  // ── Busca perfil do corretor e valida escopo do DIRETOR ────────────────────
   const { data: corretorProfile } = await supabase
     .from('profiles')
-    .select('name')
+    .select('name, directorate_id')
     .eq('id', corretor_id)
     .single();
+
+  // E-02: DIRETOR só pode exportar corretores da própria diretoria
+  if (role === 'DIRETOR') {
+    const callerDirId = callerProfile?.directorate_id;
+    const corretorDirId = corretorProfile?.directorate_id;
+    if (!callerDirId || callerDirId !== corretorDirId) {
+      return errJson('Acesso negado. DIRETOR só pode exportar pipelines da sua diretoria.', 403);
+    }
+  }
 
   const corretorName = corretorProfile?.name || 'Corretor';
 

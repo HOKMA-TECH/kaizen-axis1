@@ -10,6 +10,7 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { sendMessageToKai } from '@/services/kaiAgent';
 import ReactMarkdown from 'react-markdown';
+import rehypeSanitize from 'rehype-sanitize';
 import { supabase } from '@/lib/supabase';
 import { useApp } from '@/context/AppContext';
 import { useChatUnread } from '@/context/ChatUnreadContext';
@@ -528,13 +529,15 @@ export default function ChatDetail() {
     return () => { cancelled = true; };
   }, [id, allProfiles, isKAI]);
 
-  // ─── Upload to Supabase Storage (public) ─────────────────────────────────
+  // ─── Upload to Supabase Storage ──────────────────────────────────────────
+  const SIGNED_URL_TTL = 60 * 60 * 24 * 365;
   const uploadMedia = async (file: File, type: ChatMessage['type']): Promise<string | null> => {
     const ext = file.name.split('.').pop() || 'bin';
     const path = `${conversationId}/${Date.now()}_${type}.${ext}`;
     const { error } = await supabase.storage.from('chat-media').upload(path, file);
     if (error) { console.error('Upload error:', error); return null; }
-    return supabase.storage.from('chat-media').getPublicUrl(path).data.publicUrl;
+    const { data: signed } = await supabase.storage.from('chat-media').createSignedUrl(path, SIGNED_URL_TTL);
+    return signed?.signedUrl ?? null;
   };
 
   // ─── Upload to private bucket (view-once only) ────────────────────────────
@@ -1449,7 +1452,7 @@ export default function ChatDetail() {
                 {msg.text && !isViewOnceMsg && (
                   <div className={`text-sm leading-relaxed ${['image', 'video'].includes(msg.type) ? 'px-1 pt-1' : ''}`}>
                     {msg.senderId === 'kai-agent'
-                      ? <ReactMarkdown>{msg.text}</ReactMarkdown>
+                      ? <ReactMarkdown rehypePlugins={[rehypeSanitize]}>{msg.text}</ReactMarkdown>
                       : msg.text}
                   </div>
                 )}
