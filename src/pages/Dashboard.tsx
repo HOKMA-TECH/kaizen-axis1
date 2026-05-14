@@ -168,7 +168,7 @@ export default function Dashboard() {
                 : period === '90_dias'
                 ? '90 dias'
                 : period === 'custom'
-                ? 'Person.'
+                ? 'Personalizado'
                 : 'Mais'}
               <ChevronDown size={11} className={`transition-transform ${mobilePeriodOpen ? 'rotate-180' : ''}`} />
             </button>
