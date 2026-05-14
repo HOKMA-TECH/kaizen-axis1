@@ -321,6 +321,26 @@ Deno.serve(async (req: Request) => {
     return jsonResponse({ error: 'Method not allowed' }, 405);
   }
 
+  // ── Autenticação ──────────────────────────────────────────────────────────
+  const authHeader = req.headers.get('Authorization');
+  if (!authHeader?.startsWith('Bearer ')) {
+    return jsonResponse({ error: 'unauthorized' }, 401);
+  }
+  const token = authHeader.slice(7);
+
+  const anonKey = Deno.env.get('SUPABASE_ANON_KEY');
+  if (!SUPABASE_URL || !anonKey) {
+    return jsonResponse({ error: 'Server misconfigured' }, 500);
+  }
+  const userClient = createClient(SUPABASE_URL, anonKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
+    global: { headers: { Authorization: `Bearer ${token}` } },
+  });
+  const { data: { user }, error: authError } = await userClient.auth.getUser();
+  if (authError || !user) {
+    return jsonResponse({ error: 'unauthorized' }, 401);
+  }
+
   if (!OPENAI_API_KEY) {
     return jsonResponse({ error: 'Server misconfigured: missing OPENAI_API_KEY' }, 500);
   }
@@ -332,7 +352,7 @@ Deno.serve(async (req: Request) => {
     return jsonResponse({ error: 'Invalid JSON body' }, 400);
   }
 
-  const message = String(body.message || '').trim();
+  const message = String(body.message || '').trim().slice(0, 2000);
   if (!message) {
     return jsonResponse({ error: 'Message is required' }, 400);
   }
