@@ -592,7 +592,7 @@ export default function Schedule() {
             <input
               value={formData.title ?? ''}
               onChange={e => setFormData(p => ({ ...p, title: e.target.value }))}
-              className="w-full p-3 bg-gray-50 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-200 text-gray-900"
+              className="w-full h-12 px-3 py-0 bg-gray-50 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-200 text-gray-900 text-sm"
               placeholder="Ex: Visita ao Decorado"
             />
           </div>
@@ -601,7 +601,7 @@ export default function Schedule() {
             <input
               value={formData.client_name ?? ''}
               onChange={e => setFormData(p => ({ ...p, client_name: e.target.value }))}
-              className="w-full p-3 bg-gray-50 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-200 text-gray-900"
+              className="w-full h-12 px-3 py-0 bg-gray-50 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-200 text-gray-900 text-sm"
               placeholder="Nome do cliente"
             />
           </div>
@@ -612,7 +612,7 @@ export default function Schedule() {
                 type="date"
                 value={formData.date ?? ''}
                 onChange={e => setFormData(p => ({ ...p, date: e.target.value }))}
-                className="block w-full min-w-0 max-w-full p-3 bg-gray-50 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-200 text-gray-900 text-sm"
+                className="block w-full min-w-0 max-w-full h-12 px-3 py-0 bg-gray-50 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-200 text-gray-900 text-sm"
               />
             </div>
             <div className="min-w-0">
@@ -621,7 +621,7 @@ export default function Schedule() {
                 type="time"
                 value={formData.time ?? ''}
                 onChange={e => setFormData(p => ({ ...p, time: e.target.value }))}
-                className="block w-full min-w-0 max-w-full p-3 bg-gray-50 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-200 text-gray-900 text-sm"
+                className="block w-full min-w-0 max-w-full h-12 px-3 py-0 bg-gray-50 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-200 text-gray-900 text-sm"
               />
             </div>
           </div>
@@ -630,7 +630,7 @@ export default function Schedule() {
             <input
               value={formData.location ?? ''}
               onChange={e => setFormData(p => ({ ...p, location: e.target.value }))}
-              className="w-full p-3 bg-gray-50 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-200 text-gray-900"
+              className="w-full h-12 px-3 py-0 bg-gray-50 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-200 text-gray-900 text-sm"
               placeholder="Endereço ou local"
             />
           </div>
