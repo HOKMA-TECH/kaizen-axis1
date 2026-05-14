@@ -273,7 +273,7 @@ export default function Login() {
       logAuditEvent({
         action: 'login_failed',
         entity: 'auth',
-        metadata: { email: formData.email, reason: error.message }
+        metadata: { reason: error.message }
       });
       alert(error.message);
       resetCaptcha();
@@ -311,7 +311,7 @@ export default function Login() {
       logAuditEvent({
         action: 'login_failed',
         entity: 'auth',
-        metadata: { email: formData.email, stage: 'mfa', reason: error.message }
+        metadata: { stage: 'mfa', reason: error.message }
       });
       alert(error.message || 'Código inválido. Tente novamente.');
       setLoading(false);
@@ -323,7 +323,7 @@ export default function Login() {
       action: 'login_success',
       entity: 'auth',
       userId: userId ?? null,
-      metadata: { email: formData.email }
+      metadata: { email_domain: formData.email.split('@')[1] }
     });
     navigate('/');
   };
