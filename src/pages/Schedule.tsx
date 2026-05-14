@@ -31,6 +31,8 @@ const TYPE_BLOCK: Record<string, string> = {
   Outro:      'bg-amber-100   text-amber-800   border-l-2 border-amber-400',
 };
 
+const FIELD_CLASS = 'w-full h-12 px-3 py-0 bg-gray-50 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-200 text-gray-900 text-sm';
+
 // ─── Schedule Page ────────────────────────────────────────────────────────────
 
 export default function Schedule() {
@@ -592,7 +594,7 @@ export default function Schedule() {
             <input
               value={formData.title ?? ''}
               onChange={e => setFormData(p => ({ ...p, title: e.target.value }))}
-              className="w-full h-12 px-3 py-0 bg-gray-50 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-200 text-gray-900 text-sm"
+              className={FIELD_CLASS}
               placeholder="Ex: Visita ao Decorado"
             />
           </div>
@@ -601,28 +603,38 @@ export default function Schedule() {
             <input
               value={formData.client_name ?? ''}
               onChange={e => setFormData(p => ({ ...p, client_name: e.target.value }))}
-              className="w-full h-12 px-3 py-0 bg-gray-50 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-200 text-gray-900 text-sm"
+              className={FIELD_CLASS}
               placeholder="Nome do cliente"
             />
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full">
             <div className="min-w-0">
               <label className="block text-sm font-medium text-gray-600 mb-1">Data</label>
-              <input
-                type="date"
-                value={formData.date ?? ''}
-                onChange={e => setFormData(p => ({ ...p, date: e.target.value }))}
-                className="w-full h-12 px-3 py-0 bg-gray-50 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-200 text-gray-900 text-sm"
-              />
+              <div className={`${FIELD_CLASS} relative flex items-center`}>
+                <span className="pointer-events-none truncate">
+                  {formData.date ? format(parseISO(formData.date), 'dd/MM/yyyy') : ''}
+                </span>
+                <input
+                  type="date"
+                  value={formData.date ?? ''}
+                  onChange={e => setFormData(p => ({ ...p, date: e.target.value }))}
+                  className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+                  aria-label="Data"
+                />
+              </div>
             </div>
             <div className="min-w-0">
               <label className="block text-sm font-medium text-gray-600 mb-1">Hora</label>
-              <input
-                type="time"
-                value={formData.time ?? ''}
-                onChange={e => setFormData(p => ({ ...p, time: e.target.value }))}
-                className="w-full h-12 px-3 py-0 bg-gray-50 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-200 text-gray-900 text-sm"
-              />
+              <div className={`${FIELD_CLASS} relative flex items-center`}>
+                <span className="pointer-events-none truncate">{formData.time ?? ''}</span>
+                <input
+                  type="time"
+                  value={formData.time ?? ''}
+                  onChange={e => setFormData(p => ({ ...p, time: e.target.value }))}
+                  className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+                  aria-label="Hora"
+                />
+              </div>
             </div>
           </div>
           <div>
@@ -630,7 +642,7 @@ export default function Schedule() {
             <input
               value={formData.location ?? ''}
               onChange={e => setFormData(p => ({ ...p, location: e.target.value }))}
-              className="w-full h-12 px-3 py-0 bg-gray-50 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-200 text-gray-900 text-sm"
+              className={FIELD_CLASS}
               placeholder="Endereço ou local"
             />
           </div>
