@@ -54,38 +54,28 @@ function json(body: unknown, status = 200) {
   });
 }
 
-// ── Decode JWT payload sem chamada de rede ────────────────────────────────────
-// O platform Supabase já validou a assinatura antes de rotear para cá.
-// Apenas decodificamos o payload para obter o sub (user id) e exp.
-function decodeJWTPayload(token: string): { sub?: string; exp?: number } | null {
-  try {
-    const part = token.split('.')[1];
-    if (!part) return null;
-    const padded = part.replace(/-/g, '+').replace(/_/g, '/');
-    const json   = atob(padded.padEnd(padded.length + (4 - padded.length % 4) % 4, '='));
-    return JSON.parse(json);
-  } catch { return null; }
-}
-
 // ── Handler ───────────────────────────────────────────────────────────────────
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
   if (req.method !== 'POST') return json({ error: 'method_not_allowed' }, 405);
 
-  // ── 1. Autenticação via JWT (decode local — sem chamada de rede) ──────────
+  // ── 1. Autenticação via JWT (validação criptográfica server-side) ─────────
   const authHeader = req.headers.get('Authorization');
-  if (!authHeader) return json({ error: 'unauthorized' }, 401);
+  if (!authHeader?.startsWith('Bearer ')) return json({ error: 'unauthorized' }, 401);
 
-  const rawToken = authHeader.replace(/^Bearer\s+/i, '');
-  const payload  = decodeJWTPayload(rawToken);
-  if (!payload?.sub) return json({ error: 'unauthorized' }, 401);
+  const rawToken = authHeader.slice(7);
+  const anonKey = Deno.env.get('SUPABASE_ANON_KEY');
+  if (!anonKey) return json({ error: 'server_misconfigured' }, 500);
 
-  // Verifica expiração (exp é em segundos)
-  if (payload.exp && payload.exp < Math.floor(Date.now() / 1000)) {
-    return json({ error: 'unauthorized' }, 401);
-  }
+  const userClient = createClient(
+    Deno.env.get('SUPABASE_URL')!,
+    anonKey,
+    { auth: { persistSession: false }, global: { headers: { Authorization: `Bearer ${rawToken}` } } },
+  );
+  const { data: { user }, error: authError } = await userClient.auth.getUser();
+  if (authError || !user) return json({ error: 'unauthorized' }, 401);
 
-  const userId = payload.sub;
+  const userId = user.id;
 
   const supabase = createClient(
     Deno.env.get('SUPABASE_URL')!,
