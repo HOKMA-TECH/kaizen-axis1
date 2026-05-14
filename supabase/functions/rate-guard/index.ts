@@ -126,7 +126,7 @@ Deno.serve(async (req: Request) => {
   }
 
   const count = typeof data === 'number' ? data : (data?.count ?? 0);
-  if (count > config.limit) {
+  if (count >= config.limit) {
     return errJson('Limite de requisições atingido. Aguarde antes de tentar novamente.', 429);
   }
 

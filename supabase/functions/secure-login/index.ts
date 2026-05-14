@@ -94,7 +94,7 @@ Deno.serve(async (req: Request) => {
   }
 
   const count = typeof counter === 'number' ? counter : (counter?.count ?? 0);
-  if (count > LOGIN_LIMIT.limit) {
+  if (count >= LOGIN_LIMIT.limit) {
     console.warn('[secure-login] Login blocked by rate limit', { ip, count });
     return jsonResponse({ message: 'Muitas tentativas. Aguarde antes de tentar novamente.' }, 429);
   }
