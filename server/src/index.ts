@@ -50,21 +50,23 @@ app.post('/apuracao', upload.single('pdf'), handleApuracao);
 /**
  * POST /debug-pdf
  * Retorna o texto bruto extraído do PDF para diagnóstico.
- * Útil para entender o formato de cada banco.
+ * Disponível APENAS em desenvolvimento local (NODE_ENV !== 'production').
  */
-app.post('/debug-pdf', upload.single('pdf'), async (req, res) => {
+if (process.env.NODE_ENV !== 'production') {
+  app.post('/debug-pdf', upload.single('pdf'), async (req, res) => {
     if (!req.file) { res.status(400).json({ erro: 'PDF não enviado' }); return; }
     try {
-        const parsed = await pdfParse(req.file.buffer);
-        res.json({
-            totalChars: parsed.text.length,
-            primeiros3000: parsed.text.substring(0, 3000),
-            ultimos1000: parsed.text.substring(Math.max(0, parsed.text.length - 1000)),
-        });
+      const parsed = await pdfParse(req.file.buffer);
+      res.json({
+        totalChars: parsed.text.length,
+        primeiros3000: parsed.text.substring(0, 3000),
+        ultimos1000: parsed.text.substring(Math.max(0, parsed.text.length - 1000)),
+      });
     } catch (e) {
-        res.status(500).json({ erro: String(e) });
+      res.status(500).json({ erro: String(e) });
     }
-});
+  });
+}
 
 // ── Tratamento de erros do Multer ─────────────────────────────────────────────
 app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
