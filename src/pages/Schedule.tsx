@@ -605,14 +605,14 @@ export default function Schedule() {
               placeholder="Nome do cliente"
             />
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-[minmax(0,1.35fr)_minmax(0,0.85fr)] gap-x-3 gap-y-3 w-full overflow-hidden">
             <div className="min-w-0">
               <label className="block text-sm font-medium text-gray-600 mb-1">Data</label>
               <input
                 type="date"
                 value={formData.date ?? ''}
                 onChange={e => setFormData(p => ({ ...p, date: e.target.value }))}
-                className="w-full p-2.5 bg-gray-50 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-200 text-gray-900 text-sm"
+                className="block w-full min-w-0 max-w-full px-2.5 py-2.5 bg-gray-50 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-200 text-gray-900 text-[13px] sm:text-sm leading-tight overflow-hidden"
               />
             </div>
             <div className="min-w-0">
@@ -621,7 +621,7 @@ export default function Schedule() {
                 type="time"
                 value={formData.time ?? ''}
                 onChange={e => setFormData(p => ({ ...p, time: e.target.value }))}
-                className="w-full p-2.5 bg-gray-50 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-200 text-gray-900 text-sm"
+                className="block w-full min-w-0 max-w-full px-2.5 py-2.5 bg-gray-50 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-200 text-gray-900 text-[13px] sm:text-sm leading-tight overflow-hidden"
               />
             </div>
           </div>
