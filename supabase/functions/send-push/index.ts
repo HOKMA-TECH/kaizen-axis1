@@ -359,28 +359,36 @@ Deno.serve(async (req) => {
       return badRequest('Invalid payload. Expected notification.target_user_id (UUID) and supported fields only.', 422);
     }
 
-    if (anonKey) {
-      const scopedClient = createClient(SUPABASE_URL, anonKey, {
-        auth: { persistSession: false, autoRefreshToken: false },
-        global: { headers: { Authorization: `Bearer ${token}` } },
+    if (!anonKey) {
+      logStructured('send_push_denied', {
+        correlation_id: correlationId,
+        actor_user_id: userId,
+        result: 'denied',
+        deny_reason: 'server_misconfigured_no_anon_key',
       });
+      return badRequest('Forbidden', 403);
+    }
 
-      const { data: inScope, error: scopeError } = await scopedClient.rpc('app_user_in_scope', {
+    const scopedClient = createClient(SUPABASE_URL, anonKey, {
+      auth: { persistSession: false, autoRefreshToken: false },
+      global: { headers: { Authorization: `Bearer ${token}` } },
+    });
+
+    const { data: inScope, error: scopeError } = await scopedClient.rpc('app_user_in_scope', {
+      target_user_id: notification.target_user_id,
+    });
+
+    if (scopeError || inScope !== true) {
+      logStructured('send_push_denied', {
+        correlation_id: correlationId,
+        actor_user_id: userId,
         target_user_id: notification.target_user_id,
+        role: userRole,
+        result: 'denied',
+        deny_reason: 'out_of_scope',
+        scope_error: scopeError?.message || null,
       });
-
-      if (scopeError || inScope !== true) {
-        logStructured('send_push_denied', {
-          correlation_id: correlationId,
-          actor_user_id: userId,
-          target_user_id: notification.target_user_id,
-          role: userRole,
-          result: 'denied',
-          deny_reason: 'out_of_scope',
-          scope_error: scopeError?.message || null,
-        });
-        return badRequest('Forbidden', 403);
-      }
+      return badRequest('Forbidden', 403);
     }
 
     const { data: throttleData, error: throttleError } = await supabase.rpc('increment_request_counter', {
