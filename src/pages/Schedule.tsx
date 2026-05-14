@@ -605,14 +605,14 @@ export default function Schedule() {
               placeholder="Nome do cliente"
             />
           </div>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
+          <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-sm font-medium text-gray-600 mb-1">Data</label>
               <input
                 type="date"
                 value={formData.date ?? ''}
                 onChange={e => setFormData(p => ({ ...p, date: e.target.value }))}
-                className="w-full p-3 bg-gray-50 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-200 text-gray-900"
+                className="w-full p-2.5 bg-gray-50 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-200 text-gray-900 text-sm"
               />
             </div>
             <div>
@@ -621,7 +621,7 @@ export default function Schedule() {
                 type="time"
                 value={formData.time ?? ''}
                 onChange={e => setFormData(p => ({ ...p, time: e.target.value }))}
-                className="w-full p-3 bg-gray-50 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-200 text-gray-900"
+                className="w-full p-2.5 bg-gray-50 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-200 text-gray-900 text-sm"
               />
             </div>
           </div>
