@@ -2812,11 +2812,40 @@ function extrair(texto: string): Array<{ dataRaw: string; descricaoRaw: string; 
 // ═══════════════════════════════════════════════════════════════════════════════
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-    res.setHeader('Access-Control-Allow-Origin', '*');
+    const allowedOrigin = process.env.VITE_APP_URL ?? 'https://kaizenaxis.com.br';
+    res.setHeader('Access-Control-Allow-Origin', allowedOrigin);
     res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
     if (req.method === 'OPTIONS') { res.status(200).end(); return; }
     if (req.method !== 'POST') { res.status(405).json({ erro: 'Método não permitido.' }); return; }
+
+    // ── Autenticação JWT ───────────────────────────────────────────────────────
+    const authHeader = req.headers['authorization'] as string | undefined;
+    if (!authHeader?.startsWith('Bearer ')) {
+        res.status(401).json({ erro: 'Não autorizado.' });
+        return;
+    }
+    const token = authHeader.slice(7);
+
+    const supabaseUrl = process.env.SUPABASE_URL;
+    const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
+    if (!supabaseUrl || !supabaseAnonKey) {
+        res.status(500).json({ erro: 'Configuração de servidor ausente.' });
+        return;
+    }
+
+    const authCheck = await fetch(`${supabaseUrl}/auth/v1/user`, {
+        headers: {
+            Authorization: `Bearer ${token}`,
+            apikey: supabaseAnonKey,
+        },
+    }).catch(() => null);
+
+    if (!authCheck || authCheck.status !== 200) {
+        res.status(401).json({ erro: 'Sessão inválida. Faça login novamente.' });
+        return;
+    }
+    // ── Fim Autenticação ───────────────────────────────────────────────────────
 
     const timestamp = new Date().toISOString();
     _idCounter = 0; // Reset id counter per request

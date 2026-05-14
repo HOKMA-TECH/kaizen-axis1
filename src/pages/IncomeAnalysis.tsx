@@ -13,6 +13,7 @@ import { Modal } from '@/components/ui/Modal';
 import { useApp } from '@/context/AppContext';
 import { useAuthorization } from '@/hooks/useAuthorization';
 import { logAuditEvent } from '@/services/auditLogger';
+import { supabase } from '@/lib/supabase';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
 
@@ -561,12 +562,18 @@ export default function IncomeAnalysis() {
 
       setStatusMsg('Analisando transações…');
 
-      // DEBUG — remove após diagnóstico
-      console.log('[apuracao] textoUnificado (primeiros 3000 chars):\n', textoUnificado.substring(0, 3000));
+      const { data: { session: incomeSession } } = await supabase.auth.getSession();
+      if (!incomeSession?.access_token) {
+        setErro('Sessão expirada. Faça login novamente.');
+        return;
+      }
 
       const resp = await fetch(API_URL, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${incomeSession.access_token}`,
+        },
         body: JSON.stringify({
           textoExtrato: textoUnificado.trim(),
           hashPdf: hashPdfPrimeiro,
