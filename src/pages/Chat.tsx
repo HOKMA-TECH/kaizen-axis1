@@ -65,16 +65,37 @@ export default function Chat() {
   // ── Fetch existing conversations ──────────────────────────────────────────
   const fetchConversations = useCallback(async () => {
     if (!myId) return;
-    const { data } = await supabase
-      .from('chat_messages')
-      .select('conversation_id, content, type, created_at, sender_id, receiver_id')
-      .or(`sender_id.eq.${myId},receiver_id.eq.${myId}`)
-      .order('created_at', { ascending: false });
+    const { data: groupMemberships } = await supabase
+      .from('chat_group_members')
+      .select('group_id, chat_groups!inner(id, name, created_at)')
+      .eq('user_id', myId);
+
+    const groups = (groupMemberships ?? [])
+      .map((m: any) => m.chat_groups)
+      .filter(Boolean) as { id: string; name: string; created_at: string }[];
+    const groupIds = groups.map(group => group.id);
+    const groupById = new Map(groups.map(group => [group.id, group]));
+
+    const [{ data }, { data: groupMessages }] = await Promise.all([
+      supabase
+        .from('chat_messages')
+        .select('conversation_id, content, type, created_at, sender_id, receiver_id, group_id')
+        .or(`sender_id.eq.${myId},receiver_id.eq.${myId}`)
+        .order('created_at', { ascending: false }),
+      groupIds.length > 0
+        ? supabase
+          .from('chat_messages')
+          .select('conversation_id, content, type, created_at, sender_id, group_id')
+          .in('group_id', groupIds)
+          .order('created_at', { ascending: false })
+        : Promise.resolve({ data: [] as any[] }),
+    ]);
 
     const seen = new Set<string>();
     const convos: ConversationPreview[] = [];
 
     for (const msg of (data ?? [])) {
+      if (msg.group_id || msg.conversation_id?.startsWith('group-')) continue;
       if (seen.has(msg.conversation_id)) continue;
       seen.add(msg.conversation_id);
       try {
@@ -95,32 +116,29 @@ export default function Chat() {
       });
     }
 
-    // Also fetch groups the user belongs to
-    const { data: groupMemberships } = await supabase
-      .from('chat_group_members')
-      .select('group_id, chat_groups!inner(id, name, created_at)')
-      .eq('user_id', myId);
+    const latestGroupMessageByGroupId = new Map<string, any>();
+    for (const msg of (groupMessages ?? [])) {
+      if (!msg.group_id || latestGroupMessageByGroupId.has(msg.group_id)) continue;
+      latestGroupMessageByGroupId.set(msg.group_id, msg);
+    }
 
-    for (const m of (groupMemberships ?? [])) {
-      const group = (m as any).chat_groups;
-      if (!group) continue;
+    for (const group of groupById.values()) {
       const convId = `group-${group.id}`;
-      if (seen.has(convId)) continue;
-      seen.add(convId);
+      const latestMessage = latestGroupMessageByGroupId.get(group.id);
       convos.push({
         conversationId: convId,
         otherId: convId,
         isKAI: false,
         isGroup: true,
         groupName: group.name,
-        lastContent: 'Grupo criado',
-        lastType: 'text',
-        lastAt: group.created_at,
-        senderIsMe: false,
+        lastContent: latestMessage?.content || 'Grupo criado',
+        lastType: latestMessage?.type || 'text',
+        lastAt: latestMessage?.created_at || group.created_at,
+        senderIsMe: latestMessage?.sender_id === myId,
       });
     }
 
-    setConversations(convos);
+    setConversations(convos.sort((a, b) => new Date(b.lastAt).getTime() - new Date(a.lastAt).getTime()));
     setLoading(false);
   }, [myId]);
 
@@ -132,7 +150,7 @@ export default function Chat() {
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_messages' },
         (p) => {
           const m = p.new as any;
-          if (m.sender_id === myId || m.receiver_id === myId) {
+          if (m.group_id || m.conversation_id?.startsWith('group-') || m.sender_id === myId || m.receiver_id === myId) {
             try { localStorage.removeItem(`hidden-conv-${myId}-${m.conversation_id}`); } catch {}
             fetchConversations();
           }
