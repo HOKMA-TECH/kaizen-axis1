@@ -612,7 +612,7 @@ export default function Schedule() {
                 type="date"
                 value={formData.date ?? ''}
                 onChange={e => setFormData(p => ({ ...p, date: e.target.value }))}
-                className="block w-full min-w-0 max-w-full h-12 px-3 py-0 bg-gray-50 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-200 text-gray-900 text-sm"
+                className="w-full h-12 px-3 py-0 bg-gray-50 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-200 text-gray-900 text-sm"
               />
             </div>
             <div className="min-w-0">
@@ -621,7 +621,7 @@ export default function Schedule() {
                 type="time"
                 value={formData.time ?? ''}
                 onChange={e => setFormData(p => ({ ...p, time: e.target.value }))}
-                className="block w-full min-w-0 max-w-full h-12 px-3 py-0 bg-gray-50 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-200 text-gray-900 text-sm"
+                className="w-full h-12 px-3 py-0 bg-gray-50 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-200 text-gray-900 text-sm"
               />
             </div>
           </div>
