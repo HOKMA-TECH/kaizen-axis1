@@ -64,11 +64,12 @@ Deno.serve(async (req: Request) => {
   if (!authHeader?.startsWith('Bearer ')) return json({ error: 'unauthorized' }, 401);
 
   const rawToken = authHeader.slice(7);
+  const supabaseUrl = Deno.env.get('SUPABASE_URL');
   const anonKey = Deno.env.get('SUPABASE_ANON_KEY');
-  if (!anonKey) return json({ error: 'server_misconfigured' }, 500);
+  if (!supabaseUrl || !anonKey) return json({ error: 'server_misconfigured' }, 500);
 
   const userClient = createClient(
-    Deno.env.get('SUPABASE_URL')!,
+    supabaseUrl,
     anonKey,
     { auth: { persistSession: false }, global: { headers: { Authorization: `Bearer ${rawToken}` } } },
   );
