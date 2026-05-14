@@ -4,11 +4,17 @@ import { CheckCheck, Check, Smile, FileText, Download, X, Play, Eye, EyeOff } fr
 import { cn } from '@/lib/utils';
 import ReactMarkdown from 'react-markdown';
 import rehypeSanitize from 'rehype-sanitize';
+import { Document, Page, pdfjs } from 'react-pdf';
+import pdfWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
+import 'react-pdf/dist/Page/AnnotationLayer.css';
+import 'react-pdf/dist/Page/TextLayer.css';
 import { AudioPlayer } from './AudioPlayer';
 
 const SUPABASE_STORAGE_HOST = import.meta.env.VITE_SUPABASE_URL
   ? new URL(import.meta.env.VITE_SUPABASE_URL).hostname
   : '';
+
+pdfjs.GlobalWorkerOptions.workerSrc = pdfWorker;
 
 /** Only allow URLs from our own Supabase storage domain. */
 function isTrustedMediaUrl(url: string | undefined): boolean {
@@ -51,6 +57,60 @@ interface ChatMessageBubbleProps {
 }
 
 const QUICK_EMOJIS = ['❤️', '😂', '😮', '😢', '👍', '🙏'];
+
+function PdfDocumentViewer({ url, fileName }: { url: string; fileName: string }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [numPages, setNumPages] = useState(0);
+  const [width, setWidth] = useState(820);
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+
+    const updateWidth = () => {
+      setWidth(Math.max(280, Math.min(el.clientWidth - 24, 920)));
+    };
+    updateWidth();
+
+    const observer = new ResizeObserver(updateWidth);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  return (
+    <div
+      ref={containerRef}
+      className="w-full h-full overflow-y-auto bg-surface-100 px-3 py-4"
+      onClick={e => e.stopPropagation()}
+    >
+      <Document
+        file={url}
+        onLoadSuccess={({ numPages }) => setNumPages(numPages)}
+        loading={<div className="py-12 text-center text-sm text-text-secondary">Carregando PDF...</div>}
+        error={
+          <div className="mx-auto mt-8 max-w-md rounded-xl bg-card-bg border border-surface-200 p-6 text-center shadow-sm">
+            <FileText size={42} className="mx-auto mb-3 text-primary-500" />
+            <p className="text-sm font-semibold text-text-primary truncate">{fileName}</p>
+            <p className="mt-1 text-xs text-text-secondary">Nao foi possivel visualizar este PDF aqui.</p>
+          </div>
+        }
+      >
+        <div className="mx-auto flex w-fit flex-col gap-4">
+          {Array.from({ length: numPages }, (_, i) => (
+            <Page
+              key={i + 1}
+              pageNumber={i + 1}
+              width={width}
+              renderAnnotationLayer
+              renderTextLayer
+              className="overflow-hidden bg-white shadow-sm"
+            />
+          ))}
+        </div>
+      </Document>
+    </div>
+  );
+}
 
 export function ChatMessageBubble({ message, index, onDeleteForMe, onDeleteForAll, onReact, onMarkViewOnceOpened }: ChatMessageBubbleProps) {
   const [showMenu, setShowMenu] = useState(false);
@@ -452,15 +512,8 @@ export function ChatMessageBubble({ message, index, onDeleteForMe, onDeleteForAl
                 onClick={e => e.stopPropagation()}
               />
             )}
-            {/* C-06: only render iframe for trusted Supabase URLs; sandbox blocks scripts */}
             {message.type === 'document' && isPdf && isTrustedMediaUrl(viewerMediaUrl) && (
-              <iframe
-                src={`${viewerMediaUrl}#toolbar=1&navpanes=0`}
-                title={mediaName}
-                sandbox="allow-scripts allow-same-origin"
-                className="w-full h-full max-w-5xl bg-white border-0 shadow-sm"
-                onClick={e => e.stopPropagation()}
-              />
+              <PdfDocumentViewer url={viewerMediaUrl!} fileName={mediaName} />
             )}
             {message.type === 'document' && !isPdf && (
               <div
