@@ -86,6 +86,26 @@ Deno.serve(async (req: Request) => {
     return errJson('Taxa de eventos excedida. Aguarde alguns segundos.', 429);
   }
 
+  // ── Derivar userId do JWT (quando disponível) ─────────────────────────────
+  // Para eventos pre-auth (login_failed sem sessão), JWT pode estar ausente.
+  // Se um JWT válido for enviado, ele tem precedência sobre qualquer body.userId.
+  let resolvedUserId: string | null = null;
+
+  const authHeader = req.headers.get('Authorization');
+  if (authHeader?.startsWith('Bearer ')) {
+    const token = authHeader.slice(7);
+    const supabaseUrlEnv = Deno.env.get('SUPABASE_URL');
+    const anonKeyEnv = Deno.env.get('SUPABASE_ANON_KEY');
+    if (supabaseUrlEnv && anonKeyEnv) {
+      const userClient = createClient(supabaseUrlEnv, anonKeyEnv, {
+        auth: { persistSession: false },
+        global: { headers: { Authorization: `Bearer ${token}` } },
+      });
+      const { data: { user } } = await userClient.auth.getUser();
+      if (user?.id) resolvedUserId = user.id;
+    }
+  }
+
   const supabaseUrl = Deno.env.get('SUPABASE_URL');
   const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
   if (!supabaseUrl || !serviceKey) {
@@ -101,7 +121,7 @@ Deno.serve(async (req: Request) => {
     : {};
   const sanitizedMetadata = JSON.parse(JSON.stringify(metadata));
   const payload = {
-    user_id: body.userId ?? null,
+    user_id: resolvedUserId,
     action,
     entity,
     entity_id: body.entityId ?? null,
