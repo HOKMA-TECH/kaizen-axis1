@@ -144,7 +144,7 @@ export default function Dashboard() {
           {(['este_mes', '30_dias'] as const).map(id => (
             <button
               key={id}
-              onClick={() => setPeriod(id)}
+              onClick={() => { setPeriod(id); setMobilePeriodOpen(false); }}
               className={`px-4 py-2 rounded-full text-xs font-semibold border transition-all ${
                 period === id
                   ? 'bg-gold-500 text-white border-gold-500 shadow-sm'
@@ -174,8 +174,8 @@ export default function Dashboard() {
             </button>
             {mobilePeriodOpen && (
               <>
-                <div className="fixed inset-0 z-10" onClick={() => setMobilePeriodOpen(false)} />
-                <div className="absolute left-0 top-full mt-1.5 z-20 bg-card-bg border border-surface-200 rounded-2xl shadow-lg py-1.5 min-w-[160px]">
+                <div className="fixed inset-0 z-40" onClick={() => setMobilePeriodOpen(false)} />
+                <div className="absolute left-0 top-full mt-1.5 z-50 bg-card-bg border border-surface-200 rounded-2xl shadow-lg py-1.5 min-w-[160px]">
                   {[
                     { id: '60_dias' as const, label: '60 dias' },
                     { id: '90_dias' as const, label: '90 dias' },
