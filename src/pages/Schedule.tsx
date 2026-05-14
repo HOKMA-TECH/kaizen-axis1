@@ -46,6 +46,7 @@ export default function Schedule() {
   const [typeFilter,   setTypeFilter]     = useState<TypeFilter>('Todos');
   const [filterOpen,   setFilterOpen]     = useState(false);
   const filterRef = useRef<HTMLDivElement>(null);
+  const mobileFilterRef = useRef<HTMLDivElement>(null);
 
   const [isModalOpen,        setIsModalOpen]        = useState(false);
   const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null);
@@ -113,7 +114,9 @@ export default function Schedule() {
   // ── Close filter dropdown on outside click ────────────────────────────────
   useEffect(() => {
     const handler = (e: MouseEvent) => {
-      if (filterRef.current && !filterRef.current.contains(e.target as Node)) setFilterOpen(false);
+      const inDesktop = filterRef.current?.contains(e.target as Node);
+      const inMobile  = mobileFilterRef.current?.contains(e.target as Node);
+      if (!inDesktop && !inMobile) setFilterOpen(false);
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
@@ -177,7 +180,7 @@ export default function Schedule() {
           <h1 className="text-lg font-bold text-gray-900">Agenda</h1>
           <div className="flex items-center gap-2">
             {/* Type filter icon */}
-            <div className="relative" ref={filterRef}>
+            <div className="relative" ref={mobileFilterRef}>
               <button
                 onClick={() => setFilterOpen(o => !o)}
                 className={`p-2 rounded-xl border transition-colors ${
@@ -317,7 +320,9 @@ export default function Schedule() {
           <div className="flex justify-between">
             {weekDays.map((day, i) => {
               const dateStr    = format(day, 'yyyy-MM-dd');
-              const hasEvents  = (byDate[dateStr] ?? []).length > 0;
+              const hasEvents  = (byDate[dateStr] ?? []).some(
+                a => typeFilter === 'Todos' || a.type === typeFilter
+              );
               const isSelected = isSameDay(day, selectedDate);
               const isNow      = isSameDay(day, today);
               return (
