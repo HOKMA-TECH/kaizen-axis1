@@ -9,26 +9,9 @@ import pdfWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
 import { AudioPlayer } from './AudioPlayer';
-
-const SUPABASE_STORAGE_HOST = import.meta.env.VITE_SUPABASE_URL
-  ? new URL(import.meta.env.VITE_SUPABASE_URL).hostname
-  : '';
+import { isTrustedMediaUrl } from '@/lib/chat-media-url';
 
 pdfjs.GlobalWorkerOptions.workerSrc = pdfWorker;
-
-/** Only allow URLs from our own Supabase storage domain. */
-function isTrustedMediaUrl(url: string | undefined): boolean {
-  if (!url) return false;
-  try {
-    const parsed = new URL(url);
-    return (
-      parsed.hostname === SUPABASE_STORAGE_HOST &&
-      (parsed.protocol === 'https:' || parsed.protocol === 'http:')
-    );
-  } catch {
-    return false;
-  }
-}
 
 export interface BubbleMessage {
   id: string;

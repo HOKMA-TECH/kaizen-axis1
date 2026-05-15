@@ -76,10 +76,12 @@ Deno.serve(async (req: Request) => {
   const path = typeof body.path === 'string' ? body.path.trim() : '';
   if (!path) return jsonResponse({ error: 'path obrigatório' }, 400);
 
-  // Extract conversationId = first path segment (${conversationId}/${uuid}.${ext})
+  // Extract conversationId = first path segment
+  // DM format:    ${uuid1}-${uuid2}/${uuid}.ext  (two UUIDs joined with -)
+  // Group format: group-${uuid}/${uuid}.ext
   const conversationId = path.split('/')[0];
-  const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-  if (!UUID_RE.test(conversationId)) {
+  // Validate: only alphanumeric, hyphens allowed — no slashes, dots, or traversal
+  if (!conversationId || !/^[a-zA-Z0-9_-]+$/.test(conversationId)) {
     return jsonResponse({ error: 'Path inválido' }, 400);
   }
 
@@ -92,13 +94,14 @@ Deno.serve(async (req: Request) => {
     .or(`sender_id.eq.${user.id},receiver_id.eq.${user.id}`)
     .limit(1);
 
-  // Group: user is a member of the group (group_id = conversationId)
-  const { data: groupAccess } = await adminClient
+  // Group: conversationId is "group-${uuid}", group_id in DB is the raw UUID
+  const groupUuid = conversationId.startsWith('group-') ? conversationId.slice(6) : null;
+  const { data: groupAccess } = groupUuid ? await adminClient
     .from('chat_group_members')
     .select('user_id')
-    .eq('group_id', conversationId)
+    .eq('group_id', groupUuid)
     .eq('user_id', user.id)
-    .limit(1);
+    .limit(1) : { data: null };
 
   if (!dmAccess?.length && !groupAccess?.length) {
     console.warn('[get-chat-media-url] unauthorized access attempt by', user.id, 'for conversation', conversationId);

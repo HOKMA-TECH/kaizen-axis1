@@ -484,7 +484,8 @@ export default function ChatDetail() {
   const isKAI = id === 'kai-agent';
   const myId = user?.id ?? '';
   const myName = profile?.name || 'Usuário';
-  const conversationId = isKAI ? `kai-${myId}` : [myId, id].sort().join('_');
+  const legacyConversationId = isKAI || !id ? null : [myId, id].sort().join('_');
+  const conversationId = isKAI ? `kai-${myId}` : [myId, id].sort().join('-');
   const { markConversationRead } = useChatUnread();
 
   // ─── Load chat partner ────────────────────────────────────────────────────
@@ -617,7 +618,7 @@ export default function ChatDetail() {
     const { data, error } = await supabase
       .from('chat_messages')
       .select('*')
-      .eq('conversation_id', conversationId)
+      .in('conversation_id', legacyConversationId ? [conversationId, legacyConversationId] : [conversationId])
       .not('deleted_for', 'cs', `{"${myId}"}`)
       .order('created_at', { ascending: false })
       .range(0, PAGE_SIZE - 1);
@@ -626,7 +627,7 @@ export default function ChatDetail() {
     const withFreshUrls = await resolveMediaPaths(mapped);
     setMessages(withFreshUrls);
     setHasMore((data ?? []).length === PAGE_SIZE);
-  }, [conversationId, isKAI, myId, mapMsg, resolveMediaPaths]);
+  }, [conversationId, legacyConversationId, isKAI, myId, mapMsg, resolveMediaPaths]);
 
   const loadMoreMessages = useCallback(async () => {
     if (isLoadingMore || !hasMore || !myId) return;
@@ -634,7 +635,7 @@ export default function ChatDetail() {
     const { data } = await supabase
       .from('chat_messages')
       .select('*')
-      .eq('conversation_id', conversationId)
+      .in('conversation_id', legacyConversationId ? [conversationId, legacyConversationId] : [conversationId])
       .not('deleted_for', 'cs', `{"${myId}"}`)
       .order('created_at', { ascending: false })
       .range(messages.length, messages.length + PAGE_SIZE - 1);
@@ -642,7 +643,7 @@ export default function ChatDetail() {
     setMessages(prev => [...older, ...prev]);
     setHasMore((data ?? []).length === PAGE_SIZE);
     setIsLoadingMore(false);
-  }, [conversationId, hasMore, isLoadingMore, mapMsg, messages.length, myId]);
+  }, [conversationId, legacyConversationId, hasMore, isLoadingMore, mapMsg, messages.length, myId]);
 
   // ─── Realtime: postgres_changes (messages) + presence (typing) ────────────
   useEffect(() => {
