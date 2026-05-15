@@ -14,6 +14,9 @@ const MAX_RECIPIENTS = 5;
 const MAX_ATTACHMENTS = 5;
 const MAX_TOTAL_ATTACHMENT_BYTES = 10 * 1024 * 1024; // 10 MB (base64 ~33% overhead)
 const RATE_LIMIT_PER_MIN = 5;
+const DAILY_LIMIT = 50;
+// Conservative email regex: local@domain.tld — avoids obvious junk
+const EMAIL_RE = /^[^\s@"<>()[\],;:\\]+@[^\s@"<>()[\],;:\\]+\.[^\s@"<>()[\],;:\\]{2,}$/;
 
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -80,6 +83,18 @@ Deno.serve(async (req: Request) => {
     return jsonResponse({ error: 'Limite de envio atingido. Aguarde 1 minuto.', resend_ok: false }, 429);
   }
 
+  // ── Daily quota: 50 e-mails/dia por usuário ───────────────────────────────
+  const dayStart = new Date(Math.floor(Date.now() / 86_400_000) * 86_400_000).toISOString();
+  const { data: dayCount, error: dayErr } = await adminClient.rpc('increment_request_counter', {
+    _scope: 'send_email_daily',
+    _identifier: user.id,
+    _window_start: dayStart,
+  });
+  if (dayErr || (dayCount ?? 0) >= DAILY_LIMIT) {
+    if (dayErr) console.warn('[send-email] daily quota rpc failed:', dayErr.message);
+    return jsonResponse({ error: 'Cota diária de e-mails atingida.', resend_ok: false }, 429);
+  }
+
   // ── Parse body ────────────────────────────────────────────────────────────
   let body: {
     to?: string[];
@@ -95,9 +110,9 @@ Deno.serve(async (req: Request) => {
     return jsonResponse({ error: 'JSON inválido', resend_ok: false }, 400);
   }
 
-  const to = Array.isArray(body.to) ? body.to.filter(e => typeof e === 'string' && e.includes('@')) : [];
-  const cc = Array.isArray(body.cc) ? body.cc.filter(e => typeof e === 'string' && e.includes('@')) : [];
-  const bcc = Array.isArray(body.bcc) ? body.bcc.filter(e => typeof e === 'string' && e.includes('@')) : [];
+  const to = Array.isArray(body.to) ? body.to.filter(e => typeof e === 'string' && EMAIL_RE.test(e.trim())) : [];
+  const cc = Array.isArray(body.cc) ? body.cc.filter(e => typeof e === 'string' && EMAIL_RE.test(e.trim())) : [];
+  const bcc = Array.isArray(body.bcc) ? body.bcc.filter(e => typeof e === 'string' && EMAIL_RE.test(e.trim())) : [];
   const subject = String(body.subject || '').trim().slice(0, 200);
   const text = String(body.text || '').trim().slice(0, 50_000);
 

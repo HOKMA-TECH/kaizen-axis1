@@ -12,6 +12,7 @@ const corsHeaders = {
 
 const RATE_LIMIT_PER_MIN = 30;
 const ALLOWED_TYPES = new Set(['chat', 'aviso', 'lead', 'meta', 'missao', 'tarefa', 'anuncio']);
+const PRIVILEGED_ROLES = new Set(['ADMIN', 'DIRETOR', 'GERENTE']);
 
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -125,20 +126,75 @@ Deno.serve(async (req: Request) => {
   }
 
   const validIds = new Set((profiles ?? []).map((p: any) => p.id));
-  const rows = targetIds
-    .filter(id => validIds.has(id))
-    .map(id => ({
-      target_user_id: id,
-      title,
-      message,
-      type,
-      reference_id,
-      reference_route,
-    }));
+  const resolvedTargets = targetIds.filter(id => validIds.has(id));
 
-  if (rows.length === 0) return jsonResponse({ error: 'Nenhum destinatário válido encontrado' }, 400);
+  if (resolvedTargets.length === 0) return jsonResponse({ error: 'Nenhum destinatário válido encontrado' }, 400);
+
+  // ── P1-02: Validar relação entre emissor e destinatários ──────────────────
+  // Get emitter's role and direct chain
+  const { data: emitterProfile, error: emitterErr } = await adminClient
+    .from('profiles')
+    .select('role, coordinator_id, manager_id')
+    .eq('id', user.id)
+    .single();
+
+  if (emitterErr || !emitterProfile) {
+    console.error('[send-notification] emitter profile error:', emitterErr?.message);
+    return jsonResponse({ error: 'Erro ao verificar permissões do emissor' }, 500);
+  }
+
+  const emitterRole = (emitterProfile.role || '').toUpperCase();
+
+  if (!PRIVILEGED_ROLES.has(emitterRole)) {
+    // Build set of authorized target IDs for non-privileged users
+    const authorizedIds = new Set<string>();
+
+    // Upward: emitter's direct coordinator and manager
+    if (emitterProfile.coordinator_id) authorizedIds.add(emitterProfile.coordinator_id);
+    if (emitterProfile.manager_id) authorizedIds.add(emitterProfile.manager_id);
+
+    // Downward: targets whose coordinator_id or manager_id is the emitter
+    const { data: downward } = await adminClient
+      .from('profiles')
+      .select('id')
+      .in('id', resolvedTargets)
+      .or(`coordinator_id.eq.${user.id},manager_id.eq.${user.id}`);
+
+    for (const p of downward ?? []) authorizedIds.add(p.id);
+
+    // Chat group: if type='chat' and reference_id is a group, emitter must be a member
+    if (type === 'chat' && reference_id) {
+      const { data: groupMembers } = await adminClient
+        .from('chat_group_members')
+        .select('user_id')
+        .eq('group_id', reference_id);
+
+      const memberSet = new Set((groupMembers ?? []).map((m: any) => m.user_id));
+      if (memberSet.has(user.id)) {
+        // Emitter is in the group — authorize all targets who are also members
+        for (const id of resolvedTargets) {
+          if (memberSet.has(id)) authorizedIds.add(id);
+        }
+      }
+    }
+
+    const unauthorized = resolvedTargets.filter(id => !authorizedIds.has(id));
+    if (unauthorized.length > 0) {
+      console.warn('[send-notification] unauthorized targets:', unauthorized);
+      return jsonResponse({ error: 'Sem permissão para notificar um ou mais destinatários' }, 403);
+    }
+  }
 
   // ── Inserir via service role (bypassa RLS) ────────────────────────────────
+  const rows = resolvedTargets.map(id => ({
+    target_user_id: id,
+    title,
+    message,
+    type,
+    reference_id,
+    reference_route,
+  }));
+
   const { error: insertErr } = await adminClient.from('notifications').insert(rows);
   if (insertErr) {
     console.error('[send-notification] insert error:', insertErr.message);
