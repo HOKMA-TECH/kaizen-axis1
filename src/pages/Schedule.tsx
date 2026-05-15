@@ -610,31 +610,25 @@ export default function Schedule() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full">
             <div className="min-w-0">
               <label className="block text-sm font-medium text-gray-600 mb-1">Data</label>
-              <div className={`${FIELD_CLASS} relative flex items-center`}>
-                <span className="pointer-events-none truncate">
-                  {formData.date ? format(parseISO(formData.date), 'dd/MM/yyyy') : ''}
-                </span>
-                <input
-                  type="date"
-                  value={formData.date ?? ''}
-                  onChange={e => setFormData(p => ({ ...p, date: e.target.value }))}
-                  className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
-                  aria-label="Data"
-                />
-              </div>
+              <input
+                type="date"
+                value={formData.date ?? ''}
+                onChange={e => setFormData(p => ({ ...p, date: e.target.value }))}
+                onClick={e => e.currentTarget.showPicker?.()}
+                className={`${FIELD_CLASS} cursor-pointer`}
+                aria-label="Data"
+              />
             </div>
             <div className="min-w-0">
               <label className="block text-sm font-medium text-gray-600 mb-1">Hora</label>
-              <div className={`${FIELD_CLASS} relative flex items-center`}>
-                <span className="pointer-events-none truncate">{formData.time ?? ''}</span>
-                <input
-                  type="time"
-                  value={formData.time ?? ''}
-                  onChange={e => setFormData(p => ({ ...p, time: e.target.value }))}
-                  className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
-                  aria-label="Hora"
-                />
-              </div>
+              <input
+                type="time"
+                value={formData.time ?? ''}
+                onChange={e => setFormData(p => ({ ...p, time: e.target.value }))}
+                onClick={e => e.currentTarget.showPicker?.()}
+                className={`${FIELD_CLASS} cursor-pointer`}
+                aria-label="Hora"
+              />
             </div>
           </div>
           <div>
