@@ -10,7 +10,7 @@ const corsHeaders = {
   'Vary': 'Origin',
 };
 
-const SIGNED_URL_TTL = 3600; // 1 hour
+const SIGNED_URL_TTL = 900; // 15 minutes — reduced from 1h (P1-01)
 const RATE_LIMIT_PER_MIN = 120; // generous — one per message load
 
 function jsonResponse(body: unknown, status = 200) {
@@ -104,8 +104,23 @@ Deno.serve(async (req: Request) => {
     .limit(1) : { data: null };
 
   if (!dmAccess?.length && !groupAccess?.length) {
-    console.warn('[get-chat-media-url] unauthorized access attempt by', user.id, 'for conversation', conversationId);
+    console.warn('[get-chat-media-url] unauthorized by', user.id.slice(-6), 'conv', conversationId.slice(-6));
     return jsonResponse({ error: 'Acesso não autorizado a este arquivo' }, 403);
+  }
+
+  // ── Validate path is linked to a real non-deleted message (P1-01) ─────────
+  // Prevents a participant from signing arbitrary/orphan objects in the conversation prefix.
+  const { data: msgMatch } = await adminClient
+    .from('chat_messages')
+    .select('id')
+    .eq('conversation_id', conversationId)
+    .eq('media_path', path)
+    .eq('is_deleted', false)
+    .limit(1);
+
+  if (!msgMatch?.length) {
+    console.warn('[get-chat-media-url] path not linked to message', path.slice(-20));
+    return jsonResponse({ error: 'Arquivo não encontrado' }, 404);
   }
 
   // ── Generate signed URL via service role ──────────────────────────────────

@@ -945,9 +945,9 @@ export default function ChatDetail() {
         role: m.isMe ? 'user' : 'assistant' as 'user' | 'assistant',
         content: m.text || '',
       }));
-      // Inject client context on first message
+      // Inject client context on first message — only name and status, not phone (P2-03)
       const contextualText = clientContext && messages.filter(m => m.isMe).length === 0
-        ? `[Contexto do cliente: ${clientContext.name}${clientContext.status ? `, Status: ${clientContext.status}` : ''}${clientContext.phone ? `, Tel: ${clientContext.phone}` : ''}]\n\n${text}`
+        ? `[Contexto do cliente: ${clientContext.name}${clientContext.status ? `, Status: ${clientContext.status}` : ''}]\n\n${text}`
         : text;
       const responseText = await sendMessageToKai(contextualText, history);
       setIsKaiTyping(false);
@@ -958,9 +958,10 @@ export default function ChatDetail() {
           timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
           isMe: false,
         }];
-        // Persist history to localStorage (last 100 messages)
+        // Persist only text content to localStorage — no PII fields (P2-03)
         try {
-          localStorage.setItem(`kai-history-${myId}`, JSON.stringify(updated.slice(-100)));
+          const safe = updated.slice(-50).map(m => ({ id: m.id, text: m.text, isMe: m.isMe, timestamp: m.timestamp }));
+          localStorage.setItem(`kai-history-${myId}`, JSON.stringify(safe));
         } catch {}
         return updated;
       });

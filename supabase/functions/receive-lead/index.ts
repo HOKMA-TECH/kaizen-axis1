@@ -208,6 +208,6 @@ Deno.serve(async (req: Request) => {
     });
   } catch (e: any) {
     console.error('[receive-lead] Error inserting lead:', e);
-    return jsonResponse({ error: e.message || 'Internal error' }, 500);
+    return jsonResponse({ error: 'Erro interno ao processar lead' }, 500);
   }
 });
