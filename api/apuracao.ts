@@ -2847,6 +2847,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
     // ── Fim Autenticação ───────────────────────────────────────────────────────
 
+    // ── Rate limit via rate-guard (20 req/min por usuário, B-01) ─────────────
+    const rateGuardUrl = `${supabaseUrl}/functions/v1/rate-guard`;
+    const rateGuardRes = await fetch(rateGuardUrl, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+            apikey: supabaseAnonKey,
+        },
+        body: JSON.stringify({ scope: 'apuracao' }),
+    }).catch(() => null);
+    if (!rateGuardRes || rateGuardRes.status === 429) {
+        res.status(429).json({ erro: 'Limite de requisições atingido. Aguarde 1 minuto.' });
+        return;
+    }
+    if (!rateGuardRes.ok && rateGuardRes.status !== 200) {
+        // rate-guard unavailable — fail closed
+        res.status(503).json({ erro: 'Serviço temporariamente indisponível.' });
+        return;
+    }
+
     // ── Limite de tamanho de payload (P-01) ───────────────────────────────────
     const MAX_BODY_BYTES = 3 * 1024 * 1024; // 3 MB
     const contentLength = parseInt(req.headers['content-length'] as string || '0', 10);

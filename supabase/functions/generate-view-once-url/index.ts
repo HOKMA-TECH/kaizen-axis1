@@ -53,6 +53,21 @@ Deno.serve(async (req: Request) => {
     return jsonResponse({ error: 'Não autorizado' }, 401);
   }
 
+  // ── Rate limit: 60 acessos/min por usuário ───────────────────────────────
+  const adminClient = createClient(supabaseUrl, serviceKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+  const voWindowStart = new Date(Math.floor(Date.now() / 60_000) * 60_000).toISOString();
+  const { data: voCount, error: voRateErr } = await adminClient.rpc('increment_request_counter', {
+    _scope: 'view_once_url',
+    _identifier: user.id,
+    _window_start: voWindowStart,
+  });
+  if (voRateErr || (voCount ?? 0) >= 60) {
+    if (voRateErr) console.warn('[generate-view-once-url] rate-limit rpc failed:', voRateErr.message);
+    return jsonResponse({ error: 'Limite de requisições atingido. Aguarde 1 minuto.' }, 429);
+  }
+
   // ── Body ──────────────────────────────────────────────────────────────────
   let body: { message_id?: string };
   try {
@@ -110,11 +125,7 @@ Deno.serve(async (req: Request) => {
     return jsonResponse({ error: 'Esta mídia já foi visualizada e não está mais disponível.' }, 410);
   }
 
-  // ── Gera signed URL via service_role ─────────────────────────────────────
-  const adminClient = createClient(supabaseUrl, serviceKey, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
-
+  // ── Gera signed URL via service_role (adminClient já criado acima) ───────
   // Tenta chat-media-private primeiro, depois chat-media (compatibilidade)
   const buckets = ['chat-media-private', 'chat-media'];
   let signedUrl: string | null = null;

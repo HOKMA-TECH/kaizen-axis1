@@ -19,7 +19,7 @@ const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const ALLOWED_ROLES = new Set(['ADMIN', 'DIRETOR', 'GERENTE']);
 const MAX_PUSH_REQUESTS_PER_MINUTE = 20;
 
-const CORS_ORIGIN = Deno.env.get('APP_ORIGIN') ?? '*';
+const CORS_ORIGIN = Deno.env.get('APP_ORIGIN') ?? '';
 
 const JSON_HEADERS = {
   'Content-Type': 'application/json',

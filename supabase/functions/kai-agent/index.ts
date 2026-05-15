@@ -364,6 +364,18 @@ Deno.serve(async (req: Request) => {
     return jsonResponse({ error: 'Limite de mensagens atingido. Aguarde 1 minuto.' }, 429);
   }
 
+  // ── Quota diária: 100 mensagens por dia por usuário (B-03) ────────────────
+  const kaiDayStart = new Date(Math.floor(Date.now() / 86_400_000) * 86_400_000).toISOString();
+  const { data: kaiDayCount, error: kaiDayErr } = await serviceClient.rpc('increment_request_counter', {
+    _scope: 'kai_agent_daily',
+    _identifier: user.id,
+    _window_start: kaiDayStart,
+  });
+  if (kaiDayErr || (kaiDayCount ?? 0) >= 100) {
+    if (kaiDayErr) console.warn('[kai-agent] daily quota rpc failed:', kaiDayErr.message);
+    return jsonResponse({ error: 'Cota diária de mensagens atingida. Tente novamente amanhã.' }, 429);
+  }
+
   let body: ChatBody;
   try {
     body = await req.json();

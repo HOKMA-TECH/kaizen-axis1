@@ -130,7 +130,25 @@ Deno.serve(async (req: Request) => {
   }
   SEEN_SIGNATURES.set(receivedHex, Date.now());
 
-  // ── 5. Parse body ─────────────────────────────────────────────────────────
+  // ── 5. Persistent rate limit by IP (10 req/min) ───────────────────────────
+  const serviceClient = createClient(
+    Deno.env.get('SUPABASE_URL')!,
+    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+    { auth: { persistSession: false } },
+  );
+  const leadIp = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? '0.0.0.0';
+  const leadWindowStart = new Date(Math.floor(Date.now() / 60_000) * 60_000).toISOString();
+  const { data: leadCount, error: leadRateErr } = await serviceClient.rpc('increment_request_counter', {
+    _scope: 'receive_lead',
+    _identifier: leadIp,
+    _window_start: leadWindowStart,
+  });
+  if (leadRateErr || (leadCount ?? 0) >= 10) {
+    if (leadRateErr) console.warn('[receive-lead] rate-limit rpc failed:', leadRateErr.message);
+    return jsonResponse({ error: 'Rate limit exceeded' }, 429);
+  }
+
+  // ── 6. Parse body ─────────────────────────────────────────────────────────
   let body: Record<string, unknown>;
   try {
     body = JSON.parse(rawBody);
@@ -144,15 +162,9 @@ Deno.serve(async (req: Request) => {
     return jsonResponse({ error: 'name and phone are required' }, 422);
   }
 
-  // ── 6. Persist lead ───────────────────────────────────────────────────────
-  const supabase = createClient(
-    Deno.env.get('SUPABASE_URL')!,
-    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
-    { auth: { persistSession: false } },
-  );
-
+  // ── 7. Persist lead ───────────────────────────────────────────────────────
   try {
-    const { data: newLead, error } = await supabase
+    const { data: newLead, error } = await serviceClient
       .from('leads')
       .insert([{
         name,

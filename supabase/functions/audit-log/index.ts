@@ -41,6 +41,21 @@ function normalizeText(value: string, max = 64) {
   return value.trim().slice(0, max);
 }
 
+// ── L-01: allowlist de action e entity ───────────────────────────────────────
+const ALLOWED_ACTIONS = new Set([
+  'login_success', 'login_failed', 'logout',
+  'client_created', 'client_updated', 'client_deleted', 'client_view',
+  'client_proponent_added', 'client_proponent_updated', 'client_proponent_deleted',
+  'document_uploaded', 'document_deleted', 'document_downloaded',
+  'permissions_updated', 'lead_converted', 'sale_updated',
+  'custom', 'test_event',
+]);
+
+const ALLOWED_ENTITIES = new Set([
+  'auth', 'client', 'lead', 'profile',
+  'client_document', 'report', 'income_report', 'security_panel',
+]);
+
 function recordLocalHit(key: string) {
   const bucket = inMemoryRateLimiter.get(key);
   const now = Date.now();
@@ -81,6 +96,14 @@ Deno.serve(async (req: Request) => {
   const entity = body.entity ? normalizeText(body.entity, 80) : '';
   if (!action || !entity) {
     return errJson('action e entity são obrigatórios');
+  }
+  if (!ALLOWED_ACTIONS.has(action)) {
+    console.warn('[audit-log] action não permitida bloqueada:', action);
+    return errJson('action inválida', 400);
+  }
+  if (!ALLOWED_ENTITIES.has(entity)) {
+    console.warn('[audit-log] entity não permitida bloqueada:', entity);
+    return errJson('entity inválida', 400);
   }
 
   const ip = getIp(req);

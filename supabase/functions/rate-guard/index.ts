@@ -3,7 +3,7 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 
 type RateGuardBody = {
-  scope?: 'login' | 'clients_query' | 'document_upload';
+  scope?: 'login' | 'clients_query' | 'document_upload' | 'apuracao';
   userId?: string | null;
 };
 
@@ -12,7 +12,8 @@ type Scope = keyof typeof LIMITS;
 const LIMITS: Record<string, { limit: number; windowSeconds: number }> = {
   login: { limit: 10, windowSeconds: 60 },
   clients_query: { limit: 60, windowSeconds: 60 },
-  document_upload: { limit: 20, windowSeconds: 60 }
+  document_upload: { limit: 20, windowSeconds: 60 },
+  apuracao: { limit: 20, windowSeconds: 60 },
 };
 
 const CORS_ORIGIN = Deno.env.get('APP_ORIGIN') ?? '';
