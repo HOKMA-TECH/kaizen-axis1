@@ -38,8 +38,12 @@ function extractPublicChatMediaPath(url: string): string | null {
 
 async function resolveMediaUrls(msgs: BubbleMessage[]): Promise<BubbleMessage[]> {
   // Resolve: (a) old public URLs, (b) raw storage paths from media_path (C-01)
+  // P1-01: uses get-chat-media-url Edge Function (validates conversation membership server-side)
   const needConversion = msgs.filter(m => {
     if (!m.mediaUrl && !m.mediaPath) return false;
+    // P1-03: skip view-once messages not yet opened — file is in chat-media-private
+    // (no SELECT policy for authenticated users; URL is served via generate-view-once-url)
+    if (m.viewOnce && !m.viewOnceOpened) return false;
     // Has raw storage path → always generate fresh URL
     if (m.mediaPath) return true;
     // Old public URL pattern → convert
@@ -56,8 +60,16 @@ async function resolveMediaUrls(msgs: BubbleMessage[]): Promise<BubbleMessage[]>
         storagePath = extractPublicChatMediaPath(m.mediaUrl);
       }
       if (!storagePath) return { id: m.id, signedUrl: m.mediaUrl! };
-      const { data } = await supabase.storage.from('chat-media').createSignedUrl(storagePath, SIGNED_URL_TTL);
-      return { id: m.id, signedUrl: data?.signedUrl ?? m.mediaUrl ?? '' };
+      // P1-01: validate via Edge Function — no direct createSignedUrl from frontend
+      try {
+        const { data, error } = await supabase.functions.invoke('get-chat-media-url', {
+          body: { path: storagePath },
+        });
+        if (error || !data?.signedUrl) return { id: m.id, signedUrl: m.mediaUrl ?? '' };
+        return { id: m.id, signedUrl: data.signedUrl };
+      } catch {
+        return { id: m.id, signedUrl: m.mediaUrl ?? '' };
+      }
     })
   );
 
@@ -456,15 +468,20 @@ export function ChatDetailPanel({
     // A-05: UUID path to prevent enumeration
     const ext = blob.type.includes('mp4') ? 'm4a' : 'webm';
     const path = `${conversationId}/${crypto.randomUUID()}.${ext}`;
+    // P1-03: view-once media goes to private bucket (no authenticated SELECT policy)
+    const bucket = isViewOnce ? 'chat-media-private' : 'chat-media';
     const { error: uploadError } = await supabase.storage
-      .from('chat-media')
+      .from(bucket)
       .upload(path, blob, { contentType: blob.type });
     if (uploadError) { setSending(false); return; }
-    const { data: signedAudio } = await supabase.storage.from('chat-media').createSignedUrl(path, SIGNED_URL_TTL);
-    const displayUrl = signedAudio?.signedUrl ?? '';
+    // P1-01: use local blob URL for immediate display; resolveMediaUrls fetches signed URL via Edge Function on reload
+    let displayUrl = '';
+    if (!isViewOnce) {
+      displayUrl = URL.createObjectURL(blob);
+    }
     const tempId = `temp-${Date.now()}`;
     const optimistic: BubbleMessage = {
-      id: tempId, type: 'audio', mediaUrl: displayUrl, mediaPath: path,
+      id: tempId, type: 'audio', mediaUrl: displayUrl || undefined, mediaPath: path,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       date: new Date().toLocaleDateString(),
       isMe: true, deliveryStatus: 'sending',
@@ -475,7 +492,7 @@ export function ChatDetailPanel({
       sender_id: myId,
       ...(isGroup ? { group_id: groupId } : { receiver_id: otherId }),
       conversation_id: conversationId,
-      content: null, type: 'audio', media_url: displayUrl, media_path: path,
+      content: null, type: 'audio', media_url: isViewOnce ? null : displayUrl, media_path: path,
       view_once: isViewOnce,
     });
     setMessages(prev => prev.map(m =>
@@ -498,13 +515,18 @@ export function ChatDetailPanel({
     // A-05: use UUID to prevent path enumeration
     const ext = file.name.split('.').pop()?.toLowerCase() ?? 'jpg';
     const path = `${conversationId}/${crypto.randomUUID()}.${ext}`;
-    const { error: uploadError } = await supabase.storage.from('chat-media').upload(path, file);
+    // P1-03: view-once media goes to private bucket
+    const bucket = isViewOnce ? 'chat-media-private' : 'chat-media';
+    const { error: uploadError } = await supabase.storage.from(bucket).upload(path, file);
     if (!uploadError) {
-      const { data: signedGallery } = await supabase.storage.from('chat-media').createSignedUrl(path, SIGNED_URL_TTL);
-      const displayUrl = signedGallery?.signedUrl ?? '';
+      // P1-01: use local blob URL for immediate display
+      let displayUrl = '';
+      if (!isViewOnce) {
+        displayUrl = URL.createObjectURL(file);
+      }
       const tempId = `temp-${Date.now()}`;
       const optimistic: BubbleMessage = {
-        id: tempId, type, mediaUrl: displayUrl, mediaPath: path, fileName: file.name,
+        id: tempId, type, mediaUrl: displayUrl || undefined, mediaPath: path, fileName: file.name,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         date: new Date().toLocaleDateString(),
         isMe: true, deliveryStatus: 'sending',
@@ -515,7 +537,7 @@ export function ChatDetailPanel({
         sender_id: myId,
         ...(isGroup ? { group_id: groupId } : { receiver_id: otherId }),
         conversation_id: conversationId,
-        content: null, type, media_url: displayUrl, media_path: path, file_name: file.name,
+        content: null, type, media_url: isViewOnce ? null : displayUrl, media_path: path, file_name: file.name,
         view_once: isViewOnce,
       });
       setMessages(prev => prev.map(m =>
@@ -538,13 +560,18 @@ export function ChatDetailPanel({
     // A-05: use UUID to prevent path enumeration
     const ext = file.name.split('.').pop()?.toLowerCase() ?? 'pdf';
     const path = `${conversationId}/${crypto.randomUUID()}.${ext}`;
-    const { error: uploadError } = await supabase.storage.from('chat-media').upload(path, file, { contentType: file.type });
+    // P1-03: view-once media goes to private bucket
+    const bucket = isViewOnce ? 'chat-media-private' : 'chat-media';
+    const { error: uploadError } = await supabase.storage.from(bucket).upload(path, file, { contentType: file.type });
     if (!uploadError) {
-      const { data: signedDoc } = await supabase.storage.from('chat-media').createSignedUrl(path, SIGNED_URL_TTL);
-      const displayUrl = signedDoc?.signedUrl ?? '';
+      // P1-01: use local blob URL for immediate display
+      let displayUrl = '';
+      if (!isViewOnce) {
+        displayUrl = URL.createObjectURL(file);
+      }
       const tempId = `temp-${Date.now()}`;
       const optimistic: BubbleMessage = {
-        id: tempId, text: file.name, type: 'document', mediaUrl: displayUrl, mediaPath: path, fileName: file.name,
+        id: tempId, text: file.name, type: 'document', mediaUrl: displayUrl || undefined, mediaPath: path, fileName: file.name,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         date: new Date().toLocaleDateString(),
         isMe: true, deliveryStatus: 'sending',
@@ -555,7 +582,7 @@ export function ChatDetailPanel({
         sender_id: myId,
         ...(isGroup ? { group_id: groupId } : { receiver_id: otherId }),
         conversation_id: conversationId,
-        content: file.name, type: 'document', media_url: displayUrl, media_path: path, file_name: file.name,
+        content: file.name, type: 'document', media_url: isViewOnce ? null : displayUrl, media_path: path, file_name: file.name,
         view_once: isViewOnce,
       });
       setMessages(prev => prev.map(m =>
@@ -599,13 +626,18 @@ export function ChatDetailPanel({
       setSending(true);
       // A-05: UUID path to prevent enumeration
       const path = `${conversationId}/${crypto.randomUUID()}.jpg`;
-      const { error: uploadError } = await supabase.storage.from('chat-media').upload(path, blob, { contentType: 'image/jpeg' });
+      // P1-03: view-once media goes to private bucket
+      const bucket = isViewOnce ? 'chat-media-private' : 'chat-media';
+      const { error: uploadError } = await supabase.storage.from(bucket).upload(path, blob, { contentType: 'image/jpeg' });
       if (!uploadError) {
-        const { data: signedPhoto } = await supabase.storage.from('chat-media').createSignedUrl(path, SIGNED_URL_TTL);
-        const displayUrl = signedPhoto?.signedUrl ?? '';
+        // P1-01: use local blob URL for immediate display
+        let displayUrl = '';
+        if (!isViewOnce) {
+          displayUrl = URL.createObjectURL(blob);
+        }
         const tempId = `temp-${Date.now()}`;
         const optimistic: BubbleMessage = {
-          id: tempId, type: 'image', mediaUrl: displayUrl, mediaPath: path,
+          id: tempId, type: 'image', mediaUrl: displayUrl || undefined, mediaPath: path,
           timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
           date: new Date().toLocaleDateString(),
           isMe: true, deliveryStatus: 'sending',
@@ -616,7 +648,7 @@ export function ChatDetailPanel({
           sender_id: myId,
           ...(isGroup ? { group_id: groupId } : { receiver_id: otherId }),
           conversation_id: conversationId,
-          content: null, type: 'image', media_url: displayUrl, media_path: path,
+          content: null, type: 'image', media_url: isViewOnce ? null : displayUrl, media_path: path,
           view_once: isViewOnce,
         });
         setMessages(prev => prev.map(m =>

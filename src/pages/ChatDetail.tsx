@@ -537,8 +537,9 @@ export default function ChatDetail() {
     const path = `${conversationId}/${Date.now()}_${type}.${ext}`;
     const { error } = await supabase.storage.from('chat-media').upload(path, file);
     if (error) { console.error('Upload error:', error); return null; }
-    const { data: signed } = await supabase.storage.from('chat-media').createSignedUrl(path, SIGNED_URL_TTL);
-    return signed?.signedUrl ? { signedUrl: signed.signedUrl, path } : null;
+    // P1-01: use local blob URL for immediate display — signed URL resolved via Edge Function on reload
+    const signedUrl = URL.createObjectURL(file);
+    return { signedUrl, path };
   };
 
   // ─── Upload to private bucket (view-once only) ────────────────────────────
@@ -575,14 +576,21 @@ export default function ChatDetail() {
     deleted_for: m.deleted_for ?? [],
   }), [myId]);
 
-  // Gera URLs frescas a partir de media_path (C-01: substitui URLs de longa duração)
+  // Gera URLs frescas a partir de media_path via Edge Function (P1-01: valida membership server-side)
   const resolveMediaPaths = useCallback(async (msgs: ChatMessage[]): Promise<ChatMessage[]> => {
     const toResolve = msgs.filter(m => m.mediaPath && !m.viewOnce);
     if (toResolve.length === 0) return msgs;
     const resolved = await Promise.all(
       toResolve.map(async m => {
-        const { data } = await supabase.storage.from('chat-media').createSignedUrl(m.mediaPath!, SIGNED_URL_TTL);
-        return { id: m.id, signedUrl: data?.signedUrl ?? m.mediaUrl ?? '' };
+        try {
+          const { data, error } = await supabase.functions.invoke('get-chat-media-url', {
+            body: { path: m.mediaPath! },
+          });
+          if (error || !data?.signedUrl) return { id: m.id, signedUrl: m.mediaUrl ?? '' };
+          return { id: m.id, signedUrl: data.signedUrl };
+        } catch {
+          return { id: m.id, signedUrl: m.mediaUrl ?? '' };
+        }
       })
     );
     const map = new Map(resolved.map(r => [r.id, r.signedUrl]));

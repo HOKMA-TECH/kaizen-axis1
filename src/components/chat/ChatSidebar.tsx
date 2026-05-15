@@ -70,13 +70,15 @@ export function ChatSidebar({
     setAvatarUploading(true);
     setAvatarError(null);
     const ext = file.name.split('.').pop() ?? 'jpg';
+    // P1-02: store avatars in public 'avatars' bucket (not chat-media private)
+    // so we get a stable public URL — no signed URL expiry risk.
     const path = `chat-avatars/${user.id}/${Date.now()}.${ext}`;
-    const { error } = await supabase.storage.from('chat-media').upload(path, file, { upsert: true, contentType: file.type });
+    const { error } = await supabase.storage.from('avatars').upload(path, file, { upsert: true, contentType: file.type });
     if (error) {
       setAvatarError('Falha ao enviar foto: ' + error.message);
     } else {
-      const { data: signedAvatar } = await supabase.storage.from('chat-media').createSignedUrl(path, 60 * 60 * 24 * 365);
-      const url = signedAvatar?.signedUrl ?? '';
+      const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(path);
+      const url = urlData?.publicUrl ?? '';
       setProfileAvatar(url + `?t=${Date.now()}`);
     }
     setAvatarUploading(false);
