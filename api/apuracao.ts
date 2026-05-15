@@ -6,6 +6,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { enforceApuracaoRateLimits } from './apuracao-rate-limit';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TIPOS
@@ -2845,46 +2846,29 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         res.status(401).json({ erro: 'Sessão inválida. Faça login novamente.' });
         return;
     }
+    const authUser = await authCheck.json().catch(() => null);
+    const authUserId = typeof authUser?.id === 'string'
+        ? authUser.id
+        : typeof authUser?.user?.id === 'string'
+            ? authUser.user.id
+            : null;
     // ── Fim Autenticação ───────────────────────────────────────────────────────
 
-    // ── Rate limit via rate-guard (20 req/min por usuário, B-01) ─────────────
-    const rateGuardUrl = `${supabaseUrl}/functions/v1/rate-guard`;
-    const rateGuardRes = await fetch(rateGuardUrl, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-            apikey: supabaseAnonKey,
-        },
-        body: JSON.stringify({ scope: 'apuracao' }),
-    }).catch(() => null);
-    if (!rateGuardRes || rateGuardRes.status === 429) {
-        res.status(429).json({ erro: 'Limite de requisições atingido. Aguarde 1 minuto.' });
+    // ── Rate limit: usa RPC server-side quando disponível e cai para rate-guard.
+    // Se o serviço auxiliar estiver indisponível, a apuração segue em modo degradado.
+    const rateLimit = await enforceApuracaoRateLimits({
+        supabaseUrl,
+        supabaseAnonKey,
+        supabaseServiceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY,
+        token,
+        userId: authUserId,
+    });
+    if (rateLimit.allowed === false) {
+        res.status(rateLimit.status).json({ erro: rateLimit.message });
         return;
     }
-    if (!rateGuardRes.ok && rateGuardRes.status !== 200) {
-        // rate-guard unavailable — fail closed
-        res.status(503).json({ erro: 'Serviço temporariamente indisponível.' });
-        return;
-    }
-
-    // ── Daily quota via rate-guard (100 req/day por usuário) ──────────────────
-    const rateGuardDailyRes = await fetch(rateGuardUrl, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-            apikey: supabaseAnonKey,
-        },
-        body: JSON.stringify({ scope: 'apuracao_daily' }),
-    }).catch(() => null);
-    if (!rateGuardDailyRes || rateGuardDailyRes.status === 429) {
-        res.status(429).json({ erro: 'Cota diária de apurações atingida. Aguarde até amanhã.' });
-        return;
-    }
-    if (!rateGuardDailyRes.ok && rateGuardDailyRes.status !== 200) {
-        res.status(503).json({ erro: 'Serviço temporariamente indisponível.' });
-        return;
+    if (rateLimit.degraded) {
+        console.warn('[apuracao] rate limit indisponivel; seguindo em modo degradado:', rateLimit.reason);
     }
 
     // ── Limite de tamanho de payload (P-01) ───────────────────────────────────
