@@ -222,7 +222,11 @@ export function ChatDetailPanel({
           ? m.sender_id !== myId
           : (m.sender_id !== myId && m.receiver_id === myId);
         if (isFromOther) {
-          setMessages(prev => [...prev, mapMsg(m)]);
+          // Resolve media URL via Edge Function so recipient sees the image immediately
+          const mapped = mapMsg(m);
+          resolveMediaUrls([mapped]).then(resolved => {
+            setMessages(prev => [...prev, resolved[0]]);
+          });
           markConversationRead(conversationId);
         }
       })
@@ -492,7 +496,7 @@ export function ChatDetailPanel({
       sender_id: myId,
       ...(isGroup ? { group_id: groupId } : { receiver_id: otherId }),
       conversation_id: conversationId,
-      content: null, type: 'audio', media_url: isViewOnce ? null : displayUrl, media_path: path,
+      content: null, type: 'audio', media_url: null, media_path: path,
       view_once: isViewOnce,
     });
     setMessages(prev => prev.map(m =>
@@ -537,7 +541,7 @@ export function ChatDetailPanel({
         sender_id: myId,
         ...(isGroup ? { group_id: groupId } : { receiver_id: otherId }),
         conversation_id: conversationId,
-        content: null, type, media_url: isViewOnce ? null : displayUrl, media_path: path, file_name: file.name,
+        content: null, type, media_url: null, media_path: path, file_name: file.name,
         view_once: isViewOnce,
       });
       setMessages(prev => prev.map(m =>
@@ -582,7 +586,7 @@ export function ChatDetailPanel({
         sender_id: myId,
         ...(isGroup ? { group_id: groupId } : { receiver_id: otherId }),
         conversation_id: conversationId,
-        content: file.name, type: 'document', media_url: isViewOnce ? null : displayUrl, media_path: path, file_name: file.name,
+        content: file.name, type: 'document', media_url: null, media_path: path, file_name: file.name,
         view_once: isViewOnce,
       });
       setMessages(prev => prev.map(m =>
@@ -648,7 +652,7 @@ export function ChatDetailPanel({
           sender_id: myId,
           ...(isGroup ? { group_id: groupId } : { receiver_id: otherId }),
           conversation_id: conversationId,
-          content: null, type: 'image', media_url: isViewOnce ? null : displayUrl, media_path: path,
+          content: null, type: 'image', media_url: null, media_path: path,
           view_once: isViewOnce,
         });
         setMessages(prev => prev.map(m =>
