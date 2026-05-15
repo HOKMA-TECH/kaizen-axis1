@@ -68,9 +68,8 @@ export function getDashboardSaleDate(client: SaleClientLike, now = new Date()): 
 
   const createdAt = parseDate(client.createdAt);
   const updatedAt = parseDate(client.updated_at);
-  if (!createdAt || !updatedAt) return null;
+  if (!updatedAt) return null;
+  if (!createdAt) return client.updated_at || null;
 
-  return isSameMonth(createdAt, now) && isSameMonth(updatedAt, now)
-    ? client.updated_at || null
-    : null;
+  return client.updated_at || null;
 }
