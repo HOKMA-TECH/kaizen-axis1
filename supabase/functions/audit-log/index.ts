@@ -47,7 +47,7 @@ const ALLOWED_ACTIONS = new Set([
   'client_created', 'client_updated', 'client_deleted', 'client_view',
   'client_proponent_added', 'client_proponent_updated', 'client_proponent_deleted',
   'document_uploaded', 'document_deleted', 'document_downloaded',
-  'permissions_updated', 'lead_converted', 'sale_updated',
+  'permissions_updated', 'profile_updated', 'lead_converted', 'sale_updated',
   'custom', 'test_event',
 ]);
 
