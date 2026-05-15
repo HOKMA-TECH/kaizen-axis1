@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase';
 import { useApp } from '@/context/AppContext';
 import { cn } from '@/lib/utils';
 import { getColor, getInitials } from '@/lib/chat-utils';
+import { buildChatAvatarPath, isAllowedAvatarMimeType } from '@/lib/avatar-storage';
 import { ChatKaiCard } from './ChatKaiCard';
 import { ChatConversationItem, ConversationItemData } from './ChatConversationItem';
 
@@ -69,10 +70,15 @@ export function ChatSidebar({
     if (!file || !user?.id) return;
     setAvatarUploading(true);
     setAvatarError(null);
-    const ext = file.name.split('.').pop() ?? 'jpg';
+    if (!isAllowedAvatarMimeType(file.type)) {
+      setAvatarError('Formato de imagem não permitido. Use JPG, PNG, WEBP ou GIF.');
+      setAvatarUploading(false);
+      e.target.value = '';
+      return;
+    }
     // P1-02: store avatars in public 'avatars' bucket (not chat-media private)
     // so we get a stable public URL — no signed URL expiry risk.
-    const path = `chat-avatars/${user.id}/${Date.now()}.${ext}`;
+    const path = buildChatAvatarPath(user.id, file);
     const { error } = await supabase.storage.from('avatars').upload(path, file, { upsert: true, contentType: file.type });
     if (error) {
       setAvatarError('Falha ao enviar foto: ' + error.message);
