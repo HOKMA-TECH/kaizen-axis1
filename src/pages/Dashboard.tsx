@@ -12,13 +12,14 @@ import { NotificationBell } from '@/components/ui/NotificationBell';
 import { GamificationProfile } from '@/components/gamification/GamificationProfile';
 import { LeaderboardPanel } from '@/components/gamification/LeaderboardPanel';
 import { parseDateOnlyLocal, parseDateOnlyLocalEnd, toDateOnlyLocal, toPtBrDate } from '@/lib/dateRange';
+import { getDashboardSaleDate } from '@/lib/sales/salePeriod';
 
 export default function Dashboard() {
   const navigate = useNavigate();
   const { clients, appointments, goals, announcements, userName, loading, directorates, allProfiles, profile, user, teams } = useApp();
   const { isAdmin, isDirector, isManager, isCoordinator, isBroker, directorateId, role } = useAuthorization();
 
-  const [period, setPeriod] = useState<'este_mes' | '30_dias' | '60_dias' | '90_dias' | 'custom'>('30_dias');
+  const [period, setPeriod] = useState<'este_mes' | '30_dias' | '60_dias' | '90_dias' | 'custom'>('este_mes');
   const [customStartDate, setCustomStartDate] = useState('');
   const [customEndDate, setCustomEndDate] = useState('');
   const [mobilePeriodOpen, setMobilePeriodOpen] = useState(false);
@@ -85,7 +86,7 @@ export default function Dashboard() {
     return d >= periodStart && d <= periodEnd;
   };
 
-  const getSaleReferenceDate = (client: any): string | null => client?.closed_at || client?.updated_at || null;
+  const getSaleReferenceDate = (client: any): string | null => getDashboardSaleDate(client, periodEnd);
 
   const periodClients = scopedClients.filter(c => inSelectedPeriod(c.createdAt));
   const periodSales = scopedClients.filter(c => c.stage === 'Concluído' && inSelectedPeriod(getSaleReferenceDate(c)));
