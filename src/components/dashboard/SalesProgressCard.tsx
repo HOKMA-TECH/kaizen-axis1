@@ -1,5 +1,6 @@
 import { useApp } from '@/context/AppContext';
 import { useAuthorization } from '@/hooks/useAuthorization';
+import { getSaleReferenceDate, isSaleInCurrentMonth } from '@/lib/sales/salePeriod';
 import { AlertTriangle, TrendingUp, DollarSign, Users, User } from 'lucide-react';
 
 // ─── Commission config per role ───────────────────────────────────────────────
@@ -34,13 +35,6 @@ function formatBRL(value: number): string {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
 }
 
-function isCurrentMonth(dateStr: string | undefined | null): boolean {
-  if (!dateStr) return false;
-  const d = new Date(dateStr);
-  const now = new Date();
-  return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
-}
-
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function SalesProgressCard() {
@@ -54,9 +48,8 @@ export function SalesProgressCard() {
   // Para DIRETOR: filtra apenas clientes da sua própria diretoria
   const monthlySales = clients
     .filter(c => {
-      if (c.stage !== 'Concluído') return false;
       if (role === 'DIRETOR' && directorateId && (c as any).directorate_id !== directorateId) return false;
-      return isCurrentMonth((c as any).updated_at || (c as any).closed_at || c.createdAt);
+      return isSaleInCurrentMonth(c);
     })
     .slice(0, 100);
 
@@ -167,7 +160,7 @@ export function SalesProgressCard() {
               ? vgv * config.ownRate  * TAX_DEDUCTION
               : vgv * config.teamRate * TAX_DEDUCTION;
 
-            const rawDate = (c as any).updated_at || (c as any).closed_at || c.createdAt;
+            const rawDate = getSaleReferenceDate(c);
             let dateDisplay = '—';
             try {
               if (rawDate) {
