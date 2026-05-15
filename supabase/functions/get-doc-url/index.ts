@@ -2,10 +2,12 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 
+const CORS_ORIGIN = Deno.env.get('APP_ORIGIN') ?? '';
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Origin': CORS_ORIGIN,
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type, Authorization, apikey, x-client-info',
+  'Vary': 'Origin',
 };
 
 function errJson(msg: string, status = 400) {
@@ -27,7 +29,8 @@ function isUuid(value: string): boolean {
 
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
-  if (req.method !== 'POST') return errJson('Método não permitido', 405);
+  // E-03: endpoint legado descontinuado — use get-doc-url-v2
+  return errJson('Este endpoint foi descontinuado. Use get-doc-url-v2.', 410);
 
   const supabaseUrl = Deno.env.get('SUPABASE_URL');
   const anonKey = Deno.env.get('SUPABASE_ANON_KEY');

@@ -405,10 +405,10 @@ Deno.serve(async (req) => {
     });
 
     if (throttleError) {
-      console.warn('send-push rate-limit unavailable:', throttleError.message);
+      console.warn('send-push rate-limit unavailable (fail-closed):', throttleError.message);
     }
 
-    if (!throttleError && (throttleData ?? 0) >= MAX_PUSH_REQUESTS_PER_MINUTE) {
+    if (throttleError || (throttleData ?? 0) >= MAX_PUSH_REQUESTS_PER_MINUTE) {
       logStructured('send_push_denied', {
         correlation_id: correlationId,
         actor_user_id: userId,

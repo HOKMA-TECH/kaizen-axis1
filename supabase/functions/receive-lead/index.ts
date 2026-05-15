@@ -6,7 +6,7 @@ const WEBHOOK_SECRET  = Deno.env.get('LEAD_WEBHOOK_SECRET');
 const N8N_WEBHOOK_URL = Deno.env.get('N8N_LEAD_CREATED_WEBHOOK_URL');
 
 // ── CORS ──────────────────────────────────────────────────────────────────────
-const CORS_ORIGIN = Deno.env.get('APP_ORIGIN') ?? '*';
+const CORS_ORIGIN = Deno.env.get('APP_ORIGIN') ?? '';
 const corsHeaders = {
   'Access-Control-Allow-Origin':  CORS_ORIGIN,
   'Access-Control-Allow-Methods': 'POST, OPTIONS',

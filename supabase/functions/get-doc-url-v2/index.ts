@@ -2,11 +2,12 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
-// Keep CORS contract aligned with the current get-doc-url function.
+const CORS_ORIGIN = Deno.env.get('APP_ORIGIN') ?? '';
 const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Origin": CORS_ORIGIN,
   "Access-Control-Allow-Methods": "POST, OPTIONS",
   "Access-Control-Allow-Headers": "Content-Type, Authorization, apikey, x-client-info",
+  "Vary": "Origin",
 };
 
 type RequestBody = {
@@ -119,6 +120,31 @@ Deno.serve(async (req: Request) => {
     return jsonResponse({ error: "Não autorizado" }, 401);
   }
 
+  // ── Rate limit: 60 URLs/min por usuário ──────────────────────────────────
+  const adminClient = createClient(supabaseUrl, serviceRoleKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+  const userClientForAuth = createClient(supabaseUrl, anonKey, {
+    global: { headers: { Authorization: `Bearer ${token}` } },
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+  const { data: { user: authUser } } = await userClientForAuth.auth.getUser();
+  if (!authUser) {
+    return jsonResponse({ error: "Não autorizado" }, 401);
+  }
+  const docUrlWindowStart = new Date(
+    Math.floor(Date.now() / 60_000) * 60_000,
+  ).toISOString();
+  const { data: docUrlCount, error: docUrlRateErr } = await adminClient.rpc('increment_request_counter', {
+    _scope: 'get_doc_url',
+    _identifier: authUser.id,
+    _window_start: docUrlWindowStart,
+  });
+  if (docUrlRateErr || (docUrlCount ?? 0) >= 60) {
+    if (docUrlRateErr) console.warn('[get-doc-url-v2] rate-limit rpc failed:', docUrlRateErr.message);
+    return jsonResponse({ error: "Limite de downloads atingido. Aguarde 1 minuto." }, 429);
+  }
+
   const documentId = String(body.documentId || "").trim();
   const rawPath = String(body.rawPath || "").trim();
   if (!documentId && !rawPath) {
@@ -127,11 +153,8 @@ Deno.serve(async (req: Request) => {
 
   const ttl = normalizeTtl(body.expiresIn);
 
-  // Client with user JWT -> RLS decides access.
-  const userClient = createClient(supabaseUrl, anonKey, {
-    global: { headers: { Authorization: `Bearer ${token}` } },
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
+  // Client with user JWT -> RLS decides access (reuse authenticated client from rate limit).
+  const userClient = userClientForAuth;
 
   // 3) Authorization gate: query through RLS.
   let allowedDoc: any = null;
@@ -231,10 +254,6 @@ Deno.serve(async (req: Request) => {
   }
 
   // 4) Only after authZ success, generate signed URL with service_role.
-  const adminClient = createClient(supabaseUrl, serviceRoleKey, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
-
   const signedResult = await signFirstExistingPath(adminClient, bucket, path, clientId, ttl);
   if (!signedResult?.signedUrl) {
     return jsonResponse({ error: "Não foi possível gerar o link do documento" }, 500);

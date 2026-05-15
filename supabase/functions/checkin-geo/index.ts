@@ -41,7 +41,7 @@ function getBRTMinutes(): number {
 }
 
 // ── CORS ──────────────────────────────────────────────────────────────────────
-const CORS_ORIGIN = Deno.env.get('APP_ORIGIN') ?? '*';
+const CORS_ORIGIN = Deno.env.get('APP_ORIGIN') ?? '';
 const corsHeaders = {
   'Access-Control-Allow-Origin':  CORS_ORIGIN,
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
@@ -95,7 +95,8 @@ Deno.serve(async (req: Request) => {
     _identifier: userId,
     _window_start: checkinWindowStart,
   });
-  if (!checkinRateErr && (checkinCount ?? 0) >= 3) {
+  if (checkinRateErr || (checkinCount ?? 0) >= 3) {
+    if (checkinRateErr) console.warn('[checkin-geo] rate-limit rpc failed:', checkinRateErr.message);
     return json({ error: 'rate_limit', message: 'Muitas tentativas. Aguarde 1 minuto.' }, 429);
   }
 

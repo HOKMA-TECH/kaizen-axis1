@@ -4,7 +4,7 @@ import { createClient } from 'jsr:@supabase/supabase-js@2';
 import { PDFDocument, rgb, StandardFonts } from 'https://esm.sh/pdf-lib@1.17.1';
 
 // ── CORS ──────────────────────────────────────────────────────────────────────
-const CORS_ORIGIN = Deno.env.get('APP_ORIGIN') ?? '*';
+const CORS_ORIGIN = Deno.env.get('APP_ORIGIN') ?? '';
 const corsHeaders = {
   'Access-Control-Allow-Origin':  CORS_ORIGIN,
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
@@ -78,7 +78,8 @@ Deno.serve(async (req: Request) => {
     _identifier: user.id,
     _window_start: exportWindowStart,
   });
-  if (!exportRateErr && (exportCount ?? 0) >= 10) {
+  if (exportRateErr || (exportCount ?? 0) >= 10) {
+    if (exportRateErr) console.warn('[export-pipeline] rate-limit rpc failed:', exportRateErr.message);
     return errJson('Limite de exportações atingido. Aguarde 1 minuto.', 429);
   }
 

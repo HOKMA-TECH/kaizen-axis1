@@ -2847,6 +2847,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
     // ── Fim Autenticação ───────────────────────────────────────────────────────
 
+    // ── Limite de tamanho de payload (P-01) ───────────────────────────────────
+    const MAX_BODY_BYTES = 3 * 1024 * 1024; // 3 MB
+    const contentLength = parseInt(req.headers['content-length'] as string || '0', 10);
+    if (contentLength > MAX_BODY_BYTES) {
+        res.status(413).json({ erro: 'Payload muito grande. Limite: 3 MB.' });
+        return;
+    }
+
     const timestamp = new Date().toISOString();
     _idCounter = 0; // Reset id counter per request
 
@@ -2867,6 +2875,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         if (!nomeCliente?.trim()) { res.status(400).json({ erro: 'Campo "nomeCliente" é obrigatório.' }); return; }
         if (!textoExtrato?.trim()) { res.status(400).json({ erro: 'Texto do extrato é obrigatório.' }); return; }
+        if (typeof textoExtrato === 'string' && textoExtrato.length > 2_000_000) {
+            res.status(413).json({ erro: 'Texto do extrato excede o limite permitido.' }); return;
+        }
 
         const ctx: ContextoNomes = {
             nomeCliente: nomeCliente.trim(),

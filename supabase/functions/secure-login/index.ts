@@ -10,7 +10,7 @@ type SecureLoginBody = {
 
 const LOGIN_LIMIT = { limit: 10, windowSeconds: 60 };
 
-const CORS_ORIGIN = Deno.env.get('APP_ORIGIN') ?? '*';
+const CORS_ORIGIN = Deno.env.get('APP_ORIGIN') ?? '';
 const corsHeaders = {
   'Access-Control-Allow-Origin': CORS_ORIGIN,
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
@@ -73,10 +73,15 @@ Deno.serve(async (req: Request) => {
     return jsonResponse({ message: 'E-mail e senha são obrigatórios' }, 400);
   }
 
-  // ── Verificação server-side do Turnstile CAPTCHA (A-03) ────────────────────
-  // Se TURNSTILE_SECRET_KEY estiver configurado nos Supabase Secrets,
-  // o token é verificado na Cloudflare. Sem a secret, comportamento inalterado.
+  // ── Verificação server-side do Turnstile CAPTCHA ──────────────────────────
+  // REQUIRE_CAPTCHA=true → falha fechado se TURNSTILE_SECRET_KEY não estiver configurada.
+  // Sem REQUIRE_CAPTCHA, comportamento legacy: verifica quando a secret existe.
+  const requireCaptcha = Deno.env.get('REQUIRE_CAPTCHA') === 'true';
   const turnstileSecret = Deno.env.get('TURNSTILE_SECRET_KEY');
+  if (requireCaptcha && !turnstileSecret) {
+    console.error('[secure-login] REQUIRE_CAPTCHA=true mas TURNSTILE_SECRET_KEY ausente');
+    return jsonResponse({ message: 'Serviço temporariamente indisponível. Tente novamente em instantes.' }, 503);
+  }
   if (turnstileSecret) {
     if (!captchaToken) {
       return jsonResponse({ message: 'Verificação de segurança obrigatória.' }, 400);

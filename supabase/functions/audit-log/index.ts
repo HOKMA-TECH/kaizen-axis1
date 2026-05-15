@@ -10,7 +10,7 @@ type AuditPayload = {
   metadata?: Record<string, unknown> | null;
 };
 
-const CORS_ORIGIN = Deno.env.get('APP_ORIGIN') ?? '*';
+const CORS_ORIGIN = Deno.env.get('APP_ORIGIN') ?? '';
 const corsHeaders = {
   'Access-Control-Allow-Origin': CORS_ORIGIN,
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
@@ -86,6 +86,25 @@ Deno.serve(async (req: Request) => {
   const ip = getIp(req);
   if (!recordLocalHit(`${ip}|audit`)) {
     return errJson('Taxa de eventos excedida. Aguarde alguns segundos.', 429);
+  }
+
+  // ── Rate limit persistente por IP (sobrevive a cold starts) ──────────────
+  const supabaseUrlEarly = Deno.env.get('SUPABASE_URL');
+  const serviceKeyEarly = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+  if (supabaseUrlEarly && serviceKeyEarly) {
+    const auditWindowStart = new Date(
+      Math.floor(Date.now() / 60_000) * 60_000,
+    ).toISOString();
+    const adminEarly = createClient(supabaseUrlEarly, serviceKeyEarly, { auth: { persistSession: false } });
+    const { data: auditCount, error: auditRateErr } = await adminEarly.rpc('increment_request_counter', {
+      _scope: 'audit_log',
+      _identifier: ip,
+      _window_start: auditWindowStart,
+    });
+    if (auditRateErr || (auditCount ?? 0) >= 120) {
+      if (auditRateErr) console.warn('[audit-log] persistent rate-limit rpc failed:', auditRateErr.message);
+      return errJson('Taxa de eventos excedida. Aguarde 1 minuto.', 429);
+    }
   }
 
   // ── Derivar userId do JWT (quando disponível) ─────────────────────────────

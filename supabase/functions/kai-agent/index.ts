@@ -13,7 +13,7 @@ const KAI_KNOWLEDGE_MATCH_COUNT = Number(Deno.env.get('KAI_KNOWLEDGE_MATCH_COUNT
 const SUPABASE_URL = String(Deno.env.get('SUPABASE_URL') || '').trim();
 const SUPABASE_SERVICE_ROLE_KEY = String(Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '').trim();
 
-const CORS_ORIGIN = Deno.env.get('APP_ORIGIN') ?? '*';
+const CORS_ORIGIN = Deno.env.get('APP_ORIGIN') ?? '';
 const corsHeaders = {
   'Access-Control-Allow-Origin': CORS_ORIGIN,
   'Access-Control-Allow-Headers': 'authorization, apikey, content-type',
@@ -359,7 +359,8 @@ Deno.serve(async (req: Request) => {
     _identifier: user.id,
     _window_start: kaiWindowStart,
   });
-  if (!kaiRateErr && (kaiCount ?? 0) >= 20) {
+  if (kaiRateErr || (kaiCount ?? 0) >= 20) {
+    if (kaiRateErr) console.warn('[kai-agent] rate-limit rpc failed:', kaiRateErr.message);
     return jsonResponse({ error: 'Limite de mensagens atingido. Aguarde 1 minuto.' }, 429);
   }
 

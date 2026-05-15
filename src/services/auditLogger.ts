@@ -40,22 +40,23 @@ class AuditLogger {
   private async dispatch(event: AuditEventInput) {
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      const userId = event.userId ?? session?.user?.id ?? null;
+      const token = session?.access_token ?? null;
 
-      const { error } = await supabase.from('audit_logs').insert({
-        user_id: userId,
-        action: String(event.action).slice(0, 80),
-        entity: String(event.entity).slice(0, 80),
-        entity_id: event.entityId ?? null,
-        metadata: {
-          ...(event.metadata ?? {}),
-          // Inclui info do dispositivo automaticamente
-          userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : undefined,
+      const { error } = await supabase.functions.invoke('audit-log', {
+        body: {
+          action: String(event.action).slice(0, 80),
+          entity: String(event.entity).slice(0, 80),
+          entityId: event.entityId ?? null,
+          metadata: {
+            ...(event.metadata ?? {}),
+            userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : undefined,
+          },
         },
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
       });
 
       if (error) {
-        console.warn('[audit] Falha ao gravar evento:', error.message);
+        console.warn('[audit] Falha ao gravar evento via Edge Function:', error.message);
       }
     } catch (err) {
       console.warn('[audit] Erro ao gravar evento', err);
