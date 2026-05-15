@@ -34,15 +34,15 @@ runTest('includes completed sale closed in current month', () => {
   assert.equal(isSaleInCurrentMonth(client, may2026), true);
 });
 
-runTest('includes completed legacy sale without closed_at using updated_at fallback', () => {
+runTest('sale without closed_at and no history returns null date (not counted in any month)', () => {
   const client = {
     stage: 'Concluído',
     createdAt: '2026-05-03T09:00:00Z',
     updated_at: '2026-05-03T10:00:00Z',
   };
 
-  assert.equal(isSaleInCurrentMonth(client, may2026), true);
-  assert.equal(getDashboardSaleDate(client, may2026), '2026-05-03T10:00:00Z');
+  assert.equal(getDashboardSaleDate(client, may2026), null);
+  assert.equal(isSaleInCurrentMonth(client, may2026), false);
 });
 
 runTest('uses conclusion history before updated_at for completed sales without closed_at', () => {
@@ -63,7 +63,7 @@ runTest('uses conclusion history before updated_at for completed sales without c
   assert.equal(isSaleInCurrentMonth(client, may2026), false);
 });
 
-runTest('uses updated_at for completed sales without closed_at or history', () => {
+runTest('sale without closed_at and empty history returns null (updated_at not used as sale date)', () => {
   const client = {
     stage: 'Concluído',
     createdAt: '2026-04-28T17:04:00Z',
@@ -73,8 +73,8 @@ runTest('uses updated_at for completed sales without closed_at or history', () =
   };
 
   assert.equal(getSaleReferenceDate(client), null);
-  assert.equal(getDashboardSaleDate(client, may2026), '2026-05-15T10:31:00Z');
-  assert.equal(isSaleInCurrentMonth(client, may2026), true);
+  assert.equal(getDashboardSaleDate(client, may2026), null);
+  assert.equal(isSaleInCurrentMonth(client, may2026), false);
 });
 
 runTest('includes completed sales without closed_at when conclusion history is in current month', () => {

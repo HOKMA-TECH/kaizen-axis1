@@ -96,11 +96,11 @@ export function useReportsData({ startDate, endDate }: UseReportsDataOptions = {
     const globalMetrics = useMemo((): GlobalMetrics => {
         const total = filteredClients.length;
 
-        // Sales = clients with stage 'Concluído' whose closed_at (or updated_at) falls within the period.
-        // Mirrors AdminPanel logic: filter ALL clients by sale date, not by creation date.
+        // Sales = clients with stage 'Concluído' whose closed_at falls within the period.
+        // updated_at is NOT used as sale date — it changes on any edit and would misplace old sales.
         const vendas = clients.filter(c => {
             if (c.stage !== 'Concluído') return false;
-            const closedRaw = c.closed_at || c.updated_at;
+            const closedRaw = c.closed_at;
             if (!closedRaw) return false;
             const closedDate = new Date(closedRaw);
             if (rangeStart && closedDate < rangeStart) return false;
@@ -110,12 +110,12 @@ export function useReportsData({ startDate, endDate }: UseReportsDataOptions = {
         const totalVendas = vendas.length;
         const taxaConversao = total > 0 ? (totalVendas / total) * 100 : 0;
 
-        // Real average sales cycle: closed_at → fallback updated_at
-        const ciclosComDados = vendas.filter(c => c.closed_at || c.updated_at);
+        // Real average sales cycle: requires closed_at to be set
+        const ciclosComDados = vendas.filter(c => c.closed_at);
         const cicloMedioDias =
             ciclosComDados.length > 0
                 ? ciclosComDados.reduce((acc, c) => {
-                    const closedDate = c.closed_at || c.updated_at!;
+                    const closedDate = c.closed_at!;
                     const days =
                         (new Date(closedDate).getTime() - new Date(c.createdAt).getTime()) /
                         (1000 * 60 * 60 * 24);
@@ -149,12 +149,12 @@ export function useReportsData({ startDate, endDate }: UseReportsDataOptions = {
                 return acc + val * weight;
             }, 0);
 
-            // confirmed = Concluído clients whose closed_at (or updated_at) falls in month i.
+            // confirmed = Concluído clients whose closed_at falls in month i.
             // Groups by sale date, not creation date, to show when revenue was actually realized.
             const confirmed = clients
                 .filter(c => {
                     if (c.stage !== 'Concluído') return false;
-                    const closedRaw = c.closed_at || c.updated_at;
+                    const closedRaw = c.closed_at;
                     if (!closedRaw) return false;
                     return new Date(closedRaw).getMonth() === i;
                 })

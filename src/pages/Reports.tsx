@@ -131,7 +131,7 @@ function parseIsoDate(value?: string | null): number | null {
 
 function isSaleInPeriod(client: any, start: number | null, end: number | null): boolean {
   if (client?.stage !== 'Concluído') return false;
-  const saleDate = parseIsoDate(client?.closed_at) ?? parseIsoDate(client?.updated_at);
+  const saleDate = parseIsoDate(client?.closed_at);
   if (saleDate === null) return false;
   if (start !== null && saleDate < start) return false;
   if (end !== null && saleDate > end) return false;
@@ -863,11 +863,11 @@ function DiretoriaReportView({
       // Pipeline uses ALL directorate clients grouped by creation month — not period-filtered.
       const mc = dirScopedClients.filter(c => new Date(c.createdAt).getMonth() === i);
       const weighted = mc.reduce((acc, c) => acc + parseValue(c.intendedValue ?? '') * (STAGE_WEIGHTS[c.stage] ?? 0), 0);
-      // confirmed = Concluído clients whose closed_at (or updated_at) falls in month i.
+      // confirmed = Concluído clients whose closed_at falls in month i.
       const confirmed = dirScopedClients
         .filter(c => {
           if (c.stage !== 'Concluído') return false;
-          const closedRaw = c.closed_at || c.updated_at;
+          const closedRaw = c.closed_at;
           if (!closedRaw) return false;
           return new Date(closedRaw).getMonth() === i;
         })

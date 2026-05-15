@@ -62,14 +62,6 @@ export function isSaleInCurrentMonth(client: SaleClientLike, now = new Date()): 
   return isSameMonth(saleDate, now);
 }
 
-export function getDashboardSaleDate(client: SaleClientLike, now = new Date()): string | null {
-  const referenceDate = getSaleReferenceDate(client);
-  if (referenceDate) return referenceDate;
-
-  const createdAt = parseDate(client.createdAt);
-  const updatedAt = parseDate(client.updated_at);
-  if (!updatedAt) return null;
-  if (!createdAt) return client.updated_at || null;
-
-  return client.updated_at || null;
+export function getDashboardSaleDate(client: SaleClientLike, _now = new Date()): string | null {
+  return getSaleReferenceDate(client);
 }
