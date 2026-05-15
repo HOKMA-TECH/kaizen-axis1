@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { enforceApuracaoRateLimits } from './apuracao-rate-limit';
+import { enforceApuracaoRateLimits } from './apuracao-rate-limit.js';
 
 type FetchCall = {
   url: string;

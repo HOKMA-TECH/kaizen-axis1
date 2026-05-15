@@ -14,6 +14,7 @@ import { useApp } from '@/context/AppContext';
 import { useAuthorization } from '@/hooks/useAuthorization';
 import { logAuditEvent } from '@/services/auditLogger';
 import { supabase } from '@/lib/supabase';
+import { parseApiResponse } from '@/lib/http/parseApiResponse';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
 
@@ -581,7 +582,7 @@ export default function IncomeAnalysis() {
         }),
       });
 
-      const json = await resp.json();
+      const json = await parseApiResponse<{ erro?: string } & Partial<ResultadoApuracao>>(resp);
       if (!resp.ok) {
         // DEBUG — mostra debug do servidor no console
         console.error('[apuracao] erro 422 — resposta completa:', json);

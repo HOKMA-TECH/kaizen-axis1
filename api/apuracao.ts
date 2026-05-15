@@ -6,7 +6,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { enforceApuracaoRateLimits } from './apuracao-rate-limit';
+import { enforceApuracaoRateLimits } from './apuracao-rate-limit.js';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TIPOS
