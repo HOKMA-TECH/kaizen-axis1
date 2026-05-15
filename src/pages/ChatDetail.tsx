@@ -15,6 +15,7 @@ import { supabase } from '@/lib/supabase';
 import { useApp } from '@/context/AppContext';
 import { useChatUnread } from '@/context/ChatUnreadContext';
 import { ChatDetailHeader } from '@/components/chat/ChatDetailHeader';
+import { getChatAudioExtension, getSupportedChatAudioMimeType } from '@/lib/chat-audio';
 
 interface ChatMessage {
   id: string;
@@ -536,8 +537,14 @@ export default function ChatDetail() {
   const uploadMedia = async (file: File, type: ChatMessage['type']): Promise<{ signedUrl: string; path: string } | null> => {
     const ext = file.name.split('.').pop() || 'bin';
     const path = `${conversationId}/${Date.now()}_${type}.${ext}`;
-    const { error } = await supabase.storage.from('chat-media').upload(path, file);
-    if (error) { console.error('Upload error:', error); return null; }
+    const { error } = await supabase.storage.from('chat-media').upload(path, file, {
+      contentType: file.type,
+    });
+    if (error) {
+      console.error('Upload error:', error);
+      alert(`Falha ao enviar arquivo: ${error.message}`);
+      return null;
+    }
     // P1-01: use local blob URL for immediate display — signed URL resolved via Edge Function on reload
     const signedUrl = URL.createObjectURL(file);
     return { signedUrl, path };
@@ -1165,15 +1172,7 @@ export default function ChatDetail() {
           autoGainControl: false,
         }
       });
-      const mimeType = (() => {
-        try {
-          if (MediaRecorder.isTypeSupported('audio/mp4')) return 'audio/mp4';
-        } catch { /* ignore */ }
-        try {
-          if (MediaRecorder.isTypeSupported('audio/webm')) return 'audio/webm';
-        } catch { /* ignore */ }
-        return '';
-      })();
+      const mimeType = getSupportedChatAudioMimeType(type => MediaRecorder.isTypeSupported(type));
 
       const recorder = mimeType
         ? new MediaRecorder(stream, { mimeType })
@@ -1185,7 +1184,7 @@ export default function ChatDetail() {
       recorder.onstop = async () => {
         const actualMimeType = audioChunksRef.current[0]?.type || mimeType || 'audio/mp4';
         const cleanMimeType = actualMimeType.split(';')[0];
-        const ext = cleanMimeType.includes('mp4') || cleanMimeType.includes('aac') ? 'm4a' : 'webm';
+        const ext = getChatAudioExtension(cleanMimeType);
         const blob = new Blob(audioChunksRef.current, { type: cleanMimeType });
         const file = new File([blob], `audio_${Date.now()}.${ext}`, { type: cleanMimeType });
         stream.getTracks().forEach(t => t.stop());

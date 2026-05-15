@@ -11,6 +11,7 @@ import { ChatMessageBubble, BubbleMessage } from './ChatMessageBubble';
 import { ChatInputBar } from './ChatInputBar';
 import { ChatWelcome } from './ChatWelcome';
 import { ChatInfoModal, ChatProfileInfo, ChatGroupInfo } from './ChatInfoModal';
+import { getChatAudioExtension } from '@/lib/chat-audio';
 
 interface ChatDetailPanelProps {
   otherId: string | null;
@@ -470,14 +471,19 @@ export function ChatDetailPanel({
     const isViewOnce = viewOnce;
     setViewOnce(false);
     // A-05: UUID path to prevent enumeration
-    const ext = blob.type.includes('mp4') ? 'm4a' : 'webm';
+    const ext = getChatAudioExtension(blob.type);
     const path = `${conversationId}/${crypto.randomUUID()}.${ext}`;
     // P1-03: view-once media goes to private bucket (no authenticated SELECT policy)
     const bucket = isViewOnce ? 'chat-media-private' : 'chat-media';
     const { error: uploadError } = await supabase.storage
       .from(bucket)
       .upload(path, blob, { contentType: blob.type });
-    if (uploadError) { setSending(false); return; }
+    if (uploadError) {
+      console.error('[chat audio upload]', uploadError.message);
+      alert(`Falha ao enviar audio: ${uploadError.message}`);
+      setSending(false);
+      return;
+    }
     // P1-01: use local blob URL for immediate display; resolveMediaUrls fetches signed URL via Edge Function on reload
     let displayUrl = '';
     if (!isViewOnce) {
@@ -499,9 +505,15 @@ export function ChatDetailPanel({
       content: null, type: 'audio', media_url: null, media_path: path,
       view_once: isViewOnce,
     });
-    setMessages(prev => prev.map(m =>
-      m.id === tempId ? { ...m, deliveryStatus: error ? 'sending' : 'sent' as const } : m
-    ));
+    if (error) {
+      console.error('[chat audio insert]', error.message);
+      setMessages(prev => prev.filter(m => m.id !== tempId));
+      alert(`Falha ao registrar audio: ${error.message}`);
+    } else {
+      setMessages(prev => prev.map(m =>
+        m.id === tempId ? { ...m, deliveryStatus: 'sent' as const } : m
+      ));
+    }
     setSending(false);
   };
 

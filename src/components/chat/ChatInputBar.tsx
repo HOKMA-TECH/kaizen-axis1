@@ -2,6 +2,7 @@ import { useRef, useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Image, Send, Loader2, Mic, Camera, X, Paperclip, EyeOff, Eye } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { getSupportedChatAudioMimeType } from '@/lib/chat-audio';
 
 interface ChatInputBarProps {
   onSend: (text: string) => void;
@@ -80,11 +81,7 @@ export function ChatInputBar({
   const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mimeType = (() => {
-        try { if (MediaRecorder.isTypeSupported('audio/mp4')) return 'audio/mp4'; } catch { /* ignore */ }
-        try { if (MediaRecorder.isTypeSupported('audio/webm')) return 'audio/webm'; } catch { /* ignore */ }
-        return '';
-      })();
+      const mimeType = getSupportedChatAudioMimeType(type => MediaRecorder.isTypeSupported(type));
       const recorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
       mediaRecorderRef.current = recorder;
       audioChunksRef.current = [];
