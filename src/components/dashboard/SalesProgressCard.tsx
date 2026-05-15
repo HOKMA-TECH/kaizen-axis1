@@ -1,6 +1,6 @@
 import { useApp } from '@/context/AppContext';
 import { useAuthorization } from '@/hooks/useAuthorization';
-import { getSaleReferenceDate, isSaleInCurrentMonth } from '@/lib/sales/salePeriod';
+import { getDashboardSaleDate, isSaleInCurrentMonth } from '@/lib/sales/salePeriod';
 import { AlertTriangle, TrendingUp, DollarSign, Users, User } from 'lucide-react';
 
 // ─── Commission config per role ───────────────────────────────────────────────
@@ -160,7 +160,7 @@ export function SalesProgressCard() {
               ? vgv * config.ownRate  * TAX_DEDUCTION
               : vgv * config.teamRate * TAX_DEDUCTION;
 
-            const rawDate = getSaleReferenceDate(c);
+            const rawDate = getDashboardSaleDate(c);
             let dateDisplay = '—';
             try {
               if (rawDate) {
