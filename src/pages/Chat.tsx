@@ -19,6 +19,7 @@ interface ConversationPreview {
   groupName?: string;
   lastContent: string;
   lastType: string;
+  viewOnce?: boolean;
   lastAt: string;
   senderIsMe: boolean;
 }
@@ -79,13 +80,13 @@ export default function Chat() {
     const [{ data }, { data: groupMessages }] = await Promise.all([
       supabase
         .from('chat_messages')
-        .select('conversation_id, content, type, created_at, sender_id, receiver_id, group_id')
+        .select('conversation_id, content, type, view_once, created_at, sender_id, receiver_id, group_id')
         .or(`sender_id.eq.${myId},receiver_id.eq.${myId}`)
         .order('created_at', { ascending: false }),
       groupIds.length > 0
         ? supabase
           .from('chat_messages')
-          .select('conversation_id, content, type, created_at, sender_id, group_id')
+          .select('conversation_id, content, type, view_once, created_at, sender_id, group_id')
           .in('group_id', groupIds)
           .order('created_at', { ascending: false })
         : Promise.resolve({ data: [] as any[] }),
@@ -111,6 +112,7 @@ export default function Chat() {
         isKAI,
         lastContent: msg.content || '',
         lastType: msg.type || 'text',
+        viewOnce: msg.view_once ?? false,
         lastAt: msg.created_at,
         senderIsMe: msg.sender_id === myId,
       });
@@ -133,6 +135,7 @@ export default function Chat() {
         groupName: group.name,
         lastContent: latestMessage?.content || 'Grupo criado',
         lastType: latestMessage?.type || 'text',
+        viewOnce: latestMessage?.view_once ?? false,
         lastAt: latestMessage?.created_at || group.created_at,
         senderIsMe: latestMessage?.sender_id === myId,
       });
@@ -270,7 +273,7 @@ export default function Chat() {
       name: c.name,
       role: c.role,
       avatarUrl: c.avatarUrl,
-      preview: formatPreview(c.lastType, c.lastContent, c.senderIsMe),
+      preview: formatPreview(c.lastType, c.lastContent, c.senderIsMe, c.viewOnce),
       timestamp: formatTime(c.lastAt),
       unreadCount: c.unreadCount,
       isOnline: c.isKAI ? true : undefined,

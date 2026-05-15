@@ -1,6 +1,7 @@
 import { MoreVertical, Bot, ArrowLeft } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { getColor, getInitials } from '@/lib/chat-utils';
+import { useEffect, useState } from 'react';
 
 interface ChatDetailHeaderProps {
   name: string;
@@ -17,6 +18,13 @@ interface ChatDetailHeaderProps {
 export function ChatDetailHeader({
   name, role, avatarUrl, otherId, isKAI, isOnline, onBack, onMore, onProfileClick,
 }: ChatDetailHeaderProps) {
+  const [avatarFailed, setAvatarFailed] = useState(false);
+  const showAvatar = Boolean(avatarUrl && !avatarFailed);
+
+  useEffect(() => {
+    setAvatarFailed(false);
+  }, [avatarUrl, otherId]);
+
   const identity = (
     <>
       <div className="relative flex-shrink-0">
@@ -24,11 +32,12 @@ export function ChatDetailHeader({
           <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary-500 to-indigo-500 flex items-center justify-center">
             <Bot size={16} className="text-white" />
           </div>
-        ) : avatarUrl ? (
+        ) : showAvatar ? (
           <img
             src={avatarUrl}
             alt={name}
             referrerPolicy="no-referrer"
+            onError={() => setAvatarFailed(true)}
             className="w-9 h-9 rounded-full object-cover"
           />
         ) : (

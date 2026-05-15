@@ -34,8 +34,9 @@ export function formatTime(iso: string): string {
   return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
 }
 
-export function formatPreview(type: string, content: string, isMe: boolean): string {
+export function formatPreview(type: string, content: string, isMe: boolean, isViewOnce = false): string {
   const prefix = isMe ? 'Você: ' : '';
+  if (isViewOnce) return `${prefix}Visualização única`;
   if (type === 'image') return `${prefix}📷 Imagem`;
   if (type === 'video') return `${prefix}🎥 Vídeo`;
   if (type === 'audio') return `${prefix}🎤 Áudio`;

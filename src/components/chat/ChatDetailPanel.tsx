@@ -740,6 +740,20 @@ export function ChatDetailPanel({
     }
   }, []);
 
+  const handleOpenViewOnceMedia = useCallback(async (msgId: string): Promise<string | null> => {
+    const { data, error } = await supabase.functions.invoke('generate-view-once-url', {
+      body: { message_id: msgId },
+    });
+    if (error || !data?.signedUrl) {
+      alert(data?.error || error?.message || 'Nao foi possivel abrir esta midia.');
+      return null;
+    }
+    setMessages(prev => prev.map(m =>
+      m.id === msgId ? { ...m, viewOnceOpened: true, mediaUrl: undefined } : m
+    ));
+    return data.signedUrl;
+  }, []);
+
   const handleSend = async (text: string) => {
     if (!myId || !otherId) return;
     setSending(true);
@@ -918,6 +932,7 @@ export function ChatDetailPanel({
                     onDeleteForAll={handleDeleteForAll}
                     onReact={handleReact}
                     onMarkViewOnceOpened={handleMarkViewOnceOpened}
+                    onOpenViewOnceMedia={handleOpenViewOnceMedia}
                   />
                 </div>
               );

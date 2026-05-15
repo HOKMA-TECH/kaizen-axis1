@@ -2,6 +2,7 @@ import { motion } from 'motion/react';
 import { Bot } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { getColor, getInitials } from '@/lib/chat-utils';
+import { useEffect, useState } from 'react';
 
 export interface ConversationItemData {
   conversationId: string;
@@ -29,6 +30,13 @@ interface ChatConversationItemProps {
 export function ChatConversationItem({
   convo, isSelected, onClick, onContextMenu, onTouchStart, onTouchEnd,
 }: ChatConversationItemProps) {
+  const [avatarFailed, setAvatarFailed] = useState(false);
+  const showAvatar = Boolean(convo.avatarUrl && !avatarFailed);
+
+  useEffect(() => {
+    setAvatarFailed(false);
+  }, [convo.avatarUrl, convo.otherId]);
+
   return (
     <motion.button
       layout
@@ -57,11 +65,12 @@ export function ChatConversationItem({
           <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary-500 to-indigo-500 flex items-center justify-center">
             <Bot size={18} className="text-white" />
           </div>
-        ) : convo.avatarUrl ? (
+        ) : showAvatar ? (
           <img
             src={convo.avatarUrl}
             alt={convo.name}
             referrerPolicy="no-referrer"
+            onError={() => setAvatarFailed(true)}
             className="w-10 h-10 rounded-full object-cover"
           />
         ) : (

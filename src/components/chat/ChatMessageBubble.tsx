@@ -39,6 +39,7 @@ interface ChatMessageBubbleProps {
   onDeleteForAll?: (id: string) => void;
   onReact?: (id: string, emoji: string) => void;
   onMarkViewOnceOpened?: (id: string) => void;
+  onOpenViewOnceMedia?: (id: string) => Promise<string | null>;
 }
 
 const QUICK_EMOJIS = ['❤️', '😂', '😮', '😢', '👍', '🙏'];
@@ -97,13 +98,14 @@ function PdfDocumentViewer({ url, fileName }: { url: string; fileName: string })
   );
 }
 
-export function ChatMessageBubble({ message, index, onDeleteForMe, onDeleteForAll, onReact, onMarkViewOnceOpened }: ChatMessageBubbleProps) {
+export function ChatMessageBubble({ message, index, onDeleteForMe, onDeleteForAll, onReact, onMarkViewOnceOpened, onOpenViewOnceMedia }: ChatMessageBubbleProps) {
   const [showMenu, setShowMenu] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [hovered, setHovered] = useState(false);
   const [viewerOpen, setViewerOpen] = useState(false);
   // Snapshot the mediaUrl when opening the viewer so view-once wipe doesn't break playback
   const [viewerMediaUrl, setViewerMediaUrl] = useState<string | undefined>(undefined);
+  const [openingViewOnce, setOpeningViewOnce] = useState(false);
 
   const pressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const mediaName = message.fileName || message.text || (
@@ -113,10 +115,23 @@ export function ChatMessageBubble({ message, index, onDeleteForMe, onDeleteForAl
     'Midia'
   );
 
-  const openViewer = (e?: React.MouseEvent) => {
+  const openViewer = async (e?: React.MouseEvent) => {
     e?.stopPropagation();
-    const hasMedia = message.mediaUrl && ['image', 'video', 'document', 'audio'].includes(message.type);
+    const isMedia = ['image', 'video', 'document', 'audio'].includes(message.type);
+    const hasMedia = message.mediaUrl && isMedia;
     const isViewOnceText = message.viewOnce && message.type === 'text';
+    const needsViewOnceMediaUrl = message.viewOnce && !message.isMe && !message.viewOnceOpened && isMedia;
+    if (needsViewOnceMediaUrl) {
+      setOpeningViewOnce(true);
+      const signedUrl = await onOpenViewOnceMedia?.(message.id);
+      setOpeningViewOnce(false);
+      if (!signedUrl) return;
+      setViewerMediaUrl(signedUrl);
+      setViewerOpen(true);
+      setShowMenu(false);
+      setShowEmojiPicker(false);
+      return;
+    }
     if (hasMedia || isViewOnceText) {
       setViewerMediaUrl(message.mediaUrl); // snapshot before potential view-once wipe
       setViewerOpen(true);
@@ -273,7 +288,7 @@ export function ChatMessageBubble({ message, index, onDeleteForMe, onDeleteForAl
               </span>
               <div>
                 <p className="text-sm font-medium leading-tight">
-                  {message.type === 'audio' ? 'Toque para ouvir' : message.type === 'video' ? 'Toque para assistir' : message.type === 'image' ? 'Toque para ver foto' : message.type === 'document' ? 'Toque para ver arquivo' : 'Toque para ler'}
+                  {openingViewOnce ? 'Abrindo...' : message.type === 'audio' ? 'Toque para ouvir' : message.type === 'video' ? 'Toque para assistir' : message.type === 'image' ? 'Toque para ver foto' : message.type === 'document' ? 'Toque para ver arquivo' : 'Toque para ler'}
                 </p>
                 <p className="text-[10px] opacity-60 mt-0.5">Visualização única</p>
               </div>
@@ -422,7 +437,7 @@ export function ChatMessageBubble({ message, index, onDeleteForMe, onDeleteForAl
         )}
       </div>
 
-      {viewerOpen && (message.mediaUrl || (message.viewOnce && message.type === 'text')) && (
+      {viewerOpen && (viewerMediaUrl || message.mediaUrl || (message.viewOnce && message.type === 'text')) && (
         <div
           className="fixed inset-0 z-[500] bg-white dark:bg-[#0b141a] flex flex-col"
           onClick={closeViewer}
