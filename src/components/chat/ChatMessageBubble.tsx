@@ -35,6 +35,8 @@ export interface BubbleMessage {
   text?: string;
   type: 'text' | 'image' | 'audio' | 'video' | 'document';
   mediaUrl?: string;
+  /** Raw storage path — used to regenerate short-lived signed URLs on load (C-01) */
+  mediaPath?: string;
   fileName?: string;
   timestamp: string;
   date?: string;

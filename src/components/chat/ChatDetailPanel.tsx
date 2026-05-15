@@ -25,7 +25,9 @@ interface ChatDetailPanelProps {
 }
 
 const PAGE_SIZE = 50;
-const SIGNED_URL_TTL = 60 * 60 * 24 * 365; // 1 ano
+// TTL para display temporário (optimistic). O path é armazenado em media_path no DB
+// e URLs curtas são geradas a cada carregamento (C-01).
+const SIGNED_URL_TTL = 3600; // 1 hora
 
 // Extrai o path de uma URL pública do chat-media (bucket era público antes de 2026-05-14)
 function extractPublicChatMediaPath(url: string): string | null {
@@ -35,17 +37,27 @@ function extractPublicChatMediaPath(url: string): string | null {
 }
 
 async function resolveMediaUrls(msgs: BubbleMessage[]): Promise<BubbleMessage[]> {
-  const needConversion = msgs.filter(
-    m => m.mediaUrl && m.mediaUrl.includes('/object/public/chat-media/')
-  );
+  // Resolve: (a) old public URLs, (b) raw storage paths from media_path (C-01)
+  const needConversion = msgs.filter(m => {
+    if (!m.mediaUrl && !m.mediaPath) return false;
+    // Has raw storage path → always generate fresh URL
+    if (m.mediaPath) return true;
+    // Old public URL pattern → convert
+    if (m.mediaUrl?.includes('/object/public/chat-media/')) return true;
+    return false;
+  });
   if (needConversion.length === 0) return msgs;
 
   const resolved = await Promise.all(
     needConversion.map(async m => {
-      const path = extractPublicChatMediaPath(m.mediaUrl!);
-      if (!path) return { id: m.id, signedUrl: m.mediaUrl! };
-      const { data } = await supabase.storage.from('chat-media').createSignedUrl(path, SIGNED_URL_TTL);
-      return { id: m.id, signedUrl: data?.signedUrl ?? m.mediaUrl! };
+      // Prefer mediaPath for fresh URL generation (C-01)
+      let storagePath: string | null = m.mediaPath ?? null;
+      if (!storagePath && m.mediaUrl?.includes('/object/public/chat-media/')) {
+        storagePath = extractPublicChatMediaPath(m.mediaUrl);
+      }
+      if (!storagePath) return { id: m.id, signedUrl: m.mediaUrl! };
+      const { data } = await supabase.storage.from('chat-media').createSignedUrl(storagePath, SIGNED_URL_TTL);
+      return { id: m.id, signedUrl: data?.signedUrl ?? m.mediaUrl ?? '' };
     })
   );
 
@@ -118,6 +130,7 @@ export function ChatDetailPanel({
     text: m.content,
     type: m.type === 'kai_reply' ? 'text' : m.type as BubbleMessage['type'],
     mediaUrl: m.media_url,
+    mediaPath: m.media_path ?? undefined,   // used by resolveMediaUrls (C-01)
     fileName: m.file_name,
     timestamp: new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     date: new Date(m.created_at).toLocaleDateString(),
@@ -366,13 +379,15 @@ export function ChatDetailPanel({
     // A-09: strip newlines/control chars from user-supplied names before inserting
     const safeName = myName.replace(/[\r\n\t]/g, ' ').slice(0, 100);
     const safeGroupName = groupInfo.name.replace(/[\r\n\t]/g, ' ').slice(0, 100);
-    await supabase.from('notifications').insert({
-      title: 'Novo grupo',
-      message: `${safeName} colocou vc no grupo ${safeGroupName}`,
-      type: 'chat',
-      target_user_id: memberId,
-      reference_id: groupId,
-      reference_route: '/chat',
+    await supabase.functions.invoke('send-notification', {
+      body: {
+        target_user_id: memberId,
+        title: 'Novo grupo',
+        message: `${safeName} colocou vc no grupo ${safeGroupName}`,
+        type: 'chat',
+        reference_id: groupId,
+        reference_route: '/chat',
+      },
     });
 
     setGroupInfo(prev => prev
@@ -446,10 +461,10 @@ export function ChatDetailPanel({
       .upload(path, blob, { contentType: blob.type });
     if (uploadError) { setSending(false); return; }
     const { data: signedAudio } = await supabase.storage.from('chat-media').createSignedUrl(path, SIGNED_URL_TTL);
-    const mediaUrl = signedAudio?.signedUrl ?? '';
+    const displayUrl = signedAudio?.signedUrl ?? '';
     const tempId = `temp-${Date.now()}`;
     const optimistic: BubbleMessage = {
-      id: tempId, type: 'audio', mediaUrl,
+      id: tempId, type: 'audio', mediaUrl: displayUrl, mediaPath: path,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       date: new Date().toLocaleDateString(),
       isMe: true, deliveryStatus: 'sending',
@@ -460,7 +475,7 @@ export function ChatDetailPanel({
       sender_id: myId,
       ...(isGroup ? { group_id: groupId } : { receiver_id: otherId }),
       conversation_id: conversationId,
-      content: null, type: 'audio', media_url: mediaUrl,
+      content: null, type: 'audio', media_url: displayUrl, media_path: path,
       view_once: isViewOnce,
     });
     setMessages(prev => prev.map(m =>
@@ -486,10 +501,10 @@ export function ChatDetailPanel({
     const { error: uploadError } = await supabase.storage.from('chat-media').upload(path, file);
     if (!uploadError) {
       const { data: signedGallery } = await supabase.storage.from('chat-media').createSignedUrl(path, SIGNED_URL_TTL);
-      const mediaUrl = signedGallery?.signedUrl ?? '';
+      const displayUrl = signedGallery?.signedUrl ?? '';
       const tempId = `temp-${Date.now()}`;
       const optimistic: BubbleMessage = {
-        id: tempId, type, mediaUrl, fileName: file.name,
+        id: tempId, type, mediaUrl: displayUrl, mediaPath: path, fileName: file.name,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         date: new Date().toLocaleDateString(),
         isMe: true, deliveryStatus: 'sending',
@@ -500,7 +515,7 @@ export function ChatDetailPanel({
         sender_id: myId,
         ...(isGroup ? { group_id: groupId } : { receiver_id: otherId }),
         conversation_id: conversationId,
-        content: null, type, media_url: mediaUrl, file_name: file.name,
+        content: null, type, media_url: displayUrl, media_path: path, file_name: file.name,
         view_once: isViewOnce,
       });
       setMessages(prev => prev.map(m =>
@@ -526,10 +541,10 @@ export function ChatDetailPanel({
     const { error: uploadError } = await supabase.storage.from('chat-media').upload(path, file, { contentType: file.type });
     if (!uploadError) {
       const { data: signedDoc } = await supabase.storage.from('chat-media').createSignedUrl(path, SIGNED_URL_TTL);
-      const mediaUrl = signedDoc?.signedUrl ?? '';
+      const displayUrl = signedDoc?.signedUrl ?? '';
       const tempId = `temp-${Date.now()}`;
       const optimistic: BubbleMessage = {
-        id: tempId, text: file.name, type: 'document', mediaUrl, fileName: file.name,
+        id: tempId, text: file.name, type: 'document', mediaUrl: displayUrl, mediaPath: path, fileName: file.name,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         date: new Date().toLocaleDateString(),
         isMe: true, deliveryStatus: 'sending',
@@ -540,7 +555,7 @@ export function ChatDetailPanel({
         sender_id: myId,
         ...(isGroup ? { group_id: groupId } : { receiver_id: otherId }),
         conversation_id: conversationId,
-        content: file.name, type: 'document', media_url: mediaUrl, file_name: file.name,
+        content: file.name, type: 'document', media_url: displayUrl, media_path: path, file_name: file.name,
         view_once: isViewOnce,
       });
       setMessages(prev => prev.map(m =>
@@ -587,10 +602,10 @@ export function ChatDetailPanel({
       const { error: uploadError } = await supabase.storage.from('chat-media').upload(path, blob, { contentType: 'image/jpeg' });
       if (!uploadError) {
         const { data: signedPhoto } = await supabase.storage.from('chat-media').createSignedUrl(path, SIGNED_URL_TTL);
-        const mediaUrl = signedPhoto?.signedUrl ?? '';
+        const displayUrl = signedPhoto?.signedUrl ?? '';
         const tempId = `temp-${Date.now()}`;
         const optimistic: BubbleMessage = {
-          id: tempId, type: 'image', mediaUrl,
+          id: tempId, type: 'image', mediaUrl: displayUrl, mediaPath: path,
           timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
           date: new Date().toLocaleDateString(),
           isMe: true, deliveryStatus: 'sending',
@@ -601,7 +616,7 @@ export function ChatDetailPanel({
           sender_id: myId,
           ...(isGroup ? { group_id: groupId } : { receiver_id: otherId }),
           conversation_id: conversationId,
-          content: null, type: 'image', media_url: mediaUrl,
+          content: null, type: 'image', media_url: displayUrl, media_path: path,
           view_once: isViewOnce,
         });
         setMessages(prev => prev.map(m =>

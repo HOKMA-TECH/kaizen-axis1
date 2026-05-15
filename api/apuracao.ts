@@ -2868,6 +2868,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return;
     }
 
+    // ── Daily quota via rate-guard (100 req/day por usuário) ──────────────────
+    const rateGuardDailyRes = await fetch(rateGuardUrl, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+            apikey: supabaseAnonKey,
+        },
+        body: JSON.stringify({ scope: 'apuracao_daily' }),
+    }).catch(() => null);
+    if (!rateGuardDailyRes || rateGuardDailyRes.status === 429) {
+        res.status(429).json({ erro: 'Cota diária de apurações atingida. Aguarde até amanhã.' });
+        return;
+    }
+    if (!rateGuardDailyRes.ok && rateGuardDailyRes.status !== 200) {
+        res.status(503).json({ erro: 'Serviço temporariamente indisponível.' });
+        return;
+    }
+
     // ── Limite de tamanho de payload (P-01) ───────────────────────────────────
     const MAX_BODY_BYTES = 3 * 1024 * 1024; // 3 MB
     const contentLength = parseInt(req.headers['content-length'] as string || '0', 10);

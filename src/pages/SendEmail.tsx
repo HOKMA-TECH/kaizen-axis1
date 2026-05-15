@@ -262,11 +262,13 @@ ${proponentsBlock}`;
         }
       }
 
+      const { data: { session: emailSession } } = await supabase.auth.getSession();
       const res = await fetch(`${SUPABASE_URL}/functions/v1/send-email`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'apikey': SUPABASE_ANON_KEY,
+          ...(emailSession?.access_token ? { Authorization: `Bearer ${emailSession.access_token}` } : {}),
         },
         body: JSON.stringify({
           to,

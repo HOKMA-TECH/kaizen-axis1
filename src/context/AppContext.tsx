@@ -1275,16 +1275,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   };
 
   const getDownloadUrl = async (path: string, bucket = 'documents'): Promise<string | null> => {
+    // C-07: client-documents must go through get-doc-url-v2 Edge Function (RLS + audit).
+    if (bucket === 'client-documents') {
+      console.error('[getDownloadUrl] client-documents bucket requires get-doc-url-v2 Edge Function.');
+      throw new Error('Use get-doc-url-v2 for client documents.');
+    }
     const { data, error } = await supabase.storage.from(bucket).createSignedUrl(path, 60);
     if (error) { console.error('Erro ao gerar link:', error); return null; }
-    if (bucket === 'client-documents' && data?.signedUrl) {
-      logAuditEvent({
-        action: 'document_downloaded',
-        entity: 'client_document',
-        entityId: path,
-        userId: userRef.current?.id || null
-      });
-    }
     return data.signedUrl;
   };
 

@@ -373,13 +373,14 @@ export default function Clients() {
     });
 
     // Envia notificação direta para o gerente
-    await supabase.from('notifications').insert({
-      user_id: managerId,
-      type: 'aviso',
-      title: `⚠️ Alerta: Cliente parado — ${client.name}`,
-      message: `${client.name} está na etapa "${client.stage}" há muito tempo. Atenção necessária.`,
-      link: `/clients/${client.id}`,
-      read: false,
+    await supabase.functions.invoke('send-notification', {
+      body: {
+        target_user_id: managerId,
+        type: 'aviso',
+        title: `⚠️ Alerta: Cliente parado — ${client.name}`,
+        message: `${client.name} está na etapa "${client.stage}" há muito tempo. Atenção necessária.`,
+        reference_route: `/clients/${client.id}`,
+      },
     });
 
     if (chatError) alert('Erro ao enviar alerta.');

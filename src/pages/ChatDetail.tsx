@@ -530,14 +530,15 @@ export default function ChatDetail() {
   }, [id, allProfiles, isKAI]);
 
   // ─── Upload to Supabase Storage ──────────────────────────────────────────
-  const SIGNED_URL_TTL = 60 * 60 * 24 * 365;
-  const uploadMedia = async (file: File, type: ChatMessage['type']): Promise<string | null> => {
+  // TTL curto para display (path é persistido em media_path para refresh futuro, C-01)
+  const SIGNED_URL_TTL = 3600;
+  const uploadMedia = async (file: File, type: ChatMessage['type']): Promise<{ signedUrl: string; path: string } | null> => {
     const ext = file.name.split('.').pop() || 'bin';
     const path = `${conversationId}/${Date.now()}_${type}.${ext}`;
     const { error } = await supabase.storage.from('chat-media').upload(path, file);
     if (error) { console.error('Upload error:', error); return null; }
     const { data: signed } = await supabase.storage.from('chat-media').createSignedUrl(path, SIGNED_URL_TTL);
-    return signed?.signedUrl ?? null;
+    return signed?.signedUrl ? { signedUrl: signed.signedUrl, path } : null;
   };
 
   // ─── Upload to private bucket (view-once only) ────────────────────────────
@@ -574,6 +575,20 @@ export default function ChatDetail() {
     deleted_for: m.deleted_for ?? [],
   }), [myId]);
 
+  // Gera URLs frescas a partir de media_path (C-01: substitui URLs de longa duração)
+  const resolveMediaPaths = useCallback(async (msgs: ChatMessage[]): Promise<ChatMessage[]> => {
+    const toResolve = msgs.filter(m => m.mediaPath && !m.viewOnce);
+    if (toResolve.length === 0) return msgs;
+    const resolved = await Promise.all(
+      toResolve.map(async m => {
+        const { data } = await supabase.storage.from('chat-media').createSignedUrl(m.mediaPath!, SIGNED_URL_TTL);
+        return { id: m.id, signedUrl: data?.signedUrl ?? m.mediaUrl ?? '' };
+      })
+    );
+    const map = new Map(resolved.map(r => [r.id, r.signedUrl]));
+    return msgs.map(m => map.has(m.id) ? { ...m, mediaUrl: map.get(m.id) } : m);
+  }, []);
+
   const loadMessages = useCallback(async () => {
     if (isKAI || !myId) return;
     const { data, error } = await supabase
@@ -584,9 +599,11 @@ export default function ChatDetail() {
       .order('created_at', { ascending: false })
       .range(0, PAGE_SIZE - 1);
     if (error) return;
-    setMessages((data ?? []).map(mapMsg).reverse());
+    const mapped = (data ?? []).map(mapMsg).reverse();
+    const withFreshUrls = await resolveMediaPaths(mapped);
+    setMessages(withFreshUrls);
     setHasMore((data ?? []).length === PAGE_SIZE);
-  }, [conversationId, isKAI, myId, mapMsg]);
+  }, [conversationId, isKAI, myId, mapMsg, resolveMediaPaths]);
 
   const loadMoreMessages = useCallback(async () => {
     if (isLoadingMore || !hasMore || !myId) return;
@@ -860,13 +877,15 @@ export default function ChatDetail() {
         mediaPath = privatePath;
         mediaUrl = undefined; // no public URL for view-once
       } else {
-        mediaUrl = (await uploadMedia(file, type)) ?? undefined;
+        const uploadResult = await uploadMedia(file, type);
         setIsUploading(false);
-        if (!mediaUrl && !isKAI) {
+        if (!uploadResult && !isKAI) {
           setIsSendingMessage(false);
           alert('Falha ao enviar o arquivo. Tente novamente.');
           return;
         }
+        mediaUrl = uploadResult?.signedUrl;
+        mediaPath = uploadResult?.path ?? mediaPath;
       }
     }
 
