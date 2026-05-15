@@ -577,14 +577,29 @@ export default function ChatDetail() {
   }), [myId]);
 
   // Gera URLs frescas a partir de media_path via Edge Function (P1-01: valida membership server-side)
+  // Também converte URLs públicas antigas do bucket chat-media (que agora é privado)
   const resolveMediaPaths = useCallback(async (msgs: ChatMessage[]): Promise<ChatMessage[]> => {
-    const toResolve = msgs.filter(m => m.mediaPath && !m.viewOnce);
+    const PUBLIC_MARKER = '/object/public/chat-media/';
+    const toResolve = msgs.filter(m => {
+      if (m.viewOnce) return false;
+      if (m.mediaPath) return true;
+      // Mensagens antigas com URL pública — bucket agora é privado, precisa de signed URL
+      if (m.mediaUrl?.includes(PUBLIC_MARKER)) return true;
+      return false;
+    });
     if (toResolve.length === 0) return msgs;
     const resolved = await Promise.all(
       toResolve.map(async m => {
+        let storagePath = m.mediaPath ?? null;
+        // Extrai path de URL pública antiga
+        if (!storagePath && m.mediaUrl?.includes(PUBLIC_MARKER)) {
+          const idx = m.mediaUrl.indexOf(PUBLIC_MARKER);
+          storagePath = m.mediaUrl.slice(idx + PUBLIC_MARKER.length);
+        }
+        if (!storagePath) return { id: m.id, signedUrl: m.mediaUrl ?? '' };
         try {
           const { data, error } = await supabase.functions.invoke('get-chat-media-url', {
-            body: { path: m.mediaPath! },
+            body: { path: storagePath },
           });
           if (error || !data?.signedUrl) return { id: m.id, signedUrl: m.mediaUrl ?? '' };
           return { id: m.id, signedUrl: data.signedUrl };
