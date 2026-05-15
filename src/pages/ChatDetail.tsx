@@ -676,15 +676,15 @@ export default function ChatDetail() {
             } as NotificationOptions);
           }).catch(() => {});
         }
+        if (m.sender_id === myId) return;
         setMessages(prev => {
-          if (m.sender_id === myId) return prev;
           if (prev.find(x => x.id === m.id)) return prev;
-          return [...prev, {
+          const newMsg: ChatMessage = {
             id: m.id,
             senderId: m.sender_id,
             text: m.content,
             type: m.type,
-            mediaUrl: m.media_url,
+            mediaUrl: m.media_url ?? undefined,
             fileName: m.file_name,
             timestamp: new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
             isMe: false,
@@ -694,7 +694,14 @@ export default function ChatDetail() {
             mediaPath: m.media_path ?? null,
             reply_to_id: m.reply_to_id ?? null,
             reactions: m.reactions ?? {},
-          }];
+          };
+          // Resolve media URL via Edge Function so recipient sees image immediately
+          if (newMsg.mediaPath && !newMsg.viewOnce) {
+            resolveMediaPaths([newMsg]).then(resolved => {
+              setMessages(curr => curr.map(x => x.id === resolved[0].id ? resolved[0] : x));
+            });
+          }
+          return [...prev, newMsg];
         });
       }
     );
@@ -965,13 +972,14 @@ export default function ChatDetail() {
     }
 
     // Persist to Supabase (postgres_changes will notify receiver)
+    // media_url is intentionally null — blob URLs are local only and must not be stored
     const { data: inserted, error } = await supabase.from('chat_messages').insert({
       sender_id: myId,
       receiver_id: id,
       conversation_id: conversationId,
       content: text || null,
       type,
-      media_url: mediaUrl || null,
+      media_url: null,
       file_name: fileName || file?.name || null,
       view_once: useViewOnce,
       media_path: mediaPath || null,
@@ -987,10 +995,25 @@ export default function ChatDetail() {
     }
 
     // Update temp message to confirmed with real ID + mark sent
+    // If has mediaPath, resolve signed URL via Edge Function so image shows without reload
     if (inserted) {
-      setMessages(prev => prev.map(m =>
-        m.id === tempId ? { ...m, id: inserted.id, deliveryStatus: 'sent' } : m
-      ));
+      if (mediaPath && !useViewOnce) {
+        setMessages(prev => prev.map(m =>
+          m.id === tempId ? { ...m, id: inserted.id, deliveryStatus: 'sent', mediaPath } : m
+        ));
+        resolveMediaPaths([{ ...({ id: inserted.id, mediaPath } as ChatMessage) }]).then(resolved => {
+          const signedUrl = resolved[0]?.mediaUrl;
+          if (signedUrl) {
+            setMessages(prev => prev.map(m =>
+              m.id === inserted.id ? { ...m, mediaUrl: signedUrl } : m
+            ));
+          }
+        });
+      } else {
+        setMessages(prev => prev.map(m =>
+          m.id === tempId ? { ...m, id: inserted.id, deliveryStatus: 'sent' } : m
+        ));
+      }
     } else {
       setMessages(prev => prev.filter(m => m.id !== tempId));
       alert('Nao foi possivel confirmar o envio da mensagem.');
