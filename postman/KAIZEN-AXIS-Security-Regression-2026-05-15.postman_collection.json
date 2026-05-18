@@ -1,0 +1,751 @@
+{
+  "info": {
+    "_postman_id": "f13c5ed5-dc14-4a8e-a74e-4e2d6a5d6d30",
+    "name": "KAIZEN AXIS - Security Regression - 2026-05-15",
+    "description": "Bateria de testes Postman para validar correcoes de seguranca feitas na semana: auth, RLS, storage, chat media, visualizacao unica, documentos, apuracao de renda, CORS, SQLi e XSS basico. Nao contem segredos reais. Preencha as variaveis antes de executar.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "pm.request.headers.upsert({ key: 'apikey', value: pm.collectionVariables.get('supabase_anon_key') || '' });"
+        ]
+      }
+    }
+  ],
+  "variable": [
+    { "key": "app_base_url", "value": "https://www.kaizen-axis.space" },
+    { "key": "supabase_url", "value": "https://SEU-PROJETO.supabase.co" },
+    { "key": "supabase_anon_key", "value": "COLE_A_ANON_KEY_AQUI" },
+    { "key": "email", "value": "usuario.teste@exemplo.com" },
+    { "key": "password", "value": "SENHA_DO_USUARIO_TESTE" },
+    { "key": "access_token", "value": "" },
+    { "key": "user_id", "value": "" },
+    { "key": "other_user_id", "value": "00000000-0000-0000-0000-000000000000" },
+    { "key": "conversation_id", "value": "SUBSTITUA_PELO_CONVERSATION_ID_VALIDO" },
+    { "key": "chat_media_path", "value": "SUBSTITUA_PELO_PATH_DE_MIDIA_EXISTENTE" },
+    { "key": "view_once_message_id", "value": "00000000-0000-0000-0000-000000000000" },
+    { "key": "client_document_id", "value": "00000000-0000-0000-0000-000000000000" },
+    { "key": "client_document_path", "value": "SUBSTITUA_PELO_PATH_DE_DOCUMENTO_PERMITIDO.pdf" },
+    { "key": "avatar_file_path", "value": "C:/temp/postman-avatar.png" },
+    { "key": "audio_file_path", "value": "C:/temp/postman-audio.m4a" },
+    { "key": "pdf_file_path", "value": "C:/temp/postman-renda.pdf" }
+  ],
+  "item": [
+    {
+      "name": "00 - Setup / Auth",
+      "item": [
+        {
+          "name": "Login - obter JWT e user_id",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('login retornou 200', () => pm.response.to.have.status(200));",
+                  "pm.test('resposta contem access_token', () => pm.expect(pm.response.json()).to.have.property('access_token'));",
+                  "const json = pm.response.json();",
+                  "pm.collectionVariables.set('access_token', json.access_token);",
+                  "pm.collectionVariables.set('user_id', json.user && json.user.id ? json.user.id : '');",
+                  "pm.test('user_id foi capturado', () => pm.expect(pm.collectionVariables.get('user_id')).to.not.equal(''));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}"
+            },
+            "url": {
+              "raw": "{{supabase_url}}/auth/v1/token?grant_type=password",
+              "host": ["{{supabase_url}}"],
+              "path": ["auth", "v1", "token"],
+              "query": [{ "key": "grant_type", "value": "password" }]
+            },
+            "description": "Autentica o usuario de teste e salva access_token/user_id para os demais requests."
+          }
+        },
+        {
+          "name": "Auth user - token valido",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('usuario autenticado', () => pm.response.to.have.status(200));",
+                  "pm.test('id bate com variavel user_id', () => pm.expect(pm.response.json().id).to.eql(pm.collectionVariables.get('user_id')));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" }
+            ],
+            "url": {
+              "raw": "{{supabase_url}}/auth/v1/user",
+              "host": ["{{supabase_url}}"],
+              "path": ["auth", "v1", "user"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "01 - Edge Functions / Auth Gates",
+      "item": [
+        {
+          "name": "get-chat-media-url sem Authorization deve falhar",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('bloqueado sem JWT', () => pm.expect([401, 403]).to.include(pm.response.code));",
+                  "pm.test('erro em JSON', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"path\": \"{{chat_media_path}}\"\n}" },
+            "url": {
+              "raw": "{{supabase_url}}/functions/v1/get-chat-media-url",
+              "host": ["{{supabase_url}}"],
+              "path": ["functions", "v1", "get-chat-media-url"]
+            }
+          }
+        },
+        {
+          "name": "get-chat-media-url path traversal deve falhar",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('path traversal rejeitado', () => pm.expect([400, 403, 404]).to.include(pm.response.code));",
+                  "pm.test('nao retorna signedUrl', () => pm.expect(pm.response.text()).to.not.include('signedUrl'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"path\": \"../private/secret.pdf\"\n}" },
+            "url": {
+              "raw": "{{supabase_url}}/functions/v1/get-chat-media-url",
+              "host": ["{{supabase_url}}"],
+              "path": ["functions", "v1", "get-chat-media-url"]
+            }
+          }
+        },
+        {
+          "name": "get-chat-media-url arquivo orfao deve falhar",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('arquivo nao vinculado a mensagem nao assina URL', () => pm.expect([403, 404]).to.include(pm.response.code));",
+                  "pm.test('nao retorna signedUrl', () => pm.expect(pm.response.text()).to.not.include('signedUrl'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"path\": \"{{conversation_id}}/arquivo-origado-nao-existe.jpg\"\n}" },
+            "url": {
+              "raw": "{{supabase_url}}/functions/v1/get-chat-media-url",
+              "host": ["{{supabase_url}}"],
+              "path": ["functions", "v1", "get-chat-media-url"]
+            }
+          }
+        },
+        {
+          "name": "get-chat-media-url arquivo permitido deve retornar signedUrl",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('retornou 200', () => pm.response.to.have.status(200));",
+                  "pm.test('retorna signedUrl curta', () => { const j = pm.response.json(); pm.expect(j.signedUrl).to.be.a('string').and.include('/storage/v1/object/sign/'); });",
+                  "pm.test('nao expoe service role', () => pm.expect(pm.response.text()).to.not.match(/service_role|eyJ.*service_role/i));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"path\": \"{{chat_media_path}}\"\n}" },
+            "url": {
+              "raw": "{{supabase_url}}/functions/v1/get-chat-media-url",
+              "host": ["{{supabase_url}}"],
+              "path": ["functions", "v1", "get-chat-media-url"]
+            }
+          }
+        },
+        {
+          "name": "generate-view-once-url sem Authorization deve falhar",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('bloqueado sem JWT', () => pm.expect([401, 403]).to.include(pm.response.code));",
+                  "pm.test('nao retorna signedUrl', () => pm.expect(pm.response.text()).to.not.include('signedUrl'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"message_id\": \"{{view_once_message_id}}\"\n}" },
+            "url": {
+              "raw": "{{supabase_url}}/functions/v1/generate-view-once-url",
+              "host": ["{{supabase_url}}"],
+              "path": ["functions", "v1", "generate-view-once-url"]
+            }
+          }
+        },
+        {
+          "name": "generate-view-once-url message_id invalido deve falhar",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('UUID invalido rejeitado', () => pm.response.to.have.status(400));",
+                  "pm.test('nao retorna signedUrl', () => pm.expect(pm.response.text()).to.not.include('signedUrl'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"message_id\": \"abc' or '1'='1\"\n}" },
+            "url": {
+              "raw": "{{supabase_url}}/functions/v1/generate-view-once-url",
+              "host": ["{{supabase_url}}"],
+              "path": ["functions", "v1", "generate-view-once-url"]
+            }
+          }
+        },
+        {
+          "name": "generate-view-once-url valido deve retornar expiresIn 30",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('retornou 200 ou ja visualizada', () => pm.expect([200, 410]).to.include(pm.response.code));",
+                  "if (pm.response.code === 200) { const j = pm.response.json(); pm.test('signedUrl e TTL de visualizacao unica', () => { pm.expect(j.signedUrl).to.be.a('string'); pm.expect(j.expiresIn).to.eql(30); }); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"message_id\": \"{{view_once_message_id}}\"\n}" },
+            "url": {
+              "raw": "{{supabase_url}}/functions/v1/generate-view-once-url",
+              "host": ["{{supabase_url}}"],
+              "path": ["functions", "v1", "generate-view-once-url"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "02 - Storage / RLS",
+      "item": [
+        {
+          "name": "Avatar upload no proprio prefixo deve passar",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('upload permitido no proprio user_id', () => pm.expect([200, 201]).to.include(pm.response.code));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "Content-Type", "value": "image/png" },
+              { "key": "x-upsert", "value": "true" }
+            ],
+            "body": {
+              "mode": "file",
+              "file": { "src": "{{avatar_file_path}}" }
+            },
+            "url": {
+              "raw": "{{supabase_url}}/storage/v1/object/avatars/{{user_id}}/postman-avatar.png",
+              "host": ["{{supabase_url}}"],
+              "path": ["storage", "v1", "object", "avatars", "{{user_id}}", "postman-avatar.png"]
+            }
+          }
+        },
+        {
+          "name": "Avatar upload em prefixo de outro usuario deve falhar",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('RLS bloqueou avatar fora do proprio prefixo', () => pm.expect([400, 401, 403]).to.include(pm.response.code));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "Content-Type", "value": "image/png" },
+              { "key": "x-upsert", "value": "true" }
+            ],
+            "body": {
+              "mode": "file",
+              "file": { "src": "{{avatar_file_path}}" }
+            },
+            "url": {
+              "raw": "{{supabase_url}}/storage/v1/object/avatars/{{other_user_id}}/postman-avatar.png",
+              "host": ["{{supabase_url}}"],
+              "path": ["storage", "v1", "object", "avatars", "{{other_user_id}}", "postman-avatar.png"]
+            }
+          }
+        },
+        {
+          "name": "Chat audio mp4 upload deve aceitar MIME corrigido",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('audio/mp4 aceito no bucket chat-media', () => pm.expect([200, 201]).to.include(pm.response.code));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "Content-Type", "value": "audio/mp4" }
+            ],
+            "body": {
+              "mode": "file",
+              "file": { "src": "{{audio_file_path}}" }
+            },
+            "url": {
+              "raw": "{{supabase_url}}/storage/v1/object/chat-media/{{conversation_id}}/postman-audio.m4a",
+              "host": ["{{supabase_url}}"],
+              "path": ["storage", "v1", "object", "chat-media", "{{conversation_id}}", "postman-audio.m4a"]
+            }
+          }
+        },
+        {
+          "name": "Client documents leitura anonima deve falhar",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('documento privado nao baixa sem JWT', () => pm.expect([400, 401, 403, 404]).to.include(pm.response.code));",
+                  "pm.test('nao devolve PDF publico', () => pm.expect(pm.response.headers.get('Content-Type') || '').to.not.include('application/pdf'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{supabase_url}}/storage/v1/object/client-documents/{{client_document_path}}",
+              "host": ["{{supabase_url}}"],
+              "path": ["storage", "v1", "object", "client-documents", "{{client_document_path}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "03 - Documents / Signed URL",
+      "item": [
+        {
+          "name": "get-doc-url-v2 sem token deve falhar",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('bloqueado sem token', () => pm.expect([401, 403]).to.include(pm.response.code));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"documentId\": \"{{client_document_id}}\",\n  \"rawPath\": \"{{client_document_path}}\"\n}" },
+            "url": {
+              "raw": "{{supabase_url}}/functions/v1/get-doc-url-v2",
+              "host": ["{{supabase_url}}"],
+              "path": ["functions", "v1", "get-doc-url-v2"]
+            }
+          }
+        },
+        {
+          "name": "get-doc-url-v2 path traversal deve falhar",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('path traversal nao gera URL', () => pm.expect([400, 403, 404]).to.include(pm.response.code));",
+                  "pm.test('sem signedUrl', () => pm.expect(pm.response.text()).to.not.include('signedUrl'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"documentId\": \"{{client_document_id}}\",\n  \"rawPath\": \"../../secrets.pdf\"\n}" },
+            "url": {
+              "raw": "{{supabase_url}}/functions/v1/get-doc-url-v2",
+              "host": ["{{supabase_url}}"],
+              "path": ["functions", "v1", "get-doc-url-v2"]
+            }
+          }
+        },
+        {
+          "name": "get-doc-url-v2 documento permitido deve assinar",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('retornou 200', () => pm.response.to.have.status(200));",
+                  "pm.test('retorna signedUrl', () => pm.expect(pm.response.json().signedUrl).to.be.a('string'));",
+                  "pm.test('nao expoe service role', () => pm.expect(pm.response.text()).to.not.match(/service_role/i));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"documentId\": \"{{client_document_id}}\",\n  \"rawPath\": \"{{client_document_path}}\",\n  \"expiresIn\": 300\n}" },
+            "url": {
+              "raw": "{{supabase_url}}/functions/v1/get-doc-url-v2",
+              "host": ["{{supabase_url}}"],
+              "path": ["functions", "v1", "get-doc-url-v2"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "04 - Income / API JSON Safety",
+      "item": [
+        {
+          "name": "apuracao GET deve retornar 405 JSON",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('metodo bloqueado', () => pm.response.to.have.status(405));",
+                  "pm.test('resposta e JSON, nao HTML/texto bruto', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{app_base_url}}/api/apuracao",
+              "host": ["{{app_base_url}}"],
+              "path": ["api", "apuracao"]
+            }
+          }
+        },
+        {
+          "name": "apuracao sem token deve falhar em JSON",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('sem JWT bloqueado', () => pm.expect([401, 403]).to.include(pm.response.code));",
+                  "pm.test('erro em JSON', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json'));",
+                  "pm.test('nao retorna A server error HTML/text', () => pm.expect(pm.response.text()).to.not.match(/^A server e/i));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "multipart/form-data" }],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "nome", "value": "TESTE SEGURANCA", "type": "text" },
+                { "key": "file", "type": "file", "src": "{{pdf_file_path}}" }
+              ]
+            },
+            "url": {
+              "raw": "{{app_base_url}}/api/apuracao",
+              "host": ["{{app_base_url}}"],
+              "path": ["api", "apuracao"]
+            }
+          }
+        },
+        {
+          "name": "apuracao com token deve nao retornar erro nao-JSON",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('resposta nao e erro bruto HTML/texto', () => pm.expect(pm.response.text()).to.not.match(/^A server e/i));",
+                  "pm.test('content-type JSON quando falha ou conclui', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json'));",
+                  "pm.test('status esperado', () => pm.expect([200, 400, 422, 429]).to.include(pm.response.code));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{access_token}}" }],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "nome", "value": "TESTE SEGURANCA", "type": "text" },
+                { "key": "file", "type": "file", "src": "{{pdf_file_path}}" }
+              ]
+            },
+            "url": {
+              "raw": "{{app_base_url}}/api/apuracao",
+              "host": ["{{app_base_url}}"],
+              "path": ["api", "apuracao"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "05 - REST RLS / SQLi / XSS Probes",
+      "item": [
+        {
+          "name": "profiles sem JWT nao deve vazar dados",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('sem JWT nao retorna lista ampla de perfis', () => { pm.expect([200, 401, 403]).to.include(pm.response.code); if (pm.response.code === 200) pm.expect(pm.response.json()).to.be.an('array').with.lengthOf(0); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Prefer", "value": "count=exact" }],
+            "url": {
+              "raw": "{{supabase_url}}/rest/v1/profiles?select=id,name,role,email&limit=50",
+              "host": ["{{supabase_url}}"],
+              "path": ["rest", "v1", "profiles"],
+              "query": [
+                { "key": "select", "value": "id,name,role,email" },
+                { "key": "limit", "value": "50" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "SQLi probe em profiles nao deve causar 500 nem vazar tudo",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('sem 500', () => pm.expect(pm.response.code).to.not.equal(500));",
+                  "pm.test('nao retorna dump amplo', () => { if (pm.response.code === 200) pm.expect(pm.response.json().length).to.be.below(5); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{access_token}}" }],
+            "url": {
+              "raw": "{{supabase_url}}/rest/v1/profiles?select=id,name&name=ilike.*%27%20or%20%271%27%3D%271*",
+              "host": ["{{supabase_url}}"],
+              "path": ["rest", "v1", "profiles"],
+              "query": [
+                { "key": "select", "value": "id,name" },
+                { "key": "name", "value": "ilike.*%27%20or%20%271%27%3D%271*" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "XSS probe em chat_messages como texto deve permanecer texto",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('insert bloqueado ou criado com texto literal', () => pm.expect([201, 400, 401, 403]).to.include(pm.response.code));",
+                  "if (pm.response.code === 201) { const j = pm.response.json()[0]; pm.collectionVariables.set('xss_message_id', j.id); pm.test('conteudo continua literal', () => pm.expect(j.content).to.include('<img')); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Prefer", "value": "return=representation" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "[{\n  \"conversation_id\": \"{{conversation_id}}\",\n  \"sender_id\": \"{{user_id}}\",\n  \"receiver_id\": \"{{other_user_id}}\",\n  \"content\": \"<img src=x onerror=alert(1)><script>alert(1)</script>\",\n  \"type\": \"text\"\n}]"
+            },
+            "url": {
+              "raw": "{{supabase_url}}/rest/v1/chat_messages",
+              "host": ["{{supabase_url}}"],
+              "path": ["rest", "v1", "chat_messages"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "06 - CORS / Methods",
+      "item": [
+        {
+          "name": "Preflight get-chat-media-url",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('OPTIONS permitido', () => pm.expect([200, 204]).to.include(pm.response.code));",
+                  "pm.test('CORS permite POST', () => pm.expect(pm.response.headers.get('Access-Control-Allow-Methods') || '').to.include('POST'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "OPTIONS",
+            "header": [
+              { "key": "Origin", "value": "{{app_base_url}}" },
+              { "key": "Access-Control-Request-Method", "value": "POST" },
+              { "key": "Access-Control-Request-Headers", "value": "authorization,apikey,content-type" }
+            ],
+            "url": {
+              "raw": "{{supabase_url}}/functions/v1/get-chat-media-url",
+              "host": ["{{supabase_url}}"],
+              "path": ["functions", "v1", "get-chat-media-url"]
+            }
+          }
+        },
+        {
+          "name": "secure-login GET deve retornar 405 JSON",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('metodo bloqueado', () => pm.response.to.have.status(405));",
+                  "pm.test('resposta JSON', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{supabase_url}}/functions/v1/secure-login",
+              "host": ["{{supabase_url}}"],
+              "path": ["functions", "v1", "secure-login"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
