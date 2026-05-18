@@ -12,6 +12,7 @@ declare global {
     turnstile?: {
       render: (container: HTMLElement, options: Record<string, any>) => string;
       reset: (widgetId: string) => void;
+      remove: (widgetId: string) => void;
     };
   }
 }
@@ -64,10 +65,23 @@ export default function Login() {
 
     let isCancelled = false;
 
+    const removeExistingWidget = () => {
+      if (captchaWidgetIdRef.current && window.turnstile) {
+        try { window.turnstile.remove(captchaWidgetIdRef.current); } catch { /* ignore */ }
+        captchaWidgetIdRef.current = null;
+      }
+      // Limpa o container manualmente para evitar Error 300010
+      if (captchaContainerRef.current) {
+        captchaContainerRef.current.innerHTML = '';
+      }
+      setCaptchaToken('');
+    };
+
     const renderCaptcha = () => {
       if (isCancelled || !captchaContainerRef.current || !window.turnstile) return;
-      if (captchaWidgetIdRef.current) return;
-
+      // Remove qualquer widget anterior antes de criar um novo
+      removeExistingWidget();
+      if (isCancelled) return;
       captchaWidgetIdRef.current = window.turnstile.render(captchaContainerRef.current, {
         sitekey: TURNSTILE_SITE_KEY,
         theme: 'auto',
@@ -81,6 +95,7 @@ export default function Login() {
       renderCaptcha();
       return () => {
         isCancelled = true;
+        removeExistingWidget();
       };
     }
 
@@ -92,6 +107,7 @@ export default function Login() {
       return () => {
         isCancelled = true;
         existingScript.removeEventListener('load', onLoad);
+        removeExistingWidget();
       };
     }
 
@@ -106,8 +122,9 @@ export default function Login() {
     return () => {
       isCancelled = true;
       script.removeEventListener('load', onLoad);
+      removeExistingWidget();
     };
-  }, [showMfaInput, showResetPassword]);
+  }, [showMfaInput, showResetPassword, isLogin]);
 
   // Detecta evento PASSWORD_RECOVERY do Supabase
   useEffect(() => {

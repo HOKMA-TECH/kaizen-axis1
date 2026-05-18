@@ -1,0 +1,164 @@
+<h2>Agenda — Layout Mobile</h2>
+<p class="subtitle">A versão desktop usa grid semanal estilo Google Calendar. Qual abordagem usar no mobile?</p>
+
+<div class="cards">
+
+  <div class="card" data-choice="a" onclick="toggleSelect(this)">
+    <div class="card-image" style="background:#f8fafc;padding:12px;border-radius:8px;">
+      <!-- Mock: Day List View -->
+      <div style="font-size:11px;color:#64748b;font-weight:600;margin-bottom:8px;">HOJE — 14 DE MAIO</div>
+      <div style="background:white;border-radius:8px;padding:8px 10px;margin-bottom:6px;border-left:3px solid #10b981;box-shadow:0 1px 3px rgba(0,0,0,.08);">
+        <div style="font-size:10px;color:#10b981;font-weight:600;">10:00 · Visita</div>
+        <div style="font-size:12px;font-weight:600;color:#1e293b;">Thays</div>
+        <div style="font-size:10px;color:#94a3b8;">Rua Engenheiro Trindade, 99</div>
+      </div>
+      <div style="background:white;border-radius:8px;padding:8px 10px;margin-bottom:6px;border-left:3px solid #3b82f6;box-shadow:0 1px 3px rgba(0,0,0,.08);">
+        <div style="font-size:10px;color:#3b82f6;font-weight:600;">11:30 · Reunião</div>
+        <div style="font-size:12px;font-weight:600;color:#1e293b;">Aprovada</div>
+        <div style="font-size:10px;color:#94a3b8;">Letícia Bispo</div>
+      </div>
+      <div style="background:white;border-radius:8px;padding:8px 10px;border-left:3px solid #f59e0b;box-shadow:0 1px 3px rgba(0,0,0,.08);">
+        <div style="font-size:10px;color:#f59e0b;font-weight:600;">12:00 · Assinatura</div>
+        <div style="font-size:12px;font-weight:600;color:#1e293b;">Reagendamento</div>
+        <div style="font-size:10px;color:#94a3b8;">Bia</div>
+      </div>
+      <!-- Nav row -->
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;">
+        <div style="font-size:18px;cursor:pointer;color:#94a3b8;">‹</div>
+        <div style="display:flex;gap:4px;">
+          <div style="width:22px;height:22px;background:#3b82f6;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;color:white;font-weight:700;">14</div>
+          <div style="width:22px;height:22px;background:#f1f5f9;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;color:#64748b;">15</div>
+          <div style="width:22px;height:22px;background:#f1f5f9;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;color:#64748b;">16</div>
+          <div style="width:22px;height:22px;background:#f1f5f9;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;color:#64748b;">17</div>
+          <div style="width:22px;height:22px;background:#f1f5f9;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;color:#64748b;">18</div>
+        </div>
+        <div style="font-size:18px;cursor:pointer;color:#94a3b8;">›</div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>A — Vista Dia + Minicalendário</h3>
+      <p>Exibe os eventos do dia selecionado em cards. Mini calendário horizontal na parte de baixo para navegar entre dias. Simples e focado.</p>
+      <div class="pros-cons" style="font-size:11px;">
+        <div class="pros"><h4>Prós</h4><ul><li>Legível no celular</li><li>Foco em um dia de cada vez</li><li>Mais espaço para detalhes</li></ul></div>
+        <div class="cons"><h4>Contras</h4><ul><li>Perde visão semanal</li><li>Precisa navegar dia a dia</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" data-choice="b" onclick="toggleSelect(this)">
+    <div class="card-image" style="background:#f8fafc;padding:12px;border-radius:8px;">
+      <!-- Mock: Week Compact Strip -->
+      <div style="display:flex;justify-content:space-between;margin-bottom:10px;">
+        <div style="text-align:center;flex:1;">
+          <div style="font-size:9px;color:#94a3b8;">D</div>
+          <div style="width:24px;height:24px;background:#f1f5f9;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;color:#64748b;margin:2px auto;">10</div>
+        </div>
+        <div style="text-align:center;flex:1;">
+          <div style="font-size:9px;color:#94a3b8;">S</div>
+          <div style="width:24px;height:24px;background:#f1f5f9;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;color:#64748b;margin:2px auto;">11</div>
+        </div>
+        <div style="text-align:center;flex:1;">
+          <div style="font-size:9px;color:#94a3b8;">T</div>
+          <div style="width:24px;height:24px;background:#f1f5f9;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;color:#64748b;margin:2px auto;">12</div>
+        </div>
+        <div style="text-align:center;flex:1;">
+          <div style="font-size:9px;color:#94a3b8;">Q</div>
+          <div style="width:24px;height:24px;background:#f1f5f9;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;color:#64748b;margin:2px auto;">13</div>
+        </div>
+        <div style="text-align:center;flex:1;">
+          <div style="font-size:9px;color:#3b82f6;font-weight:700;">Q</div>
+          <div style="width:24px;height:24px;background:#3b82f6;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;color:white;font-weight:700;margin:2px auto;">14</div>
+          <div style="width:5px;height:5px;background:#10b981;border-radius:50%;margin:2px auto;"></div>
+        </div>
+        <div style="text-align:center;flex:1;">
+          <div style="font-size:9px;color:#94a3b8;">S</div>
+          <div style="width:24px;height:24px;background:#f1f5f9;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;color:#64748b;margin:2px auto;">15</div>
+          <div style="width:5px;height:5px;background:#f59e0b;border-radius:50%;margin:2px auto;"></div>
+        </div>
+        <div style="text-align:center;flex:1;">
+          <div style="font-size:9px;color:#94a3b8;">S</div>
+          <div style="width:24px;height:24px;background:#f1f5f9;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;color:#64748b;margin:2px auto;">16</div>
+          <div style="width:5px;height:5px;background:#3b82f6;border-radius:50%;margin:2px auto;"></div>
+        </div>
+      </div>
+      <!-- Events for selected day -->
+      <div style="font-size:10px;font-weight:600;color:#64748b;margin-bottom:6px;">QUINTA-FEIRA, 14 DE MAIO</div>
+      <div style="display:flex;align-items:center;gap:8px;background:white;border-radius:8px;padding:8px;margin-bottom:4px;box-shadow:0 1px 3px rgba(0,0,0,.08);">
+        <div style="width:3px;height:30px;background:#10b981;border-radius:2px;flex-shrink:0;"></div>
+        <div>
+          <div style="font-size:10px;color:#64748b;">10:00</div>
+          <div style="font-size:12px;font-weight:600;color:#1e293b;">Thays · Visita</div>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;background:white;border-radius:8px;padding:8px;margin-bottom:4px;box-shadow:0 1px 3px rgba(0,0,0,.08);">
+        <div style="width:3px;height:30px;background:#3b82f6;border-radius:2px;flex-shrink:0;"></div>
+        <div>
+          <div style="font-size:10px;color:#64748b;">11:30</div>
+          <div style="font-size:12px;font-weight:600;color:#1e293b;">Letícia Bispo · Reunião</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B — Strip Semanal + Lista do Dia</h3>
+      <p>Faixa com os 7 dias da semana no topo (com pontinhos de eventos). Toca no dia → vê a lista de eventos. Mantém noção da semana.</p>
+      <div class="pros-cons" style="font-size:11px;">
+        <div class="pros"><h4>Prós</h4><ul><li>Visão semanal compacta</li><li>Dots indicam dias com evento</li><li>UX familiar (agenda iOS/Android)</li></ul></div>
+        <div class="cons"><h4>Contras</h4><ul><li>Mais complexo de implementar</li><li>Strip pode ficar apertado em telas <320px</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" data-choice="c" onclick="toggleSelect(this)">
+    <div class="card-image" style="background:#f8fafc;padding:12px;border-radius:8px;">
+      <!-- Mock: Upcoming list -->
+      <div style="font-size:11px;color:#64748b;font-weight:600;margin-bottom:8px;display:flex;justify-content:space-between;">
+        <span>PRÓXIMOS EVENTOS</span>
+        <span style="color:#3b82f6;cursor:pointer;">+ Novo</span>
+      </div>
+      <div style="display:flex;gap:8px;margin-bottom:8px;">
+        <div style="background:#3b82f6;color:white;border-radius:8px;padding:6px 8px;text-align:center;min-width:36px;">
+          <div style="font-size:9px;font-weight:600;">MAI</div>
+          <div style="font-size:16px;font-weight:800;line-height:1;">14</div>
+        </div>
+        <div style="flex:1;">
+          <div style="font-size:12px;font-weight:600;color:#1e293b;">Visita · Thays</div>
+          <div style="font-size:10px;color:#64748b;">10:00 · Rua Engenheiro Trindade, 99</div>
+          <div style="display:inline-block;background:#d1fae5;color:#059669;font-size:9px;font-weight:600;padding:2px 6px;border-radius:4px;margin-top:3px;">Visita</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;margin-bottom:8px;">
+        <div style="background:#f59e0b;color:white;border-radius:8px;padding:6px 8px;text-align:center;min-width:36px;">
+          <div style="font-size:9px;font-weight:600;">MAI</div>
+          <div style="font-size:16px;font-weight:800;line-height:1;">14</div>
+        </div>
+        <div style="flex:1;">
+          <div style="font-size:12px;font-weight:600;color:#1e293b;">Aprovada · Letícia bispo</div>
+          <div style="font-size:10px;color:#64748b;">10:00</div>
+          <div style="display:inline-block;background:#fef3c7;color:#d97706;font-size:9px;font-weight:600;padding:2px 6px;border-radius:4px;margin-top:3px;">Assinatura</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <div style="background:#8b5cf6;color:white;border-radius:8px;padding:6px 8px;text-align:center;min-width:36px;">
+          <div style="font-size:9px;font-weight:600;">MAI</div>
+          <div style="font-size:16px;font-weight:800;line-height:1;">16</div>
+        </div>
+        <div style="flex:1;">
+          <div style="font-size:12px;font-weight:600;color:#1e293b;">Primeiro atendimento · Nayara Isidoro</div>
+          <div style="font-size:10px;color:#64748b;">10:00</div>
+          <div style="display:inline-block;background:#ede9fe;color:#7c3aed;font-size:9px;font-weight:600;padding:2px 6px;border-radius:4px;margin-top:3px;">Reunião</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>C — Lista Cronológica (igual atual, melhorada)</h3>
+      <p>Mantém o layout de lista de "Próximos Eventos" que já existe na sidebar do desktop, mas ocupa a tela toda no mobile. Simples e familiar para o usuário.</p>
+      <div class="pros-cons" style="font-size:11px;">
+        <div class="pros"><h4>Prós</h4><ul><li>Já existe (reaproveitamento)</li><li>Sem surpresa para o usuário</li><li>Implementação rápida</li></ul></div>
+        <div class="cons"><h4>Contras</h4><ul><li>Sem noção de semana/mês</li><li>Sem horário visual</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<p class="subtitle" style="margin-top:16px;">Selecione a opção preferida e responda no terminal. Você também pode combinar elementos (ex: "B mas com botão para mudar a semana").</p>

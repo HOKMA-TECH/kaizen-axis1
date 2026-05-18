@@ -130,19 +130,14 @@ Deno.serve(async (req: Request) => {
     return jsonResponse({ message: 'Muitas tentativas. Aguarde antes de tentar novamente.' }, 429);
   }
 
+  // CAPTCHA already verified above by this function — do NOT forward the token
+  // to Supabase Auth, which would try to verify it a second time (tokens are single-use).
   const authPayload: Record<string, unknown> = { email, password };
-  if (captchaToken) {
-    authPayload.captcha_token = captchaToken;
-    authPayload.gotrue_meta_security = { captcha_token: captchaToken };
-  }
 
   const authHeaders: Record<string, string> = {
     'Content-Type': 'application/json',
     apikey: anonKey,
   };
-  if (captchaToken) {
-    authHeaders['x-captcha-token'] = captchaToken;
-  }
 
   const authRes = await fetch(`${supabaseUrl}/auth/v1/token?grant_type=password`, {
     method: 'POST',

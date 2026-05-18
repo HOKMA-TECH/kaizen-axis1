@@ -1,0 +1,93 @@
+<h2>Clientes — Filtro de Etapas no Mobile</h2>
+<p class="subtitle">Atualmente os pills quebram em 3+ linhas no mobile. Qual abordagem para organizar os filtros?</p>
+
+<div class="cards">
+
+  <div class="card" data-choice="a" onclick="toggleSelect(this)">
+    <div class="card-image" style="background:#f8fafc;padding:12px;border-radius:8px;">
+      <!-- Mock: horizontal scroll -->
+      <div style="font-size:9px;color:#94a3b8;margin-bottom:6px;">← deslize para ver mais →</div>
+      <div style="display:flex;gap:6px;overflow:hidden;padding-bottom:4px;">
+        <div style="flex-shrink:0;background:#d97706;color:white;border-radius:20px;padding:5px 12px;font-size:11px;font-weight:600;white-space:nowrap;">Todos (682)</div>
+        <div style="flex-shrink:0;background:#f1f5f9;color:#64748b;border:1px solid #e2e8f0;border-radius:20px;padding:5px 12px;font-size:11px;white-space:nowrap;">Documentação</div>
+        <div style="flex-shrink:0;background:#f1f5f9;color:#64748b;border:1px solid #e2e8f0;border-radius:20px;padding:5px 12px;font-size:11px;white-space:nowrap;">Em Análise</div>
+        <div style="flex-shrink:0;background:#f1f5f9;color:#64748b;border:1px solid #e2e8f0;border-radius:20px;padding:5px 12px;font-size:11px;white-space:nowrap;">Aprovado</div>
+        <div style="flex-shrink:0;background:#f1f5f9;color:#64748b;border:1px solid #e2e8f0;border-radius:20px;padding:5px 10px;font-size:11px;white-space:nowrap;">...</div>
+      </div>
+      <div style="height:2px;background:linear-gradient(to right,#d97706,#d9770640);border-radius:2px;margin-top:2px;width:60%;"></div>
+    </div>
+    <div class="card-body">
+      <h3>A — Scroll Horizontal</h3>
+      <p>Uma única linha com scroll. Todos os filtros ficam na mesma fila, sem quebra de linha. O usuário desliza para ver as demais opções.</p>
+      <div class="pros-cons" style="font-size:11px;">
+        <div class="pros"><h4>Prós</h4><ul><li>Compact — 1 linha só</li><li>Familiar (padrão mobile)</li><li>Mudança mínima no código</li></ul></div>
+        <div class="cons"><h4>Contras</h4><ul><li>Etapas fora da tela ficam ocultas</li><li>Sem indicador claro de mais opções</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" data-choice="b" onclick="toggleSelect(this)">
+    <div class="card-image" style="background:#f8fafc;padding:12px;border-radius:8px;">
+      <!-- Mock: 2 pills visible + dropdown -->
+      <div style="display:flex;gap:6px;align-items:center;">
+        <div style="flex-shrink:0;background:#d97706;color:white;border-radius:20px;padding:5px 12px;font-size:11px;font-weight:600;">Todos (682)</div>
+        <div style="flex-shrink:0;background:#f1f5f9;color:#64748b;border:1px solid #e2e8f0;border-radius:20px;padding:5px 12px;font-size:11px;">Documentação</div>
+        <div style="flex-shrink:0;background:#f1f5f9;color:#64748b;border:1px solid #e2e8f0;border-radius:20px;padding:5px 10px;font-size:11px;display:flex;align-items:center;gap:3px;">
+          Mais <span style="font-size:9px;">▼</span>
+        </div>
+      </div>
+      <!-- Dropdown expanded -->
+      <div style="margin-top:6px;background:white;border:1px solid #e2e8f0;border-radius:12px;padding:8px;box-shadow:0 4px 12px rgba(0,0,0,.1);">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;">
+          <div style="background:#f1f5f9;color:#64748b;border-radius:8px;padding:5px 8px;font-size:10px;text-align:center;">Em Análise</div>
+          <div style="background:#f1f5f9;color:#64748b;border-radius:8px;padding:5px 8px;font-size:10px;text-align:center;">Aprovado</div>
+          <div style="background:#f1f5f9;color:#64748b;border-radius:8px;padding:5px 8px;font-size:10px;text-align:center;">Condicionado</div>
+          <div style="background:#f1f5f9;color:#64748b;border-radius:8px;padding:5px 8px;font-size:10px;text-align:center;">Reprovado</div>
+          <div style="background:#f1f5f9;color:#64748b;border-radius:8px;padding:5px 8px;font-size:10px;text-align:center;">Agendamento</div>
+          <div style="background:#f1f5f9;color:#64748b;border-radius:8px;padding:5px 8px;font-size:10px;text-align:center;">Contrato</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B — 2 Pills + "Mais ▼" Dropdown</h3>
+      <p>Mostra "Todos" e "Documentação" fixos. Um botão "Mais" abre um dropdown com grade de 2 colunas listando todas as demais etapas.</p>
+      <div class="pros-cons" style="font-size:11px;">
+        <div class="pros"><h4>Prós</h4><ul><li>Sempre 1 linha, nunca quebra</li><li>Todas as etapas acessíveis</li></ul></div>
+        <div class="cons"><h4>Contras</h4><ul><li>Etapas menos acessadas ficam no dropdown</li><li>Mais interação para filtrar</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" data-choice="c" onclick="toggleSelect(this)">
+    <div class="card-image" style="background:#f8fafc;padding:12px;border-radius:8px;">
+      <!-- Mock: single select button -->
+      <div style="display:flex;align-items:center;gap:8px;">
+        <div style="flex:1;background:white;border:1px solid #e2e8f0;border-radius:12px;padding:8px 14px;display:flex;justify-content:space-between;align-items:center;font-size:12px;color:#1e293b;font-weight:500;box-shadow:0 1px 3px rgba(0,0,0,.08);">
+          <span>Todos (682)</span>
+          <span style="font-size:10px;color:#94a3b8;">▼</span>
+        </div>
+        <div style="background:white;border:1px solid #e2e8f0;border-radius:12px;padding:8px;box-shadow:0 1px 3px rgba(0,0,0,.08);">
+          <span style="font-size:14px;">⊞</span>
+        </div>
+      </div>
+      <!-- Dropdown sheet -->
+      <div style="margin-top:6px;background:white;border:1px solid #e2e8f0;border-radius:12px;padding:6px;box-shadow:0 4px 12px rgba(0,0,0,.1);">
+        <div style="padding:6px 10px;font-size:11px;font-weight:600;color:#d97706;border-radius:8px;background:#fef3c7;margin-bottom:4px;">✓ Todos (682)</div>
+        <div style="padding:6px 10px;font-size:11px;color:#475569;">Documentação</div>
+        <div style="padding:6px 10px;font-size:11px;color:#475569;">Em Análise</div>
+        <div style="padding:6px 10px;font-size:11px;color:#475569;">Aprovado</div>
+        <div style="padding:6px 10px;font-size:11px;color:#94a3b8;font-style:italic;">+ 6 mais…</div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>C — Botão Único + Sheet</h3>
+      <p>Um único botão mostrando o filtro ativo. Clicou → abre um sheet/dropdown com todas as etapas em lista. Limpo e compacto.</p>
+      <div class="pros-cons" style="font-size:11px;">
+        <div class="pros"><h4>Prós</h4><ul><li>1 elemento só — máxima compactação</li><li>Sem overflow possível</li><li>Fácil de escanear em lista</li></ul></div>
+        <div class="cons"><h4>Contras</h4><ul><li>Etapas ficam "escondidas"</li><li>Muda mais a UX atual</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+<p class="subtitle" style="margin-top:16px;">Selecione e responda no terminal. Pode combinar (ex: "A mas com sombra indicando mais items").</p>
