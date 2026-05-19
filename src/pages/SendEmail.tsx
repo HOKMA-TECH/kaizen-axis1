@@ -6,6 +6,7 @@ import { Client } from '@/data/clients';
 import { EmailInput } from '@/components/ui/EmailInput';
 import { useApp } from '@/context/AppContext';
 import { supabase } from '@/lib/supabase';
+import { buildAuthenticatedFunctionHeaders } from '@/lib/supabase-functions';
 import { logAuditEvent } from '@/services/auditLogger';
 
 interface Attachment {
@@ -189,6 +190,11 @@ ${proponentsBlock}`;
     setIsSending(true);
     try {
       const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
+      const { data: { session } } = await supabase.auth.getSession();
+      const functionHeaders = buildAuthenticatedFunctionHeaders({
+        accessToken: session?.access_token,
+        anonKey: SUPABASE_ANON_KEY,
+      });
 
       // Build base64 attachments
       const resendAttachments: { filename: string; content: string }[] = [];
@@ -219,14 +225,10 @@ ${proponentsBlock}`;
 
             // Fluxo definitivo: somente função segura v2 (documentId + RLS)
             let attachSignedUrl: string | null = null;
-            const { data: { session } } = await supabase.auth.getSession();
             if (session?.access_token) {
               try {
                 const { data: v2Data, error: v2Error } = await supabase.functions.invoke('get-doc-url-v2', {
-                  headers: {
-                    Authorization: `Bearer ${session.access_token}`,
-                    apikey: SUPABASE_ANON_KEY,
-                  },
+                  headers: functionHeaders,
                   body: { documentId: att.document_id, rawPath: att.file_path, expiresIn: 300 },
                 });
                 if (!v2Error) {
@@ -262,6 +264,7 @@ ${proponentsBlock}`;
       }
 
       const { data, error: invokeError } = await supabase.functions.invoke('send-email', {
+        headers: functionHeaders,
         body: {
           to,
           cc,
