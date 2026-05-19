@@ -11,7 +11,7 @@ const corsHeaders = {
 };
 
 const MAX_RECIPIENTS = 5;
-const MAX_ATTACHMENTS = 5;
+const MAX_ATTACHMENTS = 20;
 const MAX_TOTAL_ATTACHMENT_BYTES = 10 * 1024 * 1024; // 10 MB (base64 ~33% overhead)
 const RATE_LIMIT_PER_MIN = 5;
 const DAILY_LIMIT = 50;
