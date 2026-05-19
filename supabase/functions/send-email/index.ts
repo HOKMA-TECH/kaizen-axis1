@@ -12,7 +12,7 @@ const corsHeaders = {
 
 const MAX_RECIPIENTS = 5;
 const MAX_ATTACHMENTS = 20;
-const MAX_TOTAL_ATTACHMENT_BYTES = 10 * 1024 * 1024; // 10 MB (base64 ~33% overhead)
+const MAX_TOTAL_ATTACHMENT_BYTES = 40 * 1024 * 1024; // 40 MB total (base64 ~33% overhead)
 const RATE_LIMIT_PER_MIN = 5;
 const DAILY_LIMIT = 50;
 // Conservative email regex: local@domain.tld — avoids obvious junk
@@ -130,7 +130,7 @@ Deno.serve(async (req: Request) => {
     const estimated = Math.ceil(att.content.length * 0.75);
     totalBytes += estimated;
     if (totalBytes > MAX_TOTAL_ATTACHMENT_BYTES) {
-      return jsonResponse({ error: 'Anexos excedem o tamanho máximo permitido (10 MB)', resend_ok: false }, 400);
+      return jsonResponse({ error: 'Anexos excedem o tamanho máximo permitido (40 MB)', resend_ok: false }, 400);
     }
     const safeFilename = att.filename.replace(/[^\w.\-]/g, '_').slice(0, 100);
     attachments.push({ filename: safeFilename, content: att.content });
