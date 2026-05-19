@@ -188,7 +188,6 @@ ${proponentsBlock}`;
 
     setIsSending(true);
     try {
-      const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
       const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
       // Build base64 attachments
@@ -262,32 +261,22 @@ ${proponentsBlock}`;
         }
       }
 
-      const { data: { session: emailSession } } = await supabase.auth.getSession();
-      const res = await fetch(`${SUPABASE_URL}/functions/v1/send-email`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'apikey': SUPABASE_ANON_KEY,
-          ...(emailSession?.access_token ? { Authorization: `Bearer ${emailSession.access_token}` } : {}),
-        },
-        body: JSON.stringify({
+      const { data, error: invokeError } = await supabase.functions.invoke('send-email', {
+        body: {
           to,
           cc,
           bcc,
           subject,
           text: body,
           attachments: resendAttachments,
-        }),
+        },
       });
 
-      if (!res.ok) {
-        const errData = await res.json().catch(() => ({}));
-        throw new Error(errData.error || `Erro HTTP ${res.status}`);
+      if (invokeError) {
+        throw new Error(invokeError.message || 'Erro ao chamar função de envio.');
       }
 
-      const data = await res.json();
-
-      if (data.error || (data.resend_ok === false)) {
+      if (data?.error || (data?.resend_ok === false)) {
         const resendMsg = data.error
           || data.resend_data?.message
           || data.resend_data?.name
