@@ -33,13 +33,6 @@ Deno.serve(async (req: Request) => {
     return jsonResponse({ error: 'Método não permitido' }, 405);
   }
 
-  // ── Anon key check ────────────────────────────────────────────────────────
-  const apiKey = req.headers.get('apikey');
-  const expectedKey = Deno.env.get('SUPABASE_ANON_KEY');
-  if (!apiKey || !expectedKey || apiKey !== expectedKey) {
-    return jsonResponse({ error: 'Não autorizado', resend_ok: false }, 401);
-  }
-
   // ── JWT auth (required) ───────────────────────────────────────────────────
   const authHeader = req.headers.get('Authorization');
   if (!authHeader?.startsWith('Bearer ')) {
