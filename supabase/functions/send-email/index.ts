@@ -137,7 +137,7 @@ Deno.serve(async (req: Request) => {
   }
 
   // ── Send via Resend ───────────────────────────────────────────────────────
-  const RESEND_FROM = Deno.env.get('RESEND_FROM_EMAIL') ?? 'noreply@kaizenaxis.com.br';
+  const RESEND_FROM = Deno.env.get('RESEND_FROM_EMAIL') ?? 'noreply@kaizen-axis.space';
 
   const resendPayload: Record<string, unknown> = {
     from: RESEND_FROM,
