@@ -273,7 +273,16 @@ ${proponentsBlock}`;
       });
 
       if (invokeError) {
-        throw new Error(invokeError.message || 'Erro ao chamar função de envio.');
+        // Tenta extrair mensagem real do corpo da resposta
+        let errorMsg = invokeError.message || 'Erro ao chamar função de envio.';
+        try {
+          const ctx = (invokeError as any).context;
+          if (ctx) {
+            const parsed = typeof ctx === 'string' ? JSON.parse(ctx) : await ctx.json?.();
+            if (parsed?.error) errorMsg = parsed.error;
+          }
+        } catch { /* usa mensagem padrão */ }
+        throw new Error(errorMsg);
       }
 
       if (data?.error || (data?.resend_ok === false)) {
