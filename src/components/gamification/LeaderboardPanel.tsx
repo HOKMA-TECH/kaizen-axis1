@@ -12,30 +12,30 @@ export function LeaderboardPanel() {
 
     if (loading) {
         return (
-            <div className="bg-white/80 backdrop-blur-md rounded-2xl shadow-xl border border-gray-100 p-6 flex items-center justify-center min-h-[400px]">
+            <div className="bg-card-bg/80 backdrop-blur-md rounded-2xl shadow-xl border border-line-subtle p-6 flex items-center justify-center min-h-[400px]">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-500"></div>
             </div>
         );
     }
 
     return (
-        <div className="bg-white/80 backdrop-blur-md rounded-2xl shadow-xl border border-gray-100 overflow-hidden flex flex-col h-full">
-            <div className="p-6 border-b border-gray-100 bg-gradient-to-br from-indigo-50 to-white">
+        <div className="bg-card-bg/80 backdrop-blur-md rounded-2xl shadow-xl border border-line-subtle overflow-hidden flex flex-col h-full">
+            <div className="p-6 border-b border-line-subtle bg-gradient-to-br from-indigo-50/40 dark:from-indigo-900/20 to-transparent">
                 <div className="flex items-center space-x-3 mb-2">
                     <div className="p-2 bg-indigo-100 text-indigo-600 rounded-xl">
                         <Trophy className="w-5 h-5" />
                     </div>
-                    <h2 className="text-xl font-bold text-gray-800">Ranking Global</h2>
+                    <h2 className="text-xl font-bold text-text-primary">Ranking Global</h2>
                 </div>
-                <p className="text-sm text-gray-500">
+                <p className="text-sm text-text-secondary">
                     Posição baseada em valor de vendas, pontos e consistência (Streaks).
                 </p>
             </div>
 
             <div className="flex-1 overflow-y-auto p-4 space-y-3">
                 {leaderboard.length === 0 ? (
-                    <div className="text-center py-10 text-gray-500 flex flex-col items-center">
-                        <Trophy className="w-12 h-12 text-gray-300 mb-3" />
+                    <div className="text-center py-10 text-text-secondary flex flex-col items-center">
+                        <Trophy className="w-12 h-12 text-text-secondary/40 mb-3" />
                         <p>Nenhuma venda registrada no ranking ainda.</p>
                     </div>
                 ) : (
@@ -51,7 +51,7 @@ export function LeaderboardPanel() {
                                 className={`relative flex items-center p-4 rounded-xl border transition-all duration-300 hover:shadow-md ${index === 0 ? 'bg-gradient-to-r from-amber-50 to-yellow-50/50 border-amber-200' :
                                         index === 1 ? 'bg-gradient-to-r from-slate-50 to-gray-50 border-slate-200' :
                                             index === 2 ? 'bg-gradient-to-r from-orange-50 to-amber-50/30 border-orange-200' :
-                                                'bg-white border-gray-100 hover:border-indigo-100'
+                                                'bg-card-bg border-line-subtle hover:border-indigo-300 dark:hover:border-indigo-800'
                                     }`}
                             >
                                 {/* Pos */}
@@ -59,21 +59,21 @@ export function LeaderboardPanel() {
                                     {index === 0 ? <Medal className="w-6 h-6 text-amber-500" /> :
                                         index === 1 ? <Medal className="w-6 h-6 text-slate-400" /> :
                                             index === 2 ? <Medal className="w-6 h-6 text-orange-400" /> :
-                                                <span className="text-lg font-bold text-gray-400">#{index + 1}</span>}
+                                                <span className="text-lg font-bold text-text-secondary">#{index + 1}</span>}
                                 </div>
 
                                 {/* Avatar & Name */}
                                 <div className="ml-2 flex items-center flex-1">
                                     {entry.avatar_url ? (
-                                        <img src={entry.avatar_url} alt={entry.user_name || '—'} className="w-10 h-10 rounded-full border-2 border-white shadow-sm object-cover" />
+                                        <img src={entry.avatar_url} alt={entry.user_name || '—'} className="w-10 h-10 rounded-full border-2 border-card-bg shadow-sm object-cover" />
                                     ) : (
-                                        <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold shadow-sm ${index === 0 ? 'bg-amber-500' : index === 1 ? 'bg-slate-400' : index === 2 ? 'bg-orange-400' : 'bg-gray-300'
+                                        <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold shadow-sm ${index === 0 ? 'bg-amber-500' : index === 1 ? 'bg-slate-400' : index === 2 ? 'bg-orange-400' : 'bg-surface-400'
                                             }`}>
                                             {(entry.user_name || '?').charAt(0).toUpperCase()}
                                         </div>
                                     )}
                                     <div className="ml-3">
-                                        <p className={`font-semibold ${isTop3 ? 'text-gray-900' : 'text-gray-700'}`}>
+                                        <p className={`font-semibold text-text-primary`}>
                                             {entry.user_name}
                                         </p>
                                         <div className="flex items-center text-xs space-x-3 mt-0.5">
@@ -94,7 +94,7 @@ export function LeaderboardPanel() {
                                     <p className="text-sm font-bold text-indigo-700">
                                         {Math.floor(rankingScore).toLocaleString('pt-BR')} Score
                                     </p>
-                                    <p className="text-xs text-gray-500 mt-1 flex items-center justify-end">
+                                    <p className="text-xs text-text-secondary mt-1 flex items-center justify-end">
                                         <TrendingUp className="w-3 h-3 mr-1" />
                                         R$ {(totalValue / 1000).toFixed(0)}k vol.
                                     </p>
