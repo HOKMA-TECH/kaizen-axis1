@@ -219,7 +219,7 @@ export function ChatInfoModal({
                         <p className="text-xs text-text-secondary truncate">{roleLabel(member.role)}</p>
                       </div>
                       {isAdmin && (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-primary-50 px-2 py-1 text-[10px] font-semibold text-primary-700">
+                        <span className="inline-flex items-center gap-1 rounded-full bg-primary-50 dark:bg-primary-900/30 px-2 py-1 text-[10px] font-semibold text-primary-700 dark:text-primary-300">
                           <Shield size={11} /> Admin
                         </span>
                       )}
@@ -228,7 +228,7 @@ export function ChatInfoModal({
                           type="button"
                           onClick={() => onRemoveGroupMember?.(member.id)}
                           disabled={removingMemberId === member.id}
-                          className="w-8 h-8 rounded-full bg-red-50 text-red-600 hover:bg-red-100 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center transition-colors"
+                          className="w-8 h-8 rounded-full bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center transition-colors"
                           title="Remover do grupo"
                         >
                           {removingMemberId === member.id ? (
@@ -249,7 +249,7 @@ export function ChatInfoModal({
                 type="button"
                 onClick={onLeaveGroup}
                 disabled={leavingGroup}
-                className="mt-5 w-full inline-flex items-center justify-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-semibold text-red-600 hover:bg-red-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="mt-5 w-full inline-flex items-center justify-center gap-2 rounded-xl border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20 px-4 py-2.5 text-sm font-semibold text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 {leavingGroup ? (
                   <span className="w-4 h-4 rounded-full border-2 border-red-300 border-t-red-600 animate-spin" />
