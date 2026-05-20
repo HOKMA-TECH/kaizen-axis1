@@ -20,13 +20,13 @@ const timeAgo = (dateStr: string) => {
 // Map notification type to icon and colors
 const getTypeConfig = (type: string) => {
     switch (type) {
-        case 'lead': return { icon: <UserPlus size={16} />, color: 'text-blue-500', bg: 'bg-blue-50' };
-        case 'chat': return { icon: <MessageCircle size={16} />, color: 'text-green-500', bg: 'bg-green-50' };
-        case 'aviso': return { icon: <AlertTriangle size={16} />, color: 'text-red-500', bg: 'bg-red-50' };
-        case 'meta': return { icon: <Target size={16} />, color: 'text-purple-500', bg: 'bg-purple-50' };
-        case 'missao': return { icon: <Briefcase size={16} />, color: 'text-indigo-500', bg: 'bg-indigo-50' };
-        case 'anuncio': return { icon: <Megaphone size={16} />, color: 'text-orange-500', bg: 'bg-orange-50' };
-        default: return { icon: <Info size={16} />, color: 'text-gray-500', bg: 'bg-gray-50' };
+        case 'lead':    return { icon: <UserPlus size={16} />,     color: 'text-blue-500',         bg: 'bg-blue-50 dark:bg-blue-900/30' };
+        case 'chat':    return { icon: <MessageCircle size={16} />, color: 'text-green-500',        bg: 'bg-green-50 dark:bg-green-900/30' };
+        case 'aviso':   return { icon: <AlertTriangle size={16} />, color: 'text-red-500',          bg: 'bg-red-50 dark:bg-red-900/30' };
+        case 'meta':    return { icon: <Target size={16} />,        color: 'text-purple-500',       bg: 'bg-purple-50 dark:bg-purple-900/30' };
+        case 'missao':  return { icon: <Briefcase size={16} />,     color: 'text-indigo-500',       bg: 'bg-indigo-50 dark:bg-indigo-900/30' };
+        case 'anuncio': return { icon: <Megaphone size={16} />,     color: 'text-orange-500',       bg: 'bg-orange-50 dark:bg-orange-900/30' };
+        default:        return { icon: <Info size={16} />,          color: 'text-text-secondary',   bg: 'bg-subtle-bg' };
     }
 };
 
