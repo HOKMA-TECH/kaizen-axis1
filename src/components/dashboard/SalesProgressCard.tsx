@@ -74,8 +74,8 @@ export function SalesProgressCard() {
     <div
       className={`rounded-2xl border p-5 shadow-sm transition-all duration-300 ${
         hasSales
-          ? 'bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-800'
-          : 'bg-red-50 dark:bg-red-900 border-red-200 dark:border-red-700'
+          ? 'bg-green-50 dark:bg-green-900 border-green-200 dark:border-green-600'
+          : 'bg-red-50 dark:bg-red-800 border-red-200 dark:border-red-600'
       }`}
     >
       {/* Header */}
@@ -84,29 +84,29 @@ export function SalesProgressCard() {
           <h3 className="font-bold text-text-primary text-base">Progresso do Mês</h3>
           <p className="text-xs text-text-secondary capitalize">{monthName}</p>
         </div>
-        <div className={`p-2 rounded-xl ${hasSales ? 'bg-green-100 dark:bg-green-900/40' : 'bg-red-100 dark:bg-red-800'}`}>
+        <div className={`p-2 rounded-xl ${hasSales ? 'bg-green-100 dark:bg-green-700' : 'bg-red-100 dark:bg-red-700'}`}>
           {hasSales
-            ? <TrendingUp size={20} className="text-green-600 dark:text-green-400" />
-            : <AlertTriangle size={20} className="text-red-500 dark:text-red-400" />
+            ? <TrendingUp size={20} className="text-green-600 dark:text-green-200" />
+            : <AlertTriangle size={20} className="text-red-500 dark:text-red-200" />
           }
         </div>
       </div>
 
       {/* Summary indicators */}
-      <div className="flex items-stretch mb-3 rounded-xl overflow-hidden border border-black/5 dark:border-white/5 bg-black/5 dark:bg-white/5">
+      <div className="flex items-stretch mb-3 rounded-xl overflow-hidden border border-black/5 dark:border-black/20 bg-black/5 dark:bg-black/20">
         <div className="flex-1 flex flex-col items-center justify-center py-3 px-2 gap-0.5">
           <p className="text-[10px] font-semibold text-text-secondary uppercase tracking-wider">Vendas</p>
           <p className="text-xl font-bold text-text-primary">{monthlySales.length}</p>
         </div>
-        <div className="w-px bg-black/10 dark:bg-white/10" />
+        <div className="w-px bg-black/10 dark:bg-black/30" />
         <div className="flex-1 flex flex-col items-center justify-center py-3 px-2 gap-0.5">
           <p className="text-[10px] font-semibold text-text-secondary uppercase tracking-wider">VGV Total</p>
           <p className="text-sm font-bold text-text-primary">{formatBRL(totalVGV)}</p>
         </div>
-        <div className="w-px bg-black/10 dark:bg-white/10" />
+        <div className="w-px bg-black/10 dark:bg-black/30" />
         <div className="flex-1 flex flex-col items-center justify-center py-3 px-2 gap-0.5">
           <p className="text-[10px] font-semibold text-text-secondary uppercase tracking-wider">Comissão Prevista</p>
-          <p className="text-sm font-bold text-green-600 dark:text-green-400">{formatBRL(totalCommission)}</p>
+          <p className="text-sm font-bold text-green-600 dark:text-green-200">{formatBRL(totalCommission)}</p>
         </div>
       </div>
 
@@ -114,24 +114,24 @@ export function SalesProgressCard() {
       {hasTeamCommission && hasSales && (ownSales.length > 0 || teamSales.length > 0) && (
         <div className="flex gap-2 mb-4">
           {ownSales.length > 0 && (
-            <div className="flex-1 flex items-center gap-2 bg-white dark:bg-surface-900 rounded-xl px-3 py-2 border border-green-100 dark:border-green-900/40">
-              <div className="w-6 h-6 rounded-full bg-gold-100 dark:bg-gold-900/40 flex items-center justify-center flex-shrink-0">
-                <User size={11} className="text-gold-600" />
+            <div className="flex-1 flex items-center gap-2 bg-white dark:bg-green-950 rounded-xl px-3 py-2 border border-green-100 dark:border-green-700">
+              <div className="w-6 h-6 rounded-full bg-gold-100 dark:bg-gold-800 flex items-center justify-center flex-shrink-0">
+                <User size={11} className="text-gold-600 dark:text-gold-300" />
               </div>
               <div className="min-w-0">
                 <p className="text-[10px] text-text-secondary font-medium">Própria ({ownSales.length})</p>
-                <p className="text-xs font-bold text-green-600 dark:text-green-400 truncate">{formatBRL(ownCommission)}</p>
+                <p className="text-xs font-bold text-green-600 dark:text-green-300 truncate">{formatBRL(ownCommission)}</p>
               </div>
             </div>
           )}
           {teamSales.length > 0 && (
-            <div className="flex-1 flex items-center gap-2 bg-white dark:bg-surface-900 rounded-xl px-3 py-2 border border-blue-100 dark:border-blue-900/40">
-              <div className="w-6 h-6 rounded-full bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center flex-shrink-0">
-                <Users size={11} className="text-blue-600" />
+            <div className="flex-1 flex items-center gap-2 bg-white dark:bg-blue-950 rounded-xl px-3 py-2 border border-blue-100 dark:border-blue-700">
+              <div className="w-6 h-6 rounded-full bg-blue-100 dark:bg-blue-800 flex items-center justify-center flex-shrink-0">
+                <Users size={11} className="text-blue-600 dark:text-blue-300" />
               </div>
               <div className="min-w-0">
                 <p className="text-[10px] text-text-secondary font-medium">Equipe ({teamSales.length})</p>
-                <p className="text-xs font-bold text-blue-600 dark:text-blue-400 truncate">{formatBRL(teamCommission)}</p>
+                <p className="text-xs font-bold text-blue-600 dark:text-blue-300 truncate">{formatBRL(teamCommission)}</p>
               </div>
             </div>
           )}
@@ -141,8 +141,8 @@ export function SalesProgressCard() {
       {/* Sales list or empty state */}
       {!hasSales ? (
         <div className="flex flex-col items-center justify-center py-4 gap-2">
-          <AlertTriangle size={28} className="text-red-400" />
-          <p className="text-sm font-semibold text-red-600 dark:text-red-400 text-center">
+          <AlertTriangle size={28} className="text-red-400 dark:text-red-200" />
+          <p className="text-sm font-semibold text-red-600 dark:text-red-200 text-center">
             Nenhuma venda realizada neste mês
           </p>
           <p className="text-xs text-text-secondary text-center">Bora fechar negócio!</p>
@@ -172,10 +172,10 @@ export function SalesProgressCard() {
             return (
               <div
                 key={c.id}
-                className={`bg-white dark:bg-surface-900 rounded-xl px-3 py-2.5 shadow-xs border ${
+                className={`bg-white dark:bg-green-950 rounded-xl px-3 py-2.5 shadow-xs border ${
                   isOwn
-                    ? 'border-green-100 dark:border-green-900/40'
-                    : 'border-blue-100 dark:border-blue-900/40'
+                    ? 'border-green-100 dark:border-green-700'
+                    : 'border-blue-100 dark:border-blue-700'
                 }`}
               >
                 <div className="flex items-start justify-between gap-2">
@@ -185,8 +185,8 @@ export function SalesProgressCard() {
                       {hasTeamCommission && (
                         <span className={`flex-shrink-0 text-[9px] font-bold px-1.5 py-px rounded-full ${
                           isOwn
-                            ? 'bg-gold-100 text-gold-700 dark:bg-gold-900/30 dark:text-gold-400'
-                            : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
+                            ? 'bg-gold-100 text-gold-700 dark:bg-gold-800 dark:text-gold-200'
+                            : 'bg-blue-100 text-blue-700 dark:bg-blue-800 dark:text-blue-200'
                         }`}>
                           {isOwn ? 'Própria' : ownerProfile?.name ?? 'Equipe'}
                         </span>
@@ -198,8 +198,8 @@ export function SalesProgressCard() {
                     <p className="text-xs font-medium text-text-primary">{formatBRL(vgv)}</p>
                     <p className={`text-[11px] font-semibold ${
                       isOwn
-                        ? 'text-green-600 dark:text-green-400'
-                        : 'text-blue-600 dark:text-blue-400'
+                        ? 'text-green-600 dark:text-green-300'
+                        : 'text-blue-600 dark:text-blue-300'
                     }`}>{formatBRL(comissao)}</p>
                   </div>
                 </div>
