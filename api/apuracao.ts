@@ -674,8 +674,12 @@ function classificar(
     }
 
     // 3. Sem keyword de crédito
+    // Para MercadoPago: o parser já marca saídas como valor negativo (isDebitoMercadoPago).
+    // Toda transação que chega aqui tem valor > 0 (linha 641 elimina ≤0 como débito).
+    // Portanto não é necessário exigir keyword de crédito — qualquer positivo que passou
+    // pelos filtros de ignore é uma entrada válida.
     const temCredito = bankDetected === 'mercadopago'
-        ? isMercadoPagoCredito(descNorm)
+        ? true
         : (bankDetected === 'santander' && ehEntradaValidaSantander(descNorm))
             ? true
         : (bankDetected === 'itau_mensal' && ehEntradaValidaItauMensal(descNorm))
@@ -687,9 +691,10 @@ function classificar(
 
     // Proteção: renda laboral comprovada → pula verificação de nome/CPF
     const ehRendaLaboral = INCOME_KEYWORDS_NOMES_NORM.some(k => k && descNorm.includes(k));
-    const pularAutoTransferMercadoPago =
-        bankDetected === 'mercadopago' &&
-        /TRANSFERENCIA\s+PIX\s+RECEBIDA|DINHEIRO\s+RECEBIDO|PAGAMENTO\s+RECEBIDO|QR\s+RECEBIDO|PIX\s+RECEBID|TRANSFERENCIA\s+RECEBIDA|DEPOSITO|TED\s+RECEBID|DOC\s+RECEBID/.test(descNorm);
+    // Para MercadoPago: a detecção de auto-transferência por nome é inválida quando o parser
+    // extrai apenas o nome do remetente como descrição (sem o prefixo "Transferência recebida").
+    // O parser já garante valor negativo para saídas via isDebitoMercadoPago.
+    const pularAutoTransferMercadoPago = bankDetected === 'mercadopago';
 
     const pularAutoTransferSantanderRecebido =
         bankDetected === 'santander' &&
