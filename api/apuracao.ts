@@ -689,7 +689,7 @@ function classificar(
     const ehRendaLaboral = INCOME_KEYWORDS_NOMES_NORM.some(k => k && descNorm.includes(k));
     const pularAutoTransferMercadoPago =
         bankDetected === 'mercadopago' &&
-        /TRANSFERENCIA\s+PIX\s+RECEBIDA|DINHEIRO\s+RECEBIDO|PAGAMENTO\s+RECEBIDO|QR\s+RECEBIDO/.test(descNorm);
+        /TRANSFERENCIA\s+PIX\s+RECEBIDA|DINHEIRO\s+RECEBIDO|PAGAMENTO\s+RECEBIDO|QR\s+RECEBIDO|PIX\s+RECEBID|TRANSFERENCIA\s+RECEBIDA|DEPOSITO|TED\s+RECEBID|DOC\s+RECEBID/.test(descNorm);
 
     const pularAutoTransferSantanderRecebido =
         bankDetected === 'santander' &&
