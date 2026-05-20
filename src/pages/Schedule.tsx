@@ -18,20 +18,20 @@ const HOURS = Array.from({ length: 13 }, (_, i) => i + 7); // 7:00 → 19:00
 const DAY_ABBR = ['DOM', 'SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SÁB'];
 
 const TYPE_PILL: Record<string, string> = {
-  Visita:     'bg-emerald-50 text-emerald-700 border border-emerald-200',
-  Reunião:    'bg-blue-50    text-blue-700    border border-blue-200',
-  Assinatura: 'bg-violet-50  text-violet-700  border border-violet-200',
-  Outro:      'bg-amber-50   text-amber-700   border border-amber-200',
+  Visita:     'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800',
+  Reunião:    'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800',
+  Assinatura: 'bg-violet-50 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300 border border-violet-200 dark:border-violet-800',
+  Outro:      'bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800',
 };
 
 const TYPE_BLOCK: Record<string, string> = {
-  Visita:     'bg-emerald-100 text-emerald-800 border-l-2 border-emerald-400',
-  Reunião:    'bg-blue-100    text-blue-800    border-l-2 border-blue-400',
-  Assinatura: 'bg-violet-100  text-violet-800  border-l-2 border-violet-400',
-  Outro:      'bg-amber-100   text-amber-800   border-l-2 border-amber-400',
+  Visita:     'bg-emerald-100 dark:bg-emerald-900/20 text-emerald-800 dark:text-emerald-200 border-l-2 border-emerald-400',
+  Reunião:    'bg-blue-100 dark:bg-blue-900/20 text-blue-800 dark:text-blue-200 border-l-2 border-blue-400',
+  Assinatura: 'bg-violet-100 dark:bg-violet-900/20 text-violet-800 dark:text-violet-200 border-l-2 border-violet-400',
+  Outro:      'bg-amber-100 dark:bg-amber-900/20 text-amber-800 dark:text-amber-200 border-l-2 border-amber-400',
 };
 
-const FIELD_CLASS = 'w-full h-12 px-3 py-0 bg-gray-50 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-200 text-gray-900 text-sm';
+const FIELD_CLASS = 'w-full h-12 px-3 py-0 bg-subtle-bg rounded-xl border border-line-subtle focus:outline-none focus:ring-2 focus:ring-blue-500/20 text-text-primary text-sm';
 
 // ─── Schedule Page ────────────────────────────────────────────────────────────
 
@@ -169,7 +169,7 @@ export default function Schedule() {
 
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
-    <div className="-mx-2 sm:-mx-4 lg:-mx-6 flex flex-col bg-white"
+    <div className="-mx-2 sm:-mx-4 lg:-mx-6 flex flex-col bg-app-bg"
          style={{ height: 'calc(100vh - 3.5rem)' }}>
 
       {/* ══════════════════════════════════════════════════════════════════
@@ -178,8 +178,8 @@ export default function Schedule() {
       <div className="md:hidden flex-1 flex flex-col overflow-hidden">
 
         {/* Mobile header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 flex-shrink-0">
-          <h1 className="text-lg font-bold text-gray-900">Agenda</h1>
+        <div className="flex items-center justify-between px-4 py-3 border-b border-line-subtle flex-shrink-0">
+          <h1 className="text-lg font-bold text-text-primary">Agenda</h1>
           <div className="flex items-center gap-2">
             {/* Type filter icon */}
             <div className="relative" ref={mobileFilterRef}>
@@ -188,19 +188,19 @@ export default function Schedule() {
                 className={`p-2 rounded-xl border transition-colors ${
                   typeFilter !== 'Todos'
                     ? 'border-blue-400 bg-blue-50 text-blue-600'
-                    : 'border-gray-200 text-gray-500 hover:bg-gray-50'
+                    : 'border-line-subtle text-text-secondary hover:bg-subtle-bg'
                 }`}
               >
                 <Filter size={16} />
               </button>
               {filterOpen && (
-                <div className="absolute right-0 top-full mt-1 w-44 bg-white border border-gray-200 rounded-xl shadow-lg z-50 py-1 overflow-hidden">
+                <div className="absolute right-0 top-full mt-1 w-44 bg-card-bg border border-line-subtle rounded-xl shadow-lg z-50 py-1 overflow-hidden">
                   {(['Todos', 'Visita', 'Reunião', 'Assinatura', 'Outro'] as TypeFilter[]).map(t => (
                     <button
                       key={t}
                       onClick={() => { setTypeFilter(t); setFilterOpen(false); }}
-                      className={`w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors ${
-                        typeFilter === t ? 'text-blue-600 font-semibold bg-blue-50/50' : 'text-gray-700'
+                      className={`w-full text-left px-4 py-2.5 text-sm hover:bg-subtle-bg transition-colors ${
+                        typeFilter === t ? 'text-blue-600 font-semibold bg-blue-50/50' : 'text-text-primary'
                       }`}
                     >
                       {t === 'Todos' ? 'Todos os tipos' : t}
@@ -220,14 +220,14 @@ export default function Schedule() {
         </div>
 
         {/* Week nav + selected date label */}
-        <div className="flex items-center gap-2 px-4 py-2.5 border-b border-gray-100 flex-shrink-0">
-          <button onClick={prevWeek} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500 transition-colors">
+        <div className="flex items-center gap-2 px-4 py-2.5 border-b border-line-subtle flex-shrink-0">
+          <button onClick={prevWeek} className="p-1.5 rounded-lg hover:bg-subtle-bg text-text-secondary transition-colors">
             <ChevronLeft size={16} />
           </button>
-          <span className="flex-1 text-center text-sm font-bold text-gray-800 capitalize">
+          <span className="flex-1 text-center text-sm font-bold text-text-primary capitalize">
             {format(selectedDate, "EEEE, d 'de' MMMM", { locale: ptBR })}
           </span>
-          <button onClick={nextWeek} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500 transition-colors">
+          <button onClick={nextWeek} className="p-1.5 rounded-lg hover:bg-subtle-bg text-text-secondary transition-colors">
             <ChevronRight size={16} />
           </button>
         </div>
@@ -240,8 +240,8 @@ export default function Schedule() {
             </div>
           ) : selectedDayEvents.length === 0 ? (
             <div className="flex flex-col items-center py-12 text-center gap-3">
-              <CalendarIcon size={36} className="text-gray-200" />
-              <p className="text-sm text-gray-400 font-medium">Nenhum evento para este dia</p>
+              <CalendarIcon size={36} className="text-text-secondary/40" />
+              <p className="text-sm text-text-secondary font-medium">Nenhum evento para este dia</p>
               <button
                 onClick={() => handleOpenModal()}
                 className="flex items-center gap-1.5 text-sm font-semibold text-blue-600 hover:text-blue-700 transition-colors"
@@ -254,7 +254,7 @@ export default function Schedule() {
               {selectedDayEvents.map(evt => (
                 <div
                   key={evt.id}
-                  className={`p-3 rounded-2xl border-l-4 bg-white shadow-sm ${
+                  className={`p-3 rounded-2xl border-l-4 bg-card-bg shadow-sm ${
                     evt.type === 'Visita'     ? 'border-l-emerald-400' :
                     evt.type === 'Reunião'    ? 'border-l-blue-400'    :
                     evt.type === 'Assinatura' ? 'border-l-violet-400'  :
@@ -272,16 +272,16 @@ export default function Schedule() {
                   )}
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
-                      <p className={`text-sm font-bold ${evt.completed ? 'line-through text-gray-400' : 'text-gray-800'}`}>
+                      <p className={`text-sm font-bold ${evt.completed ? 'line-through text-text-secondary' : 'text-text-primary'}`}>
                         {evt.title}
                       </p>
                       {evt.client_name && (
-                        <p className="text-xs text-gray-500 mt-0.5">{evt.client_name}</p>
+                        <p className="text-xs text-text-secondary mt-0.5">{evt.client_name}</p>
                       )}
                       <div className="flex items-center gap-2 mt-1 flex-wrap">
-                        <span className="text-xs text-gray-400">{evt.time}</span>
+                        <span className="text-xs text-text-secondary">{evt.time}</span>
                         {evt.location && (
-                          <span className="text-xs text-gray-400 flex items-center gap-0.5">
+                          <span className="text-xs text-text-secondary flex items-center gap-0.5">
                             <MapPin size={10} />{evt.location}
                           </span>
                         )}
@@ -291,22 +291,22 @@ export default function Schedule() {
                       {evt.type}
                     </span>
                   </div>
-                  <div className="flex gap-4 mt-2.5 pt-2 border-t border-gray-100">
+                  <div className="flex gap-4 mt-2.5 pt-2 border-t border-line-subtle">
                     <button
                       onClick={() => handleOpenModal(evt)}
-                      className="text-xs text-gray-500 hover:text-blue-600 font-semibold transition-colors"
+                      className="text-xs text-text-secondary hover:text-blue-600 font-semibold transition-colors"
                     >
                       Editar
                     </button>
                     <button
                       onClick={() => toggleComplete(evt)}
-                      className="text-xs text-gray-500 hover:text-emerald-600 font-semibold transition-colors"
+                      className="text-xs text-text-secondary hover:text-emerald-600 font-semibold transition-colors"
                     >
                       {evt.completed ? 'Reabrir' : 'Concluir'}
                     </button>
                     <button
                       onClick={() => handleDelete(evt.id)}
-                      className="text-xs text-gray-500 hover:text-red-500 font-semibold transition-colors"
+                      className="text-xs text-text-secondary hover:text-red-500 font-semibold transition-colors"
                     >
                       Excluir
                     </button>
@@ -318,7 +318,7 @@ export default function Schedule() {
         </div>
 
         {/* 7-day strip at bottom */}
-        <div className="border-t border-gray-100 bg-white px-2 py-2.5 flex-shrink-0">
+        <div className="border-t border-line-subtle bg-card-bg px-2 py-2.5 flex-shrink-0">
           <div className="flex justify-between">
             {weekDays.map((day, i) => {
               const dateStr    = format(day, 'yyyy-MM-dd');
@@ -333,19 +333,19 @@ export default function Schedule() {
                   onClick={() => setSelectedDate(day)}
                   className="flex flex-col items-center gap-0.5 flex-1 py-1"
                 >
-                  <span className="text-[10px] font-bold text-gray-400">{DAY_ABBR[i]}</span>
+                  <span className="text-[10px] font-bold text-text-secondary">{DAY_ABBR[i]}</span>
                   <span className={`text-sm font-bold w-8 h-8 flex items-center justify-center rounded-full transition-colors ${
                     isSelected
                       ? 'bg-blue-600 text-white'
                       : isNow
                       ? 'text-blue-600'
-                      : 'text-gray-700'
+                      : 'text-text-primary'
                   }`}>
                     {format(day, 'd')}
                   </span>
                   <div className={`w-1.5 h-1.5 rounded-full transition-colors ${
                     hasEvents
-                      ? isSelected ? 'bg-white' : 'bg-blue-400'
+                      ? isSelected ? 'bg-card-bg' : 'bg-blue-400'
                       : 'bg-transparent'
                   }`} />
                 </button>
@@ -361,10 +361,10 @@ export default function Schedule() {
       <div className="hidden md:flex md:flex-col md:flex-1 md:overflow-hidden">
 
         {/* ── Page header ─────────────────────────────────────────────── */}
-        <div className="flex items-center justify-between px-8 py-5 border-b border-gray-100 flex-shrink-0">
+        <div className="flex items-center justify-between px-8 py-5 border-b border-line-subtle flex-shrink-0">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Agenda</h1>
-            <p className="text-sm text-gray-500 mt-0.5">Gerencie seus compromissos e visitas</p>
+            <h1 className="text-2xl font-bold text-text-primary">Agenda</h1>
+            <p className="text-sm text-text-secondary mt-0.5">Gerencie seus compromissos e visitas</p>
           </div>
 
           <div className="flex items-center gap-3">
@@ -372,19 +372,19 @@ export default function Schedule() {
             <div className="relative" ref={filterRef}>
               <button
                 onClick={() => setFilterOpen(o => !o)}
-                className="flex items-center gap-2 px-4 py-2 rounded-xl border border-gray-200 text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition-colors"
+                className="flex items-center gap-2 px-4 py-2 rounded-xl border border-line-subtle text-sm font-medium text-text-primary bg-card-bg hover:bg-subtle-bg transition-colors"
               >
                 {typeFilter === 'Todos' ? 'Todos os eventos' : typeFilter}
                 <ChevronDown size={14} className={`transition-transform ${filterOpen ? 'rotate-180' : ''}`} />
               </button>
 
               {filterOpen && (
-                <div className="absolute right-0 top-full mt-1 w-48 bg-white border border-gray-200 rounded-xl shadow-lg z-50 py-1 overflow-hidden">
+                <div className="absolute right-0 top-full mt-1 w-48 bg-card-bg border border-line-subtle rounded-xl shadow-lg z-50 py-1 overflow-hidden">
                   {(['Todos', 'Visita', 'Reunião', 'Assinatura', 'Outro'] as TypeFilter[]).map(t => (
                     <button
                       key={t}
                       onClick={() => { setTypeFilter(t); setFilterOpen(false); }}
-                      className={`w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors ${typeFilter === t ? 'text-blue-600 font-semibold bg-blue-50/50' : 'text-gray-700'}`}
+                      className={`w-full text-left px-4 py-2.5 text-sm hover:bg-subtle-bg transition-colors ${typeFilter === t ? 'text-blue-600 font-semibold bg-blue-50/50' : 'text-text-primary'}`}
                     >
                       {t === 'Todos' ? 'Todos os eventos' : t}
                     </button>
@@ -407,18 +407,18 @@ export default function Schedule() {
         <div className="flex flex-1 overflow-hidden">
 
           {/* ── Calendar grid ─────────────────────────────────────── */}
-          <div className="flex-1 flex flex-col overflow-hidden border-r border-gray-100">
+          <div className="flex-1 flex flex-col overflow-hidden border-r border-line-subtle">
 
             {/* Month + week nav */}
-            <div className="flex items-center gap-2 px-6 py-3 border-b border-gray-100 flex-shrink-0">
-              <button onClick={prevWeek}  className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500 transition-colors"><ChevronLeft  size={15} /></button>
-              <span className="text-sm font-bold text-gray-800 capitalize min-w-[148px] text-center">{monthLabel}</span>
-              <button onClick={nextWeek}  className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500 transition-colors"><ChevronRight size={15} /></button>
-              <button onClick={goToToday} className="ml-1 px-3 py-1 rounded-lg border border-gray-200 text-xs font-semibold text-gray-600 hover:bg-gray-50 transition-colors">Hoje</button>
+            <div className="flex items-center gap-2 px-6 py-3 border-b border-line-subtle flex-shrink-0">
+              <button onClick={prevWeek}  className="p-1.5 rounded-lg hover:bg-subtle-bg text-text-secondary transition-colors"><ChevronLeft  size={15} /></button>
+              <span className="text-sm font-bold text-text-primary capitalize min-w-[148px] text-center">{monthLabel}</span>
+              <button onClick={nextWeek}  className="p-1.5 rounded-lg hover:bg-subtle-bg text-text-secondary transition-colors"><ChevronRight size={15} /></button>
+              <button onClick={goToToday} className="ml-1 px-3 py-1 rounded-lg border border-line-subtle text-xs font-semibold text-text-secondary hover:bg-subtle-bg transition-colors">Hoje</button>
             </div>
 
             {/* Day column headers */}
-            <div className="flex border-b border-gray-100 flex-shrink-0">
+            <div className="flex border-b border-line-subtle flex-shrink-0">
               <div className="w-14 flex-shrink-0" />
               {weekDays.map((day, i) => {
                 const sel   = isSameDay(day, selectedDate);
@@ -427,14 +427,14 @@ export default function Schedule() {
                   <button
                     key={i}
                     onClick={() => setSelectedDate(day)}
-                    className={`flex-1 py-3 flex flex-col items-center gap-0.5 transition-colors ${sel ? 'bg-blue-50' : 'hover:bg-gray-50'}`}
+                    className={`flex-1 py-3 flex flex-col items-center gap-0.5 transition-colors ${sel ? 'bg-blue-50' : 'hover:bg-subtle-bg'}`}
                   >
-                    <span className="text-[10px] font-bold text-gray-400 tracking-wider">{DAY_ABBR[i]}</span>
+                    <span className="text-[10px] font-bold text-text-secondary tracking-wider">{DAY_ABBR[i]}</span>
                     <span className={`text-base font-bold w-8 h-8 flex items-center justify-center rounded-full transition-colors ${
                       isNow && sel  ? 'bg-blue-600 text-white' :
                       isNow         ? 'text-blue-600' :
                       sel           ? 'bg-blue-100 text-blue-700' :
-                                      'text-gray-800'
+                                      'text-text-primary'
                     }`}>{format(day, 'd')}</span>
                   </button>
                 );
@@ -447,10 +447,10 @@ export default function Schedule() {
                 <div className="flex justify-center py-16"><Loader2 size={26} className="animate-spin text-blue-500" /></div>
               ) : (
                 HOURS.map(hour => (
-                  <div key={hour} className="flex border-b border-gray-50 min-h-[52px] group">
+                  <div key={hour} className="flex border-b border-line-subtle min-h-[52px] group">
                     {/* Hour label */}
                     <div className="w-14 flex-shrink-0 px-3 pt-2 text-right">
-                      <span className="text-xs text-gray-300 font-medium">{`${String(hour).padStart(2,'0')}:00`}</span>
+                      <span className="text-xs text-text-secondary/60 font-medium">{`${String(hour).padStart(2,'0')}:00`}</span>
                     </div>
 
                     {/* Cells */}
@@ -464,8 +464,8 @@ export default function Schedule() {
                             setSelectedDate(day);
                             handleOpenModal(undefined, format(day, 'yyyy-MM-dd'), `${String(hour).padStart(2,'0')}:00`);
                           }}
-                          className={`flex-1 border-l border-gray-50 px-0.5 py-0.5 cursor-pointer transition-colors ${
-                            sel ? 'bg-blue-50/30 hover:bg-blue-50/50' : 'hover:bg-gray-50/70'
+                          className={`flex-1 border-l border-line-subtle px-0.5 py-0.5 cursor-pointer transition-colors ${
+                            sel ? 'bg-blue-50/30 hover:bg-blue-50/50' : 'hover:bg-subtle-bg/70'
                           }`}
                         >
                           {cells.map(evt => (
@@ -473,7 +473,7 @@ export default function Schedule() {
                               key={evt.id}
                               onClick={e => { e.stopPropagation(); setSelectedDate(day); }}
                               className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-md truncate mb-0.5 ${
-                                TYPE_BLOCK[evt.type] ?? 'bg-gray-100 text-gray-700 border-l-2 border-gray-400'
+                                TYPE_BLOCK[evt.type] ?? 'bg-subtle-bg text-text-primary border-l-2 border-gray-400'
                               } ${evt.completed ? 'opacity-40' : ''}`}
                             >
                               {evt.time} {evt.title}
@@ -489,10 +489,10 @@ export default function Schedule() {
           </div>
 
           {/* ── Right sidebar ──────────────────────────────────────── */}
-          <aside className="w-72 flex-shrink-0 flex flex-col overflow-hidden bg-white">
+          <aside className="w-72 flex-shrink-0 flex flex-col overflow-hidden bg-card-bg">
 
             {/* Selected date header */}
-            <div className="px-5 py-4 border-b border-gray-100 flex-shrink-0">
+            <div className="px-5 py-4 border-b border-line-subtle flex-shrink-0">
               <div className="flex items-center gap-2 text-blue-600">
                 <CalendarIcon size={15} />
                 <span className="text-sm font-bold capitalize">
@@ -502,11 +502,11 @@ export default function Schedule() {
             </div>
 
             {/* Events for selected day */}
-            <div className="px-4 py-3 border-b border-gray-100 flex-shrink-0">
+            <div className="px-4 py-3 border-b border-line-subtle flex-shrink-0">
               {selectedDayEvents.length === 0 ? (
                 <div className="flex flex-col items-center py-5 text-center gap-2">
-                  <CalendarIcon size={30} className="text-gray-200" />
-                  <p className="text-xs text-gray-400 font-medium">Nenhum evento para este dia</p>
+                  <CalendarIcon size={30} className="text-text-secondary/40" />
+                  <p className="text-xs text-text-secondary font-medium">Nenhum evento para este dia</p>
                   <button
                     onClick={() => handleOpenModal()}
                     className="flex items-center gap-1 text-xs font-semibold text-blue-600 hover:text-blue-700 transition-colors mt-1"
@@ -519,19 +519,19 @@ export default function Schedule() {
                   {selectedDayEvents.map(evt => (
                     <div
                       key={evt.id}
-                      className={`p-2.5 rounded-xl border transition-all ${evt.completed ? 'opacity-50 bg-gray-50 border-gray-100' : 'bg-white border-gray-100 hover:border-gray-200 hover:shadow-sm'}`}
+                      className={`p-2.5 rounded-xl border transition-all ${evt.completed ? 'opacity-50 bg-subtle-bg border-line-subtle' : 'bg-card-bg border-line-subtle hover:border-line-subtle hover:shadow-sm'}`}
                     >
                       {canViewAllClients && (
                         <ClientHierarchyTags ownerId={evt.user_id} allProfiles={allProfiles} teams={teams} directorates={directorates} className="mb-1" />
                       )}
                       <div className="flex items-start justify-between gap-1.5">
                         <div className="min-w-0">
-                          <p className={`text-xs font-bold truncate ${evt.completed ? 'line-through text-gray-400' : 'text-gray-800'}`}>{evt.title}</p>
-                          {evt.client_name && <p className="text-[10px] text-gray-500 truncate mt-0.5">{evt.client_name}</p>}
+                          <p className={`text-xs font-bold truncate ${evt.completed ? 'line-through text-text-secondary' : 'text-text-primary'}`}>{evt.title}</p>
+                          {evt.client_name && <p className="text-[10px] text-text-secondary truncate mt-0.5">{evt.client_name}</p>}
                           <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
-                            <span className="text-[10px] text-gray-400">{evt.time}</span>
+                            <span className="text-[10px] text-text-secondary">{evt.time}</span>
                             {evt.location && (
-                              <span className="text-[10px] text-gray-400 flex items-center gap-0.5 truncate">
+                              <span className="text-[10px] text-text-secondary flex items-center gap-0.5 truncate">
                                 <MapPin size={8} />{evt.location}
                               </span>
                             )}
@@ -539,12 +539,12 @@ export default function Schedule() {
                         </div>
                         <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-md shrink-0 ${TYPE_PILL[evt.type] ?? ''}`}>{evt.type}</span>
                       </div>
-                      <div className="flex gap-2.5 mt-2 pt-1.5 border-t border-gray-50">
-                        <button onClick={() => handleOpenModal(evt)} className="text-[10px] text-gray-400 hover:text-blue-600 font-semibold transition-colors">Editar</button>
-                        <button onClick={() => toggleComplete(evt)} className="text-[10px] text-gray-400 hover:text-emerald-600 font-semibold transition-colors">
+                      <div className="flex gap-2.5 mt-2 pt-1.5 border-t border-line-subtle">
+                        <button onClick={() => handleOpenModal(evt)} className="text-[10px] text-text-secondary hover:text-blue-600 font-semibold transition-colors">Editar</button>
+                        <button onClick={() => toggleComplete(evt)} className="text-[10px] text-text-secondary hover:text-emerald-600 font-semibold transition-colors">
                           {evt.completed ? 'Reabrir' : 'Concluir'}
                         </button>
-                        <button onClick={() => handleDelete(evt.id)} className="text-[10px] text-gray-400 hover:text-red-500 font-semibold transition-colors">Excluir</button>
+                        <button onClick={() => handleDelete(evt.id)} className="text-[10px] text-text-secondary hover:text-red-500 font-semibold transition-colors">Excluir</button>
                       </div>
                     </div>
                   ))}
@@ -554,10 +554,10 @@ export default function Schedule() {
 
             {/* Upcoming events feed */}
             <div className="flex-1 overflow-y-auto px-4 py-3">
-              <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Próximos Eventos</h3>
+              <h3 className="text-[10px] font-bold text-text-secondary uppercase tracking-wider mb-2">Próximos Eventos</h3>
 
               {upcomingEvents.length === 0 ? (
-                <p className="text-xs text-gray-400 text-center py-4">Nenhum evento próximo</p>
+                <p className="text-xs text-text-secondary text-center py-4">Nenhum evento próximo</p>
               ) : (
                 <div className="space-y-1">
                   {upcomingEvents.map(evt => {
@@ -566,15 +566,15 @@ export default function Schedule() {
                       <button
                         key={evt.id}
                         onClick={() => { setSelectedDate(d); setWeekStart(startOfWeek(d, { weekStartsOn: 0 })); }}
-                        className="w-full text-left flex items-start gap-3 px-2.5 py-2.5 rounded-xl hover:bg-gray-50 transition-colors border border-transparent hover:border-gray-100"
+                        className="w-full text-left flex items-start gap-3 px-2.5 py-2.5 rounded-xl hover:bg-subtle-bg transition-colors border border-transparent hover:border-line-subtle"
                       >
                         <div className="flex-shrink-0 text-center w-8">
-                          <div className="text-[9px] font-bold text-gray-400 uppercase leading-none">{format(d, 'MMM', { locale: ptBR })}</div>
-                          <div className="text-lg font-black text-gray-800 leading-tight">{format(d, 'd')}</div>
+                          <div className="text-[9px] font-bold text-text-secondary uppercase leading-none">{format(d, 'MMM', { locale: ptBR })}</div>
+                          <div className="text-lg font-black text-text-primary leading-tight">{format(d, 'd')}</div>
                         </div>
                         <div className="min-w-0 flex-1 pt-0.5">
-                          <p className="text-xs font-semibold text-gray-800 truncate leading-tight">{evt.title}</p>
-                          <p className="text-[10px] text-gray-400 mt-0.5">{evt.time}{evt.client_name ? ` · ${evt.client_name}` : ''}</p>
+                          <p className="text-xs font-semibold text-text-primary truncate leading-tight">{evt.title}</p>
+                          <p className="text-[10px] text-text-secondary mt-0.5">{evt.time}{evt.client_name ? ` · ${evt.client_name}` : ''}</p>
                         </div>
                       </button>
                     );
@@ -590,7 +590,7 @@ export default function Schedule() {
       <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={editingAppointment ? 'Editar Agendamento' : 'Novo Agendamento'}>
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-600 mb-1">Título</label>
+            <label className="block text-sm font-medium text-text-secondary mb-1">Título</label>
             <input
               value={formData.title ?? ''}
               onChange={e => setFormData(p => ({ ...p, title: e.target.value }))}
@@ -599,7 +599,7 @@ export default function Schedule() {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-600 mb-1">Cliente</label>
+            <label className="block text-sm font-medium text-text-secondary mb-1">Cliente</label>
             <input
               value={formData.client_name ?? ''}
               onChange={e => setFormData(p => ({ ...p, client_name: e.target.value }))}
@@ -609,7 +609,7 @@ export default function Schedule() {
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full">
             <div className="min-w-0">
-              <label className="block text-sm font-medium text-gray-600 mb-1">Data</label>
+              <label className="block text-sm font-medium text-text-secondary mb-1">Data</label>
               <input
                 type="date"
                 value={formData.date ?? ''}
@@ -620,7 +620,7 @@ export default function Schedule() {
               />
             </div>
             <div className="min-w-0">
-              <label className="block text-sm font-medium text-gray-600 mb-1">Hora</label>
+              <label className="block text-sm font-medium text-text-secondary mb-1">Hora</label>
               <input
                 type="time"
                 value={formData.time ?? ''}
@@ -632,7 +632,7 @@ export default function Schedule() {
             </div>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-600 mb-1">Local</label>
+            <label className="block text-sm font-medium text-text-secondary mb-1">Local</label>
             <input
               value={formData.location ?? ''}
               onChange={e => setFormData(p => ({ ...p, location: e.target.value }))}
@@ -641,7 +641,7 @@ export default function Schedule() {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-600 mb-1">Tipo</label>
+            <label className="block text-sm font-medium text-text-secondary mb-1">Tipo</label>
             <div className="flex gap-2 flex-wrap">
               {(['Visita', 'Reunião', 'Assinatura', 'Outro'] as const).map(type => (
                 <button
@@ -650,7 +650,7 @@ export default function Schedule() {
                   className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${
                     formData.type === type
                       ? 'bg-blue-50 border-blue-400 text-blue-700'
-                      : 'bg-white border-gray-200 text-gray-600 hover:border-gray-300'
+                      : 'bg-card-bg border-line-subtle text-text-secondary hover:border-gray-300'
                   }`}
                 >
                   {type}
