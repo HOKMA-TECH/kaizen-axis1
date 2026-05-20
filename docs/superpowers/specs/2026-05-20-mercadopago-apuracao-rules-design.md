@@ -77,8 +77,8 @@ Adicionar ao array existente:
 'RENDA FIXA',       // investimento renda fixa
 'RENDA VARIAVEL',   // investimento renda variável
 'CDB',              // certificado de depósito bancário
-'LCI',              // letra de crédito imobiliário
-'LCA',              // letra de crédito do agronegócio
+// LCI/LCA removidos: são substrings de nomes comuns ("ALCIDES" contém "LCI")
+// Cobertos pelos já existentes INVESTIMENTO + RESGATE
 'FUNDO',            // fundo de investimento
 'TESOURO',          // Tesouro Direto
 ```
