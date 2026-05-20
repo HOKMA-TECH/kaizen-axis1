@@ -256,6 +256,15 @@ const MERCADO_PAGO_KEYWORDS_IGNORAR_NORM = [
     'APLICACAO',
     'PAGAMENTO APROVADO',
     'PAGAMENTO ENVIADO',
+    // Yield diário e instrumentos de investimento
+    'RENDEU',
+    'REMUNERACAO',
+    'POUPANCA',
+    'RENDA FIXA',
+    'RENDA VARIAVEL',
+    'CDB',
+    'FUNDO',
+    'TESOURO',
 ].map(normalizar);
 
 function isMercadoPagoCredito(descNorm: string): boolean {
