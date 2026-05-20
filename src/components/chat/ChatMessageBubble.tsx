@@ -439,7 +439,7 @@ export function ChatMessageBubble({ message, index, onDeleteForMe, onDeleteForAl
 
       {viewerOpen && (viewerMediaUrl || message.mediaUrl || (message.viewOnce && message.type === 'text')) && (
         <div
-          className="fixed inset-0 z-[500] bg-white dark:bg-[#0b141a] flex flex-col"
+          className="fixed inset-0 z-[500] bg-card-bg dark:bg-[#0b141a] flex flex-col"
           onClick={closeViewer}
         >
           <div
