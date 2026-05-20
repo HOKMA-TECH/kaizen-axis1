@@ -1120,7 +1120,7 @@ export default function ClientDetails() {
             <p className="text-sm text-text-secondary">Carregando espelho...</p>
           ) : (
             <>
-              <div className="rounded-xl border border-surface-300 bg-white p-0 overflow-hidden">
+              <div className="rounded-xl border border-surface-300 bg-card-bg p-0 overflow-hidden">
                 <div className="px-4 py-3 border-b border-surface-200 bg-surface-50">
                   <p className="text-sm font-semibold text-text-primary">Processo de venda</p>
                 </div>
@@ -1153,7 +1153,7 @@ export default function ClientDetails() {
                           if (key === 'dataAto' || key === 'dataContrato') value = formatDateInput(value);
                           setSalesMirrorForm((prev) => ({ ...prev, [key]: value }));
                         }}
-                        className="w-full h-10 px-3 bg-white rounded-md border border-surface-200 focus:ring-2 focus:ring-gold-400/70 focus:border-gold-300 text-sm text-text-primary"
+                        className="w-full h-10 px-3 bg-card-bg rounded-md border border-surface-200 focus:ring-2 focus:ring-gold-400/70 focus:border-gold-300 text-sm text-text-primary"
                       />
                     </div>
                   ))}
@@ -1162,7 +1162,7 @@ export default function ClientDetails() {
                     <select
                       value={salesMirrorForm.pagoPelaKaizen || ''}
                       onChange={(e) => setSalesMirrorForm((prev) => ({ ...prev, pagoPelaKaizen: e.target.value }))}
-                      className="w-full h-10 px-3 bg-white rounded-md border border-surface-200 focus:ring-2 focus:ring-gold-400/70 focus:border-gold-300 text-sm text-text-primary"
+                      className="w-full h-10 px-3 bg-card-bg rounded-md border border-surface-200 focus:ring-2 focus:ring-gold-400/70 focus:border-gold-300 text-sm text-text-primary"
                     >
                       <option value="">Selecione</option>
                       <option value="SIM">SIM</option>
