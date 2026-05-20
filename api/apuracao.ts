@@ -629,8 +629,15 @@ function classificar(
         };
     }
 
+    // Para MercadoPago: enriquece descrições sem indicação de direção com "Pix Recebido — " / "Pix Enviado — "
+    // O parser extrai apenas o nome do remetente/destinatário sem o prefixo de tipo ("Transferência pix recebida").
+    const descricaoParaExibir = bankDetected === 'mercadopago' &&
+        !/RECEBID|ENVIADO|PAGAMENTO|COMPRA|SAQUE|QR|DINHEIRO|RENDIMENTO|VENDA|DEPOSITO|TED|DOC/i.test(descNorm)
+        ? (valor > 0 ? `Pix Recebido — ${descricaoRaw}` : `Pix Enviado — ${descricaoRaw}`)
+        : descricaoRaw;
+
     const base: Omit<Transacao, 'classificacao' | 'motivoExclusao' | 'is_validated' | 'custom_tag'> = {
-        id: nextId(), data, mes, descricao: descricaoRaw, valor,
+        id: nextId(), data, mes, descricao: descricaoParaExibir, valor,
     };
 
     if (bankDetected === 'itau_mensal' && ehRuidoItauMensal(descricaoRaw)) {
