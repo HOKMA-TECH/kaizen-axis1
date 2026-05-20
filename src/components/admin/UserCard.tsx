@@ -33,8 +33,8 @@ export function UserCard({ user, onApprove, onReject, onRoleChange }: UserCardPr
         <div className="flex flex-col items-end gap-1">
           <span className={cn(
             "px-2 py-0.5 rounded-full text-[10px] font-bold uppercase",
-            user.role === 'Diretor' ? "bg-purple-100 text-purple-700" :
-            user.role === 'Gerente' ? "bg-blue-100 text-blue-700" :
+            user.role === 'Diretor' ? "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300" :
+            user.role === 'Gerente' ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300" :
             "bg-surface-100 text-text-secondary"
           )}>
             {user.role}
@@ -57,7 +57,7 @@ export function UserCard({ user, onApprove, onReject, onRoleChange }: UserCardPr
           <RoundedButton 
             size="sm" 
             variant="outline"
-            className="flex-1 h-8 text-xs text-red-500 border-red-200 hover:bg-red-50"
+            className="flex-1 h-8 text-xs text-red-500 border-red-200 hover:bg-red-50 dark:border-red-800 dark:hover:bg-red-900/20"
             onClick={() => onReject?.(user.id)}
           >
             <X size={14} className="mr-1" /> Recusar
