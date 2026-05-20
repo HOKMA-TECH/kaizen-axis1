@@ -518,6 +518,8 @@ export default function IncomeAnalysis() {
     for (const t of resultado.transacoesDetalhadas) {
       if (!/^\d{4}-\d{2}$/.test(t.mes)) continue;
       if (isResumoLinha(t.descricao)) continue;
+      // Oculta rendimentos, investimentos e ruído — não são transações relevantes para auditoria
+      if (t.classificacao === 'ignorar_estorno' || t.classificacao === 'ignorar_sem_keyword') continue;
       if (!grupos[t.mes]) grupos[t.mes] = [];
       grupos[t.mes].push(t);
     }
