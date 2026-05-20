@@ -1325,6 +1325,19 @@ function extrairMercadoPagoUltraFallback(texto: string): Array<{ dataRaw: string
 }
 
 function extrairMercadoPago(texto: string): Array<{ dataRaw: string; descricaoRaw: string; valorRaw: string }> {
+    const textoNorm = normalizar(texto);
+    const temTabelaMovimentosMercadoPago =
+        /\bDATA\b/.test(textoNorm) &&
+        /\bDESCRICAO\b/.test(textoNorm) &&
+        /\bID\s+DA\s+OPERACAO\b/.test(textoNorm) &&
+        /\bVALOR\b/.test(textoNorm) &&
+        /\bSALDO\b/.test(textoNorm);
+
+    if (temTabelaMovimentosMercadoPago) {
+        const byBlock = extrairMercadoPagoPorBloco(texto);
+        if (byBlock.length > 0) return byBlock;
+    }
+
     const linhas = texto
         .replace(/\r\n/g, '\n')
         .replace(/\r/g, '\n')
@@ -2833,6 +2846,10 @@ function extrair(texto: string): Array<{ dataRaw: string; descricaoRaw: string; 
 
     return todos;
 }
+
+export const __test__ = {
+    extrairMercadoPago,
+};
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // HANDLER PRINCIPAL
