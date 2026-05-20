@@ -473,7 +473,7 @@ export default function Schedule() {
                               key={evt.id}
                               onClick={e => { e.stopPropagation(); setSelectedDate(day); }}
                               className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-md truncate mb-0.5 ${
-                                TYPE_BLOCK[evt.type] ?? 'bg-subtle-bg text-text-primary border-l-2 border-gray-400'
+                                TYPE_BLOCK[evt.type] ?? 'bg-subtle-bg text-text-primary border-l-2 border-line-strong'
                               } ${evt.completed ? 'opacity-40' : ''}`}
                             >
                               {evt.time} {evt.title}
@@ -650,7 +650,7 @@ export default function Schedule() {
                   className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${
                     formData.type === type
                       ? 'bg-blue-50 border-blue-400 text-blue-700'
-                      : 'bg-card-bg border-line-subtle text-text-secondary hover:border-gray-300'
+                      : 'bg-card-bg border-line-subtle text-text-secondary hover:border-line-strong'
                   }`}
                 >
                   {type}
