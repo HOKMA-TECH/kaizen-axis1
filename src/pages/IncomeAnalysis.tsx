@@ -258,7 +258,7 @@ function AccordionMes({
             </span>
           )}
           {alertCount > 0 && (
-            <span className="text-[10px] px-2 py-0.5 bg-yellow-100 text-yellow-700 rounded-full font-medium">
+            <span className="text-[10px] px-2 py-0.5 bg-red-100 text-red-700 dark:bg-red-700 dark:text-red-100 rounded-full font-medium">
               {alertCount} alerta{alertCount > 1 ? 's' : ''}
             </span>
           )}
