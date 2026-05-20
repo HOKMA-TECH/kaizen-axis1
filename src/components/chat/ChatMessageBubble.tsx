@@ -89,7 +89,7 @@ function PdfDocumentViewer({ url, fileName }: { url: string; fileName: string })
               width={width}
               renderAnnotationLayer
               renderTextLayer
-              className="overflow-hidden bg-white shadow-sm"
+              className="overflow-hidden bg-card-bg shadow-sm"
             />
           ))}
         </div>
