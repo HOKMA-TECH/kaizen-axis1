@@ -75,7 +75,7 @@ export function SalesProgressCard() {
       className={`rounded-2xl border p-5 shadow-sm transition-all duration-300 ${
         hasSales
           ? 'bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-800'
-          : 'bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800'
+          : 'bg-red-50 dark:bg-red-900/60 border-red-200 dark:border-red-700'
       }`}
     >
       {/* Header */}
@@ -84,7 +84,7 @@ export function SalesProgressCard() {
           <h3 className="font-bold text-text-primary text-base">Progresso do Mês</h3>
           <p className="text-xs text-text-secondary capitalize">{monthName}</p>
         </div>
-        <div className={`p-2 rounded-xl ${hasSales ? 'bg-green-100 dark:bg-green-900/40' : 'bg-red-100 dark:bg-red-900/40'}`}>
+        <div className={`p-2 rounded-xl ${hasSales ? 'bg-green-100 dark:bg-green-900/40' : 'bg-red-100 dark:bg-red-800/50'}`}>
           {hasSales
             ? <TrendingUp size={20} className="text-green-600 dark:text-green-400" />
             : <AlertTriangle size={20} className="text-red-500 dark:text-red-400" />
