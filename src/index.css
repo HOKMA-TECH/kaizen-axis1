@@ -42,6 +42,12 @@
   --color-text-primary: var(--text-primary);
   --color-text-secondary: var(--text-secondary);
   --color-card-bg: var(--bg-card);
+
+  /* Aliases semânticos limpos */
+  --color-app-bg:      var(--bg-app);
+  --color-subtle-bg:   var(--bg-subtle);
+  --color-line-subtle: var(--border-subtle);
+  --color-line-strong: var(--border-strong);
 }
 
 :root {
