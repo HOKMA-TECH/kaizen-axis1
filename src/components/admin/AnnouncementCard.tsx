@@ -11,9 +11,9 @@ interface AnnouncementCardProps {
 export function AnnouncementCard({ announcement, onDelete }: AnnouncementCardProps) {
   const getPriorityColor = (priority?: string) => {
     switch (priority) {
-      case 'Urgente': return 'text-red-600 bg-red-50 border-red-200';
-      case 'Importante': return 'text-amber-600 bg-amber-50 border-amber-200';
-      default: return 'text-blue-600 bg-blue-50 border-blue-200';
+      case 'Urgente':    return 'text-red-600 bg-red-50 border-red-200 dark:bg-red-900/20 dark:border-red-800 dark:text-red-400';
+      case 'Importante': return 'text-amber-600 bg-amber-50 border-amber-200 dark:bg-amber-900/20 dark:border-amber-800 dark:text-amber-400';
+      default:           return 'text-blue-600 bg-blue-50 border-blue-200 dark:bg-blue-900/20 dark:border-blue-800 dark:text-blue-400';
     }
   };
 
