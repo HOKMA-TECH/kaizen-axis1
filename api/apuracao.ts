@@ -49,7 +49,7 @@ interface ContextoNomes {
     cpf?: string;
 }
 
-type BancoDetectado = 'generic' | 'nubank' | 'inter' | 'neon' | 'bradesco' | 'mercadopago' | 'picpay_pix' | 'itau_mensal' | 'santander' | 'pagbank' | 'next';
+type BancoDetectado = 'generic' | 'nubank' | 'inter' | 'neon' | 'bradesco' | 'mercadopago' | 'picpay_pix' | 'itau_mensal' | 'santander' | 'pagbank' | 'next' | 'c6';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // UTILS — MOEDA
@@ -349,6 +349,77 @@ function isNextBank(texto: string): boolean {
     const hasTable = /\bDATA\b\s+\bHISTORICO\b\s+\bDOCTO\b\s+\bCREDITO\b\s*\(\s*R\$\s*\)\s+\bDEBITO\b\s*\(\s*R\$\s*\)/.test(cab);
 
     return hasNextBrand && (hasExtratoConta || hasMovRange || hasTable);
+}
+
+// ── C6 Bank ──────────────────────────────────────────────────────────────────
+// Layout do extrato C6: marca "C6 Bank/C6 BANK" no cabeçalho/rodapé, colunas
+// "Data lançamento | Data contábil | Tipo | Descrição | Valor", cabeçalhos de
+// seção mensal ("Abril 2025 (...)") e linhas "Saldo do dia". Os valores já vêm
+// com sinal explícito (entradas positivas, saídas com "-R$"), e o tipo é
+// textual ("Entrada PIX", "Saída PIX", "Débito de Cartão", "Devolução PIX",
+// "Entradas", "Outros gastos", "Pagamento").
+function isC6Bank(texto: string): boolean {
+    const norm = removerAcentos(texto).toUpperCase().replace(/\s+/g, ' ');
+    const cab = norm.substring(0, 6000);
+
+    // A marca C6 é obrigatória para evitar falso positivo (ex.: outro banco que
+    // cite "C6" no histórico de uma transferência).
+    const temMarcaC6 = /\bC6\s*BANK\b|\bC6BANK\b/.test(norm);
+    if (!temMarcaC6) return false;
+
+    const temColunas =
+        /\bDATA\s+LANCAMENTO\b/.test(norm) ||
+        /\bDATA\s+CONTABIL\b/.test(norm) ||
+        (/\bTIPO\b/.test(cab) && /\bDESCRICAO\b/.test(cab) && /\bVALOR\b/.test(cab));
+    const temTiposC6 = /\bENTRADA\s+PIX\b|\bSAIDA\s+PIX\b|\bDEBITO\s+DE\s+CARTAO\b|\bDEVOLUCAO\s+PIX\b/.test(norm);
+    const temSaldoDoDia = /\bSALDO\s+DO\s+DIA\b/.test(norm);
+
+    return temColunas || temTiposC6 || temSaldoDoDia;
+}
+
+// C6: linhas positivas que NÃO são renda (reversões, estornos e rendimentos).
+// Os débitos já vêm com valor negativo (tratados antes como 'debito'); aqui
+// cuidamos apenas das linhas com valor > 0 que devem ser ignoradas no cálculo.
+const C6_KEYWORDS_IGNORAR_NORM = [
+    'ESTORNADO',            // "Pix estornado" — reversão de "Pix recusado"
+    'PIX ESTORNADO',
+    'EST DEBITO DE CARTAO', // estorno de compra no débito
+    'DEVOL RECEBIDA',       // devolução de PIX recebida (reversão)
+    'DEVOLUCAO',
+    'CDB',                  // CDB C6 LIM. GARANT. / rendimento de investimento
+    'RENDIMENTO',
+    'RESGATE',
+    'APLICACAO',
+    'POUPANCA',
+    'SALDO',
+    'SEGURO CONTA',
+    'TARIFA',
+].map(normalizar);
+
+function isC6Ignorar(descNorm: string): boolean {
+    return C6_KEYWORDS_IGNORAR_NORM.some(k => k && descNorm.includes(k));
+}
+
+// C6: o cabeçalho de seção mensal ("Abril 2025 ( 17/04/2025 - 30/04/2025 )
+// Entradas: R$ 16.345,44 • Saídas: R$ 16.344,94") é reescrito pelo
+// pré-processamento de datas em "01/ABR/2025 ( ... ) Entradas: ... Saídas: ...",
+// virando uma pseudo-linha. Como ela carrega o TOTAL de entradas do mês, nunca
+// pode contar como renda. A assinatura é ter "ENTRADAS" e "SAIDAS" juntas
+// (linhas reais têm o tipo "Entradas" OU "Saída", nunca os dois).
+function ehResumoMensalC6(descNorm: string): boolean {
+    return /\bENTRADAS\b/.test(descNorm) && /\bSAIDAS\b/.test(descNorm);
+}
+
+// C6: entradas válidas (PIX recebido, depósito, TED/DOC/TEV recebido).
+// As saídas vêm com valor negativo e são classificadas como débito antes daqui.
+function ehEntradaValidaC6(descNorm: string): boolean {
+    // Depósitos bancários
+    if (/\bDEPOSITO\b|\bDEP\b/.test(descNorm)) return true;
+    // PIX recebido (tipo "Entrada PIX" + "Pix recebido de ...")
+    if (/\bPIX\s+RECEBIDO\b|\bENTRADA\s+PIX\b/.test(descNorm)) return true;
+    // TED/DOC/TEV recebido ("Entradas RECEBIMENTO DE TED")
+    if (/\b(TED|DOC|TEV)\b/.test(descNorm) && /\bRECEB/.test(descNorm)) return true;
+    return false;
 }
 
 function sanitizarDescricaoBradesco(descricao: string): string {
@@ -659,6 +730,8 @@ function classificar(
     // 2b. Estorno + v3: RENDIMENTO contextual
     const temIgnorar = bankDetected === 'mercadopago'
         ? isMercadoPagoIgnorar(descNorm)
+        : bankDetected === 'c6'
+        ? (isC6Ignorar(descNorm) || ehResumoMensalC6(descNorm) || KEYWORDS_IGNORAR_NORM.some(k => k && descNorm.includes(k)))
         : KEYWORDS_IGNORAR_NORM.some(k => k && descNorm.includes(k));
     const temRendimento = deveIgnorarRendimento(descNorm);
     if (temIgnorar || temRendimento) {
@@ -690,6 +763,8 @@ function classificar(
         : (bankDetected === 'santander' && ehEntradaValidaSantander(descNorm))
             ? true
         : (bankDetected === 'itau_mensal' && ehEntradaValidaItauMensal(descNorm))
+            ? true
+        : (bankDetected === 'c6' && ehEntradaValidaC6(descNorm))
             ? true
         : KEYWORDS_CREDITO_NORM.some(k => k && descNorm.includes(k));
     if (!temCredito) {
@@ -2849,6 +2924,9 @@ function extrair(texto: string): Array<{ dataRaw: string; descricaoRaw: string; 
 
 export const __test__ = {
     extrairMercadoPago,
+    isC6Bank,
+    extrair,
+    classificar,
 };
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -2956,23 +3034,26 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const ehPicPayPix = isPicPayPixReportBank(textoExtrato);
         const ehMercadoPago = !ehPicPayPix && isMercadoPagoBank(textoExtrato);
         const ehNubank = !ehPicPayPix && !ehMercadoPago && isNubankBank(textoExtrato);
-        const ehPagBank = !ehPicPayPix && !ehMercadoPago && !ehNubank && isPagBankBank(textoExtrato);
-        const ehNext = !ehPicPayPix && !ehMercadoPago && !ehNubank && !ehPagBank && isNextBank(textoExtrato);
-        const ehInter = !ehPicPayPix && !ehMercadoPago && !ehNubank && !ehPagBank && !ehNext && isInterBank(textoExtrato);
-        const ehNeon = !ehPicPayPix && !ehMercadoPago && !ehNubank && !ehPagBank && !ehNext && !ehInter && isNeonBank(textoExtrato);
-        const ehItauMensal = !ehPicPayPix && !ehMercadoPago && !ehNubank && !ehInter && !ehNeon && !ehPagBank && !ehNext && isItauMensalBank(textoExtrato);
-        const ehSantander = !ehPicPayPix && !ehMercadoPago && !ehNubank && !ehInter && !ehNeon && !ehPagBank && !ehNext && !ehItauMensal && isSantanderBank(textoExtrato);
+        // C6 é detectado cedo (marca "C6 Bank" obrigatória) para não ser confundido
+        // com Inter, que também usa linhas "Saldo do dia".
+        const ehC6 = !ehPicPayPix && !ehMercadoPago && !ehNubank && isC6Bank(textoExtrato);
+        const ehPagBank = !ehPicPayPix && !ehMercadoPago && !ehNubank && !ehC6 && isPagBankBank(textoExtrato);
+        const ehNext = !ehPicPayPix && !ehMercadoPago && !ehNubank && !ehC6 && !ehPagBank && isNextBank(textoExtrato);
+        const ehInter = !ehPicPayPix && !ehMercadoPago && !ehNubank && !ehC6 && !ehPagBank && !ehNext && isInterBank(textoExtrato);
+        const ehNeon = !ehPicPayPix && !ehMercadoPago && !ehNubank && !ehC6 && !ehPagBank && !ehNext && !ehInter && isNeonBank(textoExtrato);
+        const ehItauMensal = !ehPicPayPix && !ehMercadoPago && !ehNubank && !ehC6 && !ehInter && !ehNeon && !ehPagBank && !ehNext && isItauMensalBank(textoExtrato);
+        const ehSantander = !ehPicPayPix && !ehMercadoPago && !ehNubank && !ehC6 && !ehInter && !ehNeon && !ehPagBank && !ehNext && !ehItauMensal && isSantanderBank(textoExtrato);
         const mesesReferenciaSantander = ehSantander ? extrairMesesReferenciaSantanderEstrito(textoExtrato) : new Set<string>();
         const mesesReferenciaSantanderSaldo = ehSantander ? extrairMesesReferenciaSantanderPorSaldo(textoExtrato) : new Set<string>();
         const mesesReferenciaEfetivos = (ehSantander && mesesReferenciaSantander.size >= 2)
             ? mesesReferenciaSantander
             : ((ehSantander && mesesReferenciaSantanderSaldo.size >= 2) ? mesesReferenciaSantanderSaldo : mesesReferencia);
-        const isBradescoExtrato = !ehPicPayPix && !ehMercadoPago && !ehNubank && !ehInter && !ehNeon && !ehPagBank && !ehNext && !ehItauMensal && !ehSantander && (isBradescoBank(textoExtrato) || isBradescoHeuristico(textoExtrato));
+        const isBradescoExtrato = !ehPicPayPix && !ehMercadoPago && !ehNubank && !ehC6 && !ehInter && !ehNeon && !ehPagBank && !ehNext && !ehItauMensal && !ehSantander && (isBradescoBank(textoExtrato) || isBradescoHeuristico(textoExtrato));
         const bankDetected: BancoDetectado = ehPicPayPix
             ? 'picpay_pix'
             : ehMercadoPago
             ? 'mercadopago'
-            : (ehNubank ? 'nubank' : (ehInter ? 'inter' : (ehNeon ? 'neon' : (ehPagBank ? 'pagbank' : (ehNext ? 'next' : (ehItauMensal ? 'itau_mensal' : (ehSantander ? 'santander' : (isBradescoExtrato ? 'bradesco' : 'generic'))))))));
+            : (ehNubank ? 'nubank' : (ehC6 ? 'c6' : (ehInter ? 'inter' : (ehNeon ? 'neon' : (ehPagBank ? 'pagbank' : (ehNext ? 'next' : (ehItauMensal ? 'itau_mensal' : (ehSantander ? 'santander' : (isBradescoExtrato ? 'bradesco' : 'generic')))))))));
         let brutas = ehPicPayPix
             ? extrairPicPayPixReport(textoExtrato)
             : ehMercadoPago
