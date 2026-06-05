@@ -1,5 +1,7 @@
 @import "tailwindcss";
-@custom-variant dark (&:where(.dark, .dark *));
+/* Modo escuro removido — variante neutralizada para um seletor inexistente.
+   NÃO apagar esta linha: sem ela o Tailwind v4 reativa dark: via prefers-color-scheme. */
+@custom-variant dark (&:where(.dark-mode-removed));
 
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
@@ -84,68 +86,6 @@
   --color-warning: #F59E0B;
   --color-error: #DC2626;
   --color-info: #3B82F6;
-}
-
-:root.dark {
-  --bg-app: #0f131a;
-  --bg-card: #151c25;
-  --bg-subtle: #1d2633;
-  --border-subtle: #2a3647;
-  --border-strong: #3a4a61;
-  --text-primary: #eef3fb;
-  --text-secondary: #9eabc0;
-
-  --surface-400: #6f7f97;
-  --surface-500: #5a6a83;
-  --surface-600: #4a5a73;
-  --surface-700: #3a4961;
-  --surface-800: #2a374a;
-  --surface-900: #1e2938;
-
-  /* Primary Theme Colors - Dark Mode */
-  --color-primary: #4d8fff;
-  --color-primary-dark: #2d6fd9;
-  --color-primary-light: #78adff;
-  --color-primary-hover: #63a0ff;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root:not(.light) {
-    --bg-app: #0f131a;
-    --bg-card: #151c25;
-    --bg-subtle: #1d2633;
-    --border-subtle: #2a3647;
-    --border-strong: #3a4a61;
-    --text-primary: #eef3fb;
-    --text-secondary: #9eabc0;
-
-    --surface-400: #6f7f97;
-    --surface-500: #5a6a83;
-    --surface-600: #4a5a73;
-    --surface-700: #3a4961;
-    --surface-800: #2a374a;
-    --surface-900: #1e2938;
-
-    /* Primary Theme Colors - Dark Mode */
-    --color-primary: #4d8fff;
-    --color-primary-dark: #2d6fd9;
-    --color-primary-light: #78adff;
-    --color-primary-hover: #63a0ff;
-  }
-}
-
-:root.dark {
-  color-scheme: dark;
-}
-
-:root.dark input,
-:root.dark select,
-:root.dark textarea {
-  color-scheme: dark;
-}
-
-:root.dark input[type="date"]::-webkit-calendar-picker-indicator {
-  filter: invert(0.88) brightness(1.05);
 }
 
 /* iOS Safari ignores overflow-x on body alone — must set on html too */

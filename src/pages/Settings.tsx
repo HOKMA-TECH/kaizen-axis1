@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { PremiumCard, SectionHeader, RoundedButton } from '@/components/ui/PremiumComponents';
 import {
-  Moon, Sun, Shield, Key, Bell, User, ChevronRight, LogOut,
+  Shield, Key, Bell, User, ChevronRight, LogOut,
   Smartphone, Camera, Trash2, CheckCircle, AlertCircle, Loader2,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -60,7 +60,6 @@ export default function Settings() {
   // ── estado de dados ──────────────────────────────────────────────────────
   const [profile, setProfile] = useState<Profile | null>(null);
   const [userEmail, setUserEmail] = useState('');
-  const [isDarkMode, setIsDarkMode] = useState(false);
   const [is2FAEnabled, setIs2FAEnabled] = useState(false);
   const [mfaFactorId, setMfaFactorId] = useState('');
   const [loading, setLoading] = useState(true);
@@ -113,11 +112,6 @@ export default function Settings() {
 
         if (p) setProfile(p as Profile);
 
-        // dark mode
-        const isDark = document.documentElement.classList.contains('dark') ||
-          (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches);
-        setIsDarkMode(isDark);
-
         // 2FA - verificar fatores ativos
         const { data: mfaData } = await supabase.auth.mfa.listFactors();
         const totp = mfaData?.totp?.find(f => f.status === 'verified');
@@ -128,15 +122,6 @@ export default function Settings() {
     };
     load();
   }, [navigate]);
-
-  // ── modo escuro ───────────────────────────────────────────────────────────
-  const toggleDarkMode = () => {
-    const next = !isDarkMode;
-    setIsDarkMode(next);
-    document.documentElement.classList.toggle('dark', next);
-    document.documentElement.classList.toggle('light', !next);
-    localStorage.setItem('theme', next ? 'dark' : 'light');
-  };
 
   // ── notificações push ─────────────────────────────────────────────────────
   const toggleNotifications = async () => {
@@ -399,23 +384,6 @@ export default function Settings() {
       <section>
         <h3 className="text-xs font-bold text-text-secondary uppercase tracking-wider mb-3 ml-1">Seu Progresso & Conquistas</h3>
         <GamificationProfile />
-      </section>
-
-      {/* ── Aparência ───────────────────────────────────────────────────── */}
-      <section>
-        <h3 className="text-xs font-bold text-text-secondary uppercase tracking-wider mb-3 ml-1">Aparência</h3>
-        <PremiumCard>
-          <div className="flex items-center justify-between">
-            <div className={cls.row}>
-              <div className={cls.icon}>{isDarkMode ? <Moon size={20} /> : <Sun size={20} />}</div>
-              <div>
-                <p className="font-medium text-text-primary">Modo Escuro</p>
-                <p className="text-xs text-text-secondary">Ajustar aparência do app</p>
-              </div>
-            </div>
-            <Toggle value={isDarkMode} onChange={toggleDarkMode} />
-          </div>
-        </PremiumCard>
       </section>
 
       {/* ── Segurança ───────────────────────────────────────────────────── */}
