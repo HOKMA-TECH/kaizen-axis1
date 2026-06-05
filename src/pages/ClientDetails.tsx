@@ -825,9 +825,9 @@ export default function ClientDetails() {
                     />
                   </div>
                 ))}
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-3 gap-2 sm:gap-3">
                   <div>
-                    <label className="text-xs text-text-secondary uppercase tracking-wider mb-1 block">Tipo de Renda</label>
+                    <label className="text-[10px] sm:text-xs text-text-secondary uppercase tracking-wider mb-1 block leading-tight min-h-[2.25rem] sm:min-h-0">Tipo de Renda</label>
                     <select
                       value={editForm.incomeType || ''}
                       onChange={e => setEditForm({ ...editForm, incomeType: e.target.value as 'Formal' | 'Informal' | 'Mista' })}
@@ -840,7 +840,7 @@ export default function ClientDetails() {
                     </select>
                   </div>
                   <div>
-                    <label className="text-xs text-text-secondary uppercase tracking-wider mb-1 block">Cotista</label>
+                    <label className="text-[10px] sm:text-xs text-text-secondary uppercase tracking-wider mb-1 block leading-tight min-h-[2.25rem] sm:min-h-0">Cotista</label>
                     <select
                       value={editForm.cotista || ''}
                       onChange={e => setEditForm({ ...editForm, cotista: e.target.value })}
@@ -852,7 +852,7 @@ export default function ClientDetails() {
                     </select>
                   </div>
                   <div>
-                    <label className="text-xs text-text-secondary uppercase tracking-wider mb-1 block">Fator Social (Dependente)</label>
+                    <label className="text-[10px] sm:text-xs text-text-secondary uppercase tracking-wider mb-1 block leading-tight min-h-[2.25rem] sm:min-h-0">Fator Social</label>
                     <select
                       value={editForm.socialFactor || ''}
                       onChange={e => setEditForm({ ...editForm, socialFactor: e.target.value })}
