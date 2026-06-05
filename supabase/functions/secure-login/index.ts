@@ -10,19 +10,31 @@ type SecureLoginBody = {
 
 const LOGIN_LIMIT = { limit: 10, windowSeconds: 60 };
 
-const CORS_ORIGIN = Deno.env.get('APP_ORIGIN') ?? '';
-const corsHeaders = {
-  'Access-Control-Allow-Origin': CORS_ORIGIN,
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, Authorization, apikey, x-client-info',
-  'Vary': 'Origin',
-};
+// CORS allowlist: APP_ORIGIN (produção; pode ser lista separada por vírgula) +
+// previews da Vercel deste projeto/time + localhost (dev). É aditivo — produção
+// continua igual; só LIBERA origens extras para preview/desenvolvimento.
+const ALLOWED_ORIGINS = (Deno.env.get('APP_ORIGIN') ?? '')
+  .split(',')
+  .map((o) => o.trim())
+  .filter(Boolean);
+const VERCEL_PREVIEW_RE = /^https:\/\/kaizen-axis1-[a-z0-9-]+-hokma-tech\.vercel\.app$/;
+const LOCALHOST_RE = /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/;
 
-function jsonResponse(payload: Record<string, unknown>, status = 200) {
-  return new Response(JSON.stringify(payload), {
-    status,
-    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-  });
+function resolveCorsOrigin(req: Request): string {
+  const origin = req.headers.get('Origin') ?? '';
+  if (ALLOWED_ORIGINS.includes(origin)) return origin;
+  if (VERCEL_PREVIEW_RE.test(origin)) return origin;
+  if (LOCALHOST_RE.test(origin)) return origin;
+  return ALLOWED_ORIGINS[0] ?? '';
+}
+
+function buildCorsHeaders(origin: string) {
+  return {
+    'Access-Control-Allow-Origin': origin,
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization, apikey, x-client-info',
+    'Vary': 'Origin',
+  };
 }
 
 function resolveIp(req: Request) {
@@ -37,6 +49,13 @@ function truncateToWindow(date: Date, windowSeconds: number): string {
 }
 
 Deno.serve(async (req: Request) => {
+  const corsHeaders = buildCorsHeaders(resolveCorsOrigin(req));
+  const jsonResponse = (payload: Record<string, unknown>, status = 200) =>
+    new Response(JSON.stringify(payload), {
+      status,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
