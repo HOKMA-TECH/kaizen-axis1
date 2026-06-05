@@ -3,7 +3,7 @@ import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Users, Calendar, MessageSquare, Building2,
   CheckSquare, GraduationCap, Calculator, Settings, BarChart3,
-  FileType, Globe, QrCode, Home, Lock, ChevronRight, LogOut,
+  FileType, Globe, QrCode, Home, Lock, ChevronRight, ChevronLeft, LogOut,
   Bell,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -53,7 +53,7 @@ const NAV_ADMIN: NavItem[] = [
 
 // ─── Sidebar nav link ─────────────────────────────────────────────────────────
 
-function SideNavLink({ item, unreadCount = 0 }: { item: NavItem; unreadCount?: number }) {
+function SideNavLink({ item, unreadCount = 0, collapsed = false }: { item: NavItem; unreadCount?: number; collapsed?: boolean }) {
   const location = useLocation();
   const isActive = item.path === '/'
     ? location.pathname === '/'
@@ -61,10 +61,16 @@ function SideNavLink({ item, unreadCount = 0 }: { item: NavItem; unreadCount?: n
 
   if (item.locked) {
     return (
-      <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-text-secondary/70 bg-surface-100/60 cursor-not-allowed">
+      <div
+        title={collapsed ? item.label : undefined}
+        className={cn(
+          'flex items-center rounded-xl text-sm font-medium text-text-secondary/70 bg-surface-100/60 cursor-not-allowed',
+          collapsed ? 'justify-center py-2.5' : 'gap-3 px-3 py-2.5',
+        )}
+      >
         <item.icon size={18} strokeWidth={2} />
-        <span>{item.label}</span>
-        <Lock size={14} className="ml-auto text-text-secondary/70" />
+        {!collapsed && <span>{item.label}</span>}
+        {!collapsed && <Lock size={14} className="ml-auto text-text-secondary/70" />}
       </div>
     );
   }
@@ -72,40 +78,49 @@ function SideNavLink({ item, unreadCount = 0 }: { item: NavItem; unreadCount?: n
   return (
     <NavLink
       to={item.path}
+      title={collapsed ? item.label : undefined}
       className={cn(
-        'flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200',
+        'flex items-center rounded-xl text-sm font-medium transition-all duration-200',
+        collapsed ? 'justify-center py-2.5' : 'gap-3 px-3 py-2.5',
         isActive
           ? 'bg-primary-100 dark:bg-primary-900/40 text-primary-700 dark:text-primary-300'
           : 'text-text-secondary hover:bg-surface-100 dark:hover:bg-surface-200/10 hover:text-text-primary',
       )}
     >
-      <item.icon size={18} strokeWidth={isActive ? 2.5 : 2} />
-      <span>{item.label}</span>
-      {unreadCount > 0 && (
+      <div className="relative flex-shrink-0">
+        <item.icon size={18} strokeWidth={isActive ? 2.5 : 2} />
+        {collapsed && unreadCount > 0 && (
+          <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-emerald-500 ring-2 ring-card-bg" />
+        )}
+      </div>
+      {!collapsed && <span>{item.label}</span>}
+      {!collapsed && unreadCount > 0 && (
         <span className="ml-auto min-w-5 h-5 px-1.5 rounded-full bg-emerald-500 text-white text-[10px] font-bold flex items-center justify-center">
           {unreadCount > 99 ? '99+' : unreadCount}
         </span>
       )}
-      {isActive && unreadCount === 0 && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-primary-500" />}
+      {!collapsed && isActive && unreadCount === 0 && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-primary-500" />}
     </NavLink>
   );
 }
 
 // ─── Sidebar group ────────────────────────────────────────────────────────────
 
-function NavGroup({ label, items, chatUnread }: { label: string; items: NavItem[]; chatUnread?: number }) {
+function NavGroup({ label, items, chatUnread, collapsed = false }: { label: string; items: NavItem[]; chatUnread?: number; collapsed?: boolean }) {
   if (items.length === 0) return null;
   return (
     <div className="space-y-0.5">
-      <p className="text-[10px] font-bold uppercase tracking-widest text-text-secondary px-3 mb-1">{label}</p>
-      {items.map(item => <SideNavLink key={item.path} item={item} unreadCount={item.path === '/chat' ? chatUnread : 0} />)}
+      {collapsed
+        ? <div className="h-px bg-surface-200 dark:bg-surface-100/10 mx-2 mb-1.5" />
+        : <p className="text-[10px] font-bold uppercase tracking-widest text-text-secondary px-3 mb-1">{label}</p>}
+      {items.map(item => <SideNavLink key={item.path} item={item} unreadCount={item.path === '/chat' ? chatUnread : 0} collapsed={collapsed} />)}
     </div>
   );
 }
 
 // ─── Sidebar ─────────────────────────────────────────────────────────────────
 
-function Sidebar() {
+function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => void }) {
   const { isAdmin, isDirector, isManager, isCoordinator, isAnalyst, canAccessIncomeAnalysis } = useAuthorization();
   const { userName, profile, signOut } = useApp();
   const { totalUnread } = useChatUnread();
@@ -152,50 +167,80 @@ function Sidebar() {
     ].filter(g => g.items.length > 0);
 
   return (
-    <aside className="fixed top-0 left-0 h-screen w-64 bg-card-bg border-r border-surface-200 dark:border-surface-100/10 flex flex-col z-40 print:hidden">
+    <aside className={cn(
+      'fixed top-0 left-0 h-screen bg-card-bg border-r border-surface-200 dark:border-surface-100/10 flex flex-col z-40 print:hidden transition-all duration-200',
+      collapsed ? 'w-16' : 'w-64',
+    )}>
       {/* Brand */}
-      <div className="h-14 px-5 flex items-center border-b border-surface-200 dark:border-surface-100/10">
-        <div className="flex items-center gap-2.5">
-          <img
-            src="/pwa-192x192.png"
-            alt="Kaizen Logo"
-            className="w-8 h-8 rounded-lg object-contain"
-          />
-          <div>
-            <h1 className="font-black text-text-primary text-sm leading-none">KAIZEN</h1>
-            <p className="text-[10px] text-text-secondary font-medium tracking-widest">AXIS</p>
-          </div>
-        </div>
+      <div className={cn('h-14 flex items-center border-b border-surface-200 dark:border-surface-100/10', collapsed ? 'px-2' : 'px-4')}>
+        {collapsed ? (
+          <button
+            onClick={onToggle}
+            title="Expandir menu"
+            className="w-full flex items-center justify-center rounded-lg py-1.5 hover:bg-surface-100 dark:hover:bg-surface-200/10 transition-colors"
+          >
+            <img src="/pwa-192x192.png" alt="Kaizen Logo" className="w-8 h-8 rounded-lg object-contain" />
+          </button>
+        ) : (
+          <>
+            <div className="flex items-center gap-2.5 flex-1 min-w-0">
+              <img src="/pwa-192x192.png" alt="Kaizen Logo" className="w-8 h-8 rounded-lg object-contain flex-shrink-0" />
+              <div className="min-w-0">
+                <h1 className="font-black text-text-primary text-sm leading-none">KAIZEN</h1>
+                <p className="text-[10px] text-text-secondary font-medium tracking-widest">AXIS</p>
+              </div>
+            </div>
+            <button
+              onClick={onToggle}
+              title="Recolher menu"
+              className="p-1.5 rounded-lg text-text-secondary hover:bg-surface-100 dark:hover:bg-surface-200/10 hover:text-text-primary transition-colors flex-shrink-0"
+            >
+              <ChevronLeft size={18} />
+            </button>
+          </>
+        )}
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-5 no-scrollbar">
+      <nav className={cn('flex-1 overflow-y-auto py-4 space-y-5 no-scrollbar', collapsed ? 'px-2' : 'px-3')}>
         {allGroups.map(g => (
-          <NavGroup key={g.label} label={g.label} items={g.items} chatUnread={totalUnread} />
+          <NavGroup key={g.label} label={g.label} items={g.items} chatUnread={totalUnread} collapsed={collapsed} />
         ))}
       </nav>
 
       {/* User footer */}
-      <div className="px-3 py-3 border-t border-surface-200 dark:border-surface-100/10">
+      <div className={cn('py-3 border-t border-surface-200 dark:border-surface-100/10', collapsed ? 'px-2' : 'px-3')}>
         <button
           onClick={() => navigate('/settings')}
-          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-surface-100 dark:hover:bg-surface-200/10 transition-all group"
+          title={collapsed ? `${userName} — Configurações` : undefined}
+          className={cn(
+            'w-full flex items-center rounded-xl hover:bg-surface-100 dark:hover:bg-surface-200/10 transition-all group',
+            collapsed ? 'justify-center py-2' : 'gap-3 px-3 py-2.5',
+          )}
         >
           <div className="w-8 h-8 rounded-full bg-primary-100 dark:bg-primary-900/40 flex items-center justify-center text-primary-700 dark:text-primary-300 font-bold text-sm flex-shrink-0">
             {(userName || '?').charAt(0).toUpperCase()}
           </div>
-          <div className="flex-1 min-w-0 text-left">
-            <p className="text-sm font-semibold text-text-primary truncate">{userName}</p>
-            <p className="text-[10px] text-text-secondary truncate">{profile?.role}</p>
-          </div>
-          <ChevronRight size={14} className="text-surface-300 group-hover:text-text-secondary transition-colors" />
+          {!collapsed && (
+            <>
+              <div className="flex-1 min-w-0 text-left">
+                <p className="text-sm font-semibold text-text-primary truncate">{userName}</p>
+                <p className="text-[10px] text-text-secondary truncate">{profile?.role}</p>
+              </div>
+              <ChevronRight size={14} className="text-surface-300 group-hover:text-text-secondary transition-colors" />
+            </>
+          )}
         </button>
         <button
           onClick={() => setIsLogoutConfirmOpen(true)}
-          className="w-full flex items-center gap-3 px-3 py-2 mt-1 rounded-xl text-sm text-text-secondary hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20 transition-all"
+          title={collapsed ? 'Sair' : undefined}
+          className={cn(
+            'w-full flex items-center mt-1 rounded-xl text-sm text-text-secondary hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20 transition-all',
+            collapsed ? 'justify-center py-2' : 'gap-3 px-3 py-2',
+          )}
         >
           <LogOut size={16} />
-          <span>Sair</span>
+          {!collapsed && <span>Sair</span>}
         </button>
       </div>
 
@@ -237,6 +282,15 @@ function Sidebar() {
 export function DesktopLayout({ children }: { children: React.ReactNode }) {
   const location = useLocation();
 
+  const [collapsed, setCollapsed] = React.useState(() => {
+    try { return localStorage.getItem('sidebar-collapsed') === 'true'; } catch { return false; }
+  });
+  const toggleCollapsed = () => setCollapsed(prev => {
+    const next = !prev;
+    try { localStorage.setItem('sidebar-collapsed', String(next)); } catch { /* ignore */ }
+    return next;
+  });
+
   // Derive page title from current path
   const pageTitles: Record<string, string> = {
     '/':              'Dashboard',
@@ -264,10 +318,10 @@ export function DesktopLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-screen bg-surface-50 dark:bg-surface-50 flex">
-      <Sidebar />
+      <Sidebar collapsed={collapsed} onToggle={toggleCollapsed} />
 
       {/* Main content */}
-      <div className="ml-64 flex-1 flex flex-col min-h-screen">
+      <div className={cn('flex-1 flex flex-col min-h-screen transition-all duration-200', collapsed ? 'ml-16' : 'ml-64')}>
         {/* Top header */}
         <header className="sticky top-0 z-30 h-14 bg-card-bg border-b border-surface-200 dark:border-surface-100/10 flex items-center px-6 gap-4 print:hidden">
           <h2 className="font-bold text-text-primary text-base flex-1">{currentTitle}</h2>
