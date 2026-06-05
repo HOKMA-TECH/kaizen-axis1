@@ -427,7 +427,7 @@ export default function Schedule() {
                   <button
                     key={i}
                     onClick={() => setSelectedDate(day)}
-                    className={`flex-1 py-3 flex flex-col items-center gap-0.5 transition-colors ${sel ? 'bg-blue-50' : 'hover:bg-subtle-bg'}`}
+                    className={`flex-1 min-w-0 py-3 flex flex-col items-center gap-0.5 transition-colors ${sel ? 'bg-blue-50' : 'hover:bg-subtle-bg'}`}
                   >
                     <span className="text-[10px] font-bold text-text-secondary tracking-wider">{DAY_ABBR[i]}</span>
                     <span className={`text-base font-bold w-8 h-8 flex items-center justify-center rounded-full transition-colors ${
@@ -464,7 +464,7 @@ export default function Schedule() {
                             setSelectedDate(day);
                             handleOpenModal(undefined, format(day, 'yyyy-MM-dd'), `${String(hour).padStart(2,'0')}:00`);
                           }}
-                          className={`flex-1 border-l border-line-subtle px-0.5 py-0.5 cursor-pointer transition-colors ${
+                          className={`flex-1 min-w-0 border-l border-line-subtle px-0.5 py-0.5 cursor-pointer transition-colors ${
                             sel ? 'bg-blue-50/30 hover:bg-blue-50/50' : 'hover:bg-subtle-bg/70'
                           }`}
                         >
@@ -472,7 +472,7 @@ export default function Schedule() {
                             <div
                               key={evt.id}
                               onClick={e => { e.stopPropagation(); setSelectedDate(day); }}
-                              className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-md truncate mb-0.5 ${
+                              className={`block w-full text-[10px] font-semibold px-1.5 py-0.5 rounded-md truncate mb-0.5 ${
                                 TYPE_BLOCK[evt.type] ?? 'bg-subtle-bg text-text-primary border-l-2 border-line-strong'
                               } ${evt.completed ? 'opacity-40' : ''}`}
                             >
