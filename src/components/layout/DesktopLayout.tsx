@@ -154,7 +154,7 @@ function Sidebar() {
   return (
     <aside className="fixed top-0 left-0 h-screen w-64 bg-card-bg border-r border-surface-200 dark:border-surface-100/10 flex flex-col z-40 print:hidden">
       {/* Brand */}
-      <div className="px-5 py-5 border-b border-surface-200 dark:border-surface-100/10">
+      <div className="h-14 px-5 flex items-center border-b border-surface-200 dark:border-surface-100/10">
         <div className="flex items-center gap-2.5">
           <img
             src="/pwa-192x192.png"
