@@ -75,7 +75,7 @@ export interface Client {
   address?: string;
   profession?: string;
   grossIncome: string;
-  incomeType?: 'Formal' | 'Informal';
+  incomeType?: 'Formal' | 'Informal' | 'Mista';
   cotista?: string;
   socialFactor?: string;
   regionOfInterest?: string;

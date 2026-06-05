@@ -830,12 +830,13 @@ export default function ClientDetails() {
                     <label className="text-xs text-text-secondary uppercase tracking-wider mb-1 block">Tipo de Renda</label>
                     <select
                       value={editForm.incomeType || ''}
-                      onChange={e => setEditForm({ ...editForm, incomeType: e.target.value as 'Formal' | 'Informal' })}
+                      onChange={e => setEditForm({ ...editForm, incomeType: e.target.value as 'Formal' | 'Informal' | 'Mista' })}
                       className="w-full p-2 bg-surface-50 rounded-lg border-none focus:ring-2 focus:ring-gold-400 text-sm text-text-primary"
                     >
                       <option value="">Selecione</option>
                       <option value="Formal">Formal</option>
                       <option value="Informal">Informal</option>
+                      <option value="Mista">Mista</option>
                     </select>
                   </div>
                   <div>
@@ -843,6 +844,18 @@ export default function ClientDetails() {
                     <select
                       value={editForm.cotista || ''}
                       onChange={e => setEditForm({ ...editForm, cotista: e.target.value })}
+                      className="w-full p-2 bg-surface-50 rounded-lg border-none focus:ring-2 focus:ring-gold-400 text-sm text-text-primary"
+                    >
+                      <option value="">Selecione</option>
+                      <option value="Sim">Sim</option>
+                      <option value="Não">Não</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-xs text-text-secondary uppercase tracking-wider mb-1 block">Fator Social (Dependente)</label>
+                    <select
+                      value={editForm.socialFactor || ''}
+                      onChange={e => setEditForm({ ...editForm, socialFactor: e.target.value })}
                       className="w-full p-2 bg-surface-50 rounded-lg border-none focus:ring-2 focus:ring-gold-400 text-sm text-text-primary"
                     >
                       <option value="">Selecione</option>
