@@ -442,7 +442,7 @@ export default function Schedule() {
             </div>
 
             {/* Time grid (scrollable) */}
-            <div className="flex-1 overflow-y-auto">
+            <div className="flex-1 overflow-y-auto no-scrollbar">
               {loading ? (
                 <div className="flex justify-center py-16"><Loader2 size={26} className="animate-spin text-blue-500" /></div>
               ) : (
