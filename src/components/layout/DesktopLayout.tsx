@@ -12,6 +12,7 @@ import { useApp } from '@/context/AppContext';
 import { NotificationBell } from '@/components/ui/NotificationBell';
 import { useChatUnread } from '@/context/ChatUnreadContext';
 import { Modal } from '@/components/ui/Modal';
+import { useGsapPageTransition } from '@/lib/motion';
 
 // ─── Nav items definition ─────────────────────────────────────────────────────
 
@@ -330,7 +331,10 @@ export function DesktopLayout({ children }: { children: React.ReactNode }) {
 
         {/* Page content */}
         <main className="flex-1 overflow-y-auto print:overflow-visible print:h-auto">
-          <div className="@container mx-auto w-full max-w-[1680px] px-3 sm:px-5 lg:px-8">
+          <div
+            ref={useGsapPageTransition<HTMLDivElement>(location.pathname)}
+            className="@container mx-auto w-full max-w-[1680px] px-3 sm:px-5 lg:px-8"
+          >
             {children}
           </div>
         </main>

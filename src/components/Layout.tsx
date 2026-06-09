@@ -5,6 +5,7 @@ import { cn } from '@/lib/utils';
 import { motion } from 'motion/react';
 import { useAuthorization } from '@/hooks/useAuthorization';
 import { useChatUnread } from '@/context/ChatUnreadContext';
+import { useGsapPageTransition } from '@/lib/motion';
 
 /** Detecta se o teclado virtual está aberto no iOS via visualViewport */
 function useKeyboardOpen() {
@@ -79,10 +80,12 @@ export const BottomNav = () => {
 };
 
 export const Layout = ({ children }: { children: React.ReactNode }) => {
+  const location = useLocation();
+  const contentRef = useGsapPageTransition<HTMLDivElement>(location.pathname);
   return (
     <div className="min-h-screen bg-surface-50 pb-24 max-w-md mx-auto shadow-2xl shadow-black/5 relative print:pb-0 print:max-w-none print:shadow-none print:bg-white print:overflow-visible print:px-4">
       <main className="h-full overflow-y-auto no-scrollbar print:overflow-visible print:h-auto">
-        {children}
+        <div ref={contentRef}>{children}</div>
       </main>
       <BottomNav />
     </div>
