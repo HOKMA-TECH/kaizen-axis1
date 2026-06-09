@@ -1,23 +1,24 @@
 @import "tailwindcss";
-/* Modo escuro removido — variante neutralizada para um seletor inexistente.
-   NÃO apagar esta linha: sem ela o Tailwind v4 reativa dark: via prefers-color-scheme. */
-@custom-variant dark (&:where(.dark-mode-removed));
+/* v3 (preview): dark mode REATIVADO via classe .dark no <html>.
+   Acende todas as variantes `dark:` já existentes no código. Controlado por
+   classe (não por prefers-color-scheme), então produção/main não é afetada. */
+@custom-variant dark (&:where(.dark, .dark *));
 
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
 
-  /* Primary Blue Scale - Nova Identidade Visual */
-  --color-primary-50: #EFF6FF;
-  --color-primary-100: #DBEAFE;
-  --color-primary-200: #BFDBFE;
-  --color-primary-300: #93C5FD;
-  --color-primary-400: #60A5FA;
-  --color-primary-500: #3B82F6; /* Primary Light */
-  --color-primary-600: #1F6FE5; /* Primary Main */
-  --color-primary-700: #0F4FBF; /* Primary Dark */
-  --color-primary-800: #1E40AF;
-  --color-primary-900: #1E3A8A;
+  /* Primary Blue Scale — v3 (brand #2563eb) */
+  --color-primary-50: #eff6ff;
+  --color-primary-100: #dbeafe;
+  --color-primary-200: #bfdbfe;
+  --color-primary-300: #93c5fd;
+  --color-primary-400: #60a5fa;
+  --color-primary-500: #3b82f6; /* Primary Light */
+  --color-primary-600: #2563eb; /* Primary Main */
+  --color-primary-700: #1d4ed8; /* Primary Dark */
+  --color-primary-800: #1e40af;
+  --color-primary-900: #1e3a8a;
 
   /* Mantém compatibilidade com código antigo (gold → primary) */
   --color-gold-50: var(--color-primary-50);
@@ -54,38 +55,38 @@
 }
 
 :root {
-  /* Background Colors */
-  --bg-app: #FAFAFA;
-  --bg-card: #FFFFFF;
-  --bg-subtle: #F3F4F6;
+  /* ── v3 Dark Editorial (preview-only) — base escura azulada ───────────── */
+  --bg-app: #07090e;     /* página */
+  --bg-card: #0d111a;    /* cards (um pouco acima do fundo) */
+  --bg-subtle: #121823;  /* hover / blocos sutis */
 
-  /* Extended surface scale (compat with legacy classes) */
-  --surface-400: #9CA3AF;
-  --surface-500: #6B7280;
-  --surface-600: #4B5563;
-  --surface-700: #374151;
-  --surface-800: #1F2937;
-  --surface-900: #111827;
+  /* Surface scale (dark): baixos = fundos/bordas escuras, altos = quase branco */
+  --surface-400: #3e4859;
+  --surface-500: #64748b;
+  --surface-600: #8b94a3;
+  --surface-700: #b4bcc8;
+  --surface-800: #d6dbe3;
+  --surface-900: #eef2f7;
 
-  /* Border Colors */
-  --border-subtle: #E5E7EB;
-  --border-strong: #D1D5DB;
+  /* Border Colors (dark) */
+  --border-subtle: #1e2636;
+  --border-strong: #2b3547;
 
-  /* Text Colors */
-  --text-primary: #1F2937;
-  --text-secondary: #6B7280;
+  /* Text Colors (dark) */
+  --text-primary: #f4f6fb;   /* branco frio */
+  --text-secondary: #8b94a3;
 
-  /* Primary Theme Colors - Blue */
-  --color-primary: #1F6FE5;
-  --color-primary-dark: #0F4FBF;
-  --color-primary-light: #3B82F6;
-  --color-primary-hover: #1E5FCF;
+  /* Primary Theme Colors — brand blue */
+  --color-primary: #2563eb;
+  --color-primary-dark: #1d4ed8;
+  --color-primary-light: #3b82f6;
+  --color-primary-hover: #1d4ed8;
 
   /* Status Colors */
-  --color-success: #16A34A;
-  --color-warning: #F59E0B;
-  --color-error: #DC2626;
-  --color-info: #3B82F6;
+  --color-success: #34d399;
+  --color-warning: #fbbf24;
+  --color-error: #f87171;
+  --color-info: #60a5fa;
 }
 
 /* iOS Safari ignores overflow-x on body alone — must set on html too */
