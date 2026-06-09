@@ -163,3 +163,47 @@ body {
     page-break-inside: avoid;
   }
 }
+
+/* ════════════════════════════════════════════════════════════════════════
+   v3 "Dark Editorial" — tokens shadcn ESCOPADOS em .v3-root (preview-only).
+   Mapeamento @theme inline (gera utilitários bg-background, text-foreground,
+   border-border, bg-card, bg-primary, text-muted-foreground, ring-ring…).
+   Os VALORES só existem dentro de .v3-root → não repinta o app claro.
+   ════════════════════════════════════════════════════════════════════════ */
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+}
+
+.v3-root {
+  --background: #06070a;
+  --foreground: #f4f6fb;
+  --card: #0a0c11;
+  --card-foreground: #f4f6fb;
+  --muted: #11151c;
+  --muted-foreground: #8b94a3;
+  --border: #171c26;
+  --input: #171c26;
+  --ring: #2563eb;
+  --accent: #60a5fa;
+  --accent-foreground: #06070a;
+  --primary: #2563eb;
+  --primary-foreground: #ffffff;
+  background-color: var(--background);
+  color: var(--foreground);
+}
+
+.v3-serif {
+  font-family: "Georgia", "Times New Roman", serif;
+}

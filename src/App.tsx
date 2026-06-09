@@ -30,6 +30,7 @@ import SecurityPanel from '@/pages/admin/SecurityPanel';
 import PdfTools from '@/pages/PdfTools';
 import Portals from '@/pages/Portals';
 import Login from '@/pages/Login';
+import V3Showcase from '@/pages/V3Showcase';
 import ResetPassword from '@/pages/ResetPassword';
 import PendingApproval from '@/pages/PendingApproval';
 import CheckIn from '@/pages/CheckIn';
@@ -149,6 +150,7 @@ export default function App() {
       <OfflineBanner />
       <Routes>
         {/* Public */}
+        <Route path="/v3" element={<V3Showcase />} />
         <Route path="/login" element={<Login />} />
         <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/pending" element={<PendingApproval />} />
