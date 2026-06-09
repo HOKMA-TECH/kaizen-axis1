@@ -1,3 +1,12 @@
+> **⚠️ PIVOT (2026-06-09, mais tarde):** a direção visual mudou de "Minimal
+> Vercel/Apple (quadrado)" para a **pegada HOKMA** (referência:
+> `PROJETOS/HOKMA-DESKTOP`): paleta **slate** + brand azul `#2563eb`, cards
+> **`rounded-2xl`** + **sombra suave**/glass, sidebar retrátil estilizada
+> (gradiente/seções/perfil), e **transição de página GSAP** em todo o app.
+> As seções abaixo descrevem o piloto quadrado original; a geometria foi
+> revertida para arredondada. O restante (preview-only, primitivos GSAP,
+> reduced-motion, sem regressão de lógica) continua valendo.
+
 # SPEC — Dashboard v2 (Minimal "Vercel/Apple" + GSAP)
 
 > **Data:** 2026-06-09 · **Status:** Aprovado (design) — não implementado
