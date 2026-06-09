@@ -352,7 +352,7 @@ export default function Login() {
       <div className="w-full md:max-w-md bg-card-bg dark:bg-surface-100 md:rounded-3xl md:shadow-xl min-h-screen md:min-h-0 p-8 animate-in fade-in zoom-in-95 duration-500 flex flex-col justify-center">
 
         <div className="flex flex-col items-center mb-10 text-center">
-          <h2 className="text-2xl font-bold text-text-primary tracking-tight">
+          <h2 className="v3-serif text-3xl text-text-primary tracking-tight">
             {showResetPassword ? 'Nova Senha' : showMfaInput ? 'Autenticação' : (isLogin ? 'Bem-vindo de volta' : 'Criar Nova Conta')}
           </h2>
           <p className="text-sm text-text-secondary mt-2">
