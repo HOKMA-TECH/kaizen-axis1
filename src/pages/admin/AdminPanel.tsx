@@ -1618,7 +1618,7 @@ export default function AdminPanel() {
                             contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.1)' }}
                             formatter={(value: any, name: any, props: any) => [`${value} Clientes (${props.payload.percentual}%)`, 'Quantidade']}
                           />
-                          <Bar dataKey="quantidade" fill="#D4AF37" radius={[4, 4, 0, 0]} />
+                          <Bar dataKey="quantidade" fill="#3b82f6" radius={[4, 4, 0, 0]} />
                         </BarChart>
                       </ResponsiveContainer>
                     </div>

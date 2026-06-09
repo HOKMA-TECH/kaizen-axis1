@@ -202,8 +202,8 @@ export default function Amortization() {
                 <div className="rounded-xl bg-surface-100 border border-surface-200 p-3 mb-4">
                   <p className="text-xs font-semibold text-text-secondary mb-2">Composição da parcela</p>
                   <div className="flex rounded-full overflow-hidden h-3 mb-2">
-                    <div style={{ width: `${(result.amortizacao / result.parcela) * 100}%`, background: '#D4AF37' }} />
-                    <div style={{ width: `${(result.juros / result.parcela) * 100}%`, background: '#9C7E26' }} />
+                    <div style={{ width: `${(result.amortizacao / result.parcela) * 100}%`, background: '#3b82f6' }} />
+                    <div style={{ width: `${(result.juros / result.parcela) * 100}%`, background: '#1e3a8a' }} />
                   </div>
                   <div className="flex gap-4 text-xs">
                     <span className="flex items-center gap-1.5">
