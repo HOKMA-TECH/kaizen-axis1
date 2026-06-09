@@ -93,6 +93,24 @@ magnético** (segue cursor + retorno elástico). Tudo sob `prefers-reduced-motio
 - Animações rodam; com `prefers-reduced-motion` aparecem em estado final.
 - Resto do app (claro) **inalterado** — tema dark fica escopado em `.v3-root`.
 
+## 8b. Expansão: v3 no app inteiro (preview)
+
+Após a vitrine aprovada, a v3 foi **aplicada ao app inteiro** em `preview/v3`:
+- Dark mode **reativado** (`.dark` no `<html>` + variant por classe) → acende as
+  centenas de `dark:` já existentes. **Produção/main não muda** (controle por classe).
+- Tokens `:root` virados para a base escura editorial (slate-dark + azul `#2563eb`).
+- Shell editorial: marca serifada + logo gradiente, seções tracking largo, item
+  ativo gradiente + chevron, topbar serifado, transição de página GSAP (desktop+mobile).
+- `SectionHeader` serifado (19 telas), `CountNumber` (count-up), Dashboard (admin)
+  editorial, FunnelChart + barras em azul.
+- Varredura: `bg-white`/`text-gray-*`/`border-gray-*` cravados → tokens (exclui
+  PDF/print, onde branco é proposital).
+
+**Long-tail conhecido (pode precisar de retoque):** tooltips do recharts abrem
+claros no hover (Reports/AdminPanel/PresenceReport); UI das ferramentas de PDF
+fica clara de propósito (preview = papel branco); count-up só no bloco Admin do
+Dashboard (demais papéis herdam cor, sem contagem).
+
 ## 9. Fora de escopo (futuro)
 
 - Migrar telas reais para a linguagem v3.
