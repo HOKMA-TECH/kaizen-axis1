@@ -89,7 +89,7 @@ export const RoundedButton = ({
 export const SectionHeader = ({ title, subtitle, action }: { title: string; subtitle?: string; action?: React.ReactNode }) => (
   <div className="flex items-center justify-between mb-4 px-1">
     <div>
-      <h2 className="text-xl font-semibold text-text-primary tracking-tight">{title}</h2>
+      <h2 className="v3-serif text-xl text-text-primary tracking-tight">{title}</h2>
       {subtitle && <p className="text-sm text-text-secondary mt-0.5">{subtitle}</p>}
     </div>
     {action}

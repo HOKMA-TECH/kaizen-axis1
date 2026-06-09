@@ -21,7 +21,7 @@ export const FunnelChart = ({ clientsData }: FunnelChartProps) => {
   return (
     <PremiumCard className="h-72 flex flex-col">
       <div className="mb-4">
-        <h3 className="font-semibold text-text-primary">Funil de Conversão</h3>
+        <h3 className="v3-serif text-lg text-text-primary tracking-tight">Funil de Conversão</h3>
         <p className="text-xs text-text-secondary">Baseado em dados reais</p>
       </div>
       <div className="flex-1 w-full -ml-4">
@@ -37,8 +37,8 @@ export const FunnelChart = ({ clientsData }: FunnelChartProps) => {
           >
             <defs>
               <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#D4AF37" stopOpacity={0.3} />
-                <stop offset="95%" stopColor="#D4AF37" stopOpacity={0} />
+                <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3} />
+                <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
               </linearGradient>
             </defs>
             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-surface-200)" />
@@ -63,16 +63,16 @@ export const FunnelChart = ({ clientsData }: FunnelChartProps) => {
                 color: 'var(--color-text-primary)'
               }}
               itemStyle={{ color: 'var(--color-text-primary)' }}
-              cursor={{ stroke: '#D4AF37', strokeWidth: 1, strokeDasharray: '4 4' }}
+              cursor={{ stroke: '#3b82f6', strokeWidth: 1, strokeDasharray: '4 4' }}
             />
             <Area
               type="monotone"
               dataKey="value"
-              stroke="#D4AF37"
+              stroke="#3b82f6"
               strokeWidth={3}
               fillOpacity={1}
               fill="url(#colorValue)"
-              activeDot={{ r: 6, fill: '#D4AF37', stroke: 'var(--color-card-bg)', strokeWidth: 2 }}
+              activeDot={{ r: 6, fill: '#3b82f6', stroke: 'var(--color-card-bg)', strokeWidth: 2 }}
             />
           </AreaChart>
         </ResponsiveContainer>
