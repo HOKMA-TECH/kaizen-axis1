@@ -5,16 +5,19 @@ import { motion } from 'motion/react';
 interface PremiumCardProps extends React.HTMLAttributes<HTMLDivElement> {
   children: React.ReactNode;
   highlight?: boolean;
+  /** v2: cantos mais retos (8px) em vez do default arredondado (12px). */
+  square?: boolean;
 }
 
-export const PremiumCard = ({ children, className, highlight, ...props }: PremiumCardProps) => {
+export const PremiumCard = ({ children, className, highlight, square, ...props }: PremiumCardProps) => {
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 } as any}
       animate={{ opacity: 1, y: 0 } as any}
       className={cn(
-        "bg-card-bg rounded-2xl p-5 shadow-sm border border-surface-200",
-        highlight && "border-gold-400/30 bg-gradient-to-br from-card-bg to-gold-50/10 dark:to-gold-900/10",
+        "bg-card-bg p-5 border border-surface-200 transition-colors duration-200",
+        square ? "rounded-lg" : "rounded-xl",
+        highlight && "border-primary-300/40 bg-gradient-to-br from-card-bg to-primary-50/30 dark:to-primary-900/10",
         className
       )}
       {...(props as any)}
