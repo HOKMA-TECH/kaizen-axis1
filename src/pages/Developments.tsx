@@ -321,7 +321,7 @@ export default function Developments() {
 
                 {/* Status Badge */}
                 <div className="absolute top-3 right-3">
-                  <StatusBadge status={dev.status || ''} className="bg-white/90 dark:bg-black/80 backdrop-blur-sm shadow-sm" />
+                  <StatusBadge status={dev.status || ''} className="bg-card-bg/90 dark:bg-black/80 backdrop-blur-sm shadow-sm" />
                 </div>
 
                 {/* Admin Actions */}
@@ -434,12 +434,12 @@ export default function Developments() {
                 <div className="flex gap-1 bg-surface-100 rounded-lg p-0.5">
                   <button type="button"
                     onClick={() => { setBookInputMode('upload'); setBookUploadError(null); }}
-                    className={`text-[11px] px-2 py-1 rounded-md transition-colors ${bookInputMode === 'upload' ? 'bg-white dark:bg-card-bg shadow-sm text-text-primary font-medium' : 'text-text-secondary'}`}>
+                    className={`text-[11px] px-2 py-1 rounded-md transition-colors ${bookInputMode === 'upload' ? 'bg-card-bg dark:bg-card-bg shadow-sm text-text-primary font-medium' : 'text-text-secondary'}`}>
                     Upload
                   </button>
                   <button type="button"
                     onClick={() => { setBookInputMode('link'); setBookUploadError(null); }}
-                    className={`text-[11px] px-2 py-1 rounded-md transition-colors ${bookInputMode === 'link' ? 'bg-white dark:bg-card-bg shadow-sm text-text-primary font-medium' : 'text-text-secondary'}`}>
+                    className={`text-[11px] px-2 py-1 rounded-md transition-colors ${bookInputMode === 'link' ? 'bg-card-bg dark:bg-card-bg shadow-sm text-text-primary font-medium' : 'text-text-secondary'}`}>
                     Link externo
                   </button>
                 </div>

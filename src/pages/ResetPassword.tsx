@@ -54,7 +54,7 @@ export default function ResetPassword() {
   if (done) {
     return (
       <div className="min-h-screen bg-surface-50 flex items-center justify-center p-6">
-        <div className="w-full max-w-md bg-white rounded-3xl shadow-xl p-8 text-center space-y-4">
+        <div className="w-full max-w-md bg-card-bg rounded-3xl shadow-xl p-8 text-center space-y-4">
           <div className="flex justify-center">
             <CheckCircle size={56} className="text-green-500" />
           </div>
@@ -67,7 +67,7 @@ export default function ResetPassword() {
 
   return (
     <div className="min-h-screen bg-surface-50 flex items-center justify-center p-6">
-      <div className="w-full max-w-md bg-white rounded-3xl shadow-xl p-8 space-y-6 animate-in fade-in zoom-in-95 duration-500">
+      <div className="w-full max-w-md bg-card-bg rounded-3xl shadow-xl p-8 space-y-6 animate-in fade-in zoom-in-95 duration-500">
         <div className="text-center">
           <h2 className="text-2xl font-bold text-text-primary">Redefinir Senha</h2>
           <p className="text-sm text-text-secondary mt-2">Digite e confirme sua nova senha</p>

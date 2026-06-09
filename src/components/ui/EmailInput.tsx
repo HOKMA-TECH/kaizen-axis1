@@ -65,7 +65,7 @@ export const EmailInput = ({ label, emails, onEmailsChange, placeholder }: Email
         {emails.map((email, index) => (
           <div
             key={index}
-            className="flex items-center gap-1.5 bg-white dark:bg-surface-700 pl-3 pr-1.5 py-1 rounded-full border border-surface-200 dark:border-surface-600 shadow-sm animate-in fade-in zoom-in duration-200"
+            className="flex items-center gap-1.5 bg-card-bg dark:bg-surface-700 pl-3 pr-1.5 py-1 rounded-full border border-surface-200 dark:border-surface-600 shadow-sm animate-in fade-in zoom-in duration-200"
           >
             <span className="text-xs font-semibold text-text-primary">{email}</span>
             <button

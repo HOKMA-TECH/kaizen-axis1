@@ -12,17 +12,17 @@ export function LeaderboardPanel() {
 
     if (loading) {
         return (
-            <div className="bg-card-bg/80 backdrop-blur-md rounded-2xl shadow-xl border border-line-subtle p-6 flex items-center justify-center min-h-[400px]">
+            <div className="bg-card-bg rounded-xl border border-surface-200 p-6 flex items-center justify-center min-h-[400px]">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-500"></div>
             </div>
         );
     }
 
     return (
-        <div className="bg-card-bg/80 backdrop-blur-md rounded-2xl shadow-xl border border-line-subtle overflow-hidden flex flex-col h-full">
-            <div className="p-6 border-b border-line-subtle bg-gradient-to-br from-indigo-50/40 dark:from-indigo-900/20 to-transparent">
+        <div className="bg-card-bg rounded-xl border border-surface-200 overflow-hidden flex flex-col h-full">
+            <div className="p-6 border-b border-surface-200 bg-gradient-to-br from-primary-50/50 dark:from-primary-900/20 to-transparent">
                 <div className="flex items-center space-x-3 mb-2">
-                    <div className="p-2 bg-indigo-100 text-indigo-600 rounded-xl">
+                    <div className="p-2 bg-primary-100 text-primary-600 rounded-xl">
                         <Trophy className="w-5 h-5" />
                     </div>
                     <h2 className="text-xl font-bold text-text-primary">Ranking Global</h2>

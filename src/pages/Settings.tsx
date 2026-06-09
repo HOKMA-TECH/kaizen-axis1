@@ -47,7 +47,7 @@ function Toggle({ value, onChange }: { value: boolean; onChange: (v: boolean) =>
       onClick={() => onChange(!value)}
       className={`w-12 h-6 rounded-full transition-colors relative flex-shrink-0 ${value ? 'bg-gold-500' : 'bg-surface-300'}`}
     >
-      <div className={`w-4 h-4 rounded-full bg-white absolute top-1 transition-transform ${value ? 'left-7' : 'left-1'}`} />
+      <div className={`w-4 h-4 rounded-full bg-card-bg absolute top-1 transition-transform ${value ? 'left-7' : 'left-1'}`} />
     </button>
   );
 }
@@ -633,7 +633,7 @@ export default function Settings() {
               <img
                 src={`https://chart.googleapis.com/chart?chs=200x200&cht=qr&chl=${encodeURIComponent(mfaQrUri)}`}
                 alt="QR Code 2FA"
-                className="rounded-xl border border-surface-200 p-2 bg-white"
+                className="rounded-xl border border-surface-200 p-2 bg-card-bg"
               />
             </div>
             <div className="p-3 bg-surface-100 rounded-xl">

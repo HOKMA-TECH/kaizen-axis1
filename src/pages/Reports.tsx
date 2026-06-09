@@ -1520,7 +1520,7 @@ export default function Reports() {
   );
 
   return (
-    <div className="p-6 pb-24 min-h-screen bg-surface-50 print:bg-white print:p-0 print:min-h-0 print:h-auto print:block">
+    <div className="p-6 pb-24 min-h-screen bg-surface-50 print:bg-card-bg print:p-0 print:min-h-0 print:h-auto print:block">
       <div className="mb-2 print:mb-2">
         <div>
           <h1 className="text-2xl font-bold text-text-primary">Relatórios</h1>

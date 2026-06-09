@@ -349,7 +349,7 @@ export default function Login() {
     <div className="min-h-screen bg-surface-50 dark:bg-surface-900 flex items-center justify-center md:p-6">
 
       {/* ── Login Card: fullscreen on mobile, card on desktop ── */}
-      <div className="w-full md:max-w-md bg-white dark:bg-surface-100 md:rounded-3xl md:shadow-xl min-h-screen md:min-h-0 p-8 animate-in fade-in zoom-in-95 duration-500 flex flex-col justify-center">
+      <div className="w-full md:max-w-md bg-card-bg dark:bg-surface-100 md:rounded-3xl md:shadow-xl min-h-screen md:min-h-0 p-8 animate-in fade-in zoom-in-95 duration-500 flex flex-col justify-center">
 
         <div className="flex flex-col items-center mb-10 text-center">
           <h2 className="text-2xl font-bold text-text-primary tracking-tight">

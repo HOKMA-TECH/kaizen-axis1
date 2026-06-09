@@ -32,7 +32,7 @@ export default function PendingApproval() {
 
     return (
         <div className="min-h-screen bg-surface-50 flex flex-col justify-center items-center p-6 text-center">
-            <div className="w-full max-w-md bg-white dark:bg-surface-100 rounded-3xl shadow-xl p-10 animate-in fade-in zoom-in-95 duration-700">
+            <div className="w-full max-w-md bg-card-bg dark:bg-surface-100 rounded-3xl shadow-xl p-10 animate-in fade-in zoom-in-95 duration-700">
 
                 <div className="flex justify-center mb-8 relative">
                     <div className="absolute inset-0 bg-amber-200/50 dark:bg-amber-900/40 rounded-full blur-xl animate-pulse" />

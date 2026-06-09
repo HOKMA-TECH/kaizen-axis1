@@ -114,7 +114,7 @@ export function SalesProgressCard() {
       {hasTeamCommission && hasSales && (ownSales.length > 0 || teamSales.length > 0) && (
         <div className="flex gap-2 mb-4">
           {ownSales.length > 0 && (
-            <div className="flex-1 flex items-center gap-2 bg-white dark:bg-green-950 rounded-xl px-3 py-2 border border-green-100 dark:border-green-700">
+            <div className="flex-1 flex items-center gap-2 bg-card-bg dark:bg-green-950 rounded-xl px-3 py-2 border border-green-100 dark:border-green-700">
               <div className="w-6 h-6 rounded-full bg-gold-100 dark:bg-gold-800 flex items-center justify-center flex-shrink-0">
                 <User size={11} className="text-gold-600 dark:text-gold-300" />
               </div>
@@ -125,7 +125,7 @@ export function SalesProgressCard() {
             </div>
           )}
           {teamSales.length > 0 && (
-            <div className="flex-1 flex items-center gap-2 bg-white dark:bg-blue-950 rounded-xl px-3 py-2 border border-blue-100 dark:border-blue-700">
+            <div className="flex-1 flex items-center gap-2 bg-card-bg dark:bg-blue-950 rounded-xl px-3 py-2 border border-blue-100 dark:border-blue-700">
               <div className="w-6 h-6 rounded-full bg-blue-100 dark:bg-blue-800 flex items-center justify-center flex-shrink-0">
                 <Users size={11} className="text-blue-600 dark:text-blue-300" />
               </div>
@@ -172,7 +172,7 @@ export function SalesProgressCard() {
             return (
               <div
                 key={c.id}
-                className={`bg-white dark:bg-green-950 rounded-xl px-3 py-2.5 shadow-xs border ${
+                className={`bg-card-bg dark:bg-green-950 rounded-xl px-3 py-2.5 shadow-xs border ${
                   isOwn
                     ? 'border-green-100 dark:border-green-700'
                     : 'border-blue-100 dark:border-blue-700'

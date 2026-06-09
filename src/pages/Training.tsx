@@ -70,7 +70,7 @@ function PDFViewer({ url }: { url: string }) {
     >
       {!blobUrl ? (
         <div className="flex items-center justify-center h-full">
-          <p className="text-gray-500 animate-pulse text-sm">Carregando PDF...</p>
+          <p className="text-text-secondary animate-pulse text-sm">Carregando PDF...</p>
         </div>
       ) : (
         <Document
@@ -467,13 +467,13 @@ export default function Training() {
               <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                 <button
                   onClick={(e) => { e.stopPropagation(); handleOpenModal(item); }}
-                  className="p-2 bg-white/90 dark:bg-black/80 text-text-secondary hover:text-gold-600 rounded-lg backdrop-blur-sm shadow-sm transition-colors"
+                  className="p-2 bg-card-bg/90 dark:bg-black/80 text-text-secondary hover:text-gold-600 rounded-lg backdrop-blur-sm shadow-sm transition-colors"
                 >
                   <Edit2 size={16} />
                 </button>
                 <button
                   onClick={(e) => handleDelete(item.id, e)}
-                  className="p-2 bg-white/90 dark:bg-black/80 text-text-secondary hover:text-red-500 rounded-lg backdrop-blur-sm shadow-sm transition-colors"
+                  className="p-2 bg-card-bg/90 dark:bg-black/80 text-text-secondary hover:text-red-500 rounded-lg backdrop-blur-sm shadow-sm transition-colors"
                 >
                   <Trash2 size={16} />
                 </button>
@@ -571,7 +571,7 @@ export default function Training() {
                       setFormData(prev => ({ ...prev, url: e.target.value }));
                       setSelectedFile(null);
                     }}
-                    className="w-full p-3 bg-white dark:bg-surface-800 rounded-xl border border-amber-200 dark:border-amber-800 focus:ring-2 focus:ring-amber-300 text-text-primary text-sm"
+                    className="w-full p-3 bg-card-bg dark:bg-surface-800 rounded-xl border border-amber-200 dark:border-amber-800 focus:ring-2 focus:ring-amber-300 text-text-primary text-sm"
                     placeholder="https://youtube.com/watch?v=..."
                   />
                 </div>

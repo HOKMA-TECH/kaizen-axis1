@@ -142,7 +142,7 @@ export default function CheckInDisplay() {
         {/* Logo / branding */}
         <div>
           <p className="text-gold-400 font-bold text-2xl tracking-widest uppercase">KAIZEN AXIS</p>
-          <p className="text-gray-500 text-xs mt-0.5 uppercase tracking-widest">Sistema de Check-in</p>
+          <p className="text-text-secondary text-xs mt-0.5 uppercase tracking-widest">Sistema de Check-in</p>
         </div>
 
         {/* Status indicators */}
@@ -151,7 +151,7 @@ export default function CheckInDisplay() {
             ? <Wifi size={16} className="text-green-400" />
             : <WifiOff size={16} className="text-red-400 animate-pulse" />}
           <div className="flex items-center gap-1.5 bg-gray-800 rounded-full px-3 py-1.5">
-            <Users size={13} className="text-gray-400" />
+            <Users size={13} className="text-text-secondary" />
             <span className="text-xs font-semibold text-white">{checkins} check-in{checkins !== 1 ? 's' : ''} hoje</span>
           </div>
           {role === 'RECEPCAO' && (
@@ -174,11 +174,11 @@ export default function CheckInDisplay() {
         <div className="bg-gradient-to-r from-gold-500/10 to-gold-400/5 border-b border-gray-800 px-8 py-5 flex items-center justify-between">
           <div>
             <h1 className="text-white text-xl font-bold">Check-in Diário</h1>
-            <p className="text-gray-400 text-sm mt-0.5 capitalize">{clock.label}</p>
+            <p className="text-text-secondary text-sm mt-0.5 capitalize">{clock.label}</p>
           </div>
           <div className="text-right">
             <p className="text-white font-mono text-3xl font-bold tracking-tight">{clock.time}</p>
-            <div className={`flex items-center justify-end gap-1.5 mt-1 ${isOpen ? 'text-green-400' : 'text-gray-500'}`}>
+            <div className={`flex items-center justify-end gap-1.5 mt-1 ${isOpen ? 'text-green-400' : 'text-text-secondary'}`}>
               <div className={`w-2 h-2 rounded-full ${isOpen ? 'bg-green-400 animate-pulse' : 'bg-gray-600'}`} />
               <span className="text-xs font-medium">{isOpen ? 'Aberto · 08:00–13:30' : 'Fechado · abre às 08:00'}</span>
             </div>
@@ -208,7 +208,7 @@ export default function CheckInDisplay() {
             ) : qrUrl ? (
               <motion.div key="qr"
                 initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }}
-                className="bg-white p-5 rounded-2xl shadow-2xl shadow-gold-400/10">
+                className="bg-card-bg p-5 rounded-2xl shadow-2xl shadow-gold-400/10">
                 <QRCode
                   value={qrUrl}
                   size={240}
@@ -225,7 +225,7 @@ export default function CheckInDisplay() {
             <p className="text-white font-semibold text-lg mb-2">
               Escaneie com a câmera do celular
             </p>
-            <p className="text-gray-400 text-sm leading-relaxed">
+            <p className="text-text-secondary text-sm leading-relaxed">
               Aponte a câmera para o QR Code acima. O app abrirá automaticamente
               e validará sua localização para confirmar o check-in.
             </p>
@@ -236,12 +236,12 @@ export default function CheckInDisplay() {
         <div className="border-t border-gray-800 px-8 py-4 grid grid-cols-2 gap-4">
           <div className="flex flex-col items-center text-center">
             <Clock size={16} className="text-gold-400 mb-1" />
-            <p className="text-[10px] text-gray-500 uppercase tracking-wide">Horário</p>
+            <p className="text-[10px] text-text-secondary uppercase tracking-wide">Horário</p>
             <p className="text-xs text-gray-300 font-medium">08:00 – 13:30</p>
           </div>
           <div className="flex flex-col items-center text-center">
             <RefreshCw size={16} className="text-gold-400 mb-1" />
-            <p className="text-[10px] text-gray-500 uppercase tracking-wide">Novo QR em</p>
+            <p className="text-[10px] text-text-secondary uppercase tracking-wide">Novo QR em</p>
             <p className="text-xs text-gray-300 font-mono font-medium">{formatCountdown(countdown)}</p>
           </div>
         </div>
@@ -250,7 +250,7 @@ export default function CheckInDisplay() {
       {/* Refresh button (manual) */}
       <button
         onClick={loadToken}
-        className="mt-6 flex items-center gap-2 text-gray-600 hover:text-gray-400 text-xs transition-colors"
+        className="mt-6 flex items-center gap-2 text-text-secondary hover:text-text-secondary text-xs transition-colors"
       >
         <RefreshCw size={12} /> Atualizar QR manualmente
       </button>

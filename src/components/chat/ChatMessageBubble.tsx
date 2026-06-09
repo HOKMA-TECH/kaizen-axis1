@@ -283,7 +283,7 @@ export function ChatMessageBubble({ message, index, onDeleteForMe, onDeleteForAl
                 'flex items-center gap-2.5 min-w-[180px] px-1 py-0.5 text-left group'
               )}
             >
-              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-white/20 group-hover:bg-white/30 transition-colors flex-shrink-0">
+              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-card-bg/20 group-hover:bg-card-bg/30 transition-colors flex-shrink-0">
                 <Eye size={18} />
               </span>
               <div>
@@ -309,7 +309,7 @@ export function ChatMessageBubble({ message, index, onDeleteForMe, onDeleteForAl
             <div className={cn('flex items-center gap-2.5 min-w-[180px] px-1 py-0.5', message.viewOnceOpened && 'opacity-60')}>
               <span className={cn(
                 'flex h-9 w-9 items-center justify-center rounded-full flex-shrink-0',
-                message.isMe ? 'bg-white/20' : 'bg-current/10'
+                message.isMe ? 'bg-card-bg/20' : 'bg-current/10'
               )}>
                 {message.viewOnceOpened ? <EyeOff size={18} /> : <Eye size={18} />}
               </span>

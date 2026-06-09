@@ -35,14 +35,14 @@ export default function More() {
                 className="flex items-center gap-4 p-4 bg-gradient-to-r from-gray-900 to-gray-800 text-white border-none cursor-pointer"
                 onClick={() => navigate('/admin')}
               >
-                <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center backdrop-blur-sm">
+                <div className="w-10 h-10 rounded-xl bg-card-bg/10 flex items-center justify-center backdrop-blur-sm">
                   <Lock size={20} className="text-gold-400" />
                 </div>
                 <div className="flex-1">
                   <h3 className="font-bold text-white">Painel Administrativo</h3>
                   <p className="text-xs text-gray-300">Governança e Controle</p>
                 </div>
-                <ChevronRight size={20} className="text-gray-400" />
+                <ChevronRight size={20} className="text-text-secondary" />
               </PremiumCard>
             )}
             {isAdminOrDirector && (
@@ -50,14 +50,14 @@ export default function More() {
                 className="flex items-center gap-4 p-4 bg-gradient-to-r from-gray-900 to-gray-800 text-white border-none cursor-pointer"
                 onClick={() => navigate('/checkin/display')}
               >
-                <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center backdrop-blur-sm">
+                <div className="w-10 h-10 rounded-xl bg-card-bg/10 flex items-center justify-center backdrop-blur-sm">
                   <QrCode size={20} className="text-gold-400" />
                 </div>
                 <div className="flex-1">
                   <h3 className="font-bold text-white">Tela de Check-in</h3>
                   <p className="text-xs text-gray-300">QR diário para a recepção</p>
                 </div>
-                <ChevronRight size={20} className="text-gray-400" />
+                <ChevronRight size={20} className="text-text-secondary" />
               </PremiumCard>
             )}
           </div>

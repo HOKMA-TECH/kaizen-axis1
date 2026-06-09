@@ -1100,7 +1100,7 @@ export default function AdminPanel() {
                 <div className="relative w-full md:w-56">
                   <Search size={14} className="absolute left-2 top-1/2 -translate-y-1/2 text-text-secondary" />
                   <input type="text" placeholder="Buscar..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)}
-                    className="w-full pl-7 pr-2 py-1.5 text-xs bg-white dark:bg-surface-100 border border-surface-200 rounded-lg focus:outline-none focus:border-gold-400" />
+                    className="w-full pl-7 pr-2 py-1.5 text-xs bg-card-bg dark:bg-surface-100 border border-surface-200 rounded-lg focus:outline-none focus:border-gold-400" />
                 </div>
               </div>
               <div className="grid gap-3">
@@ -1258,7 +1258,7 @@ export default function AdminPanel() {
               <div className="flex bg-surface-100 dark:bg-surface-200 rounded-2xl p-1 gap-1">
                 <button
                   onClick={() => setActiveGoalTab('active')}
-                  className={`flex-1 flex items-center justify-center gap-2 py-2.5 text-sm font-semibold rounded-xl transition-all duration-200 ${activeGoalTab === 'active' ? 'bg-white dark:bg-surface-50 text-gold-600 shadow-sm' : 'text-text-secondary hover:text-text-primary'}`}
+                  className={`flex-1 flex items-center justify-center gap-2 py-2.5 text-sm font-semibold rounded-xl transition-all duration-200 ${activeGoalTab === 'active' ? 'bg-card-bg dark:bg-surface-50 text-gold-600 shadow-sm' : 'text-text-secondary hover:text-text-primary'}`}
                 >
                   <span className={`w-2 h-2 rounded-full ${activeGoalTab === 'active' ? 'bg-gold-400' : 'bg-surface-300'}`} />
                   Em Andamento
@@ -1266,7 +1266,7 @@ export default function AdminPanel() {
                 </button>
                 <button
                   onClick={() => setActiveGoalTab('ended')}
-                  className={`flex-1 flex items-center justify-center gap-2 py-2.5 text-sm font-semibold rounded-xl transition-all duration-200 ${activeGoalTab === 'ended' ? 'bg-white dark:bg-surface-50 text-text-primary shadow-sm' : 'text-text-secondary hover:text-text-primary'}`}
+                  className={`flex-1 flex items-center justify-center gap-2 py-2.5 text-sm font-semibold rounded-xl transition-all duration-200 ${activeGoalTab === 'ended' ? 'bg-card-bg dark:bg-surface-50 text-text-primary shadow-sm' : 'text-text-secondary hover:text-text-primary'}`}
                 >
                   <span className={`w-2 h-2 rounded-full ${activeGoalTab === 'ended' ? 'bg-surface-400' : 'bg-surface-300'}`} />
                   Encerradas
@@ -1405,7 +1405,7 @@ export default function AdminPanel() {
             <div className="print:hidden flex justify-end relative">
               <button
                 onClick={() => setIsToolsMenuOpen(v => !v)}
-                className="flex items-center justify-center w-9 h-9 rounded-lg border border-surface-200 bg-white dark:bg-surface-100 text-text-secondary hover:text-text-primary hover:border-gold-300 shadow-sm transition-all"
+                className="flex items-center justify-center w-9 h-9 rounded-lg border border-surface-200 bg-card-bg dark:bg-surface-100 text-text-secondary hover:text-text-primary hover:border-gold-300 shadow-sm transition-all"
               >
                 <MoreHorizontal size={18} />
               </button>
@@ -1414,7 +1414,7 @@ export default function AdminPanel() {
                 <>
                   {/* backdrop */}
                   <div className="fixed inset-0 z-10" onClick={() => setIsToolsMenuOpen(false)} />
-                  <div className="absolute right-0 top-full mt-1.5 z-20 w-72 bg-white dark:bg-surface-100 border border-surface-200 rounded-xl shadow-xl overflow-hidden">
+                  <div className="absolute right-0 top-full mt-1.5 z-20 w-72 bg-card-bg dark:bg-surface-100 border border-surface-200 rounded-xl shadow-xl overflow-hidden">
                     <div className="px-4 pt-3 pb-2 text-[10px] font-bold uppercase tracking-wider text-text-secondary">Exportar relatórios</div>
                     <div className="px-3 pb-3 space-y-1.5">
                       <button
@@ -1775,7 +1775,7 @@ export default function AdminPanel() {
                   onClick={() => setActiveGamifSection(s.id as 'xp' | 'conquistas')}
                   className={`flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap transition-all ${activeGamifSection === s.id
                     ? 'bg-gold-500 text-white shadow-md shadow-gold-500/20'
-                    : 'bg-white dark:bg-surface-100 text-text-secondary border border-surface-200'
+                    : 'bg-card-bg dark:bg-surface-100 text-text-secondary border border-surface-200'
                     }`}
                 >
                   <s.icon size={14} /> {s.label}
@@ -2047,7 +2047,7 @@ export default function AdminPanel() {
 
 
   return (
-    <div className="w-full max-w-full px-3 sm:px-6 pb-24 min-h-screen bg-surface-50 print:p-0 print:bg-white">
+    <div className="w-full max-w-full px-3 sm:px-6 pb-24 min-h-screen bg-surface-50 print:p-0 print:bg-card-bg">
       <div className="print:hidden">
         <SectionHeader title="Painel Administrativo" subtitle="Governança e Estratégia" />
       </div>
@@ -2063,13 +2063,13 @@ export default function AdminPanel() {
           { id: 'gamification', label: 'Gamificação', icon: Zap },
         ].filter(tab => !tab.adminOnly || isAdmin).map((tab) => (
           <button key={tab.id} onClick={() => setActiveTab(tab.id as Tab)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap transition-all ${activeTab === tab.id ? 'bg-gold-500 text-white shadow-md shadow-gold-500/20' : 'bg-white dark:bg-surface-100 text-text-secondary border border-surface-200'}`}>
+            className={`flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap transition-all ${activeTab === tab.id ? 'bg-gold-500 text-white shadow-md shadow-gold-500/20' : 'bg-card-bg dark:bg-surface-100 text-text-secondary border border-surface-200'}`}>
             <tab.icon size={14} /> {tab.label}
           </button>
         ))}
         <button
           onClick={() => navigate('/admin/security')}
-          className="flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap transition-all bg-white dark:bg-surface-100 text-text-secondary border border-surface-200 hover:border-gold-400 hover:text-gold-500"
+          className="flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap transition-all bg-card-bg dark:bg-surface-100 text-text-secondary border border-surface-200 hover:border-gold-400 hover:text-gold-500"
         >
           <ShieldCheck size={14} /> Painel de Segurança
         </button>

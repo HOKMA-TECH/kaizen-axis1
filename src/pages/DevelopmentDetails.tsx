@@ -128,7 +128,7 @@ export default function DevelopmentDetails() {
         </div>
 
         <div className="absolute bottom-0 left-0 right-0 p-6">
-          <StatusBadge status={development.status || ''} className="mb-2 bg-white/90 dark:bg-black/80 backdrop-blur-sm shadow-sm border-none" />
+          <StatusBadge status={development.status || ''} className="mb-2 bg-card-bg/90 dark:bg-black/80 backdrop-blur-sm shadow-sm border-none" />
           <h1 className="text-3xl font-bold text-text-primary mb-1">{development.name}</h1>
           <p className="text-text-secondary flex items-center gap-1 text-sm">
             <Building2 size={14} /> {development.builder}
@@ -200,7 +200,7 @@ export default function DevelopmentDetails() {
                 className="w-full h-full opacity-80 group-hover:opacity-100 transition-opacity"
                 title="Mapa"
               ></iframe>
-              <button className="absolute bottom-3 right-3 bg-white dark:bg-black text-xs font-medium px-3 py-1.5 rounded-lg shadow-sm z-10 pointer-events-none">
+              <button className="absolute bottom-3 right-3 bg-card-bg dark:bg-black text-xs font-medium px-3 py-1.5 rounded-lg shadow-sm z-10 pointer-events-none">
                 Abrir no Maps
               </button>
             </div>
@@ -216,11 +216,11 @@ export default function DevelopmentDetails() {
         {/* Book PDF */}
         <section>
           <PremiumCard
-            className="flex items-center justify-between bg-gray-900 dark:bg-white text-white dark:text-black cursor-pointer hover:opacity-90 transition-opacity"
+            className="flex items-center justify-between bg-gray-900 dark:bg-card-bg text-white dark:text-text-primary cursor-pointer hover:opacity-90 transition-opacity"
             onClick={handleOpenBook}
           >
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-white/10 dark:bg-black/10 flex items-center justify-center">
+              <div className="w-10 h-10 rounded-full bg-card-bg/10 dark:bg-black/10 flex items-center justify-center">
                 <FileText size={20} />
               </div>
               <div>
@@ -228,7 +228,7 @@ export default function DevelopmentDetails() {
                 <p className="text-xs opacity-70">PDF Completo • 12MB</p>
               </div>
             </div>
-            <button className="p-2 hover:bg-white/10 dark:hover:bg-black/10 rounded-full transition-colors">
+            <button className="p-2 hover:bg-card-bg/10 dark:hover:bg-black/10 rounded-full transition-colors">
               <Download size={20} />
             </button>
           </PremiumCard>
@@ -276,7 +276,7 @@ export default function DevelopmentDetails() {
               e.stopPropagation();
               setIsLightboxOpen(false);
             }}
-            className="absolute top-4 right-4 p-2 text-white/70 hover:text-white bg-white/10 rounded-full z-[60] cursor-pointer hover:bg-white/20 transition-colors"
+            className="absolute top-4 right-4 p-2 text-white/70 hover:text-white bg-card-bg/10 rounded-full z-[60] cursor-pointer hover:bg-card-bg/20 transition-colors"
           >
             <X size={24} />
           </button>

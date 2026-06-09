@@ -762,7 +762,7 @@ export default function CheckIn() {
                 <p className="text-sm font-semibold text-white">Escanear QR Code</p>
                 <button
                   onClick={() => setScannerOpen(false)}
-                  className="w-8 h-8 rounded-full bg-white/10 text-white flex items-center justify-center"
+                  className="w-8 h-8 rounded-full bg-card-bg/10 text-white flex items-center justify-center"
                   aria-label="Fechar scanner"
                 >
                   <X size={16} />

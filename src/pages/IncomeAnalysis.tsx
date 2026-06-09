@@ -241,7 +241,7 @@ function AccordionMes({
     .reduce((acc, t) => acc + t.valor, 0);
 
   return (
-    <div className={`rounded-2xl overflow-hidden border shadow-sm ${mesDesconsiderado ? 'border-red-200 bg-red-50/40 dark:bg-red-900/10' : 'border-surface-100 bg-white dark:bg-surface-100'}`}>
+    <div className={`rounded-2xl overflow-hidden border shadow-sm ${mesDesconsiderado ? 'border-red-200 bg-red-50/40 dark:bg-red-900/10' : 'border-surface-100 bg-card-bg dark:bg-surface-100'}`}>
       {/* Header */}
       <div className={`w-full flex items-center justify-between p-4 transition-colors ${mesDesconsiderado ? 'hover:bg-red-50/70 dark:hover:bg-red-900/20' : 'hover:bg-surface-50'}`}>
         <div className="flex items-center gap-3">
@@ -307,7 +307,7 @@ function AccordionMes({
                 return (
                   <div
                     key={t.id}
-                    className={`flex items-center justify-between px-4 py-2.5 border-b border-surface-50 last:border-0 transition-all ${ativa ? 'bg-white dark:bg-surface-100' : 'bg-surface-50 dark:bg-surface-200 opacity-60 grayscale'
+                    className={`flex items-center justify-between px-4 py-2.5 border-b border-surface-50 last:border-0 transition-all ${ativa ? 'bg-card-bg dark:bg-surface-100' : 'bg-surface-50 dark:bg-surface-200 opacity-60 grayscale'
                       }`}
                   >
                     <div className="flex items-center gap-2.5 flex-1 min-w-0">

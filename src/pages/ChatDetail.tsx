@@ -76,7 +76,7 @@ const ViewOnceCard = (
     onClick={onOpen}
     className="flex items-center gap-3 py-0.5 w-full active:opacity-60 transition-opacity"
   >
-    <div className="w-9 h-9 rounded-full bg-black/10 dark:bg-white/10 flex items-center justify-center flex-shrink-0">
+    <div className="w-9 h-9 rounded-full bg-black/10 dark:bg-card-bg/10 flex items-center justify-center flex-shrink-0">
       {msg.type === 'video'
         ? <Play size={16} className="text-text-primary fill-current ml-0.5" />
         : msg.type === 'text'
@@ -155,7 +155,7 @@ const ViewOnceModal = ({
   return (
     <div className="fixed inset-0 z-[300] bg-black flex flex-col" onClick={handleClose}>
       <div className="flex items-center justify-between p-4 text-white">
-        <button onClick={handleClose} className="p-2 hover:bg-white/10 rounded-full">
+        <button onClick={handleClose} className="p-2 hover:bg-card-bg/10 rounded-full">
           <X size={24} />
         </button>
         <span className="text-sm font-medium flex items-center gap-1.5">
@@ -358,7 +358,7 @@ const AudioMessage = ({ url, isMe }: { url: string; isMe: boolean }) => {
         onClick={togglePlay}
         className={`w-9 h-9 flex-shrink-0 flex items-center justify-center rounded-full transition-colors shadow-sm flex-shrink-0
           ${isMe
-            ? 'bg-white/90 text-green-700 hover:bg-white active:bg-white/80'
+            ? 'bg-card-bg/90 text-green-700 hover:bg-card-bg active:bg-card-bg/80'
             : 'bg-gold-500 text-white hover:bg-gold-600'}`}
       >
         {isPlaying
@@ -385,13 +385,13 @@ const AudioMessage = ({ url, isMe }: { url: string; isMe: boolean }) => {
           />
         </div>
         <div className="flex items-center justify-between mt-0.5">
-          <span className={`text-[10px] tabular-nums font-medium ${isMe ? 'text-white/90' : 'text-gray-500'}`}>
+          <span className={`text-[10px] tabular-nums font-medium ${isMe ? 'text-white/90' : 'text-text-secondary'}`}>
             {formatTime(isPlaying ? currentTime : duration)}
           </span>
           <button
             onClick={toggleSpeed}
             className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full z-20 relative transition-colors
-              ${isMe ? 'bg-white/30 text-white hover:bg-white/45' : 'bg-black/10 text-gray-600 hover:bg-black/18'}`}
+              ${isMe ? 'bg-card-bg/30 text-white hover:bg-card-bg/45' : 'bg-black/10 text-text-secondary hover:bg-black/18'}`}
           >
             {playbackRate}x
           </button>
@@ -1319,7 +1319,7 @@ export default function ChatDetail() {
         ? `${typingUser} está digitando...`
         : '';
   return (
-    <div className="flex flex-col h-screen bg-white dark:bg-[#0b141a]">
+    <div className="flex flex-col h-screen bg-card-bg dark:bg-[#0b141a]">
       {/* Header */}
       <ChatDetailHeader
         name={chatUser.name}
@@ -1375,7 +1375,7 @@ export default function ChatDetail() {
             <button
               onClick={loadMoreMessages}
               disabled={isLoadingMore}
-              className="text-xs text-gold-600 dark:text-gold-400 bg-white/80 dark:bg-black/30 px-4 py-1.5 rounded-full shadow-sm flex items-center gap-1.5 disabled:opacity-50"
+              className="text-xs text-gold-600 dark:text-gold-400 bg-card-bg/80 dark:bg-black/30 px-4 py-1.5 rounded-full shadow-sm flex items-center gap-1.5 disabled:opacity-50"
             >
               {isLoadingMore ? <Loader2 size={12} className="animate-spin" /> : null}
               Carregar mensagens anteriores
@@ -1417,8 +1417,8 @@ export default function ChatDetail() {
             <div key={msg.id} className={`flex ${msg.isMe ? 'justify-end' : 'justify-start'}`}>
               <div
                 className={`max-w-[85%] relative shadow-sm ${msg.isMe
-                  ? 'bg-[#D9FDD3] dark:bg-[#005c4b] text-gray-900 dark:text-white rounded-2xl rounded-tr-none'
-                  : 'bg-white dark:bg-[#202c33] text-gray-900 dark:text-white rounded-2xl rounded-tl-none'
+                  ? 'bg-[#D9FDD3] dark:bg-[#005c4b] text-text-primary dark:text-white rounded-2xl rounded-tr-none'
+                  : 'bg-card-bg dark:bg-[#202c33] text-text-primary dark:text-white rounded-2xl rounded-tl-none'
                 } ${isMediaOnly ? 'p-1 pb-6' : 'p-3'}`}
                 onTouchStart={e => handleMsgTouchStart(e, msg)}
                 onTouchEnd={handleMsgTouchEnd}
@@ -1436,7 +1436,7 @@ export default function ChatDetail() {
 
                 {/* ── REPLY QUOTE ── */}
                 {!msg.is_deleted && parentMsg && (
-                  <div className="border-l-2 border-gold-500 pl-2 bg-black/5 dark:bg-white/5 rounded-r-lg p-1.5 mb-2">
+                  <div className="border-l-2 border-gold-500 pl-2 bg-black/5 dark:bg-card-bg/5 rounded-r-lg p-1.5 mb-2">
                     <span className="text-[11px] font-semibold block text-gold-600 dark:text-gold-400">
                       {parentMsg.isMe ? 'Você' : chatUser?.name}
                     </span>
@@ -1509,7 +1509,7 @@ export default function ChatDetail() {
                   <AudioMessage url={msg.mediaUrl} isMe={msg.isMe} />
                 )}
                 {!isViewOnceMsg && msg.type === 'document' && msg.mediaUrl && (
-                  <div className="flex items-center gap-3 bg-black/5 dark:bg-white/10 p-3 rounded-xl mb-2 cursor-pointer"
+                  <div className="flex items-center gap-3 bg-black/5 dark:bg-card-bg/10 p-3 rounded-xl mb-2 cursor-pointer"
                     onClick={() => setFullscreenMedia({ url: msg.mediaUrl!, type: 'document', name: msg.fileName })}>
                     <FileText size={24} className="text-red-500 flex-shrink-0" />
                     <span className="text-sm truncate max-w-[150px] font-medium">{msg.fileName || 'Documento'}</span>
@@ -1524,7 +1524,7 @@ export default function ChatDetail() {
                 )}
                 <div className={`flex items-center justify-end gap-1 text-[10px] mt-1 ${isMediaOnly
                   ? 'absolute bottom-1.5 right-2 text-white/95 drop-shadow-md bg-black/40 px-2 py-0.5 rounded-full backdrop-blur-sm'
-                  : msg.isMe ? 'text-green-800/80 dark:text-white/60' : 'text-gray-500 dark:text-gray-400'
+                  : msg.isMe ? 'text-green-800/80 dark:text-white/60' : 'text-text-secondary dark:text-text-secondary'
                   }`}>
                   <span>{msg.timestamp}</span>
                   {msg.isMe && !isKAI && (
@@ -1545,7 +1545,7 @@ export default function ChatDetail() {
                         className={`flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-xs border transition-colors ${
                           users.includes(myId)
                             ? 'bg-gold-500/20 border-gold-500/40 text-gold-700 dark:text-gold-400'
-                            : 'bg-black/5 dark:bg-white/10 border-black/10 dark:border-white/10 text-text-secondary'
+                            : 'bg-black/5 dark:bg-card-bg/10 border-black/10 dark:border-white/10 text-text-secondary'
                         }`}
                       >
                         {emoji}{users.length > 1 && <span className="ml-0.5">{users.length}</span>}
@@ -1560,7 +1560,7 @@ export default function ChatDetail() {
 
         {isTypingVisible && (
           <div className="flex justify-start">
-            <div className="bg-white dark:bg-[#202c33] rounded-lg rounded-tl-none px-4 py-3 shadow-sm flex items-center gap-2">
+            <div className="bg-card-bg dark:bg-[#202c33] rounded-lg rounded-tl-none px-4 py-3 shadow-sm flex items-center gap-2">
               <div className="flex gap-1">
                 {[0, 150, 300].map(d => (
                   <span key={d} className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: `${d}ms` }} />
@@ -1573,7 +1573,7 @@ export default function ChatDetail() {
 
         {isUploading && (
           <div className="flex justify-end">
-            <div className="bg-[#D9FDD3] rounded-lg p-3 flex items-center gap-2 text-sm text-gray-600">
+            <div className="bg-[#D9FDD3] rounded-lg p-3 flex items-center gap-2 text-sm text-text-secondary">
               <Loader2 size={16} className="animate-spin" /> Enviando arquivo...
             </div>
           </div>
@@ -1711,15 +1711,15 @@ export default function ChatDetail() {
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             className="fixed inset-0 z-[200] bg-black flex flex-col">
             <div className="absolute top-0 left-0 right-0 p-4 flex justify-between z-10 bg-gradient-to-b from-black/50 to-transparent">
-              <button onClick={stopCamera} className="text-white p-2 rounded-full hover:bg-white/20"><X size={28} /></button>
+              <button onClick={stopCamera} className="text-white p-2 rounded-full hover:bg-card-bg/20"><X size={28} /></button>
               <button onClick={() => { const m = cameraFacingMode === 'user' ? 'environment' : 'user'; setCameraFacingMode(m); startCamera(m); }}
-                className="text-white p-2 rounded-full hover:bg-white/20"><SwitchCamera size={28} /></button>
+                className="text-white p-2 rounded-full hover:bg-card-bg/20"><SwitchCamera size={28} /></button>
             </div>
             <div className="flex-1 bg-black flex items-center justify-center overflow-hidden">
               <video ref={videoRef} autoPlay playsInline muted={!isRecordingVideo} className="w-full h-full object-cover" />
               {isRecordingVideo && (
                 <div className="absolute top-16 left-1/2 -translate-x-1/2 flex items-center gap-2 bg-red-500 text-white px-3 py-1 rounded-full text-sm animate-pulse">
-                  <div className="w-2 h-2 bg-white rounded-full" /> Gravando
+                  <div className="w-2 h-2 bg-card-bg rounded-full" /> Gravando
                 </div>
               )}
             </div>
@@ -1728,7 +1728,7 @@ export default function ChatDetail() {
               <div className="flex flex-col items-center gap-2">
                 <button onClick={takePhoto} disabled={isRecordingVideo}
                   className="w-16 h-16 rounded-full border-4 border-white flex items-center justify-center disabled:opacity-50">
-                  <div className="w-12 h-12 bg-white rounded-full" />
+                  <div className="w-12 h-12 bg-card-bg rounded-full" />
                 </button>
                 <span className="text-white text-xs font-medium">Foto</span>
               </div>
@@ -1752,7 +1752,7 @@ export default function ChatDetail() {
           <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }}
             className="fixed inset-0 z-[250] bg-black/95 flex flex-col">
             <div className="flex items-center justify-between p-4 text-white">
-              <button onClick={() => { setMediaPreview(null); setIsViewOnce(false); }} className="p-2 hover:bg-white/10 rounded-full"><X size={24} /></button>
+              <button onClick={() => { setMediaPreview(null); setIsViewOnce(false); }} className="p-2 hover:bg-card-bg/10 rounded-full"><X size={24} /></button>
               <span className="text-sm font-medium">Pré-visualização</span>
               <div className="w-10" />
             </div>
@@ -1777,7 +1777,7 @@ export default function ChatDetail() {
                   onClick={() => setIsViewOnce(v => !v)}
                   className={`flex items-center gap-2 self-center px-4 py-2 rounded-full border text-sm font-medium transition-colors ${isViewOnce
                     ? 'bg-gold-500 border-gold-500 text-white'
-                    : 'bg-white/10 border-white/20 text-white/70'
+                    : 'bg-card-bg/10 border-white/20 text-white/70'
                     }`}
                 >
                   {isViewOnce ? <Lock size={14} /> : <Eye size={14} />}
@@ -1788,7 +1788,7 @@ export default function ChatDetail() {
                 <input value={inputValue} onChange={e => setInputValue(e.target.value)}
                   onKeyDown={e => e.key === 'Enter' && confirmSendMedia()}
                   placeholder="Adicionar legenda..."
-                  className="flex-1 bg-white/10 text-white placeholder:text-white/50 border-none outline-none rounded-full px-4 py-3" />
+                  className="flex-1 bg-card-bg/10 text-white placeholder:text-white/50 border-none outline-none rounded-full px-4 py-3" />
                 <button onClick={confirmSendMedia}
                   className="bg-gold-500 text-white p-3 rounded-full flex items-center justify-center">
                   <Send size={20} />
@@ -1869,7 +1869,7 @@ export default function ChatDetail() {
             onClick={closeTextModal}
           >
             <div className="flex items-center justify-between p-4 text-white">
-              <button onClick={closeTextModal} className="p-2 hover:bg-white/10 rounded-full">
+              <button onClick={closeTextModal} className="p-2 hover:bg-card-bg/10 rounded-full">
                 <X size={24} />
               </button>
               <span className="text-sm font-medium flex items-center gap-1.5">
@@ -1881,7 +1881,7 @@ export default function ChatDetail() {
               className="flex-1 flex items-center justify-center p-8"
               onClick={e => e.stopPropagation()}
             >
-              <div className="bg-white dark:bg-[#202c33] rounded-2xl p-6 max-w-sm w-full shadow-2xl">
+              <div className="bg-card-bg dark:bg-[#202c33] rounded-2xl p-6 max-w-sm w-full shadow-2xl">
                 <p className="text-text-primary text-base leading-relaxed">{msg.text}</p>
               </div>
             </div>
@@ -1917,10 +1917,10 @@ export default function ChatDetail() {
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             className="fixed inset-0 z-[200] bg-black/95 flex flex-col">
             <div className="flex items-center justify-between p-4 text-white">
-              <button onClick={() => setFullscreenMedia(null)} className="p-2 hover:bg-white/10 rounded-full"><X size={24} /></button>
+              <button onClick={() => setFullscreenMedia(null)} className="p-2 hover:bg-card-bg/10 rounded-full"><X size={24} /></button>
               <span className="text-sm font-medium truncate max-w-[200px]">{fullscreenMedia.name || 'Mídia'}</span>
               <button onClick={() => handleDownload(fullscreenMedia.url, fullscreenMedia.name || 'download')}
-                className="p-2 hover:bg-white/10 rounded-full"><Download size={24} /></button>
+                className="p-2 hover:bg-card-bg/10 rounded-full"><Download size={24} /></button>
             </div>
             <div className="flex-1 flex items-center justify-center p-4">
               {fullscreenMedia.type === 'image' && <img src={fullscreenMedia.url} alt="" className="max-w-full max-h-full object-contain rounded-lg" />}

@@ -60,7 +60,7 @@ export function AudioPlayer({ src, isMe }: AudioPlayerProps) {
         className={cn(
           'w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 transition-colors',
           isMe
-            ? 'bg-white/25 hover:bg-white/35 text-white'
+            ? 'bg-card-bg/25 hover:bg-card-bg/35 text-white'
             : 'bg-primary-100 dark:bg-primary-900/40 hover:bg-primary-200 dark:hover:bg-primary-900/60 text-primary-700 dark:text-primary-300'
         )}
       >
@@ -77,8 +77,8 @@ export function AudioPlayer({ src, isMe }: AudioPlayerProps) {
                 'flex-1 rounded-full transition-[height] duration-150',
                 playing && isFilled && 'animate-pulse',
                 isFilled
-                  ? isMe ? 'bg-white/90' : 'bg-primary-500'
-                  : isMe ? 'bg-white/30' : 'bg-surface-300 dark:bg-surface-400/40'
+                  ? isMe ? 'bg-card-bg/90' : 'bg-primary-500'
+                  : isMe ? 'bg-card-bg/30' : 'bg-surface-300 dark:bg-surface-400/40'
               )}
               style={{
                 height: `${baseH}%`,

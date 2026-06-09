@@ -43,7 +43,7 @@ export default function PotentialClients() {
       <div className="flex items-center gap-4 mb-6">
         <button
           onClick={() => navigate(-1)}
-          className="p-2 rounded-full bg-white dark:bg-surface-100 border border-surface-200 text-text-secondary hover:text-text-primary transition-colors"
+          className="p-2 rounded-full bg-card-bg dark:bg-surface-100 border border-surface-200 text-text-secondary hover:text-text-primary transition-colors"
         >
           <ChevronLeft size={24} />
         </button>

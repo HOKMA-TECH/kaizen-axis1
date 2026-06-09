@@ -887,7 +887,7 @@ export function ChatDetailPanel({
           <div className="flex justify-center p-8">
             <button
               onClick={capturePhoto}
-              className="w-16 h-16 rounded-full bg-white border-4 border-white/40 hover:scale-95 active:scale-90 transition-transform"
+              className="w-16 h-16 rounded-full bg-card-bg border-4 border-white/40 hover:scale-95 active:scale-90 transition-transform"
             />
           </div>
         </div>
