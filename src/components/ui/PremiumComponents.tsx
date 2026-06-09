@@ -17,8 +17,8 @@ export const PremiumCard = ({ children, className, highlight, square: _square, .
       initial={{ opacity: 0, y: 10 } as any}
       animate={{ opacity: 1, y: 0 } as any}
       className={cn(
-        // v2: cantos retos (8px) + hairline, sem sombra.
-        "bg-card-bg rounded-lg p-5 border border-surface-200 transition-colors duration-200",
+        // Pegada HOKMA: arredondado (16px) + borda slate suave + sombra macia.
+        "bg-card-bg rounded-2xl p-5 border border-surface-200/60 premium-shadow transition-all duration-300",
         highlight && "border-primary-300/40 bg-gradient-to-br from-card-bg to-primary-50/30 dark:to-primary-900/10",
         className
       )}
@@ -47,12 +47,12 @@ export const RoundedButton = ({
   href,
   ...props
 }: RoundedButtonProps) => {
-  // v2: azul da marca, cantos retos (6px), sem sombra; press tátil via GSAP.
+  // Pegada HOKMA: azul da marca, cantos arredondados + sombra leve; press GSAP.
   const variants = {
-    primary: "bg-primary-600 text-white hover:bg-primary-700 border border-transparent",
-    secondary: "bg-surface-100 text-text-primary hover:bg-surface-200 border border-transparent",
-    outline: "border border-primary-600 text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900/20",
-    ghost: "text-text-secondary hover:bg-surface-100 hover:text-primary-600 border border-transparent",
+    primary: "bg-primary-600 text-white hover:bg-primary-700 shadow-sm border border-transparent",
+    secondary: "bg-primary-50 text-primary-700 hover:bg-primary-100 border border-transparent",
+    outline: "bg-transparent border border-surface-200 text-text-secondary hover:bg-surface-50 hover:text-text-primary",
+    ghost: "text-text-secondary hover:bg-surface-100 hover:text-text-primary border border-transparent",
   };
 
   const sizes = {
@@ -62,7 +62,7 @@ export const RoundedButton = ({
   };
 
   const classes = cn(
-    "rounded-md font-medium transition-colors flex items-center justify-center gap-2 cursor-pointer",
+    "rounded-xl font-medium transition-all flex items-center justify-center gap-2 cursor-pointer",
     variants[variant],
     sizes[size],
     fullWidth && "w-full",

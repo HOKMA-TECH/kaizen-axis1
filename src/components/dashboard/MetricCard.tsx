@@ -41,7 +41,7 @@ function MetricCard({ label, value, sub, onClick, accent = 'blue' }: Metric) {
       onMouseEnter={() => lift(-3, 0.25)}
       onMouseLeave={() => lift(0, 0.3)}
       className={cn(
-        'group relative overflow-hidden rounded-lg border border-surface-200 bg-card-bg p-5 transition-colors duration-200',
+        'group relative overflow-hidden rounded-2xl border border-surface-200/60 bg-card-bg p-5 premium-shadow transition-all duration-300',
         onClick && cn('cursor-pointer', a.border),
       )}
     >

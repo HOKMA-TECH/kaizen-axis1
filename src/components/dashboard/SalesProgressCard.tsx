@@ -72,7 +72,7 @@ export function SalesProgressCard() {
 
   return (
     <div
-      className={`rounded-lg border p-5 transition-colors duration-300 ${
+      className={`rounded-2xl border p-5 premium-shadow transition-all duration-300 ${
         hasSales
           ? 'bg-green-50/60 dark:bg-green-900 border-green-200 dark:border-green-600'
           : 'bg-red-50/60 dark:bg-red-800 border-red-200 dark:border-red-600'
@@ -93,7 +93,7 @@ export function SalesProgressCard() {
       </div>
 
       {/* Summary indicators */}
-      <div className="flex items-stretch mb-3 rounded-lg overflow-hidden border border-black/5 dark:border-black/20 bg-black/5 dark:bg-black/20">
+      <div className="flex items-stretch mb-3 rounded-xl overflow-hidden border border-black/5 dark:border-black/20 bg-black/5 dark:bg-black/20">
         <div className="flex-1 flex flex-col items-center justify-center py-3 px-2 gap-0.5">
           <p className="text-[10px] font-semibold text-text-secondary uppercase tracking-wider">Vendas</p>
           <p className="text-xl font-bold text-text-primary">{monthlySales.length}</p>
@@ -172,7 +172,7 @@ export function SalesProgressCard() {
             return (
               <div
                 key={c.id}
-                className={`bg-white dark:bg-green-950 rounded-lg px-3 py-2.5 shadow-xs border ${
+                className={`bg-white dark:bg-green-950 rounded-xl px-3 py-2.5 shadow-xs border ${
                   isOwn
                     ? 'border-green-100 dark:border-green-700'
                     : 'border-blue-100 dark:border-blue-700'

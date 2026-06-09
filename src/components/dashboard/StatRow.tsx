@@ -44,7 +44,7 @@ export function StatRow({ items, className }: { items: StatCell[]; className?: s
   return (
     <div
       className={cn(
-        'grid grid-cols-1 overflow-hidden rounded-lg border border-surface-200 bg-card-bg',
+        'grid grid-cols-1 overflow-hidden rounded-2xl border border-surface-200/60 bg-card-bg premium-shadow',
         'divide-y divide-surface-200 @2xl:divide-y-0 @2xl:divide-x',
         cols,
         className,
@@ -91,13 +91,13 @@ export function Segmented<T extends string>({
   className?: string;
 }) {
   return (
-    <div className={cn('inline-flex items-center gap-0.5 rounded-lg border border-surface-200 bg-surface-100/70 p-0.5', className)}>
+    <div className={cn('inline-flex items-center gap-0.5 rounded-xl border border-surface-200 bg-surface-100/70 p-0.5', className)}>
       {options.map((o) => (
         <button
           key={o.value}
           onClick={() => onChange(o.value)}
           className={cn(
-            'rounded-md px-3 py-1.5 text-sm font-medium transition-colors',
+            'rounded-lg px-3 py-1.5 text-sm font-medium transition-colors',
             value === o.value
               ? 'bg-card-bg text-text-primary shadow-sm'
               : 'text-text-secondary hover:text-text-primary',

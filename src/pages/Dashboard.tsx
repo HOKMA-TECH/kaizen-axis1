@@ -150,9 +150,9 @@ export default function Dashboard() {
             <button
               key={id}
               onClick={() => { setPeriod(id); setMobilePeriodOpen(false); }}
-              className={`px-4 py-2 rounded-md text-xs font-semibold border transition-all ${
+              className={`px-4 py-2 rounded-xl text-xs font-semibold border transition-all ${
                 period === id
-                  ? 'bg-primary-600 text-white border-primary-600'
+                  ? 'bg-primary-600 text-white border-primary-600 shadow-sm'
                   : 'bg-card-bg text-text-secondary border-surface-200 hover:border-primary-300'
               }`}
             >
@@ -162,9 +162,9 @@ export default function Dashboard() {
           <div className="relative">
             <button
               onClick={() => setMobilePeriodOpen(o => !o)}
-              className={`flex items-center gap-1 px-4 py-2 rounded-md text-xs font-semibold border transition-all ${
+              className={`flex items-center gap-1 px-4 py-2 rounded-xl text-xs font-semibold border transition-all ${
                 ['60_dias', '90_dias', 'custom'].includes(period)
-                  ? 'bg-primary-600 text-white border-primary-600'
+                  ? 'bg-primary-600 text-white border-primary-600 shadow-sm'
                   : 'bg-card-bg text-text-secondary border-surface-200 hover:border-primary-300'
               }`}
             >
@@ -344,7 +344,7 @@ export default function Dashboard() {
                     <p className="text-text-secondary text-sm mt-0.5">Você não tem compromissos agendados.</p>
                     <Pressable
                       onClick={() => navigate('/schedule')}
-                      className="mt-4 inline-flex items-center gap-1.5 rounded-md bg-primary-600 px-4 py-2 text-sm font-semibold text-white hover:bg-primary-700 transition-colors"
+                      className="mt-4 inline-flex items-center gap-1.5 rounded-xl bg-primary-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-primary-700 transition-colors"
                     >
                       <Plus size={15} /> Novo agendamento
                     </Pressable>
