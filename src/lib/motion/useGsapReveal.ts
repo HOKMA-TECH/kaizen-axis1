@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useLayoutEffect, useRef } from 'react';
 import gsap from 'gsap';
 import { prefersReducedMotion } from './prefersReducedMotion';
 
@@ -16,7 +16,7 @@ export function useGsapReveal<T extends HTMLElement = HTMLElement>(
 ) {
   const ref = useRef<T>(null);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const el = ref.current;
     if (!el) return;
     const items = el.querySelectorAll<HTMLElement>('[data-reveal]');
