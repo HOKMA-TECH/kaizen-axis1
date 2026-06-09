@@ -80,15 +80,15 @@ function SideNavLink({ item, unreadCount = 0, collapsed = false }: { item: NavIt
       to={item.path}
       title={collapsed ? item.label : undefined}
       className={cn(
-        'flex items-center rounded-xl text-sm font-medium transition-all duration-200',
+        'group flex items-center rounded-xl text-sm font-medium transition-all duration-200',
         collapsed ? 'justify-center py-2.5' : 'gap-3 px-3 py-2.5',
         isActive
-          ? 'bg-primary-100 dark:bg-primary-900/40 text-primary-700 dark:text-primary-300'
-          : 'text-text-secondary hover:bg-surface-100 dark:hover:bg-surface-200/10 hover:text-text-primary',
+          ? 'bg-gradient-to-r from-primary-600/12 to-primary-500/5 text-primary-800 shadow-[inset_0_0_0_1px_rgba(37,99,235,0.18)]'
+          : 'text-text-secondary hover:bg-surface-50 hover:text-text-primary',
       )}
     >
       <div className="relative flex-shrink-0">
-        <item.icon size={18} strokeWidth={isActive ? 2.5 : 2} />
+        <item.icon size={18} strokeWidth={isActive ? 2.5 : 2} className={cn(isActive ? 'text-primary-700' : 'text-surface-400 group-hover:text-text-primary')} />
         {collapsed && unreadCount > 0 && (
           <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-emerald-500 ring-2 ring-card-bg" />
         )}
@@ -99,7 +99,7 @@ function SideNavLink({ item, unreadCount = 0, collapsed = false }: { item: NavIt
           {unreadCount > 99 ? '99+' : unreadCount}
         </span>
       )}
-      {!collapsed && isActive && unreadCount === 0 && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-primary-500" />}
+      {!collapsed && isActive && unreadCount === 0 && <ChevronRight size={16} className="ml-auto text-primary-700" />}
     </NavLink>
   );
 }
@@ -112,7 +112,7 @@ function NavGroup({ label, items, chatUnread, collapsed = false }: { label: stri
     <div className="space-y-0.5">
       {collapsed
         ? <div className="h-px bg-surface-200 dark:bg-surface-100/10 mx-2 mb-1.5" />
-        : <p className="text-[10px] font-bold uppercase tracking-widest text-text-secondary px-3 mb-1">{label}</p>}
+        : <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-surface-400 px-3 mb-1.5">{label}</p>}
       {items.map(item => <SideNavLink key={item.path} item={item} unreadCount={item.path === '/chat' ? chatUnread : 0} collapsed={collapsed} />)}
     </div>
   );
@@ -168,7 +168,7 @@ function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => 
 
   return (
     <aside className={cn(
-      'fixed top-0 left-0 h-screen bg-card-bg border-r border-surface-200 dark:border-surface-100/10 flex flex-col z-40 print:hidden transition-all duration-200',
+      'fixed top-0 left-0 h-screen bg-card-bg/95 backdrop-blur-md border-r border-surface-200/80 dark:border-surface-100/10 flex flex-col z-40 print:hidden transition-all duration-200',
       collapsed ? 'w-16' : 'w-64',
     )}>
       {/* Brand */}
@@ -186,8 +186,8 @@ function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => 
             <div className="flex items-center gap-2.5 flex-1 min-w-0">
               <img src="/pwa-192x192.png" alt="Kaizen Logo" className="w-8 h-8 rounded-lg object-contain flex-shrink-0" />
               <div className="min-w-0">
-                <h1 className="font-black text-text-primary text-sm leading-none">KAIZEN</h1>
-                <p className="text-[10px] text-text-secondary font-medium tracking-widest">AXIS</p>
+                <h1 className="font-black text-text-primary text-sm leading-none tracking-tight">KAIZEN</h1>
+                <p className="text-[10px] text-primary-700 font-semibold uppercase tracking-[0.22em]">AXIS</p>
               </div>
             </div>
             <button
@@ -214,11 +214,11 @@ function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => 
           onClick={() => navigate('/settings')}
           title={collapsed ? `${userName} — Configurações` : undefined}
           className={cn(
-            'w-full flex items-center rounded-xl hover:bg-surface-100 dark:hover:bg-surface-200/10 transition-all group',
-            collapsed ? 'justify-center py-2' : 'gap-3 px-3 py-2.5',
+            'w-full flex items-center transition-all group',
+            collapsed ? 'justify-center py-2 rounded-xl hover:bg-surface-100' : 'gap-3 px-3 py-2.5 rounded-2xl bg-surface-50 hover:bg-surface-100',
           )}
         >
-          <div className="w-8 h-8 rounded-full bg-primary-100 dark:bg-primary-900/40 flex items-center justify-center text-primary-700 dark:text-primary-300 font-bold text-sm flex-shrink-0">
+          <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary-500 to-primary-700 flex items-center justify-center text-white font-bold text-sm flex-shrink-0 shadow-sm shadow-primary-500/25">
             {(userName || '?').charAt(0).toUpperCase()}
           </div>
           {!collapsed && (
@@ -323,14 +323,14 @@ export function DesktopLayout({ children }: { children: React.ReactNode }) {
       {/* Main content */}
       <div className={cn('flex-1 flex flex-col min-h-screen transition-all duration-200', collapsed ? 'ml-16' : 'ml-64')}>
         {/* Top header */}
-        <header className="sticky top-0 z-30 h-14 bg-card-bg border-b border-surface-200 dark:border-surface-100/10 flex items-center px-6 gap-4 print:hidden">
-          <h2 className="font-bold text-text-primary text-base flex-1">{currentTitle}</h2>
+        <header className="sticky top-0 z-30 h-14 bg-card-bg/80 backdrop-blur-md border-b border-surface-200/80 dark:border-surface-100/10 flex items-center px-6 gap-4 print:hidden">
+          <h2 className="font-bold text-text-primary text-base flex-1 tracking-tight">{currentTitle}</h2>
           <NotificationBell />
         </header>
 
         {/* Page content */}
         <main className="flex-1 overflow-y-auto print:overflow-visible print:h-auto">
-          <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-6">
+          <div className="@container mx-auto w-full max-w-[1680px] px-3 sm:px-5 lg:px-8">
             {children}
           </div>
         </main>
