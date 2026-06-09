@@ -1,7 +1,11 @@
 import { useMemo, useState } from 'react';
 import { PremiumCard, SectionHeader } from '@/components/ui/PremiumComponents';
-import { Loader2, Users, TrendingUp, Target, Calendar, Building2, ChevronDown } from 'lucide-react';
+import { Segmented } from '@/components/dashboard/StatRow';
+import { MetricGrid } from '@/components/dashboard/MetricCard';
+import { Loader2, Target, Calendar, Building2, ChevronDown, Plus } from 'lucide-react';
 import { SalesProgressCard } from '@/components/dashboard/SalesProgressCard';
+import { ProgressBar } from '@/components/dashboard/ProgressBar';
+import { useGsapReveal, Pressable } from '@/lib/motion';
 import { FunnelChart } from '@/components/ui/FunnelChart';
 import { useNavigate } from 'react-router-dom';
 
@@ -117,15 +121,15 @@ export default function Dashboard() {
     .slice(0, 3);
 
   return (
-    <div className="p-6 space-y-8">
+    <div ref={useGsapReveal<HTMLDivElement>()} className="@container mx-auto max-w-6xl px-2 py-8 space-y-8">
       {/* Header */}
-      <div className="flex justify-between items-center pt-2">
+      <div data-reveal className="flex justify-between items-center border-b border-surface-200 pb-5 pt-2">
         <div>
-          <h1 className="text-2xl font-bold text-text-primary flex items-center gap-2">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-text-secondary">{roleLabel[role] ?? 'Visão geral'}</p>
+          <h1 className="mt-1 text-2xl font-bold tracking-tight text-text-primary flex items-center gap-2">
             Olá, {userName.split(' ')[0]}
-            {loading && <Loader2 className="animate-spin text-gold-500" size={18} />}
+            {loading && <Loader2 className="animate-spin text-primary-600" size={18} />}
           </h1>
-          <p className="text-text-secondary text-sm">{roleLabel[role] ?? 'Visão geral'}</p>
         </div>
         <div className="z-50 relative lg:hidden">
           <NotificationBell />
@@ -146,10 +150,10 @@ export default function Dashboard() {
             <button
               key={id}
               onClick={() => { setPeriod(id); setMobilePeriodOpen(false); }}
-              className={`px-4 py-2 rounded-full text-xs font-semibold border transition-all ${
+              className={`px-4 py-2 rounded-md text-xs font-semibold border transition-all ${
                 period === id
-                  ? 'bg-gold-500 text-white border-gold-500 shadow-sm'
-                  : 'bg-card-bg text-text-secondary border-surface-200 hover:border-gold-300'
+                  ? 'bg-primary-600 text-white border-primary-600'
+                  : 'bg-card-bg text-text-secondary border-surface-200 hover:border-primary-300'
               }`}
             >
               {id === 'este_mes' ? 'Este mês' : '30 dias'}
@@ -158,10 +162,10 @@ export default function Dashboard() {
           <div className="relative">
             <button
               onClick={() => setMobilePeriodOpen(o => !o)}
-              className={`flex items-center gap-1 px-4 py-2 rounded-full text-xs font-semibold border transition-all ${
+              className={`flex items-center gap-1 px-4 py-2 rounded-md text-xs font-semibold border transition-all ${
                 ['60_dias', '90_dias', 'custom'].includes(period)
-                  ? 'bg-gold-500 text-white border-gold-500 shadow-sm'
-                  : 'bg-card-bg text-text-secondary border-surface-200 hover:border-gold-300'
+                  ? 'bg-primary-600 text-white border-primary-600'
+                  : 'bg-card-bg text-text-secondary border-surface-200 hover:border-primary-300'
               }`}
             >
               {period === '60_dias'
@@ -200,26 +204,18 @@ export default function Dashboard() {
         </div>
 
         {/* ── Desktop period selector (md and above) ─────────────────────── */}
-        <div className="hidden md:flex flex-wrap gap-2">
-          {[
-            { id: 'este_mes' as const, label: 'Este mês' },
-            { id: '30_dias'  as const, label: '30 dias' },
-            { id: '60_dias'  as const, label: '60 dias' },
-            { id: '90_dias'  as const, label: '90 dias' },
-            { id: 'custom'   as const, label: 'Personalizado' },
-          ].map(opt => (
-            <button
-              key={opt.id}
-              onClick={() => setPeriod(opt.id)}
-              className={`px-4 py-2 rounded-full text-xs font-semibold border transition-all ${
-                period === opt.id
-                  ? 'bg-gold-500 text-white border-gold-500 shadow-sm'
-                  : 'bg-card-bg text-text-secondary border-surface-200 hover:border-gold-300'
-              }`}
-            >
-              {opt.label}
-            </button>
-          ))}
+        <div className="hidden md:block">
+          <Segmented
+            value={period}
+            onChange={setPeriod}
+            options={[
+              { value: 'este_mes', label: 'Este mês' },
+              { value: '30_dias', label: '30 dias' },
+              { value: '60_dias', label: '60 dias' },
+              { value: '90_dias', label: '90 dias' },
+              { value: 'custom', label: 'Personalizado' },
+            ]}
+          />
         </div>
 
         {/* Custom date inputs (both breakpoints) */}
@@ -244,25 +240,13 @@ export default function Dashboard() {
       {/* ── ADMIN ONLY: Global Metrics ─────────────────────────────────────── */}
       {isAdmin && (
         <>
-          <div className="grid grid-cols-2 gap-4">
-            <PremiumCard highlight className="col-span-2 flex justify-between items-center cursor-pointer"
-              onClick={() => navigate('/reports')}>
-              <div>
-                <p className="text-sm text-gold-700 dark:text-gold-400 font-medium uppercase tracking-wider">Vendas Globais Concluídas</p>
-                <h3 className="text-3xl font-bold text-text-primary mt-1">{totalSales}</h3>
-                <p className="text-xs text-green-600 dark:text-green-400 mt-1 font-medium">{totalClients} clientes no período ({periodLabel})</p>
-              </div>
-              <div className="h-12 w-12 rounded-full bg-gold-100 dark:bg-gold-900/40 flex items-center justify-center text-gold-600 font-bold text-xl">{totalSales}</div>
-            </PremiumCard>
-            <PremiumCard className="cursor-pointer" onClick={() => navigate('/clients', { state: { initialStage: 'Em Análise' } })}>
-              <p className="text-xs text-text-secondary uppercase">Em Análise</p>
-              <h3 className="text-2xl font-bold text-text-primary mt-2">{String(emAnalise).padStart(2, '0')}</h3>
-            </PremiumCard>
-            <PremiumCard className="cursor-pointer" onClick={() => navigate('/clients', { state: { initialStage: 'Aprovado' } })}>
-              <p className="text-xs text-text-secondary uppercase">Aprovados</p>
-              <h3 className="text-2xl font-bold text-green-600 dark:text-green-400 mt-2">{String(aprovados).padStart(2, '0')}</h3>
-            </PremiumCard>
-          </div>
+          <MetricGrid
+            items={[
+              { label: 'Vendas Globais', value: totalSales, accent: 'blue', sub: `${totalClients} clientes no período`, onClick: () => navigate('/reports') },
+              { label: 'Em Análise', value: emAnalise, accent: 'amber', onClick: () => navigate('/clients', { state: { initialStage: 'Em Análise' } }) },
+              { label: 'Aprovados', value: aprovados, accent: 'green', onClick: () => navigate('/clients', { state: { initialStage: 'Aprovado' } }) },
+            ]}
+          />
           {/* Directorates overview - ADMIN only */}
           {isAdmin && directorates.length > 0 && (
             <section>
@@ -303,25 +287,13 @@ export default function Dashboard() {
       {/* ── DIRETOR: Diretoria Metrics ─────────────────────────────────────── */}
       {isDirector && (
         <>
-          <div className="grid grid-cols-2 gap-4">
-            <PremiumCard highlight className="col-span-2 flex justify-between items-center cursor-pointer"
-              onClick={() => navigate('/reports')}>
-              <div>
-                <p className="text-sm text-gold-700 dark:text-gold-400 font-medium uppercase tracking-wider">Vendas da Diretoria</p>
-                <h3 className="text-3xl font-bold text-text-primary mt-1">{totalSales}</h3>
-                <p className="text-xs text-green-600 mt-1 font-medium">{totalClients} clientes no período ({periodLabel})</p>
-              </div>
-              <div className="h-12 w-12 rounded-full bg-gold-100 dark:bg-gold-900/40 flex items-center justify-center text-gold-600 font-bold text-xl">{totalSales}</div>
-            </PremiumCard>
-            <PremiumCard className="cursor-pointer" onClick={() => navigate('/clients', { state: { initialStage: 'Em Análise' } })}>
-              <p className="text-xs text-text-secondary uppercase">Em Análise</p>
-              <h3 className="text-2xl font-bold text-text-primary mt-2">{String(emAnalise).padStart(2, '0')}</h3>
-            </PremiumCard>
-            <PremiumCard className="cursor-pointer" onClick={() => navigate('/clients', { state: { initialStage: 'Aprovado' } })}>
-              <p className="text-xs text-text-secondary uppercase">Aprovados</p>
-              <h3 className="text-2xl font-bold text-green-600 mt-2">{String(aprovados).padStart(2, '0')}</h3>
-            </PremiumCard>
-          </div>
+          <MetricGrid
+            items={[
+              { label: 'Vendas da Diretoria', value: totalSales, accent: 'blue', sub: `${totalClients} clientes no período`, onClick: () => navigate('/reports') },
+              { label: 'Em Análise', value: emAnalise, accent: 'amber', onClick: () => navigate('/clients', { state: { initialStage: 'Em Análise' } }) },
+              { label: 'Aprovados', value: aprovados, accent: 'green', onClick: () => navigate('/clients', { state: { initialStage: 'Aprovado' } }) },
+            ]}
+          />
           <SalesProgressCard />
           <section><FunnelChart clientsData={periodClients} /></section>
         </>
@@ -330,39 +302,27 @@ export default function Dashboard() {
       {/* ── CORRETOR: Personal Metrics ─────────────────────────────────────── */}
       {isBroker && (
         <>
-          <div className="grid grid-cols-2 gap-4">
-            <PremiumCard highlight className="col-span-2 flex justify-between items-center cursor-pointer"
-              onClick={() => navigate('/clients', { state: { initialStage: 'Concluído' } })}>
-              <div>
-                <p className="text-sm text-gold-700 dark:text-gold-400 font-medium uppercase tracking-wider">Vendas Concluídas</p>
-                <h3 className="text-3xl font-bold text-text-primary mt-1">{totalSales}</h3>
-                <p className="text-xs text-green-600 dark:text-green-400 mt-1 font-medium">{totalClients} clientes no período ({periodLabel})</p>
-              </div>
-              <div className="h-12 w-12 rounded-full bg-gold-100 dark:bg-gold-900/40 flex items-center justify-center text-gold-600 font-bold text-xl">{totalSales}</div>
-            </PremiumCard>
-            <PremiumCard className="cursor-pointer" onClick={() => navigate('/clients', { state: { initialStage: 'Em Análise' } })}>
-              <p className="text-xs text-text-secondary uppercase">Em Análise</p>
-              <h3 className="text-2xl font-bold text-text-primary mt-2">{String(emAnalise).padStart(2, '0')}</h3>
-            </PremiumCard>
-            <PremiumCard className="cursor-pointer" onClick={() => navigate('/clients', { state: { initialStage: 'Aprovado' } })}>
-              <p className="text-xs text-text-secondary uppercase">Aprovados</p>
-              <h3 className="text-2xl font-bold text-green-600 dark:text-green-400 mt-2">{String(aprovados).padStart(2, '0')}</h3>
-            </PremiumCard>
-          </div>
+          <MetricGrid
+            items={[
+              { label: 'Vendas Concluídas', value: totalSales, accent: 'blue', sub: `${totalClients} clientes no período`, onClick: () => navigate('/clients', { state: { initialStage: 'Concluído' } }) },
+              { label: 'Em Análise', value: emAnalise, accent: 'amber', onClick: () => navigate('/clients', { state: { initialStage: 'Em Análise' } }) },
+              { label: 'Aprovados', value: aprovados, accent: 'green', onClick: () => navigate('/clients', { state: { initialStage: 'Aprovado' } }) },
+            ]}
+          />
 
           <SalesProgressCard />
 
-          <div className="mt-8 grid grid-cols-1 xl:grid-cols-3 gap-6">
-            <div className="xl:col-span-2 flex flex-col gap-6">
+          <div className="mt-8 grid grid-cols-1 @5xl:grid-cols-3 gap-6">
+            <div className="@5xl:col-span-2 flex flex-col gap-6">
               <GamificationProfile />
               <section><FunnelChart clientsData={periodClients} /></section>
             </div>
-            <div className="xl:col-span-1 h-[600px] xl:h-[auto]">
+            <div className="@5xl:col-span-1 h-[600px] @5xl:h-[auto]">
               <LeaderboardPanel />
             </div>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-8">
+          <div className="grid grid-cols-1 @3xl:grid-cols-2 gap-6 mt-8">
             {/* Weekly Appointments */}
             <section>
               <SectionHeader
@@ -376,9 +336,18 @@ export default function Dashboard() {
               />
               <div className="space-y-3">
                 {upcomingAppointments.length === 0 ? (
-                  <PremiumCard className="text-center py-6">
-                    <Calendar className="mx-auto mb-2 text-surface-300 dark:text-surface-700" size={32} />
-                    <p className="text-text-secondary text-sm">Sua agenda está livre na semana.</p>
+                  <PremiumCard className="flex flex-col items-center text-center py-8">
+                    <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-50 text-blue-500 dark:bg-blue-900/20 mb-3">
+                      <Calendar size={26} />
+                    </span>
+                    <p className="font-semibold text-text-primary">Semana livre</p>
+                    <p className="text-text-secondary text-sm mt-0.5">Você não tem compromissos agendados.</p>
+                    <Pressable
+                      onClick={() => navigate('/schedule')}
+                      className="mt-4 inline-flex items-center gap-1.5 rounded-md bg-primary-600 px-4 py-2 text-sm font-semibold text-white hover:bg-primary-700 transition-colors"
+                    >
+                      <Plus size={15} /> Novo agendamento
+                    </Pressable>
                   </PremiumCard>
                 ) : (
                   upcomingAppointments.map((app) => (
@@ -419,9 +388,12 @@ export default function Dashboard() {
                   return (
                     <div>
                       <SectionHeader title="Metas e Missões" subtitle="Objetivos pessoais" />
-                      <PremiumCard className="text-center py-6">
-                        <Target className="mx-auto mb-2 text-surface-300 dark:text-surface-700" size={32} />
-                        <p className="text-text-secondary text-sm">Nenhuma meta ativa atribuída.</p>
+                      <PremiumCard className="flex flex-col items-center text-center py-8">
+                        <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary-50 text-primary-600 dark:bg-primary-900/20 mb-3">
+                          <Target size={26} />
+                        </span>
+                        <p className="font-semibold text-text-primary">Sem metas no momento</p>
+                        <p className="text-text-secondary text-sm mt-0.5">Suas metas e missões aparecem aqui quando atribuídas.</p>
                       </PremiumCard>
                     </div>
                   );
@@ -476,9 +448,7 @@ export default function Dashboard() {
                                     <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${pct >= 100 ? 'bg-green-100 text-green-700' : pct >= 60 ? 'bg-blue-100 text-blue-700' : 'bg-surface-100 text-text-secondary'}`}>{pct}%</span>
                                   </div>
                                 </div>
-                                <div className="h-2 w-full bg-surface-200 rounded-full overflow-hidden">
-                                  <div className={`h-full rounded-full transition-all duration-700 ${progressColor}`} style={{ width: `${pct}%` }} />
-                                </div>
+                                <ProgressBar pct={pct} color={progressColor} />
                                 <div className="flex justify-between items-end mt-1">
                                   <div className="flex flex-col text-[10px] text-text-secondary">
                                     <span>{tierText}: {formatGoalVal(goal, goal.current_progress || 0)} de {formatGoalVal(goal, goal.target || 0)}</span>
@@ -541,9 +511,7 @@ export default function Dashboard() {
                                     <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${pct >= 100 ? 'bg-green-100 text-green-700' : pct >= 60 ? 'bg-blue-100 text-blue-700' : 'bg-surface-100 text-text-secondary'}`}>{pct}%</span>
                                   </div>
                                 </div>
-                                <div className="h-2 w-full bg-surface-200 rounded-full overflow-hidden">
-                                  <div className={`h-full rounded-full transition-all duration-700 ${progressColor}`} style={{ width: `${pct}%` }} />
-                                </div>
+                                <ProgressBar pct={pct} color={progressColor} />
                                 <div className="flex justify-between items-end mt-1">
                                   <div className="flex flex-col text-[10px] text-text-secondary">
                                     <span>{tierText}: {formatGoalVal(goal, goal.current_progress || 0)} de {formatGoalVal(goal, goal.target || 0)}</span>
@@ -568,40 +536,14 @@ export default function Dashboard() {
       {/* ── GERENTE / COORDENADOR: Team Metrics ───────────────────────────── */}
       {(isManager || isCoordinator) && (
         <>
-          <div className="grid grid-cols-2 gap-4">
-            <PremiumCard
-              className="flex flex-col items-center gap-1 cursor-pointer hover:border-gold-300 transition-colors"
-              onClick={() => navigate('/clients')}
-            >
-              <Users size={22} className="text-gold-500" />
-              <h3 className="text-2xl font-bold text-text-primary">{totalClients}</h3>
-              <p className="text-xs text-text-secondary">Clientes no período</p>
-            </PremiumCard>
-            <PremiumCard
-              className="flex flex-col items-center gap-1 cursor-pointer hover:border-gold-300 transition-colors"
-              onClick={() => navigate('/clients', { state: { initialStage: 'Concluído' } })}
-            >
-              <TrendingUp size={22} className="text-green-500" />
-              <h3 className="text-2xl font-bold text-text-primary">{totalSales}</h3>
-              <p className="text-xs text-text-secondary">Vendas no período</p>
-            </PremiumCard>
-            <PremiumCard
-              className="flex flex-col items-center gap-1 cursor-pointer hover:border-gold-300 transition-colors"
-              onClick={() => navigate('/clients', { state: { initialStage: 'Em Análise' } })}
-            >
-              <Target size={22} className="text-blue-500" />
-              <h3 className="text-2xl font-bold text-text-primary">{emAnalise}</h3>
-              <p className="text-xs text-text-secondary">Em Análise no período</p>
-            </PremiumCard>
-            <PremiumCard
-              className="flex flex-col items-center gap-1 cursor-pointer hover:border-gold-300 transition-colors"
-              onClick={() => navigate('/schedule')}
-            >
-              <Calendar size={22} className="text-purple-500" />
-              <h3 className="text-2xl font-bold text-text-primary">{upcomingAppointmentsTotal}</h3>
-              <p className="text-xs text-text-secondary">Agendamentos</p>
-            </PremiumCard>
-          </div>
+          <MetricGrid
+            items={[
+              { label: 'Clientes', value: totalClients, accent: 'blue', onClick: () => navigate('/clients') },
+              { label: 'Vendas', value: totalSales, accent: 'green', onClick: () => navigate('/clients', { state: { initialStage: 'Concluído' } }) },
+              { label: 'Em Análise', value: emAnalise, accent: 'amber', onClick: () => navigate('/clients', { state: { initialStage: 'Em Análise' } }) },
+              { label: 'Agendamentos', value: upcomingAppointmentsTotal, accent: 'blue', onClick: () => navigate('/schedule') },
+            ]}
+          />
           <SalesProgressCard />
 
           <section><FunnelChart clientsData={periodClients} /></section>
@@ -670,9 +612,7 @@ export default function Dashboard() {
                                     <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${pct >= 100 ? 'bg-green-100 text-green-700' : pct >= 60 ? 'bg-blue-100 text-blue-700' : 'bg-surface-100 text-text-secondary'}`}>{pct}%</span>
                                   </div>
                                 </div>
-                                <div className="h-2 w-full bg-surface-200 rounded-full overflow-hidden">
-                                  <div className={`h-full rounded-full transition-all duration-700 ${progressColor}`} style={{ width: `${pct}%` }} />
-                                </div>
+                                <ProgressBar pct={pct} color={progressColor} />
                                 <div className="flex justify-between items-end mt-1">
                                   <div className="flex flex-col text-[10px] text-text-secondary">
                                     <span>{tierText}: {formatGoalVal(goal, goal.current_progress || 0)} de {formatGoalVal(goal, goal.target || 0)}</span>
@@ -731,9 +671,7 @@ export default function Dashboard() {
                                     <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${pct >= 100 ? 'bg-green-100 text-green-700' : pct >= 60 ? 'bg-blue-100 text-blue-700' : 'bg-surface-100 text-text-secondary'}`}>{pct}%</span>
                                   </div>
                                 </div>
-                                <div className="h-2 w-full bg-surface-200 rounded-full overflow-hidden">
-                                  <div className={`h-full rounded-full transition-all duration-700 ${progressColor}`} style={{ width: `${pct}%` }} />
-                                </div>
+                                <ProgressBar pct={pct} color={progressColor} />
                                 <div className="flex justify-between items-end mt-1">
                                   <div className="flex flex-col text-[10px] text-text-secondary">
                                     <span>{tierText}: {formatGoalVal(goal, goal.current_progress || 0)} de {formatGoalVal(goal, goal.target || 0)}</span>
@@ -756,9 +694,12 @@ export default function Dashboard() {
           ) : (
             <section>
               <SectionHeader title="Metas e Missões da Equipe" />
-              <PremiumCard className="text-center py-6">
-                <Target className="mx-auto mb-2 text-surface-300" size={28} />
-                <p className="text-text-secondary text-sm">Nenhuma meta ativa no momento.</p>
+              <PremiumCard className="flex flex-col items-center text-center py-8">
+                <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary-50 text-primary-600 dark:bg-primary-900/20 mb-3">
+                  <Target size={26} />
+                </span>
+                <p className="font-semibold text-text-primary">Sem metas ativas</p>
+                <p className="text-text-secondary text-sm mt-0.5">As metas e missões da equipe aparecem aqui.</p>
               </PremiumCard>
             </section>
           )}
