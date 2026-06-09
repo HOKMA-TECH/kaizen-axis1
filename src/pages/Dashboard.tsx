@@ -13,6 +13,8 @@ import { GamificationProfile } from '@/components/gamification/GamificationProfi
 import { LeaderboardPanel } from '@/components/gamification/LeaderboardPanel';
 import { parseDateOnlyLocal, parseDateOnlyLocalEnd, toDateOnlyLocal, toPtBrDate } from '@/lib/dateRange';
 import { getDashboardSaleDate } from '@/lib/sales/salePeriod';
+import { useGsapReveal } from '@/lib/motion';
+import { CountNumber } from '@/components/dashboard/CountNumber';
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -117,15 +119,15 @@ export default function Dashboard() {
     .slice(0, 3);
 
   return (
-    <div className="p-6 space-y-8">
-      {/* Header */}
-      <div className="flex justify-between items-center pt-2">
+    <div ref={useGsapReveal<HTMLDivElement>()} className="p-6 space-y-8">
+      {/* Header — editorial */}
+      <div data-reveal className="flex justify-between items-start border-b border-surface-200 pb-6 pt-2">
         <div>
-          <h1 className="text-2xl font-bold text-text-primary flex items-center gap-2">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-primary-400">{roleLabel[role] ?? 'Visão geral'}</p>
+          <h1 className="v3-serif mt-2 text-3xl text-text-primary flex items-center gap-2 tracking-tight">
             Olá, {userName.split(' ')[0]}
-            {loading && <Loader2 className="animate-spin text-gold-500" size={18} />}
+            {loading && <Loader2 className="animate-spin text-primary-400" size={18} />}
           </h1>
-          <p className="text-text-secondary text-sm">{roleLabel[role] ?? 'Visão geral'}</p>
         </div>
         <div className="z-50 relative lg:hidden">
           <NotificationBell />
@@ -211,10 +213,10 @@ export default function Dashboard() {
             <button
               key={opt.id}
               onClick={() => setPeriod(opt.id)}
-              className={`px-4 py-2 rounded-full text-xs font-semibold border transition-all ${
+              className={`px-4 py-2 rounded-lg text-xs font-semibold border transition-all ${
                 period === opt.id
-                  ? 'bg-gold-500 text-white border-gold-500 shadow-sm'
-                  : 'bg-card-bg text-text-secondary border-surface-200 hover:border-gold-300'
+                  ? 'bg-primary-600 text-white border-primary-600'
+                  : 'bg-card-bg text-text-secondary border-surface-200 hover:border-primary-400'
               }`}
             >
               {opt.label}
@@ -244,23 +246,23 @@ export default function Dashboard() {
       {/* ── ADMIN ONLY: Global Metrics ─────────────────────────────────────── */}
       {isAdmin && (
         <>
-          <div className="grid grid-cols-2 gap-4">
+          <div data-reveal className="grid grid-cols-2 gap-4">
             <PremiumCard highlight className="col-span-2 flex justify-between items-center cursor-pointer"
               onClick={() => navigate('/reports')}>
               <div>
-                <p className="text-sm text-gold-700 dark:text-gold-400 font-medium uppercase tracking-wider">Vendas Globais Concluídas</p>
-                <h3 className="text-3xl font-bold text-text-primary mt-1">{totalSales}</h3>
-                <p className="text-xs text-green-600 dark:text-green-400 mt-1 font-medium">{totalClients} clientes no período ({periodLabel})</p>
+                <p className="text-[11px] text-primary-400 font-semibold uppercase tracking-[0.18em]">Vendas Globais Concluídas</p>
+                <h3 className="v3-serif text-4xl text-text-primary mt-1.5 tabular-nums"><CountNumber value={totalSales} /></h3>
+                <p className="text-xs text-emerald-400 mt-1.5 font-medium">{totalClients} clientes no período ({periodLabel})</p>
               </div>
-              <div className="h-12 w-12 rounded-full bg-gold-100 dark:bg-gold-900/40 flex items-center justify-center text-gold-600 font-bold text-xl">{totalSales}</div>
+              <div className="h-12 w-12 rounded-full bg-primary-500/15 flex items-center justify-center text-primary-400 font-bold text-xl">{totalSales}</div>
             </PremiumCard>
             <PremiumCard className="cursor-pointer" onClick={() => navigate('/clients', { state: { initialStage: 'Em Análise' } })}>
-              <p className="text-xs text-text-secondary uppercase">Em Análise</p>
-              <h3 className="text-2xl font-bold text-text-primary mt-2">{String(emAnalise).padStart(2, '0')}</h3>
+              <p className="text-[10px] text-text-secondary uppercase tracking-[0.16em]">Em Análise</p>
+              <h3 className="v3-serif text-3xl text-text-primary mt-2 tabular-nums"><CountNumber value={emAnalise} pad={2} /></h3>
             </PremiumCard>
             <PremiumCard className="cursor-pointer" onClick={() => navigate('/clients', { state: { initialStage: 'Aprovado' } })}>
-              <p className="text-xs text-text-secondary uppercase">Aprovados</p>
-              <h3 className="text-2xl font-bold text-green-600 dark:text-green-400 mt-2">{String(aprovados).padStart(2, '0')}</h3>
+              <p className="text-[10px] text-text-secondary uppercase tracking-[0.16em]">Aprovados</p>
+              <h3 className="v3-serif text-3xl text-emerald-400 mt-2 tabular-nums"><CountNumber value={aprovados} pad={2} /></h3>
             </PremiumCard>
           </div>
           {/* Directorates overview - ADMIN only */}

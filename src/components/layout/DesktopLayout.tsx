@@ -73,20 +73,20 @@ function SideNavLink({ item, unreadCount = 0 }: { item: NavItem; unreadCount?: n
     <NavLink
       to={item.path}
       className={cn(
-        'flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200',
+        'group flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200',
         isActive
-          ? 'bg-primary-100 dark:bg-primary-900/40 text-primary-700 dark:text-primary-300'
-          : 'text-text-secondary hover:bg-surface-100 dark:hover:bg-surface-200/10 hover:text-text-primary',
+          ? 'bg-gradient-to-r from-primary-600/20 to-primary-500/5 text-primary-200 shadow-[inset_0_0_0_1px_rgba(37,99,235,0.28)]'
+          : 'text-text-secondary hover:bg-surface-100 hover:text-text-primary',
       )}
     >
-      <item.icon size={18} strokeWidth={isActive ? 2.5 : 2} />
+      <item.icon size={18} strokeWidth={isActive ? 2.5 : 2} className={cn(isActive ? 'text-primary-400' : 'text-surface-500 group-hover:text-text-primary')} />
       <span>{item.label}</span>
       {unreadCount > 0 && (
         <span className="ml-auto min-w-5 h-5 px-1.5 rounded-full bg-emerald-500 text-white text-[10px] font-bold flex items-center justify-center">
           {unreadCount > 99 ? '99+' : unreadCount}
         </span>
       )}
-      {isActive && unreadCount === 0 && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-primary-500" />}
+      {isActive && unreadCount === 0 && <ChevronRight size={16} className="ml-auto text-primary-400" />}
     </NavLink>
   );
 }
@@ -97,7 +97,7 @@ function NavGroup({ label, items, chatUnread }: { label: string; items: NavItem[
   if (items.length === 0) return null;
   return (
     <div className="space-y-0.5">
-      <p className="text-[10px] font-bold uppercase tracking-widest text-text-secondary px-3 mb-1">{label}</p>
+      <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-surface-500 px-3 mb-1.5">{label}</p>
       {items.map(item => <SideNavLink key={item.path} item={item} unreadCount={item.path === '/chat' ? chatUnread : 0} />)}
     </div>
   );
@@ -152,18 +152,14 @@ function Sidebar() {
     ].filter(g => g.items.length > 0);
 
   return (
-    <aside className="fixed top-0 left-0 h-screen w-64 bg-card-bg border-r border-surface-200 dark:border-surface-100/10 flex flex-col z-40 print:hidden">
+    <aside className="fixed top-0 left-0 h-screen w-64 bg-card-bg/95 backdrop-blur-md border-r border-surface-200/80 flex flex-col z-40 print:hidden">
       {/* Brand */}
-      <div className="h-14 px-5 flex items-center border-b border-surface-200 dark:border-surface-100/10">
-        <div className="flex items-center gap-2.5">
-          <img
-            src="/pwa-192x192.png"
-            alt="Kaizen Logo"
-            className="w-8 h-8 rounded-lg object-contain"
-          />
+      <div className="h-16 px-5 flex items-center border-b border-surface-200/80">
+        <div className="flex items-center gap-3">
+          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-primary-500 to-primary-700 text-white font-black text-base shadow-lg shadow-primary-500/25">K</span>
           <div>
-            <h1 className="font-black text-text-primary text-sm leading-none">KAIZEN</h1>
-            <p className="text-[10px] text-text-secondary font-medium tracking-widest">AXIS</p>
+            <h1 className="v3-serif text-text-primary text-lg leading-none tracking-tight">Kaizen</h1>
+            <p className="text-[10px] text-primary-400 font-semibold uppercase tracking-[0.24em] mt-0.5">Axis</p>
           </div>
         </div>
       </div>
@@ -269,8 +265,8 @@ export function DesktopLayout({ children }: { children: React.ReactNode }) {
       {/* Main content */}
       <div className="ml-64 flex-1 flex flex-col min-h-screen">
         {/* Top header */}
-        <header className="sticky top-0 z-30 h-14 bg-card-bg border-b border-surface-200 dark:border-surface-100/10 flex items-center px-6 gap-4 print:hidden">
-          <h2 className="font-bold text-text-primary text-base flex-1">{currentTitle}</h2>
+        <header className="sticky top-0 z-30 h-16 bg-card-bg/80 backdrop-blur-md border-b border-surface-200/80 flex items-center px-6 gap-4 print:hidden">
+          <h2 className="v3-serif text-text-primary text-xl flex-1 tracking-tight">{currentTitle}</h2>
           <NotificationBell />
         </header>
 
