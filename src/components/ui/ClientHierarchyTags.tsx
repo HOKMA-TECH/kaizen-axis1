@@ -110,24 +110,24 @@ export function ClientHierarchyTags({
   if (!ownerName && !coordinatorName && !finalTeamName && !finalDirectorateName) return null;
 
   return (
-    <div className={`flex flex-wrap gap-1 ${className ?? ''}`}>
+    <div className={`flex flex-wrap gap-1.5 ${className ?? ''}`}>
       {ownerName && (
-        <span className="inline-flex items-center text-[10px] bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 px-2 py-0.5 rounded-full font-medium">
+        <span className="inline-flex items-center gap-1 text-[10px] bg-primary-500/10 text-primary-300 border border-primary-500/20 px-2 py-0.5 rounded-md font-medium">
           👤 {ownerName}
         </span>
       )}
       {coordinatorName && (
-        <span className="inline-flex items-center text-[10px] bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 px-2 py-0.5 rounded-full font-medium">
+        <span className="inline-flex items-center gap-1 text-[10px] bg-surface-100 text-text-secondary border border-surface-200 px-2 py-0.5 rounded-md font-medium">
           📋 {coordinatorName}
         </span>
       )}
       {finalTeamName && (
-        <span className="inline-flex items-center text-[10px] bg-surface-100 dark:bg-surface-200 text-text-secondary px-2 py-0.5 rounded-full font-medium">
+        <span className="inline-flex items-center gap-1 text-[10px] bg-surface-100 text-text-secondary border border-surface-200 px-2 py-0.5 rounded-md font-medium">
           🏢 {finalTeamName}
         </span>
       )}
       {finalDirectorateName && (
-        <span className="inline-flex items-center text-[10px] bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 px-2 py-0.5 rounded-full font-medium">
+        <span className="inline-flex items-center gap-1 text-[10px] bg-surface-100 text-text-secondary border border-surface-200 px-2 py-0.5 rounded-md font-medium">
           🏛️ {finalDirectorateName}
         </span>
       )}

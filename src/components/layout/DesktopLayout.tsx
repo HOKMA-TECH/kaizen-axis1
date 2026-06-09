@@ -266,8 +266,7 @@ export function DesktopLayout({ children }: { children: React.ReactNode }) {
       {/* Main content */}
       <div className="ml-64 flex-1 flex flex-col min-h-screen">
         {/* Top header */}
-        <header className="sticky top-0 z-30 h-16 bg-card-bg/80 backdrop-blur-md border-b border-surface-200/80 flex items-center px-6 gap-4 print:hidden">
-          <h2 className="v3-serif text-text-primary text-xl flex-1 tracking-tight">{currentTitle}</h2>
+        <header className="sticky top-0 z-30 h-16 bg-card-bg/80 backdrop-blur-md border-b border-surface-200/80 flex items-center justify-end px-6 gap-4 print:hidden">
           <NotificationBell />
         </header>
 

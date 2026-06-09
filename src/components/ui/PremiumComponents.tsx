@@ -43,10 +43,10 @@ export const RoundedButton = ({
   ...props
 }: RoundedButtonProps) => {
   const variants = {
-    primary: "bg-gold-400 text-white hover:bg-gold-500 shadow-md shadow-gold-400/20 border border-transparent",
-    secondary: "bg-surface-100 text-text-primary hover:bg-surface-200 border border-transparent",
-    outline: "border border-gold-400 text-gold-600 dark:text-gold-400 hover:bg-gold-50 dark:hover:bg-gold-900/20",
-    ghost: "text-text-secondary hover:bg-surface-100 hover:text-gold-600 border border-transparent",
+    primary: "bg-primary-600 text-white hover:bg-primary-700 shadow-sm shadow-primary-500/25 border border-transparent",
+    secondary: "bg-surface-100 text-text-primary hover:bg-surface-200 border border-surface-200",
+    outline: "border border-surface-200 text-text-secondary hover:bg-surface-100 hover:text-text-primary",
+    ghost: "text-text-secondary hover:bg-surface-100 hover:text-text-primary border border-transparent",
   };
 
   const sizes = {
@@ -56,7 +56,7 @@ export const RoundedButton = ({
   };
 
   const classes = cn(
-    "rounded-full font-medium transition-colors flex items-center justify-center gap-2 cursor-pointer",
+    "rounded-xl font-medium transition-all flex items-center justify-center gap-2 cursor-pointer",
     variants[variant],
     sizes[size],
     fullWidth && "w-full",
@@ -125,7 +125,7 @@ export const StatusBadge = ({ status, className }: { status: string; className?:
 
   return (
     <span className={cn(
-      "px-3 py-1 rounded-full text-xs font-medium border",
+      "px-2.5 py-1 rounded-md text-xs font-medium border",
       styles[status] || defaultStyle,
       className
     )}>
