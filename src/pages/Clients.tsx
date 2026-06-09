@@ -426,18 +426,21 @@ export default function Clients() {
       {/* Header */}
       <div className="px-6 pt-8 pb-3 bg-card-bg shadow-sm z-10">
         <div className="flex justify-between items-center mb-4">
-          <h1 className="text-2xl font-bold text-text-primary">Gestão de Clientes</h1>
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-primary-400">Carteira</p>
+            <h1 className="v3-serif text-3xl text-text-primary tracking-tight mt-1">Gestão de Clientes</h1>
+          </div>
           <RoundedButton size="sm" onClick={() => navigate('/clients/new')} className="flex items-center gap-1">
             <Plus size={16} /> Novo Cliente
           </RoundedButton>
         </div>
 
         {/* Main Tabs */}
-        <div className="flex gap-1 bg-surface-50 rounded-xl p-1">
+        <div className="flex gap-1 bg-surface-100 rounded-xl p-1 border border-surface-200">
           <button
             onClick={() => setMainTab('clientes')}
             className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-semibold transition-all ${mainTab === 'clientes'
-              ? 'bg-card-bg shadow text-text-primary'
+              ? 'bg-card-bg border border-surface-200 text-text-primary'
               : 'text-text-secondary hover:text-text-primary'
               }`}
           >
@@ -449,7 +452,7 @@ export default function Clients() {
           <button
             onClick={() => setMainTab('documentacao')}
             className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-semibold transition-all ${mainTab === 'documentacao'
-              ? 'bg-card-bg shadow text-text-primary'
+              ? 'bg-card-bg border border-surface-200 text-text-primary'
               : 'text-text-secondary hover:text-text-primary'
               }`}
           >

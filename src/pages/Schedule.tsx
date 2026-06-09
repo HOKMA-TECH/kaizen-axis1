@@ -19,7 +19,7 @@ const DAY_ABBR = ['DOM', 'SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SÁB'];
 
 const TYPE_PILL: Record<string, string> = {
   Visita:     'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800',
-  Reunião:    'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800',
+  Reunião:    'bg-primary-500/10 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800',
   Assinatura: 'bg-violet-50 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300 border border-violet-200 dark:border-violet-800',
   Outro:      'bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800',
 };
@@ -187,7 +187,7 @@ export default function Schedule() {
                 onClick={() => setFilterOpen(o => !o)}
                 className={`p-2 rounded-xl border transition-colors ${
                   typeFilter !== 'Todos'
-                    ? 'border-blue-400 bg-blue-50 text-blue-600'
+                    ? 'border-blue-400 bg-primary-500/15 text-primary-300'
                     : 'border-line-subtle text-text-secondary hover:bg-subtle-bg'
                 }`}
               >
@@ -200,7 +200,7 @@ export default function Schedule() {
                       key={t}
                       onClick={() => { setTypeFilter(t); setFilterOpen(false); }}
                       className={`w-full text-left px-4 py-2.5 text-sm hover:bg-subtle-bg transition-colors ${
-                        typeFilter === t ? 'text-blue-600 font-semibold bg-blue-50/50' : 'text-text-primary'
+                        typeFilter === t ? 'text-blue-600 font-semibold bg-primary-500/15' : 'text-text-primary'
                       }`}
                     >
                       {t === 'Todos' ? 'Todos os tipos' : t}
@@ -384,7 +384,7 @@ export default function Schedule() {
                     <button
                       key={t}
                       onClick={() => { setTypeFilter(t); setFilterOpen(false); }}
-                      className={`w-full text-left px-4 py-2.5 text-sm hover:bg-subtle-bg transition-colors ${typeFilter === t ? 'text-blue-600 font-semibold bg-blue-50/50' : 'text-text-primary'}`}
+                      className={`w-full text-left px-4 py-2.5 text-sm hover:bg-subtle-bg transition-colors ${typeFilter === t ? 'text-blue-600 font-semibold bg-primary-500/15' : 'text-text-primary'}`}
                     >
                       {t === 'Todos' ? 'Todos os eventos' : t}
                     </button>
@@ -427,13 +427,13 @@ export default function Schedule() {
                   <button
                     key={i}
                     onClick={() => setSelectedDate(day)}
-                    className={`flex-1 min-w-0 py-3 flex flex-col items-center gap-0.5 transition-colors ${sel ? 'bg-blue-50' : 'hover:bg-subtle-bg'}`}
+                    className={`flex-1 min-w-0 py-3 flex flex-col items-center gap-0.5 transition-colors ${sel ? 'bg-primary-500/10' : 'hover:bg-subtle-bg'}`}
                   >
                     <span className="text-[10px] font-bold text-text-secondary tracking-wider">{DAY_ABBR[i]}</span>
                     <span className={`text-base font-bold w-8 h-8 flex items-center justify-center rounded-full transition-colors ${
                       isNow && sel  ? 'bg-blue-600 text-white' :
                       isNow         ? 'text-blue-600' :
-                      sel           ? 'bg-blue-100 text-blue-700' :
+                      sel           ? 'bg-primary-500/20 text-primary-300' :
                                       'text-text-primary'
                     }`}>{format(day, 'd')}</span>
                   </button>
@@ -465,7 +465,7 @@ export default function Schedule() {
                             handleOpenModal(undefined, format(day, 'yyyy-MM-dd'), `${String(hour).padStart(2,'0')}:00`);
                           }}
                           className={`flex-1 min-w-0 border-l border-line-subtle px-0.5 py-0.5 cursor-pointer transition-colors ${
-                            sel ? 'bg-blue-50/30 hover:bg-blue-50/50' : 'hover:bg-subtle-bg/70'
+                            sel ? 'bg-primary-500/10 hover:bg-primary-500/15' : 'hover:bg-subtle-bg/70'
                           }`}
                         >
                           {cells.map(evt => (
@@ -649,7 +649,7 @@ export default function Schedule() {
                   onClick={() => setFormData(p => ({ ...p, type }))}
                   className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${
                     formData.type === type
-                      ? 'bg-blue-50 border-blue-400 text-blue-700'
+                      ? 'bg-primary-500/10 border-blue-400 text-blue-700'
                       : 'bg-card-bg border-line-subtle text-text-secondary hover:border-line-strong'
                   }`}
                 >

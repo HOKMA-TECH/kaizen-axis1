@@ -302,7 +302,7 @@ function AccordionMes({
                 const statusBadge = t.classificacao === 'debito'
                   ? { label: 'Debito', color: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' }
                   : (t.classificacao === 'ignorar_estorno' || t.classificacao === 'ignorar_sem_keyword')
-                    ? { label: 'Ignorado', color: 'bg-surface-200 text-surface-700 dark:bg-surface-300 dark:text-surface-800' }
+                    ? { label: 'Ignorado', color: 'bg-surface-200 text-surface-700 dark:bg-surface-300 dark:text-text-secondary' }
                     : null;
                 return (
                   <div

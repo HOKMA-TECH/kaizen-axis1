@@ -1540,7 +1540,7 @@ export default function AdminPanel() {
 
                 <div className="grid grid-cols-2 gap-3 print:grid-cols-4 print:gap-4 print:mt-4">
                   {[
-                    { label: 'Leads', value: selectedPeriodLeads.length, cmp: null, icon: <Users size={14} />, color: 'text-surface-800', bg: 'bg-surface-50 text-surface-600', route: '/clients', state: { tab: 'documentacao' } },
+                    { label: 'Leads', value: selectedPeriodLeads.length, cmp: null, icon: <Users size={14} />, color: 'text-text-secondary', bg: 'bg-surface-50 text-surface-600', route: '/clients', state: { tab: 'documentacao' } },
                     { label: 'Clientes', value: selectedPeriodClients.length, cmp: null, icon: <Users size={14} />, color: 'text-gold-700', bg: 'bg-gold-50 text-gold-600', route: '/clients', state: undefined },
                     { label: 'Aprovados', value: selectedPeriodApproved, cmp: null, icon: <Shield size={14} />, color: 'text-green-700', bg: 'bg-green-50 text-green-600', route: '/clients', state: { initialStage: 'Aprovado' } },
                     { label: 'Agenda', value: upcomingAppointmentsCount, cmp: null, icon: <Calendar size={14} />, color: 'text-blue-700', bg: 'bg-blue-50 text-blue-600', route: '/schedule', state: undefined },
