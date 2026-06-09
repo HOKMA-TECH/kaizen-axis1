@@ -1,22 +1,24 @@
-import React from 'react';
+import React, { useRef } from 'react';
+import type { RefObject } from 'react';
 import { cn } from '@/lib/utils';
 import { motion } from 'motion/react';
+import { useGsapPress } from '@/lib/motion';
 
 interface PremiumCardProps extends React.HTMLAttributes<HTMLDivElement> {
   children: React.ReactNode;
   highlight?: boolean;
-  /** v2: cantos mais retos (8px) em vez do default arredondado (12px). */
+  /** Legado: aceito mas sem efeito — a v2 já usa cantos retos por padrão. */
   square?: boolean;
 }
 
-export const PremiumCard = ({ children, className, highlight, square, ...props }: PremiumCardProps) => {
+export const PremiumCard = ({ children, className, highlight, square: _square, ...props }: PremiumCardProps) => {
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 } as any}
       animate={{ opacity: 1, y: 0 } as any}
       className={cn(
-        "bg-card-bg p-5 border border-surface-200 transition-colors duration-200",
-        square ? "rounded-lg" : "rounded-xl",
+        // v2: cantos retos (8px) + hairline, sem sombra.
+        "bg-card-bg rounded-lg p-5 border border-surface-200 transition-colors duration-200",
         highlight && "border-primary-300/40 bg-gradient-to-br from-card-bg to-primary-50/30 dark:to-primary-900/10",
         className
       )}
@@ -45,11 +47,12 @@ export const RoundedButton = ({
   href,
   ...props
 }: RoundedButtonProps) => {
+  // v2: azul da marca, cantos retos (6px), sem sombra; press tátil via GSAP.
   const variants = {
-    primary: "bg-gold-400 text-white hover:bg-gold-500 shadow-md shadow-gold-400/20 border border-transparent",
+    primary: "bg-primary-600 text-white hover:bg-primary-700 border border-transparent",
     secondary: "bg-surface-100 text-text-primary hover:bg-surface-200 border border-transparent",
-    outline: "border border-gold-400 text-gold-600 dark:text-gold-400 hover:bg-gold-50 dark:hover:bg-gold-900/20",
-    ghost: "text-text-secondary hover:bg-surface-100 hover:text-gold-600 border border-transparent",
+    outline: "border border-primary-600 text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900/20",
+    ghost: "text-text-secondary hover:bg-surface-100 hover:text-primary-600 border border-transparent",
   };
 
   const sizes = {
@@ -59,16 +62,20 @@ export const RoundedButton = ({
   };
 
   const classes = cn(
-    "rounded-full font-medium transition-colors flex items-center justify-center gap-2 cursor-pointer",
+    "rounded-md font-medium transition-colors flex items-center justify-center gap-2 cursor-pointer",
     variants[variant],
     sizes[size],
     fullWidth && "w-full",
     className
   );
 
+  const ref = useRef<HTMLElement | null>(null);
+  useGsapPress(ref as RefObject<HTMLElement | null>);
+
   if (href) {
     return (
       <a
+        ref={ref as RefObject<HTMLAnchorElement>}
         href={href}
         className={classes}
         {...(props as any)}
@@ -79,13 +86,13 @@ export const RoundedButton = ({
   }
 
   return (
-    <motion.button
-      whileTap={{ scale: 0.98 } as any}
+    <button
+      ref={ref as RefObject<HTMLButtonElement>}
       className={classes}
       {...(props as any)}
     >
       {children}
-    </motion.button>
+    </button>
   );
 };
 
