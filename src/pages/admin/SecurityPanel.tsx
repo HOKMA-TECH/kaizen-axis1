@@ -385,7 +385,7 @@ export default function SecurityPanel() {
               <button
                 key={opt.value}
                 onClick={() => setFilter(opt.value)}
-                className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${
                   filter === opt.value
                     ? 'bg-gold-500 text-white border-gold-500'
                     : 'border-surface-200 text-text-secondary hover:border-gold-300'

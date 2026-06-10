@@ -44,7 +44,7 @@ export default function PdfTools() {
             <h1 className="text-3xl tracking-tight text-text-primary mb-2">Conversor de PDF</h1>
             <p className="text-text-secondary text-lg">Ferramentas inteligentes para manipulação e organização de documentos</p>
           </div>
-          <div className="inline-flex items-center gap-2 bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 px-3 py-1.5 rounded-full text-sm font-medium border border-green-200 dark:border-green-800/50">
+          <div className="inline-flex items-center gap-2 bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 px-3 py-1.5 rounded-lg text-sm font-medium border border-green-200 dark:border-green-800/50">
             <ShieldCheck size={16} />
             <span>Processamento local seguro</span>
           </div>

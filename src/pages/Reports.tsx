@@ -57,7 +57,7 @@ function PeriodFilters({
         <button
           key={p}
           onClick={() => onPeriodChange(p)}
-          className={`px-4 py-2 rounded-full text-xs font-medium whitespace-nowrap transition-all ${period === p || (p === 'Personalizado' && period.includes('/'))
+          className={`px-4 py-2 rounded-lg text-xs font-medium whitespace-nowrap transition-all ${period === p || (p === 'Personalizado' && period.includes('/'))
             ? 'bg-gold-500 text-white shadow-md'
             : 'bg-card-bg text-text-secondary border border-surface-200'
             }`}
@@ -370,7 +370,7 @@ function TeamReportView({
               <Shield size={18} className="text-gold-600 dark:text-gold-400" />
             </div>
             <div>
-              <h1 className="text-xl font-bold text-text-primary">{team.name}</h1>
+              <h1 className="text-3xl font-bold text-text-primary">{team.name}</h1>
               <p className="text-xs text-text-secondary">Relatório por Equipe</p>
             </div>
           </div>
@@ -630,7 +630,7 @@ function CoordReportView({
               <Users size={18} className="text-purple-600 dark:text-purple-400" />
             </div>
             <div>
-              <h1 className="text-xl font-bold text-text-primary">{coordName}</h1>
+              <h1 className="text-3xl font-bold text-text-primary">{coordName}</h1>
               <p className="text-xs text-text-secondary">Relatório por Coordenação</p>
             </div>
           </div>
@@ -1037,7 +1037,7 @@ function DiretoriaReportView({
               <Building2 size={18} className="text-gold-600 dark:text-gold-400" />
             </div>
             <div>
-              <h1 className="text-xl font-bold text-text-primary">{dirName}</h1>
+              <h1 className="text-3xl font-bold text-text-primary">{dirName}</h1>
               <p className="text-xs text-text-secondary">Relatório por Diretoria</p>
             </div>
           </div>
@@ -1523,7 +1523,7 @@ export default function Reports() {
     <div className="p-6 pb-24 min-h-screen bg-surface-50 print:bg-white print:p-0 print:min-h-0 print:h-auto print:block">
       <div className="mb-2 print:mb-2">
         <div>
-          <h1 className="text-2xl font-bold text-text-primary">Relatórios</h1>
+          <h1 className="text-3xl font-bold text-text-primary">Relatórios</h1>
           <p className="text-text-secondary text-sm">Inteligência Estratégica — Visão Global</p>
         </div>
       </div>

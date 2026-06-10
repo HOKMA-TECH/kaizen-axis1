@@ -442,7 +442,7 @@ export default function NewClient() {
             }
           />
           <PremiumCard className="space-y-4">
-            <div className="p-3 rounded-xl bg-gold-50/60 text-xs text-text-secondary">
+            <div className="p-3 rounded-xl bg-primary-500/10 border border-primary-500/20 text-xs text-text-secondary">
               Proponente 1 e o titular da ficha (dados principais acima). Adicione aqui os proponentes adicionais.
             </div>
 

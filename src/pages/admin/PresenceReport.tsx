@@ -431,7 +431,7 @@ export default function PresenceReport() {
               <CalendarCheck size={20} className="text-gold-600 dark:text-gold-400" />
             </div>
             <div>
-              <h1 className="text-xl font-bold text-text-primary leading-tight">Relatório de Presença</h1>
+              <h1 className="text-3xl font-bold text-text-primary tracking-tight">Relatório de Presença</h1>
               <p className="text-xs text-text-secondary">Score de engajamento dos usuários</p>
             </div>
           </div>

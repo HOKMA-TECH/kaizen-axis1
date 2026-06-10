@@ -1054,7 +1054,7 @@ export default function IncomeAnalysis() {
 
               <div className="flex flex-wrap gap-2 mb-3">
                 {exclusionBubbles.map(b => (
-                  <span key={b} className="inline-flex items-center gap-1 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 px-3 py-1 rounded-full text-xs font-medium transition-all">
+                  <span key={b} className="inline-flex items-center gap-1 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 px-3 py-1 rounded-lg text-xs font-medium transition-all">
                     {b}
                     <button onClick={() => setExclusionBubbles(prev => prev.filter(x => x !== b))} className="hover:text-red-900 focus:outline-none">
                       <XCircle size={14} />

@@ -148,7 +148,7 @@ export default function Dashboard() {
             <button
               key={id}
               onClick={() => { setPeriod(id); setMobilePeriodOpen(false); }}
-              className={`px-4 py-2 rounded-full text-xs font-semibold border transition-all ${
+              className={`px-4 py-2 rounded-lg text-xs font-semibold border transition-all ${
                 period === id
                   ? 'bg-gold-500 text-white border-gold-500 shadow-sm'
                   : 'bg-card-bg text-text-secondary border-surface-200 hover:border-gold-300'
@@ -160,7 +160,7 @@ export default function Dashboard() {
           <div className="relative">
             <button
               onClick={() => setMobilePeriodOpen(o => !o)}
-              className={`flex items-center gap-1 px-4 py-2 rounded-full text-xs font-semibold border transition-all ${
+              className={`flex items-center gap-1 px-4 py-2 rounded-lg text-xs font-semibold border transition-all ${
                 ['60_dias', '90_dias', 'custom'].includes(period)
                   ? 'bg-gold-500 text-white border-gold-500 shadow-sm'
                   : 'bg-card-bg text-text-secondary border-surface-200 hover:border-gold-300'

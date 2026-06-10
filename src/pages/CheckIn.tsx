@@ -512,7 +512,7 @@ export default function CheckIn() {
 
           {/* Time badge */}
           <div className={cn(
-            'flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-semibold',
+            'flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-semibold',
             isOpen
               ? 'bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400'
               : 'bg-surface-100 text-text-secondary',

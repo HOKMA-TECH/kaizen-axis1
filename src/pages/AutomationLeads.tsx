@@ -124,7 +124,7 @@ export default function AutomationLeads() {
                   <Phone size={14} /> {selectedLead.phone}
                 </p>
               </div>
-              <span className={`px-3 py-1 rounded-full text-xs font-medium border ${
+              <span className={`px-3 py-1 rounded-lg text-xs font-medium border ${
                 selectedLead.interestLevel === 'Alto' ? 'bg-green-50 text-green-700 border-green-200' :
                 selectedLead.interestLevel === 'Médio' ? 'bg-yellow-50 text-yellow-700 border-yellow-200' :
                 'bg-subtle-bg text-text-primary border-line-subtle'

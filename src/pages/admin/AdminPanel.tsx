@@ -1789,7 +1789,7 @@ export default function AdminPanel() {
                 <button
                   key={s.id}
                   onClick={() => setActiveGamifSection(s.id as 'xp' | 'conquistas')}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap transition-all ${activeGamifSection === s.id
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold whitespace-nowrap transition-all ${activeGamifSection === s.id
                     ? 'bg-gold-500 text-white shadow-md shadow-gold-500/20'
                     : 'bg-card-bg dark:bg-surface-100 text-text-secondary border border-surface-200'
                     }`}
@@ -2079,13 +2079,13 @@ export default function AdminPanel() {
           { id: 'gamification', label: 'Gamificação', icon: Zap },
         ].filter(tab => !tab.adminOnly || isAdmin).map((tab) => (
           <button key={tab.id} onClick={() => setActiveTab(tab.id as Tab)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap transition-all ${activeTab === tab.id ? 'bg-gold-500 text-white shadow-md shadow-gold-500/20' : 'bg-card-bg dark:bg-surface-100 text-text-secondary border border-surface-200'}`}>
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold whitespace-nowrap transition-all ${activeTab === tab.id ? 'bg-gold-500 text-white shadow-md shadow-gold-500/20' : 'bg-card-bg dark:bg-surface-100 text-text-secondary border border-surface-200'}`}>
             <tab.icon size={14} /> {tab.label}
           </button>
         ))}
         <button
           onClick={() => navigate('/admin/security')}
-          className="flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap transition-all bg-card-bg dark:bg-surface-100 text-text-secondary border border-surface-200 hover:border-gold-400 hover:text-gold-500"
+          className="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold whitespace-nowrap transition-all bg-card-bg dark:bg-surface-100 text-text-secondary border border-surface-200 hover:border-gold-400 hover:text-gold-500"
         >
           <ShieldCheck size={14} /> Painel de Segurança
         </button>

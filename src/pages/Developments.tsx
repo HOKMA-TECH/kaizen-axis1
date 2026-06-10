@@ -274,7 +274,7 @@ export default function Developments() {
             <div className="flex flex-wrap gap-2">
               {['Apartamento', 'Casa', 'Flat', 'Lote'].map(t => (
                 <button key={t} onClick={() => toggleFilterType(t)}
-                  className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${filterTypes.includes(t) ? 'bg-gold-500 text-white border-gold-500' : 'bg-surface-50 text-text-secondary border-surface-200 hover:border-gold-300'}`}>
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${filterTypes.includes(t) ? 'bg-gold-500 text-white border-gold-500' : 'bg-surface-50 text-text-secondary border-surface-200 hover:border-gold-300'}`}>
                   {t}
                 </button>
               ))}
@@ -285,7 +285,7 @@ export default function Developments() {
             <div className="flex flex-wrap gap-2">
               {['Lançamento', 'Em Construção', 'Pronto'].map(s => (
                 <button key={s} onClick={() => toggleFilterStatus(s)}
-                  className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${filterStatuses.includes(s) ? 'bg-gold-500 text-white border-gold-500' : 'bg-surface-50 text-text-secondary border-surface-200 hover:border-gold-300'}`}>
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${filterStatuses.includes(s) ? 'bg-gold-500 text-white border-gold-500' : 'bg-surface-50 text-text-secondary border-surface-200 hover:border-gold-300'}`}>
                   {s}
                 </button>
               ))}
