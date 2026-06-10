@@ -209,7 +209,7 @@ export default function PipelinePdfExport({ corretores }: Props) {
   };
 
   return (
-    <div className="print:hidden bg-white rounded-xl border border-surface-200 shadow-sm p-4 space-y-3">
+    <div className="print:hidden bg-card-bg rounded-xl border border-surface-200 shadow-sm p-4 space-y-3">
       <div className="flex items-center gap-2">
         <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center shrink-0">
           <FileText size={16} className="text-white" />
