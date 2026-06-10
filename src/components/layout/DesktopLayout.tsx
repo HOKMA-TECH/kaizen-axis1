@@ -178,12 +178,14 @@ function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => 
           <button
             onClick={onToggle}
             title="Expandir menu"
-            className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-primary-500 to-primary-700 text-white font-black text-base shadow-lg shadow-primary-500/25 hover:opacity-90 transition-opacity"
-          >K</button>
+            className="h-9 w-9 overflow-hidden rounded-xl shadow-lg shadow-primary-500/25 hover:opacity-90 transition-opacity"
+          >
+            <img src="/pwa-192x192.png" alt="Kaizen Axis" className="h-full w-full object-cover" />
+          </button>
         ) : (
           <>
             <div className="flex items-center gap-3 flex-1 min-w-0">
-              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-primary-500 to-primary-700 text-white font-black text-base shadow-lg shadow-primary-500/25 flex-shrink-0">K</span>
+              <img src="/pwa-192x192.png" alt="Kaizen Axis" className="h-9 w-9 rounded-xl object-cover shadow-sm shadow-primary-500/25 flex-shrink-0" />
               <div className="min-w-0">
                 <h1 className="v3-serif text-text-primary text-lg leading-none tracking-tight">Kaizen</h1>
                 <p className="text-[10px] text-primary-400 font-semibold uppercase tracking-[0.24em] mt-0.5">Axis</p>

@@ -371,7 +371,7 @@ export default function Login() {
       {/* ── Painel de marca (desktop) ── */}
       <div className="relative z-10 hidden lg:flex flex-col justify-between p-14 xl:p-20">
         <div data-reveal className="flex items-center gap-3">
-          <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-primary-500 to-primary-700 text-white font-black text-lg shadow-lg shadow-primary-500/30">K</span>
+          <img src="/pwa-192x192.png" alt="Kaizen Axis" className="h-11 w-11 rounded-2xl object-cover shadow-lg shadow-primary-500/30" />
           <div>
             <p className="v3-serif text-xl text-text-primary leading-none">Kaizen</p>
             <p className="text-[10px] text-primary-400 font-semibold uppercase tracking-[0.24em] mt-1">Axis</p>
@@ -405,6 +405,10 @@ export default function Login() {
       {/* ── Painel do formulário ── */}
       <div className="relative z-10 flex min-h-screen items-center justify-center p-5 sm:p-8 lg:p-10">
         <div data-reveal className="w-full max-w-md rounded-2xl border border-surface-200/80 bg-card-bg/70 p-7 sm:p-9 shadow-2xl shadow-black/40 backdrop-blur-xl">
+
+        <div data-reveal className="mb-6 flex justify-center lg:hidden">
+          <img src="/pwa-192x192.png" alt="Kaizen Axis" className="h-14 w-14 rounded-2xl object-cover shadow-lg shadow-primary-500/30" />
+        </div>
 
         <div className="mb-8">
           <h2 className="v3-serif text-3xl text-text-primary tracking-tight">
