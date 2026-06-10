@@ -369,7 +369,7 @@ export default function Login() {
       </div>
 
       {/* ── Painel de marca (desktop) ── */}
-      <div className="relative z-10 hidden lg:flex flex-col justify-between p-14 xl:p-16">
+      <div className="relative z-10 hidden lg:flex flex-col justify-between px-14 pt-14 pb-8 xl:px-16 xl:pt-16 xl:pb-8">
         {/* Marca */}
         <div data-reveal className="flex items-center gap-3">
           <img src="/pwa-192x192.png" alt="Kaizen Axis" className="h-10 w-10 rounded-xl object-cover shadow-lg shadow-primary-500/30" />
@@ -419,7 +419,7 @@ export default function Login() {
 
         <div className="mb-8">
           <h2 className="v3-serif text-3xl text-text-primary tracking-tight">
-            {showResetPassword ? 'Nova Senha' : showMfaInput ? 'Autenticação' : (isLogin ? 'Bem-vindo de volta' : 'Criar Nova Conta')}
+            {showResetPassword ? 'Nova Senha' : showMfaInput ? 'Autenticação' : (isLogin ? 'Bem-Vindo' : 'Criar Nova Conta')}
           </h2>
           <p className="text-sm text-text-secondary mt-2">
             {showResetPassword
