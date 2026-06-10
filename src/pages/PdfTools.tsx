@@ -28,7 +28,6 @@ const TOOLS = [
   { id: 'merge-pdf', title: 'Mesclar PDFs', description: 'Junte vários arquivos PDF em um único documento organizado.', icon: FileInput },
   { id: 'split-pdf', title: 'Dividir PDF', description: 'Extraia páginas ou divida um PDF grande em múltiplos arquivos menores.', icon: FileOutput },
   { id: 'compress-pdf', title: 'Comprimir PDF', description: 'Reduza o tamanho do seu PDF mantendo a melhor qualidade possível.', icon: Minimize2 },
-  { id: 'pdf-to-jpg', title: 'PDF para JPG', description: 'Extraia todas as páginas de um PDF e converta para imagens JPG.', icon: ImageIcon },
   { id: 'protect-pdf', title: 'Proteger PDF', description: 'Adicione uma senha criptografada para proteger seu documento confidencial.', icon: Lock },
   { id: 'unlock-pdf', title: 'Remover Senha', description: 'Remova senhas e restrições de PDFs protegidos (requer a senha original).', icon: Unlock },
 ] as const;

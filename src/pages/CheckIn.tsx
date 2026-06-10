@@ -476,7 +476,7 @@ export default function CheckIn() {
     <div className="flex flex-col min-h-screen bg-surface-50 pb-24">
 
       {/* ── Header ────────────────────────────────────────────────────────── */}
-      <div className="bg-card-bg border-b border-surface-200 px-5 pt-10 pb-6">
+      <div className="border-b border-surface-200 px-5 pt-10 pb-6">
         <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-primary-400">Presença</p>
         <h1 className="v3-serif text-3xl text-text-primary tracking-tight mt-1">Check-in</h1>
         <p className="text-sm text-text-secondary mt-1.5 flex items-center gap-2">

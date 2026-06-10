@@ -91,46 +91,42 @@ export default function Portals() {
         />
       </div>
 
-      <div className="space-y-3">
-        {filteredPortals.map(portal => (
-          <PremiumCard key={portal.id} className="flex items-center gap-4 p-4 group">
-            <div className="w-12 h-12 rounded-xl bg-surface-100 flex items-center justify-center flex-shrink-0">
-              {getIcon(portal.category)}
-            </div>
-
-            <div className="flex-1 min-w-0 cursor-pointer" onClick={() => window.open(portal.url, '_blank')}>
-              <h4 className="font-bold text-text-primary truncate flex items-center gap-2">
-                {portal.name}
-                <ExternalLink size={12} className="text-text-secondary opacity-50" />
-              </h4>
-              <p className="text-xs text-text-secondary truncate">{portal.description || portal.url}</p>
-            </div>
-
-            {canCreateStrategicResources && (
-              <div className="flex gap-2">
-                <button
-                  onClick={() => handleOpenModal(portal)}
-                  className="p-2 text-text-secondary hover:text-gold-600 hover:bg-surface-100 rounded-full transition-colors"
-                >
-                  <Edit2 size={16} />
-                </button>
-                <button
-                  onClick={() => handleDelete(portal.id)}
-                  className="p-2 text-text-secondary hover:text-red-500 hover:bg-surface-100 rounded-full transition-colors"
-                >
-                  <Trash2 size={16} />
-                </button>
+      {filteredPortals.length === 0 ? (
+        <div className="text-center py-16 text-text-secondary">
+          <p>Nenhum portal encontrado.</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+          {filteredPortals.map(portal => (
+            <div
+              key={portal.id}
+              onClick={() => window.open(portal.url, '_blank')}
+              className="group relative flex flex-col rounded-2xl border border-surface-200/60 bg-card-bg p-5 premium-shadow cursor-pointer transition-all hover:border-primary-500/40"
+            >
+              <div className="flex items-start justify-between">
+                <div className="w-11 h-11 rounded-xl bg-surface-100 flex items-center justify-center flex-shrink-0">
+                  {getIcon(portal.category)}
+                </div>
+                {canCreateStrategicResources && (
+                  <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity" onClick={e => e.stopPropagation()}>
+                    <button onClick={() => handleOpenModal(portal)} className="p-1.5 rounded-lg text-text-secondary hover:text-primary-400 hover:bg-surface-100 transition-colors">
+                      <Edit2 size={15} />
+                    </button>
+                    <button onClick={() => handleDelete(portal.id)} className="p-1.5 rounded-lg text-text-secondary hover:text-red-400 hover:bg-surface-100 transition-colors">
+                      <Trash2 size={15} />
+                    </button>
+                  </div>
+                )}
               </div>
-            )}
-          </PremiumCard>
-        ))}
-
-        {filteredPortals.length === 0 && (
-          <div className="text-center py-10 text-text-secondary">
-            <p>Nenhum portal encontrado.</p>
-          </div>
-        )}
-      </div>
+              <h4 className="mt-4 flex items-center gap-1.5 font-bold text-text-primary truncate">
+                {portal.name}
+                <ExternalLink size={12} className="text-text-secondary opacity-50 transition-colors group-hover:text-primary-400" />
+              </h4>
+              <p className="mt-1 text-xs text-text-secondary line-clamp-2 min-h-[2rem]">{portal.description || portal.url}</p>
+            </div>
+          ))}
+        </div>
+      )}
 
       <Modal
         isOpen={isModalOpen}

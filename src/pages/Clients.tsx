@@ -424,7 +424,7 @@ export default function Clients() {
   return (
     <div className="h-full flex flex-col bg-surface-50">
       {/* Header */}
-      <div className="px-6 pt-8 pb-3 bg-card-bg shadow-sm z-10">
+      <div className="px-6 pt-8 pb-3 z-10">
         <div className="flex justify-between items-center mb-4">
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-primary-400">Carteira</p>
@@ -470,7 +470,7 @@ export default function Clients() {
       </div>
 
       {/* Search bar */}
-      <div className="px-6 pt-3 pb-2 bg-card-bg">
+      <div className="px-6 pt-3 pb-2">
         <div className="flex gap-3">
           <div className="flex-1 relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary" size={18} />
@@ -479,7 +479,7 @@ export default function Clients() {
               placeholder={mainTab === 'clientes' ? 'Buscar cliente...' : 'Buscar lead...'}
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-3 bg-surface-50 rounded-xl text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-gold-200 transition-all placeholder:text-text-secondary"
+              className="w-full pl-10 pr-4 py-3 bg-card-bg border border-surface-200 rounded-xl text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-primary-500/30 transition-all placeholder:text-text-secondary"
             />
           </div>
         </div>

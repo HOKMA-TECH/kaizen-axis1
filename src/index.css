@@ -99,6 +99,7 @@ body {
   background-color: var(--bg-app);
   color: var(--text-primary);
   font-family: var(--font-sans); /* Fonte A: títulos + textos */
+  color-scheme: dark; /* controles nativos (setas de number, date picker, etc.) no escuro */
   -webkit-font-smoothing: antialiased;
   /* iOS PWA: full viewport height */
   min-height: 100dvh;
