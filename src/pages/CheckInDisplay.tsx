@@ -135,7 +135,7 @@ export default function CheckInDisplay() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-950 flex flex-col items-center justify-center p-8 select-none">
+    <div className="min-h-screen bg-surface-50 flex flex-col items-center justify-center p-8 select-none">
 
       {/* ── Top bar ───────────────────────────────────────────────────────── */}
       <div className="w-full max-w-2xl flex items-center justify-between mb-10">
@@ -150,7 +150,7 @@ export default function CheckInDisplay() {
           {online
             ? <Wifi size={16} className="text-green-400" />
             : <WifiOff size={16} className="text-red-400 animate-pulse" />}
-          <div className="flex items-center gap-1.5 bg-gray-800 rounded-full px-3 py-1.5">
+          <div className="flex items-center gap-1.5 bg-surface-100 rounded-full px-3 py-1.5">
             <Users size={13} className="text-text-secondary" />
             <span className="text-xs font-semibold text-white">{checkins} check-in{checkins !== 1 ? 's' : ''} hoje</span>
           </div>
@@ -158,7 +158,7 @@ export default function CheckInDisplay() {
             <button
               onClick={() => setIsLogoutConfirmOpen(true)}
               disabled={signingOut}
-              className="inline-flex items-center gap-1.5 rounded-full border border-gray-700 bg-gray-900 px-3 py-1.5 text-xs font-semibold text-gray-200 transition-colors hover:border-gray-600 hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
+              className="inline-flex items-center gap-1.5 rounded-full border border-gray-700 bg-card-bg px-3 py-1.5 text-xs font-semibold text-gray-200 transition-colors hover:border-gray-600 hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
             >
               <LogOut size={13} />
               {signingOut ? 'Saindo...' : 'Sair'}
@@ -168,10 +168,10 @@ export default function CheckInDisplay() {
       </div>
 
       {/* ── Main card ─────────────────────────────────────────────────────── */}
-      <div className="w-full max-w-2xl bg-gray-900 rounded-3xl border border-gray-800 overflow-hidden">
+      <div className="w-full max-w-2xl bg-card-bg rounded-3xl border border-surface-200 overflow-hidden">
 
         {/* Header */}
-        <div className="bg-gradient-to-r from-gold-500/10 to-gold-400/5 border-b border-gray-800 px-8 py-5 flex items-center justify-between">
+        <div className="bg-gradient-to-r from-gold-500/10 to-gold-400/5 border-b border-surface-200 px-8 py-5 flex items-center justify-between">
           <div>
             <h1 className="text-white text-xl font-bold">Check-in Diário</h1>
             <p className="text-text-secondary text-sm mt-0.5 capitalize">{clock.label}</p>
@@ -179,7 +179,7 @@ export default function CheckInDisplay() {
           <div className="text-right">
             <p className="text-white font-mono text-3xl font-bold tracking-tight">{clock.time}</p>
             <div className={`flex items-center justify-end gap-1.5 mt-1 ${isOpen ? 'text-green-400' : 'text-text-secondary'}`}>
-              <div className={`w-2 h-2 rounded-full ${isOpen ? 'bg-green-400 animate-pulse' : 'bg-gray-600'}`} />
+              <div className={`w-2 h-2 rounded-full ${isOpen ? 'bg-green-400 animate-pulse' : 'bg-surface-400'}`} />
               <span className="text-xs font-medium">{isOpen ? 'Aberto · 08:00–13:30' : 'Fechado · abre às 08:00'}</span>
             </div>
           </div>
@@ -192,13 +192,13 @@ export default function CheckInDisplay() {
             {loading ? (
               <motion.div key="loading"
                 initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                className="w-64 h-64 bg-gray-800 rounded-2xl flex items-center justify-center">
+                className="w-64 h-64 bg-surface-100 rounded-2xl flex items-center justify-center">
                 <RefreshCw size={32} className="text-gold-400 animate-spin" />
               </motion.div>
             ) : error ? (
               <motion.div key="error"
                 initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                className="w-64 h-64 bg-gray-800 rounded-2xl flex flex-col items-center justify-center gap-3 text-center px-4">
+                className="w-64 h-64 bg-surface-100 rounded-2xl flex flex-col items-center justify-center gap-3 text-center px-4">
                 <p className="text-red-400 text-sm">{error}</p>
                 <button onClick={loadToken}
                   className="flex items-center gap-2 text-xs text-gold-400 hover:text-gold-300 font-medium">
@@ -208,7 +208,7 @@ export default function CheckInDisplay() {
             ) : qrUrl ? (
               <motion.div key="qr"
                 initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }}
-                className="bg-card-bg p-5 rounded-2xl shadow-2xl shadow-gold-400/10">
+                className="bg-white p-5 rounded-2xl shadow-2xl shadow-primary-500/10">
                 <QRCode
                   value={qrUrl}
                   size={240}
@@ -233,7 +233,7 @@ export default function CheckInDisplay() {
         </div>
 
         {/* Footer info bar */}
-        <div className="border-t border-gray-800 px-8 py-4 grid grid-cols-2 gap-4">
+        <div className="border-t border-surface-200 px-8 py-4 grid grid-cols-2 gap-4">
           <div className="flex flex-col items-center text-center">
             <Clock size={16} className="text-gold-400 mb-1" />
             <p className="text-[10px] text-text-secondary uppercase tracking-wide">Horário</p>

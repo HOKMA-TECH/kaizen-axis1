@@ -1108,9 +1108,13 @@ export default function AdminPanel() {
                   activeUsers.map(u => (
                     <PremiumCard key={u.id} className="w-full p-4 overflow-hidden">
                       {/* Linha superior: avatar + nome + botão excluir */}
-                      <div className="flex items-center gap-3 mb-3 md:mb-0">
-                        <div className="w-10 h-10 rounded-full bg-surface-200 flex items-center justify-center text-text-primary font-bold text-sm flex-shrink-0">
-                          {(u.name || '?').charAt(0)}
+                      <div className="flex items-center gap-3 mb-4">
+                        <div className="w-10 h-10 rounded-full bg-surface-200 flex items-center justify-center text-text-primary font-bold text-sm flex-shrink-0 overflow-hidden">
+                          {(u as any).avatar_url ? (
+                            <img src={(u as any).avatar_url} alt={u.name} className="w-full h-full object-cover" />
+                          ) : (
+                            (u.name || '?').charAt(0)
+                          )}
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="font-semibold text-text-primary truncate">{u.name}</p>
@@ -1187,9 +1191,13 @@ export default function AdminPanel() {
                 ) : (
                   inactiveUsers.map(u => (
                     <PremiumCard key={u.id} className="w-full p-4 overflow-hidden opacity-80">
-                      <div className="flex items-center gap-3 mb-3 md:mb-0">
-                        <div className="w-10 h-10 rounded-full bg-surface-200 flex items-center justify-center text-text-primary font-bold text-sm flex-shrink-0">
-                          {(u.name || '?').charAt(0)}
+                      <div className="flex items-center gap-3 mb-4">
+                        <div className="w-10 h-10 rounded-full bg-surface-200 flex items-center justify-center text-text-primary font-bold text-sm flex-shrink-0 overflow-hidden">
+                          {(u as any).avatar_url ? (
+                            <img src={(u as any).avatar_url} alt={u.name} className="w-full h-full object-cover" />
+                          ) : (
+                            (u.name || '?').charAt(0)
+                          )}
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="font-semibold text-text-primary truncate">{u.name}</p>
@@ -1223,7 +1231,11 @@ export default function AdminPanel() {
                   const dirName = directorates.find(d => d.id === team.directorate_id)?.name;
                   const mgrName = allProfiles.find(p => p.id === team.manager_id)?.name;
                   return (
-                    <PremiumCard key={team.id} className="p-4">
+                    <PremiumCard
+                      key={team.id}
+                      className="p-4 cursor-pointer transition-colors hover:border-primary-500/40"
+                      onClick={() => navigate(`/reports?scope=equipe&id=${team.id}&name=${encodeURIComponent(team.name)}&start=${reportDateRange.start}&end=${reportDateRange.end}`)}
+                    >
                       <div className="flex items-center justify-between mb-3">
                         <div>
                           <h4 className="font-bold text-text-primary">{team.name}</h4>
@@ -1232,7 +1244,7 @@ export default function AdminPanel() {
                             {mgrName && <p className="text-xs text-text-secondary">👤 Gestor: {mgrName}</p>}
                           </div>
                         </div>
-                        <div className="flex gap-2 items-start">
+                        <div className="flex gap-2 items-start" onClick={e => e.stopPropagation()}>
                           <button onClick={() => openTeamModal(team)} className="p-1.5 bg-surface-50 rounded-full hover:text-gold-600"><Edit2 size={14} /></button>
                           <button onClick={() => { setSelectedTeamId(team.id); setIsMembersModalOpen(true); }} className="p-1.5 bg-surface-50 rounded-full hover:text-blue-600"><Users size={14} /></button>
                           <button onClick={() => { if (confirm('Excluir equipe?')) deleteTeam(team.id); }} className="p-1.5 bg-surface-50 rounded-full hover:text-red-500"><Trash2 size={14} /></button>
@@ -1731,10 +1743,14 @@ export default function AdminPanel() {
             </div>
             {loading ? <Loader2 size={24} className="animate-spin mx-auto text-gold-400 py-4" /> :
               directorates.map(d => (
-                <PremiumCard key={d.id} className="flex items-center justify-between p-4">
+                <PremiumCard
+                  key={d.id}
+                  className="flex items-center justify-between p-4 cursor-pointer transition-colors hover:border-primary-500/40"
+                  onClick={() => navigate(`/reports?scope=diretoria&id=${d.id}&name=${encodeURIComponent(d.name)}&start=${reportDateRange.start}&end=${reportDateRange.end}`)}
+                >
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-gold-100 dark:bg-gold-900/30 flex items-center justify-center">
-                      <Building2 size={18} className="text-gold-600 dark:text-gold-400" />
+                    <div className="w-10 h-10 rounded-xl bg-primary-500/15 flex items-center justify-center">
+                      <Building2 size={18} className="text-primary-400" />
                     </div>
                     <div>
                       <p className="font-semibold text-text-primary">{d.name}</p>
@@ -1746,7 +1762,7 @@ export default function AdminPanel() {
                       )}
                     </div>
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex gap-2" onClick={e => e.stopPropagation()}>
                     <button onClick={() => { setEditingDir(d); setDirForm({ name: d.name, description: d.description, manager_id: d.manager_id }); setIsDirModalOpen(true); }}
                       className="p-2 rounded-lg hover:bg-surface-100 text-text-secondary">
                       <Edit2 size={16} />
