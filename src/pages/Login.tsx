@@ -4,6 +4,8 @@ import { RoundedButton } from '@/components/ui/PremiumComponents';
 import { Building2, Mail, Lock, User, Users, ShieldCheck, Loader2, ArrowLeft } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { logAuditEvent } from '@/services/auditLogger';
+import gsap from 'gsap';
+import { prefersReducedMotion } from '@/lib/motion';
 
 const TURNSTILE_SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY || '';
 
@@ -345,13 +347,66 @@ export default function Login() {
     navigate('/');
   };
 
+  // ── GSAP: glow flutuante + entrada em stagger ──────────────────────────────
+  const rootRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (prefersReducedMotion()) return;
+    const ctx = gsap.context(() => {
+      gsap.from('[data-reveal]', { opacity: 0, y: 20, duration: 0.6, ease: 'power3.out', stagger: 0.08 });
+      gsap.to('.login-glow-1', { x: 40, y: 30, duration: 12, ease: 'sine.inOut', repeat: -1, yoyo: true });
+      gsap.to('.login-glow-2', { x: -34, y: -40, duration: 15, ease: 'sine.inOut', repeat: -1, yoyo: true });
+    }, rootRef);
+    return () => ctx.revert();
+  }, []);
+
   return (
-    <div className="min-h-screen bg-surface-50 dark:bg-surface-900 flex items-center justify-center md:p-6">
+    <div ref={rootRef} className="v3-login relative min-h-screen w-full overflow-hidden bg-surface-50 lg:grid lg:grid-cols-2">
+      {/* Aurora glow */}
+      <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
+        <div className="login-glow-1 absolute -top-40 -left-32 h-[36rem] w-[36rem] rounded-full blur-[120px]" style={{ background: 'radial-gradient(circle, #2563eb55, transparent 70%)' }} />
+        <div className="login-glow-2 absolute -bottom-48 -right-40 h-[34rem] w-[34rem] rounded-full blur-[120px]" style={{ background: 'radial-gradient(circle, #1e3a8a4d, transparent 70%)' }} />
+        <div className="absolute inset-0 opacity-[0.4]" style={{ backgroundImage: 'linear-gradient(to right, rgba(148,163,184,0.05) 1px, transparent 1px), linear-gradient(to bottom, rgba(148,163,184,0.05) 1px, transparent 1px)', backgroundSize: '40px 40px', maskImage: 'radial-gradient(ellipse 80% 60% at 50% 0%, black, transparent 75%)', WebkitMaskImage: 'radial-gradient(ellipse 80% 60% at 50% 0%, black, transparent 75%)' }} />
+      </div>
 
-      {/* ── Login Card: fullscreen on mobile, card on desktop ── */}
-      <div className="w-full md:max-w-md bg-card-bg dark:bg-surface-100 md:rounded-3xl md:shadow-xl min-h-screen md:min-h-0 p-8 animate-in fade-in zoom-in-95 duration-500 flex flex-col justify-center">
+      {/* ── Painel de marca (desktop) ── */}
+      <div className="relative z-10 hidden lg:flex flex-col justify-between p-14 xl:p-20">
+        <div data-reveal className="flex items-center gap-3">
+          <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-primary-500 to-primary-700 text-white font-black text-lg shadow-lg shadow-primary-500/30">K</span>
+          <div>
+            <p className="v3-serif text-xl text-text-primary leading-none">Kaizen</p>
+            <p className="text-[10px] text-primary-400 font-semibold uppercase tracking-[0.24em] mt-1">Axis</p>
+          </div>
+        </div>
 
-        <div className="flex flex-col items-center mb-10 text-center">
+        <div>
+          <h1 data-reveal className="v3-serif text-5xl xl:text-6xl leading-[1.05] tracking-tight text-text-primary">
+            Inteligência<br /><span className="text-primary-400">imobiliária</span>
+          </h1>
+          <p data-reveal className="mt-6 max-w-md text-base text-text-secondary leading-relaxed">
+            Pipeline, comissões e metas da sua equipe num só lugar — com a clareza de um produto premium.
+          </p>
+          <div className="mt-10 space-y-3.5">
+            {[
+              { icon: Users, label: 'Gestão de carteira e funil de vendas' },
+              { icon: ShieldCheck, label: 'Apuração de renda e relatórios' },
+              { icon: Building2, label: 'Agenda, check-in e empreendimentos' },
+            ].map(({ icon: Icon, label }) => (
+              <div key={label} data-reveal className="flex items-center gap-3 text-sm text-text-secondary">
+                <span className="flex h-8 w-8 items-center justify-center rounded-lg border border-primary-500/20 bg-primary-500/10 text-primary-400"><Icon size={15} /></span>
+                {label}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <p data-reveal className="text-xs text-text-secondary/70">© 2026 Kaizen Axis · Plataforma imobiliária</p>
+      </div>
+
+      {/* ── Painel do formulário ── */}
+      <div className="relative z-10 flex min-h-screen items-center justify-center p-5 sm:p-8 lg:p-10">
+        <div data-reveal className="w-full max-w-md rounded-2xl border border-surface-200/80 bg-card-bg/70 p-7 sm:p-9 shadow-2xl shadow-black/40 backdrop-blur-xl">
+
+        <div className="mb-8">
           <h2 className="v3-serif text-3xl text-text-primary tracking-tight">
             {showResetPassword ? 'Nova Senha' : showMfaInput ? 'Autenticação' : (isLogin ? 'Bem-vindo de volta' : 'Criar Nova Conta')}
           </h2>
@@ -553,6 +608,7 @@ export default function Login() {
             </p>
           </div>
         )}
+        </div>
       </div>
     </div>
   );
