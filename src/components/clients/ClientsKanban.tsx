@@ -5,8 +5,8 @@ import { cn } from '@/lib/utils';
 
 /**
  * Quadro Kanban do pipeline de clientes com drag-and-drop nativo (HTML5).
- * Cada coluna é um estágio; arrastar um card para outra coluna chama onMove,
- * que atualiza o stage do cliente.
+ * Altura limitada à viewport: cada coluna rola verticalmente por dentro e o
+ * quadro rola horizontalmente — nada de colunas estourando a página.
  */
 export function ClientsKanban({
   clients,
@@ -31,7 +31,7 @@ export function ClientsKanban({
   };
 
   return (
-    <div className="flex gap-3 overflow-x-auto px-6 pb-6 no-scrollbar">
+    <div className="flex h-[calc(100vh-16rem)] gap-3 overflow-x-auto px-6 pb-4">
       {stages.map((stage) => {
         const items = clients.filter((c) => c.stage === stage);
         return (
@@ -47,22 +47,22 @@ export function ClientsKanban({
               handleDrop(stage);
             }}
             className={cn(
-              'flex w-72 flex-shrink-0 flex-col rounded-2xl border p-2 transition-colors',
+              'flex h-full w-72 flex-shrink-0 flex-col rounded-2xl border transition-colors',
               overStage === stage
                 ? 'border-primary-500/60 bg-primary-500/5'
                 : 'border-surface-200 bg-surface-100/40',
             )}
           >
-            {/* Header da coluna */}
-            <div className="flex items-center justify-between px-2 py-2">
+            {/* Header da coluna (fixo) */}
+            <div className="flex flex-shrink-0 items-center justify-between px-3 py-2.5">
               <span className="text-xs font-semibold uppercase tracking-wide text-text-secondary">{stage}</span>
               <span className="font-ui rounded-md bg-surface-100 px-1.5 py-0.5 text-[10px] font-bold text-text-secondary">
                 {items.length}
               </span>
             </div>
 
-            {/* Cards */}
-            <div className="flex min-h-[80px] flex-col gap-2">
+            {/* Cards (rolagem interna) */}
+            <div className="flex flex-1 flex-col gap-2 overflow-y-auto px-2 pb-2">
               {items.map((c) => (
                 <div
                   key={c.id}
