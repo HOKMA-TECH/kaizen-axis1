@@ -7,6 +7,8 @@
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+  /* Fonte B: UI funcional (botões, sub-abas, números) */
+  --font-ui: "Space Grotesk", "Inter", ui-sans-serif, sans-serif;
 
   /* Primary Blue Scale — v3 (brand #2563eb) */
   --color-primary-50: #eff6ff;
@@ -98,12 +100,23 @@ html {
 body {
   background-color: var(--bg-app);
   color: var(--text-primary);
+  font-family: var(--font-sans); /* Fonte A: títulos + textos */
   -webkit-font-smoothing: antialiased;
   /* iOS PWA: full viewport height */
   min-height: 100dvh;
   /* Prevent horizontal scroll/bounce on mobile PWA */
   overflow-x: hidden;
   overscroll-behavior-x: none;
+}
+
+/* ── Sistema tipográfico v3 ────────────────────────────────────────────────
+   Fonte A (Inter): títulos e textos · Fonte B (Space Grotesk): UI + números. */
+button,
+.font-ui {
+  font-family: var(--font-ui);
+}
+.font-ui {
+  font-variant-numeric: tabular-nums;
 }
 
 /* iOS Safari: prevent auto-zoom on input focus.
@@ -205,8 +218,10 @@ body {
   color: var(--foreground);
 }
 
+/* Títulos: Fonte A (Inter), peso forte + tracking apertado.
+   (Classe mantém o nome legado v3-serif; já não é serifa.) */
 .v3-serif {
-  font-family: "Fraunces", "Georgia", "Times New Roman", serif;
-  font-optical-sizing: auto;
-  letter-spacing: -0.01em;
+  font-family: var(--font-sans);
+  font-weight: 700;
+  letter-spacing: -0.02em;
 }

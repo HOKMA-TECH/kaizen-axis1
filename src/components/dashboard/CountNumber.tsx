@@ -1,4 +1,5 @@
 import { useGsapCountUp } from '@/lib/motion';
+import { cn } from '@/lib/utils';
 
 /**
  * Número com contagem animada (GSAP) ao entrar. Reaproveita o primitivo
@@ -21,7 +22,7 @@ export function CountNumber({
     },
   });
   return (
-    <span ref={ref} className={className}>
+    <span ref={ref} className={cn('font-ui tabular-nums', className)}>
       {pad ? '0'.padStart(pad, '0') : '0'}
     </span>
   );
