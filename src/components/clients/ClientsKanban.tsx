@@ -31,7 +31,7 @@ export function ClientsKanban({
   };
 
   return (
-    <div className="kanban-board flex h-[calc(100vh-16rem)] gap-3 overflow-x-auto px-6 pb-4">
+    <div className="kanban-board flex h-[calc(100vh-16rem)] min-w-0 max-w-full gap-3 overflow-x-auto px-6 pb-4">
       {stages.map((stage) => {
         const items = clients.filter((c) => c.stage === stage);
         return (
