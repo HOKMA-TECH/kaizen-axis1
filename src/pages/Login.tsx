@@ -381,14 +381,11 @@ export default function Login() {
 
         {/* Hero */}
         <div className="max-w-md">
-          <p data-reveal className="text-[11px] font-semibold uppercase tracking-[0.28em] text-primary-400">
-            改善 · Filosofia Kaizen
-          </p>
-          <h1 data-reveal className="v3-serif mt-5 text-[2.5rem] xl:text-[2.9rem] font-medium leading-[1.15] tracking-[-0.015em] text-text-primary">
+          <h1 data-reveal className="v3-serif text-[2.5rem] xl:text-[2.9rem] font-medium leading-[1.15] tracking-[-0.015em] text-text-primary">
             Melhoria contínua,<br /><span className="text-primary-400">conquistas duradouras.</span>
           </h1>
           <p data-reveal className="mt-6 text-[15px] leading-relaxed text-text-secondary">
-            A plataforma da nossa equipe para acompanhar clientes, metas e resultados —
+            A plataforma da Kaizen para acompanhar clientes, metas e resultados —
             transformando o esforço de cada dia em conquistas que duram.
           </p>
 
@@ -409,7 +406,7 @@ export default function Login() {
         </div>
 
         {/* Rodapé */}
-        <p data-reveal className="text-xs text-text-secondary/55">© 2026 Kaizen Axis · Plataforma de gestão da equipe</p>
+        <p data-reveal className="text-xs text-text-secondary/55">© 2026 Kaizen Axis · Plataforma de gestão da Kaizen</p>
       </div>
 
       {/* ── Painel do formulário ── */}
