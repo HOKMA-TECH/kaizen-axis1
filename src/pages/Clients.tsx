@@ -613,65 +613,68 @@ export default function Clients() {
           </div>
 
           {/* ── Desktop filter (md and above): all pills + Outros dropdown ── */}
-          <div className="hidden md:flex pt-2 pb-2 px-6 gap-1.5 flex-wrap items-center">
-            {/* Chip: Todos */}
-            <button
-              onClick={() => setActiveStage('Todos')}
-              className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${activeStage === 'Todos'
-                ? 'bg-primary-600 text-white shadow-sm'
-                : 'bg-card-bg text-text-secondary border border-surface-200'
-                }`}
-            >
-              Todos ({clients.length})
-            </button>
-
-            {/* Chips primários */}
-            {PRIMARY_STAGES.map(stage => (
-              <button
-                key={stage}
-                onClick={() => setActiveStage(stage)}
-                className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${activeStage === stage
-                  ? 'bg-primary-600 text-white shadow-sm'
-                  : 'bg-card-bg text-text-secondary border border-surface-200'
-                  }`}
-              >
-                {stage}
-              </button>
-            ))}
-
-            {/* Dropdown "Outros" para etapas pós-contrato */}
-            <div className="relative flex-shrink-0">
-              <button
-                onClick={() => setStageDropdownOpen(o => !o)}
-                className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                  activeIsSecondary
+          <div className="hidden md:block pt-2 pb-2 px-6">
+            <div className="flex w-full items-center rounded-xl border border-surface-200 bg-surface-100/40 p-1">
+              <div className="flex w-full min-w-0 items-center justify-between gap-1.5 overflow-x-auto">
+                {/* Chip: Todos */}
+                <button
+                  onClick={() => setActiveStage('Todos')}
+                  className={`h-8 flex-shrink-0 whitespace-nowrap px-3 rounded-lg text-xs font-medium transition-all ${activeStage === 'Todos'
                     ? 'bg-primary-600 text-white shadow-sm'
                     : 'bg-card-bg text-text-secondary border border-surface-200'
-                }`}
-              >
-                {activeIsSecondary ? activeStage : 'Outros'}
-                <ChevronDown size={11} className={`transition-transform ${stageDropdownOpen ? 'rotate-180' : ''}`} />
-              </button>
-              {stageDropdownOpen && (
-                <>
-                  {/* Overlay para fechar */}
-                  <div className="fixed inset-0 z-40" onClick={() => setStageDropdownOpen(false)} />
-                  <div className="absolute left-0 top-full mt-1.5 z-50 bg-card-bg border border-surface-200 rounded-2xl shadow-lg py-1.5 min-w-[160px]">
-                    {SECONDARY_STAGES.map(stage => (
-                      <button
-                        key={stage}
-                        onClick={() => { setActiveStage(stage); setStageDropdownOpen(false); }}
-                        className={`w-full text-left px-4 py-2 text-xs font-medium transition-colors hover:bg-surface-50 ${
-                          activeStage === stage ? 'text-gold-600 font-bold' : 'text-text-primary'
-                        }`}
-                      >
-                        {stage}
-                        {activeStage === stage && <span className="ml-1 text-gold-500">✓</span>}
-                      </button>
-                    ))}
-                  </div>
-                </>
-              )}
+                    }`}
+                >
+                  Todos ({clients.length})
+                </button>
+
+                {/* Chips primários */}
+                {PRIMARY_STAGES.map(stage => (
+                  <button
+                    key={stage}
+                    onClick={() => setActiveStage(stage)}
+                    className={`h-8 flex-shrink-0 whitespace-nowrap px-3 rounded-lg text-xs font-medium transition-all ${activeStage === stage
+                      ? 'bg-primary-600 text-white shadow-sm'
+                      : 'bg-card-bg text-text-secondary border border-surface-200'
+                      }`}
+                  >
+                    {stage}
+                  </button>
+                ))}
+                {/* Dropdown "Outros" para etapas pós-contrato */}
+                <div className="relative flex-shrink-0">
+                <button
+                  onClick={() => setStageDropdownOpen(o => !o)}
+                  className={`flex h-8 min-w-[86px] items-center justify-center gap-1 whitespace-nowrap px-3 rounded-lg text-xs font-medium transition-all ${
+                    activeIsSecondary
+                      ? 'bg-primary-600 text-white shadow-sm'
+                      : 'bg-card-bg text-text-secondary border border-surface-200'
+                  }`}
+                >
+                  {activeIsSecondary ? activeStage : 'Outros'}
+                  <ChevronDown size={11} className={`transition-transform ${stageDropdownOpen ? 'rotate-180' : ''}`} />
+                </button>
+                {stageDropdownOpen && (
+                  <>
+                    {/* Overlay para fechar */}
+                    <div className="fixed inset-0 z-40" onClick={() => setStageDropdownOpen(false)} />
+                    <div className="absolute right-0 top-full mt-1.5 z-50 bg-card-bg border border-surface-200 rounded-2xl shadow-lg py-1.5 min-w-[160px]">
+                      {SECONDARY_STAGES.map(stage => (
+                        <button
+                          key={stage}
+                          onClick={() => { setActiveStage(stage); setStageDropdownOpen(false); }}
+                          className={`w-full text-left px-4 py-2 text-xs font-medium transition-colors hover:bg-surface-50 ${
+                            activeStage === stage ? 'text-gold-600 font-bold' : 'text-text-primary'
+                          }`}
+                        >
+                          {stage}
+                          {activeStage === stage && <span className="ml-1 text-gold-500">✓</span>}
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
+                </div>
+              </div>
             </div>
           </div>
 

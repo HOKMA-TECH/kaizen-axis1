@@ -322,7 +322,10 @@ export function DesktopLayout({ children }: { children: React.ReactNode }) {
       <Sidebar collapsed={collapsed} onToggle={toggleCollapsed} />
 
       {/* Main content */}
-      <div className={cn('flex-1 flex flex-col min-h-screen transition-all duration-200', collapsed ? 'ml-16' : 'ml-64')}>
+      <div className={cn(
+        'flex flex-col min-h-screen min-w-0 transition-all duration-200',
+        collapsed ? 'ml-16 w-[calc(100%_-_4rem)]' : 'ml-64 w-[calc(100%_-_16rem)]',
+      )}>
         {/* Top header */}
         <header className="sticky top-0 z-30 h-16 bg-card-bg/80 backdrop-blur-md border-b border-surface-200/80 flex items-center px-6 gap-4 print:hidden">
           {collapsed && (
@@ -339,10 +342,10 @@ export function DesktopLayout({ children }: { children: React.ReactNode }) {
         </header>
 
         {/* Page content */}
-        <main className="flex-1 overflow-y-auto print:overflow-visible print:h-auto">
+        <main className="flex-1 min-w-0 overflow-y-auto print:overflow-visible print:h-auto">
           <div
             ref={useGsapPageTransition<HTMLDivElement>(location.pathname)}
-            className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-6"
+            className="mx-auto w-full max-w-7xl px-2 sm:px-4 lg:px-6"
           >
             {children}
           </div>
