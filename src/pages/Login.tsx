@@ -417,7 +417,7 @@ export default function Login() {
           <img src="/pwa-192x192.png" alt="Kaizen Axis" className="h-14 w-14 rounded-2xl object-cover shadow-lg shadow-primary-500/30" />
         </div>
 
-        <div className="mb-8">
+        <div className="mb-8 text-center">
           <h2 className="v3-serif text-3xl text-text-primary tracking-tight">
             {showResetPassword ? 'Nova Senha' : showMfaInput ? 'Autenticação' : (isLogin ? 'Bem-vindo de volta' : 'Criar Nova Conta')}
           </h2>
