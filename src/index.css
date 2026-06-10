@@ -132,6 +132,20 @@ body {
   scrollbar-width: none;
 }
 
+/* ── v3: barras de scroll invisíveis em TODO o app (scroll continua funcional) ── */
+* {
+  scrollbar-width: none;        /* Firefox */
+  -ms-overflow-style: none;     /* IE / Edge legado */
+}
+*::-webkit-scrollbar {          /* Chrome / Safari / Edge */
+  width: 0 !important;
+  height: 0 !important;
+  display: none !important;
+}
+html, body {
+  scrollbar-width: none;
+}
+
 /* Markdown Styles for AI Chat */
 .markdown-body ul {
   list-style-type: disc;
