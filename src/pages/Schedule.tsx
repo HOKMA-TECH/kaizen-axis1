@@ -363,7 +363,7 @@ export default function Schedule() {
         {/* ── Page header ─────────────────────────────────────────────── */}
         <div className="flex items-center justify-between px-8 py-5 border-b border-line-subtle flex-shrink-0">
           <div>
-            <h1 className="text-2xl font-bold text-text-primary">Agenda</h1>
+            <h1 className="text-3xl tracking-tight text-text-primary">Agenda</h1>
             <p className="text-sm text-text-secondary mt-0.5">Gerencie seus compromissos e visitas</p>
           </div>
 
