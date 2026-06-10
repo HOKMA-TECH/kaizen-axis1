@@ -380,10 +380,10 @@ export default function Login() {
 
         <div>
           <h1 data-reveal className="v3-serif text-5xl xl:text-6xl leading-[1.05] tracking-tight text-text-primary">
-            Inteligência<br /><span className="text-primary-400">imobiliária</span>
+            Melhoria contínua,<br /><span className="text-primary-400">conquistas duradouras.</span>
           </h1>
           <p data-reveal className="mt-6 max-w-md text-base text-text-secondary leading-relaxed">
-            Pipeline, comissões e metas da sua equipe num só lugar — com a clareza de um produto premium.
+            A plataforma da nossa equipe para acompanhar clientes, metas e resultados — transformando o esforço de cada dia em conquistas que duram.
           </p>
           <div className="mt-10 space-y-3.5">
             {[
@@ -399,7 +399,7 @@ export default function Login() {
           </div>
         </div>
 
-        <p data-reveal className="text-xs text-text-secondary/70">© 2026 Kaizen Axis · Plataforma imobiliária</p>
+        <p data-reveal className="text-xs text-text-secondary/70">© 2026 Kaizen Axis · Plataforma de gestão da equipe</p>
       </div>
 
       {/* ── Painel do formulário ── */}
