@@ -369,37 +369,47 @@ export default function Login() {
       </div>
 
       {/* ── Painel de marca (desktop) ── */}
-      <div className="relative z-10 hidden lg:flex flex-col justify-between p-14 xl:p-20">
+      <div className="relative z-10 hidden lg:flex flex-col justify-between p-14 xl:p-16">
+        {/* Marca */}
         <div data-reveal className="flex items-center gap-3">
-          <img src="/pwa-192x192.png" alt="Kaizen Axis" className="h-11 w-11 rounded-2xl object-cover shadow-lg shadow-primary-500/30" />
+          <img src="/pwa-192x192.png" alt="Kaizen Axis" className="h-10 w-10 rounded-xl object-cover shadow-lg shadow-primary-500/30" />
           <div>
-            <p className="v3-serif text-xl text-text-primary leading-none">Kaizen</p>
+            <p className="v3-serif text-lg text-text-primary leading-none">Kaizen</p>
             <p className="text-[10px] text-primary-400 font-semibold uppercase tracking-[0.24em] mt-1">Axis</p>
           </div>
         </div>
 
-        <div>
-          <h1 data-reveal className="v3-serif text-5xl xl:text-6xl leading-[1.05] tracking-tight text-text-primary">
+        {/* Hero */}
+        <div className="max-w-md">
+          <p data-reveal className="text-[11px] font-semibold uppercase tracking-[0.28em] text-primary-400">
+            改善 · Filosofia Kaizen
+          </p>
+          <h1 data-reveal className="v3-serif mt-5 text-[2.5rem] xl:text-[2.9rem] font-medium leading-[1.15] tracking-[-0.015em] text-text-primary">
             Melhoria contínua,<br /><span className="text-primary-400">conquistas duradouras.</span>
           </h1>
-          <p data-reveal className="mt-6 max-w-md text-base text-text-secondary leading-relaxed">
-            A plataforma da nossa equipe para acompanhar clientes, metas e resultados — transformando o esforço de cada dia em conquistas que duram.
+          <p data-reveal className="mt-6 text-[15px] leading-relaxed text-text-secondary">
+            A plataforma da nossa equipe para acompanhar clientes, metas e resultados —
+            transformando o esforço de cada dia em conquistas que duram.
           </p>
-          <div className="mt-10 space-y-3.5">
+
+          <div data-reveal className="mt-9 h-px w-14 bg-primary-500/40" />
+
+          <div className="mt-8 space-y-4">
             {[
               { icon: Users, label: 'Gestão de carteira e funil de vendas' },
               { icon: ShieldCheck, label: 'Apuração de renda e relatórios' },
               { icon: Building2, label: 'Agenda, check-in e empreendimentos' },
             ].map(({ icon: Icon, label }) => (
-              <div key={label} data-reveal className="flex items-center gap-3 text-sm text-text-secondary">
-                <span className="flex h-8 w-8 items-center justify-center rounded-lg border border-primary-500/20 bg-primary-500/10 text-primary-400"><Icon size={15} /></span>
+              <div key={label} data-reveal className="flex items-center gap-3.5 text-sm text-text-secondary">
+                <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl border border-primary-500/20 bg-primary-500/10 text-primary-400"><Icon size={16} /></span>
                 {label}
               </div>
             ))}
           </div>
         </div>
 
-        <p data-reveal className="text-xs text-text-secondary/70">© 2026 Kaizen Axis · Plataforma de gestão da equipe</p>
+        {/* Rodapé */}
+        <p data-reveal className="text-xs text-text-secondary/55">© 2026 Kaizen Axis · Plataforma de gestão da equipe</p>
       </div>
 
       {/* ── Painel do formulário ── */}
