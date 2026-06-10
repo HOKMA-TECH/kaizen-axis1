@@ -491,13 +491,13 @@ export default function Clients() {
           {/* Stage Filter Chips */}
 
           {/* ── Mobile filter (below md): Todos + Documentação + Mais ▼ ───── */}
-          <div className="md:hidden pt-2 pb-2 px-4 flex gap-1.5 items-center">
+          <div className="md:hidden pt-2 pb-2 px-6 flex gap-1.5 items-center">
             {/* Todos */}
             <button
               onClick={() => { setActiveStage('Todos'); setMoreDropdownOpen(false); }}
-              className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+              className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
                 activeStage === 'Todos'
-                  ? 'bg-gold-500 text-white shadow-md'
+                  ? 'bg-primary-600 text-white shadow-sm'
                   : 'bg-card-bg text-text-secondary border border-surface-200'
               }`}
             >
@@ -507,9 +507,9 @@ export default function Clients() {
             {/* Documentação — always visible on mobile */}
             <button
               onClick={() => { setActiveStage('Documentação'); setMoreDropdownOpen(false); }}
-              className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+              className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
                 activeStage === 'Documentação'
-                  ? 'bg-gold-500 text-white shadow-md'
+                  ? 'bg-primary-600 text-white shadow-sm'
                   : 'bg-card-bg text-text-secondary border border-surface-200'
               }`}
             >
@@ -520,9 +520,9 @@ export default function Clients() {
             <div className="relative flex-shrink-0">
               <button
                 onClick={() => setMoreDropdownOpen(o => !o)}
-                className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+                className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
                   activeStage !== 'Todos' && activeStage !== 'Documentação'
-                    ? 'bg-gold-500 text-white shadow-md'
+                    ? 'bg-primary-600 text-white shadow-sm'
                     : 'bg-card-bg text-text-secondary border border-surface-200'
                 }`}
               >
@@ -561,7 +561,7 @@ export default function Clients() {
                             onClick={() => { setActiveStage(stage); setMoreDropdownOpen(false); }}
                             className={`px-2 py-1.5 rounded-xl text-xs font-medium transition-colors text-center ${
                               activeStage === stage
-                                ? 'bg-gold-500 text-white'
+                                ? 'bg-primary-600 text-white'
                                 : 'bg-surface-50 text-text-primary hover:bg-surface-100'
                             }`}
                           >
@@ -577,12 +577,12 @@ export default function Clients() {
           </div>
 
           {/* ── Desktop filter (md and above): all pills + Outros dropdown ── */}
-          <div className="hidden md:flex pt-2 pb-2 px-4 gap-1.5 flex-wrap items-center">
+          <div className="hidden md:flex pt-2 pb-2 px-6 gap-1.5 flex-wrap items-center">
             {/* Chip: Todos */}
             <button
               onClick={() => setActiveStage('Todos')}
-              className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${activeStage === 'Todos'
-                ? 'bg-gold-500 text-white shadow-md'
+              className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${activeStage === 'Todos'
+                ? 'bg-primary-600 text-white shadow-sm'
                 : 'bg-card-bg text-text-secondary border border-surface-200'
                 }`}
             >
@@ -594,8 +594,8 @@ export default function Clients() {
               <button
                 key={stage}
                 onClick={() => setActiveStage(stage)}
-                className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${activeStage === stage
-                  ? 'bg-gold-500 text-white shadow-md'
+                className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${activeStage === stage
+                  ? 'bg-primary-600 text-white shadow-sm'
                   : 'bg-card-bg text-text-secondary border border-surface-200'
                   }`}
               >
@@ -607,9 +607,9 @@ export default function Clients() {
             <div className="relative flex-shrink-0">
               <button
                 onClick={() => setStageDropdownOpen(o => !o)}
-                className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+                className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
                   activeIsSecondary
-                    ? 'bg-gold-500 text-white shadow-md'
+                    ? 'bg-primary-600 text-white shadow-sm'
                     : 'bg-card-bg text-text-secondary border border-surface-200'
                 }`}
               >
