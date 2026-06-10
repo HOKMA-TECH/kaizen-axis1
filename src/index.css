@@ -32,6 +32,14 @@
   --color-gold-800: var(--color-primary-900);
   --color-gold-900: var(--color-primary-900);
 
+  /* Verde único do app — substitui green/emerald 400-600 por um só tom */
+  --color-green-400: #22c55e;
+  --color-green-500: #22c55e;
+  --color-green-600: #22c55e;
+  --color-emerald-400: #22c55e;
+  --color-emerald-500: #22c55e;
+  --color-emerald-600: #22c55e;
+
   --color-surface-50: var(--bg-app);
   --color-surface-100: var(--bg-subtle);
   --color-surface-200: var(--border-subtle);

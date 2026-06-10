@@ -1088,7 +1088,7 @@ function DiretoriaReportView({
           <div className="flex justify-between items-center mb-4">
             <div>
               <p className="text-xs text-text-secondary uppercase">Receita Ponderada (Pipeline)</p>
-              <h3 className="text-xl font-bold text-text-primary">R$ {(forecastTotal / 1000000).toFixed(2)}M</h3>
+              <h3 className="font-ui text-xl font-bold text-text-primary">R$ {(forecastTotal / 1000000).toFixed(2)}M</h3>
             </div>
           </div>
           <div className="h-48 w-full">
@@ -1571,7 +1571,7 @@ export default function Reports() {
           <div className="flex justify-between items-center mb-4">
             <div>
               <p className="text-xs text-text-secondary uppercase">Receita Ponderada (Pipeline)</p>
-              <h3 className="text-xl font-bold text-text-primary">
+              <h3 className="font-ui text-xl font-bold text-text-primary">
                 R$ {(forecastTotal / 1000000).toFixed(2)}M
               </h3>
             </div>

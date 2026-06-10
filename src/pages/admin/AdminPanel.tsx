@@ -1577,7 +1577,7 @@ export default function AdminPanel() {
                 {/* STRATEGIC DASHBOARD */}
                 <div className="grid grid-cols-2 gap-3 print:grid-cols-4 print:gap-4">
                   <PremiumCard className="p-3 bg-gradient-to-br from-primary-500/10 to-card-bg border-primary-500/20 shadow-[0_2px_10px_rgba(0,0,0,0.03)] h-28 flex flex-col justify-between">
-                    <p className="text-[10px] uppercase font-bold tracking-wider text-gold-600 flex items-center gap-1"><Trophy size={12} /> Vendas</p>
+                    <p className="text-[10px] uppercase font-bold tracking-wider text-primary-400 flex items-center gap-1"><Trophy size={12} /> Vendas</p>
                     <div>
                       <p className="text-2xl font-bold text-text-primary leading-none">{selectedPeriodSalesCount}</p>
                       <p className="text-[9px] font-semibold text-text-secondary mt-1.5">no período selecionado</p>
@@ -1605,7 +1605,7 @@ export default function AdminPanel() {
                   </PremiumCard>
 
                   <PremiumCard className="p-3 bg-gradient-to-br from-indigo-500/10 to-card-bg border-indigo-500/20 shadow-[0_2px_10px_rgba(0,0,0,0.03)] h-28 flex flex-col justify-between">
-                    <p className="text-[10px] uppercase font-bold tracking-wider text-purple-600 flex items-center gap-1 justify-between">
+                    <p className="text-[10px] uppercase font-bold tracking-wider text-indigo-400 flex items-center gap-1 justify-between">
                       <span className="flex items-center gap-1"><Calendar size={12} /> Jornada</span>
                     </p>
                     <div>
