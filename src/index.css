@@ -213,10 +213,15 @@ body {
   color: var(--foreground);
 }
 
-/* Títulos: Fraunces (serif sofisticada). */
-.v3-serif {
+/* ── TÍTULOS → Fraunces (global: todo heading do app) ─────────────────────
+   Só define a família/tracking; o PESO continua vindo das utilities (font-bold…). */
+h1, h2, h3, .v3-serif {
   font-family: "Fraunces", "Georgia", "Times New Roman", serif;
   font-optical-sizing: auto;
-  font-weight: 600;
   letter-spacing: -0.01em;
+}
+
+/* ── CONTROLES E NÚMEROS → Inter (força, p/ nunca herdar serif por engano) ── */
+button, input, select, textarea, optgroup, [role="tab"], .font-ui {
+  font-family: var(--font-sans);
 }
