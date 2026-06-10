@@ -22,7 +22,7 @@ export function MetricCard({ label, value, change, trend, period, inverse = fals
     <PremiumCard className="flex flex-col justify-between h-full p-4">
       <div>
         <p className="text-xs font-medium text-text-secondary uppercase tracking-wider mb-1">{label}</p>
-        <h3 className="text-2xl font-bold text-text-primary mb-2">{value}</h3>
+        <h3 className="font-ui text-2xl font-bold text-text-primary mb-2">{value}</h3>
       </div>
       <div className="flex items-center gap-2">
         <span className={cn("flex items-center text-xs font-bold bg-surface-100 px-1.5 py-0.5 rounded-md", trendColor)}>

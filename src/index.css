@@ -112,6 +112,7 @@ body {
    Fraunces (títulos, via .v3-serif) + Inter (todo o resto: textos, botões,
    sub-abas, números). Helper p/ números alinhados. */
 .font-ui {
+  font-family: var(--font-sans) !important; /* números sempre Inter, mesmo dentro de h1/h2/h3 */
   font-variant-numeric: tabular-nums;
 }
 

@@ -307,7 +307,7 @@ function AccordionMes({
                 return (
                   <div
                     key={t.id}
-                    className={`flex items-center justify-between px-4 py-2.5 border-b border-surface-50 last:border-0 transition-all ${ativa ? 'bg-card-bg dark:bg-surface-100' : 'bg-surface-50 dark:bg-surface-200 opacity-60 grayscale'
+                    className={`flex items-center justify-between px-4 py-2.5 border-b border-surface-200 last:border-0 transition-all ${ativa ? 'bg-surface-100' : 'opacity-45'
                       }`}
                   >
                     <div className="flex items-center gap-2.5 flex-1 min-w-0">
@@ -337,7 +337,7 @@ function AccordionMes({
                           {statusBadge.label}
                         </span>
                       )}
-                      <span className={`font-mono text-xs font-medium ${t.classificacao === 'debito' || t.valor < 0 ? 'text-red-500' : (ativa ? 'text-green-600' : 'text-surface-400')}`}>
+                      <span className={`font-mono text-xs font-medium ${t.classificacao === 'debito' || t.valor < 0 ? 'text-red-400' : (ativa ? 'text-emerald-400' : 'text-surface-400')}`}>
                         {brl(t.valor)}
                       </span>
                     </div>

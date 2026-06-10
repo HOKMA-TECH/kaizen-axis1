@@ -1576,7 +1576,7 @@ export default function AdminPanel() {
 
                 {/* STRATEGIC DASHBOARD */}
                 <div className="grid grid-cols-2 gap-3 print:grid-cols-4 print:gap-4">
-                  <PremiumCard className="p-3 bg-gradient-to-br from-gold-50/60 to-card-bg dark:from-gold-900/15 dark:to-card-bg border-gold-100 dark:border-gold-900/30 shadow-[0_2px_10px_rgba(0,0,0,0.03)] h-28 flex flex-col justify-between">
+                  <PremiumCard className="p-3 bg-gradient-to-br from-primary-500/10 to-card-bg border-primary-500/20 shadow-[0_2px_10px_rgba(0,0,0,0.03)] h-28 flex flex-col justify-between">
                     <p className="text-[10px] uppercase font-bold tracking-wider text-gold-600 flex items-center gap-1"><Trophy size={12} /> Vendas</p>
                     <div>
                       <p className="text-2xl font-bold text-text-primary leading-none">{selectedPeriodSalesCount}</p>
@@ -1604,7 +1604,7 @@ export default function AdminPanel() {
                     </div>
                   </PremiumCard>
 
-                  <PremiumCard className="p-3 bg-gradient-to-br from-purple-50/60 to-card-bg dark:from-purple-900/15 dark:to-card-bg border-purple-100 dark:border-purple-900/30 shadow-[0_2px_10px_rgba(0,0,0,0.03)] h-28 flex flex-col justify-between">
+                  <PremiumCard className="p-3 bg-gradient-to-br from-indigo-500/10 to-card-bg border-indigo-500/20 shadow-[0_2px_10px_rgba(0,0,0,0.03)] h-28 flex flex-col justify-between">
                     <p className="text-[10px] uppercase font-bold tracking-wider text-purple-600 flex items-center gap-1 justify-between">
                       <span className="flex items-center gap-1"><Calendar size={12} /> Jornada</span>
                     </p>
