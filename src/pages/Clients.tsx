@@ -5,13 +5,14 @@ import { PremiumCard, StatusBadge, RoundedButton } from '@/components/ui/Premium
 import {
   Search, Filter, Phone, Mail, MessageCircle, UserPlus,
   Clock, Plus, Loader2, Zap, Brain, AlertTriangle, CheckCircle2,
-  Sparkles, X, BadgeCheck, ChevronDown
+  Sparkles, X, BadgeCheck, ChevronDown, LayoutGrid, List
 } from 'lucide-react';
 import { CLIENT_STAGES, ClientStage, Client } from '@/data/clients';
 import { AutomationLead } from '@/data/leads';
 import { useApp } from '@/context/AppContext';
 import { useAuthorization } from '@/hooks/useAuthorization';
 import { ClientHierarchyTags } from '@/components/ui/ClientHierarchyTags';
+import { ClientsKanban } from '@/components/clients/ClientsKanban';
 import { supabase } from '@/lib/supabase';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -310,7 +311,8 @@ function ConvertLeadModal({ lead, onClose, onConfirm }: {
 export default function Clients() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { clients, leads, loading, userRole, allProfiles, teams, directorates, user } = useApp();
+  const { clients, leads, loading, userRole, allProfiles, teams, directorates, user, updateClient } = useApp();
+  const [pipelineView, setPipelineView] = useState<'list' | 'kanban'>('list');
   const { isAdmin, isDirector, canViewAllClients } = useAuthorization();
   const canViewUrgencyState = isAdmin || isDirector;
 
@@ -403,6 +405,19 @@ export default function Clients() {
     return matchesStage && matchesSearch;
   });
 
+  // Kanban: mesmos clientes, mas sem filtrar por estágio (cada estágio é uma coluna).
+  const kanbanClients = clients.filter(client => {
+    const matchesSearch =
+      client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (client.development || '').toLowerCase().includes(searchTerm.toLowerCase());
+    if (coordFilterId) {
+      const ownerId = (client as any).owner_id;
+      const ownerProfile = ownerId ? allProfiles.find(p => p.id === ownerId) : null;
+      return matchesSearch && (ownerProfile?.coordinator_id === coordFilterId || ownerId === coordFilterId);
+    }
+    return matchesSearch;
+  });
+
   const filteredLeads = leads.filter(lead =>
     lead.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     (lead.origin || '').toLowerCase().includes(searchTerm.toLowerCase())
@@ -482,11 +497,32 @@ export default function Clients() {
               className="w-full pl-10 pr-4 py-3 bg-card-bg border border-surface-200 rounded-xl text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-primary-500/30 transition-all placeholder:text-text-secondary"
             />
           </div>
+          {mainTab === 'clientes' && (
+            <div className="flex flex-shrink-0 rounded-xl border border-surface-200 bg-surface-100/40 p-0.5">
+              <button
+                onClick={() => setPipelineView('list')}
+                className={`flex items-center gap-1.5 px-3 rounded-lg text-xs font-semibold transition-colors ${pipelineView === 'list' ? 'bg-card-bg text-text-primary border border-surface-200' : 'text-text-secondary'}`}
+              ><List size={14} /> Lista</button>
+              <button
+                onClick={() => setPipelineView('kanban')}
+                className={`flex items-center gap-1.5 px-3 rounded-lg text-xs font-semibold transition-colors ${pipelineView === 'kanban' ? 'bg-card-bg text-text-primary border border-surface-200' : 'text-text-secondary'}`}
+              ><LayoutGrid size={14} /> Kanban</button>
+            </div>
+          )}
         </div>
       </div>
 
+      {/* ── KANBAN (pipeline drag-and-drop) ── */}
+      {mainTab === 'clientes' && pipelineView === 'kanban' && (
+        <ClientsKanban
+          clients={kanbanClients}
+          stages={CLIENT_STAGES}
+          onMove={(id, stage) => { updateClient(id, { stage }); }}
+        />
+      )}
+
       {/* ── CLIENTES TAB ── */}
-      {mainTab === 'clientes' && (
+      {mainTab === 'clientes' && pipelineView === 'list' && (
         <>
           {/* Stage Filter Chips */}
 
