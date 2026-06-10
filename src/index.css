@@ -170,6 +170,27 @@ html, body {
   scrollbar-width: none;
 }
 
+/* Kanban: barra de scroll horizontal VISÍVEL (sobrescreve o ocultamento global) */
+.kanban-board {
+  scrollbar-width: thin !important;
+  scrollbar-color: var(--border-strong) transparent;
+}
+.kanban-board::-webkit-scrollbar {
+  display: block !important;
+  height: 10px;
+  width: 10px;
+}
+.kanban-board::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 6px;
+}
+.kanban-board::-webkit-scrollbar-thumb:hover {
+  background: var(--surface-500);
+}
+.kanban-board::-webkit-scrollbar-track {
+  background: transparent;
+}
+
 /* Markdown Styles for AI Chat */
 .markdown-body ul {
   list-style-type: disc;

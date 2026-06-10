@@ -675,10 +675,10 @@ export default function Clients() {
             </div>
           </div>
 
-          <div className="flex-1 grid grid-cols-1 xl:grid-cols-2 gap-4 items-start content-start px-6 py-4 overflow-y-auto pb-24">
+          <div className="flex-1 px-6 py-4 space-y-4 overflow-y-auto pb-24">
             {/* Banner de filtro por coordenador */}
             {coordFilterId && coordFilterName && (
-              <div className="xl:col-span-2 flex items-center justify-between bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 rounded-xl px-4 py-2">
+              <div className="flex items-center justify-between bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 rounded-xl px-4 py-2">
                 <p className="text-xs text-purple-700 dark:text-purple-300 font-medium">
                   📋 Filtrando por coordenação: <span className="font-bold">{decodeURIComponent(coordFilterName)}</span>
                 </p>
@@ -688,7 +688,7 @@ export default function Clients() {
               </div>
             )}
             {loading && (
-              <div className="xl:col-span-2 flex justify-center py-10">
+              <div className="flex justify-center py-10">
                 <Loader2 className="animate-spin text-gold-500" size={32} />
               </div>
             )}
@@ -767,7 +767,7 @@ export default function Clients() {
               );
             })}
             {filteredClients.length === 0 && !loading && (
-              <div className="xl:col-span-2 flex flex-col items-center justify-center h-40 text-text-secondary gap-3">
+              <div className="flex flex-col items-center justify-center h-40 text-text-secondary gap-3">
                 <p>Nenhum cliente encontrado</p>
                 <RoundedButton size="sm" variant="outline" onClick={() => navigate('/clients/new')}>
                   <Plus size={16} /> Adicionar cliente
