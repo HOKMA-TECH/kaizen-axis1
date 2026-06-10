@@ -419,7 +419,7 @@ export default function Login() {
 
         <div className="mb-8">
           <h2 className="v3-serif text-3xl text-text-primary tracking-tight">
-            {showResetPassword ? 'Nova Senha' : showMfaInput ? 'Autenticação' : (isLogin ? 'Bem-Vindo' : 'Criar Nova Conta')}
+            {showResetPassword ? 'Nova Senha' : showMfaInput ? 'Autenticação' : (isLogin ? 'Bem-vindo de volta' : 'Criar Nova Conta')}
           </h2>
           <p className="text-sm text-text-secondary mt-2">
             {showResetPassword

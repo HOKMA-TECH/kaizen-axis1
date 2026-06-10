@@ -114,6 +114,20 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
+/* ── v3: neutraliza o fundo claro do autofill do navegador (mantém input escuro) ── */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active,
+textarea:-webkit-autofill,
+select:-webkit-autofill {
+  -webkit-text-fill-color: var(--text-primary);
+  -webkit-box-shadow: 0 0 0 1000px var(--bg-card) inset;
+  box-shadow: 0 0 0 1000px var(--bg-card) inset;
+  caret-color: var(--text-primary);
+  transition: background-color 9999s ease-in-out 0s;
+}
+
 /* iOS Safari: prevent auto-zoom on input focus.
    Tailwind text-sm (14px) triggers zoom — força 16px mínimo com !important
    para sobrescrever qualquer classe utilitária. */
