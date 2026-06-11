@@ -2063,7 +2063,7 @@ export default function AdminPanel() {
 
 
   return (
-    <div className="w-full max-w-full px-3 sm:px-6 pb-24 min-h-screen bg-surface-50 print:p-0 print:bg-white">
+    <div className="w-full max-w-full px-3 sm:px-6 pt-6 pb-24 min-h-screen bg-surface-50 print:p-0 print:bg-white">
       <div className="print:hidden">
         <PageHeader title="Painel Administrativo" subtitle="Governança, equipes e estratégia da operação." />
       </div>
