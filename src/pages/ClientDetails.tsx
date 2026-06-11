@@ -4,6 +4,7 @@ import { PremiumCard, StatusBadge, SectionHeader, RoundedButton } from '@/compon
 import { ChevronLeft, Phone, Mail, Calendar, Edit2, Check, Building2, Wallet, History, Trash2, FileText, Save, X, UploadCloud, Plus, ChevronDown, ChevronUp } from 'lucide-react';
 import { Client, CLIENT_STAGES, ClientStage, isStageRestrictedForRole } from '@/data/clients';
 import { RJ_CITIES, getNeighborhoods } from '@/data/cities';
+import { BUILDERS } from '@/data/builders';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { motion, AnimatePresence } from 'motion/react';
 import { Modal } from '@/components/ui/Modal';
@@ -77,13 +78,8 @@ export default function ClientDetails() {
     allProfiles,
     teams,
     directorates,
-    developments,
   } = useApp();
   const { role, canViewAllClients } = useAuthorization();
-  // Construtoras do catálogo de empreendimentos (sugestões no seletor de Construtora)
-  const knownBuilders = Array.from(
-    new Set((developments || []).map(d => (d.builder || '').trim()).filter(Boolean))
-  ).sort((a, b) => a.localeCompare(b, 'pt-BR'));
 
   // Regra de etapas avançadas centralizada em @/data/clients (isStageRestrictedForRole)
 
@@ -842,9 +838,8 @@ export default function ClientDetails() {
                       <SearchableSelect
                         value={editForm.builder || ''}
                         onChange={(v) => setEditForm({ ...editForm, builder: v })}
-                        options={knownBuilders}
-                        allowCustom
-                        placeholder="Selecione ou digite a construtora"
+                        options={BUILDERS}
+                        placeholder="Selecione a construtora"
                         searchPlaceholder="Buscar construtora..."
                       />
                     ) : (

@@ -4,6 +4,7 @@ import { PremiumCard, RoundedButton, SectionHeader } from '@/components/ui/Premi
 import { ChevronLeft, Save, UploadCloud, FileText, X, Loader2, Plus, Trash2, ChevronDown, ChevronUp } from 'lucide-react';
 import { CLIENT_STAGES, ClientStage, isStageRestrictedForRole } from '@/data/clients';
 import { RJ_CITIES, getNeighborhoods } from '@/data/cities';
+import { BUILDERS } from '@/data/builders';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { useApp } from '@/context/AppContext';
 import { useAuthorization } from '@/hooks/useAuthorization';
@@ -59,12 +60,8 @@ const emptyProponent: DraftProponent = {
 export default function NewClient() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { addClient, uploadFile, addDocumentToClient, addClientProponent, developments } = useApp();
+  const { addClient, uploadFile, addDocumentToClient, addClientProponent } = useApp();
   const { role } = useAuthorization();
-  // Construtoras conhecidas (catálogo de empreendimentos) p/ sugerir no datalist
-  const knownBuilders = Array.from(
-    new Set((developments || []).map(d => (d.builder || '').trim()).filter(Boolean))
-  ).sort((a, b) => a.localeCompare(b, 'pt-BR'));
   // Etapas que o papel atual pode escolher ao criar o cliente (mesma regra do mover)
   const selectableStages = CLIENT_STAGES.filter(s => !isStageRestrictedForRole(s, role));
 
@@ -598,9 +595,8 @@ export default function NewClient() {
               <SearchableSelect
                 value={formData.builder}
                 onChange={(v) => setFormData(prev => ({ ...prev, builder: v }))}
-                options={knownBuilders}
-                allowCustom
-                placeholder="Selecione do catálogo ou digite uma nova"
+                options={BUILDERS}
+                placeholder="Selecione a construtora"
                 searchPlaceholder="Buscar construtora..."
               />
             </div>
