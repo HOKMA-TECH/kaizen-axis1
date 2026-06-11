@@ -32,6 +32,30 @@ export const CLIENT_STAGES: ClientStage[] = [
   "Concluído"
 ];
 
+/**
+ * Etapas avançadas do pipeline (pós-contrato) que só a liderança pode definir.
+ * Regra de negócio única — usada tanto ao MOVER um cliente existente quanto ao
+ * CRIAR um cliente já em uma dessas etapas. Mantenha um único ponto de verdade.
+ */
+export const ADVANCED_STAGES: ClientStage[] = [
+  "Contrato",
+  "Formulários",
+  "Conformidade",
+  "Abertura de Conta",
+  "Repasse",
+  "Concluído",
+];
+
+/** Papéis autorizados a definir/avançar para as etapas avançadas. */
+export function canAdvanceToStage(role?: string | null): boolean {
+  return ["ADMIN", "DIRETOR", "GERENTE", "COORDENADOR"].includes((role ?? "").toUpperCase());
+}
+
+/** True se o papel NÃO pode definir a etapa informada (etapa avançada + sem permissão). */
+export function isStageRestrictedForRole(stage: ClientStage, role?: string | null): boolean {
+  return ADVANCED_STAGES.includes(stage) && !canAdvanceToStage(role);
+}
+
 export interface ClientHistory {
   id: string;
   date: string;

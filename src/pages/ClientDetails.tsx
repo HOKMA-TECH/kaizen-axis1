@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { PremiumCard, StatusBadge, SectionHeader, RoundedButton } from '@/components/ui/PremiumComponents';
 import { ChevronLeft, Phone, Mail, Calendar, Edit2, Check, Building2, Wallet, History, Trash2, FileText, Save, X, UploadCloud, Plus, ChevronDown, ChevronUp } from 'lucide-react';
-import { Client, CLIENT_STAGES, ClientStage } from '@/data/clients';
+import { Client, CLIENT_STAGES, ClientStage, isStageRestrictedForRole } from '@/data/clients';
 import { motion, AnimatePresence } from 'motion/react';
 import { Modal } from '@/components/ui/Modal';
 import { useApp } from '@/context/AppContext';
@@ -78,9 +78,7 @@ export default function ClientDetails() {
   } = useApp();
   const { role, canViewAllClients } = useAuthorization();
 
-  // Etapas avançadas: apenas COORDENADOR, GERENTE, DIRETOR e ADMIN podem mover o cliente para cá
-  const ADVANCED_STAGES: ClientStage[] = ['Contrato', 'Formulários', 'Conformidade', 'Abertura de Conta', 'Repasse', 'Concluído'];
-  const canAdvanceStage = ['ADMIN', 'DIRETOR', 'GERENTE', 'COORDENADOR'].includes(role ?? '');
+  // Regra de etapas avançadas centralizada em @/data/clients (isStageRestrictedForRole)
 
   const [client, setClient] = useState<Client | null>(null);
   const [isEditingStage, setIsEditingStage] = useState(false);
@@ -141,7 +139,7 @@ export default function ClientDetails() {
     if (!client || !id) return;
 
     // Bloqueia CORRETOR de avançar para etapas avançadas
-    if (ADVANCED_STAGES.includes(newStage) && !canAdvanceStage) {
+    if (isStageRestrictedForRole(newStage, role)) {
       alert(`⛔ Apenas Coordenador, Gerente, Diretor ou ADMIN podem mover o cliente para "${newStage}".`);
       setIsEditingStage(false);
       return;
@@ -743,7 +741,7 @@ export default function ClientDetails() {
                 className="grid grid-cols-2 gap-2 overflow-hidden"
               >
                 {CLIENT_STAGES.map((stage) => {
-                  const isRestricted = ADVANCED_STAGES.includes(stage) && !canAdvanceStage;
+                  const isRestricted = isStageRestrictedForRole(stage, role);
                   return (
                     <button
                       key={stage}

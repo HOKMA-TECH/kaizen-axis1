@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { SectionHeader, PremiumCard, RoundedButton } from '@/components/ui/PremiumComponents';
+import { PageHeader, PremiumCard, RoundedButton } from '@/components/ui/PremiumComponents';
 import { DollarSign, Percent, Clock, TrendingDown, AlertTriangle, CheckCircle2, RefreshCw } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -87,9 +87,9 @@ export default function Amortization() {
 
   return (
     <div className="p-4 md:p-6 pb-28 min-h-screen bg-surface-50">
-      <SectionHeader
+      <PageHeader
         title="Amortização"
-        subtitle="Simulador de Amortização"
+        subtitle="Simule a amortização e antecipe parcelas do financiamento."
       />
 
       <AnimatePresence mode="wait">

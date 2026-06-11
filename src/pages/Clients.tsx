@@ -7,7 +7,7 @@ import {
   Clock, Plus, Loader2, Zap, Brain, AlertTriangle, CheckCircle2,
   Sparkles, X, BadgeCheck, ChevronDown, LayoutGrid, List
 } from 'lucide-react';
-import { CLIENT_STAGES, ClientStage, Client } from '@/data/clients';
+import { CLIENT_STAGES, ClientStage, Client, isStageRestrictedForRole } from '@/data/clients';
 import { AutomationLead } from '@/data/leads';
 import { useApp } from '@/context/AppContext';
 import { useAuthorization } from '@/hooks/useAuthorization';
@@ -313,7 +313,7 @@ export default function Clients() {
   const location = useLocation();
   const { clients, leads, loading, userRole, allProfiles, teams, directorates, user, updateClient } = useApp();
   const [pipelineView, setPipelineView] = useState<'list' | 'kanban'>('list');
-  const { isAdmin, isDirector, canViewAllClients } = useAuthorization();
+  const { isAdmin, isDirector, canViewAllClients, role } = useAuthorization();
   const canViewUrgencyState = isAdmin || isDirector;
 
   const [mainTab, setMainTab] = useState<MainTab>('clientes');
@@ -518,7 +518,13 @@ export default function Clients() {
         <ClientsKanban
           clients={kanbanClients}
           stages={CLIENT_STAGES}
-          onMove={(id, stage) => { updateClient(id, { stage }); }}
+          onMove={(id, stage) => {
+            if (isStageRestrictedForRole(stage, role)) {
+              alert('⚠️ Você não tem permissão para mover clientes para a etapa "' + stage + '".');
+              return;
+            }
+            updateClient(id, { stage });
+          }}
         />
       )}
 

@@ -2,8 +2,9 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { PremiumCard, RoundedButton, SectionHeader } from '@/components/ui/PremiumComponents';
 import { ChevronLeft, Save, UploadCloud, FileText, X, Loader2, Plus, Trash2, ChevronDown, ChevronUp } from 'lucide-react';
-import { CLIENT_STAGES, ClientStage } from '@/data/clients';
+import { CLIENT_STAGES, ClientStage, isStageRestrictedForRole } from '@/data/clients';
 import { useApp } from '@/context/AppContext';
+import { useAuthorization } from '@/hooks/useAuthorization';
 
 const DRAFT_KEY = 'new-client-draft';
 
@@ -55,6 +56,9 @@ export default function NewClient() {
   const navigate = useNavigate();
   const location = useLocation();
   const { addClient, uploadFile, addDocumentToClient, addClientProponent } = useApp();
+  const { role } = useAuthorization();
+  // Etapas que o papel atual pode escolher ao criar o cliente (mesma regra do mover)
+  const selectableStages = CLIENT_STAGES.filter(s => !isStageRestrictedForRole(s, role));
 
   const [formData, setFormData] = useState(() => {
     // Se vier prefill da navegação, ignora rascunho salvo
@@ -160,6 +164,12 @@ export default function NewClient() {
 
     if (!formData.name.trim()) {
       alert('Por favor, informe o nome do cliente.');
+      return;
+    }
+
+    // Regra de negócio: papéis sem permissão não podem criar cliente já em etapa avançada
+    if (isStageRestrictedForRole(formData.stage, role)) {
+      alert('⚠️ Você não tem permissão para criar um cliente diretamente na etapa "' + formData.stage + '". Selecione uma etapa inicial.');
       return;
     }
 
@@ -629,7 +639,7 @@ export default function NewClient() {
               onChange={handleChange}
               className="w-full p-3 bg-surface-50 rounded-xl border-none focus:ring-2 focus:ring-gold-200 dark:focus:ring-gold-800 text-text-primary appearance-none"
             >
-              {CLIENT_STAGES.map(stage => (
+              {selectableStages.map(stage => (
                 <option key={stage} value={stage}>{stage}</option>
               ))}
             </select>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { SectionHeader, PremiumCard, RoundedButton } from '@/components/ui/PremiumComponents';
+import { PageHeader, PremiumCard, RoundedButton } from '@/components/ui/PremiumComponents';
 import { Users, Shield, ShieldCheck, Target, Megaphone, BarChart3, Plus, Search, Trophy, Download, FileSpreadsheet, FileText, Trash2, Edit2, ChevronDown, Calendar, Loader2, Building2, TrendingUp, Printer, Star, Award, Zap, Flame, MoreHorizontal, FileDown } from 'lucide-react';
 import { Modal } from '@/components/ui/Modal';
 import { useApp, Team, Goal, Announcement, Directorate } from '@/context/AppContext';
@@ -2065,7 +2065,7 @@ export default function AdminPanel() {
   return (
     <div className="w-full max-w-full px-3 sm:px-6 pb-24 min-h-screen bg-surface-50 print:p-0 print:bg-white">
       <div className="print:hidden">
-        <SectionHeader title="Painel Administrativo" subtitle="Governança e Estratégia" />
+        <PageHeader title="Painel Administrativo" subtitle="Governança, equipes e estratégia da operação." />
       </div>
 
       <div className="w-full flex gap-2 overflow-x-auto mb-6 pb-2 print:hidden -mx-1 px-1">

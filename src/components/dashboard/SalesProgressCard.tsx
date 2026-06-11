@@ -74,8 +74,8 @@ export function SalesProgressCard() {
     <div
       className={`rounded-2xl border p-5 shadow-sm transition-all duration-300 ${
         hasSales
-          ? 'bg-green-500/10 border-green-500/30'
-          : 'bg-red-500/10 border-red-500/30'
+          ? 'bg-card-bg border-green-500/40'
+          : 'bg-card-bg border-red-500/40'
       }`}
     >
       {/* Header */}
