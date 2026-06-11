@@ -523,11 +523,11 @@ export default function ClientDetails() {
     const top = pageH - margin;
 
     const colors = {
-      title: rgb(0.08, 0.16, 0.31),
+      title: rgb(0.145, 0.388, 0.922), // azul da marca (#2563eb)
       label: rgb(0.38, 0.43, 0.51),
       text: rgb(0.09, 0.12, 0.17),
       border: rgb(0.82, 0.84, 0.88),
-      soft: rgb(0.95, 0.96, 0.98),
+      soft: rgb(0.94, 0.96, 1), // azul bem claro
     };
 
     const fmtValue = (v?: string) => {

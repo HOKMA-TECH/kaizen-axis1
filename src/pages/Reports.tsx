@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
+import { loadKaizenLogo, drawReportHeader, addStandardFooters } from '@/lib/pdf/reportKit';
 import { SectionHeader, PageHeader, PremiumCard, RoundedButton, StatusBadge } from '@/components/ui/PremiumComponents';
 import { MetricCard } from '@/components/reports/MetricCard';
 import { CircularScore } from '@/components/reports/CircularScore';
@@ -221,11 +222,12 @@ function TeamReportView({
       const pdfDoc = await PDFDocument.create();
       const bold    = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
       const regular = await pdfDoc.embedFont(StandardFonts.Helvetica);
+      const logoImg = await loadKaizenLogo(pdfDoc);
       const PAGE_W = 595, PAGE_H = 842, MARGIN = 36;
       const COL_W  = PAGE_W - MARGIN * 2;
       const ROW_H = 18;
       const HDR_H = 20;
-      const gold   = rgb(0.82, 0.66, 0.18);
+      const gold   = rgb(0.145, 0.388, 0.922);
       const dark   = rgb(0.10, 0.10, 0.10);
       const gray   = rgb(0.45, 0.45, 0.45);
       const light  = rgb(0.96, 0.96, 0.96);
@@ -247,7 +249,7 @@ function TeamReportView({
       };
 
       const drawPipelineHeader = () => {
-        page.drawRectangle({ x: MARGIN, y: y - HDR_H, width: COL_W, height: HDR_H, color: dark });
+        page.drawRectangle({ x: MARGIN, y: y - HDR_H, width: COL_W, height: HDR_H, color: gold });
         for (const [txt, px] of [['Etapa', MARGIN + 4], ['Clientes', MARGIN + 260], ['%', MARGIN + 360]] as [string, number][]) {
           page.drawText(txt, { x: px, y: y - HDR_H + 6, size: 7, font: bold, color: white });
         }
@@ -255,18 +257,14 @@ function TeamReportView({
       };
 
       const drawRankingHeader = () => {
-        page.drawRectangle({ x: MARGIN, y: y - HDR_H, width: COL_W, height: HDR_H, color: dark });
+        page.drawRectangle({ x: MARGIN, y: y - HDR_H, width: COL_W, height: HDR_H, color: gold });
         for (const [txt, px] of [['Pos.', MARGIN + 4], ['Nome', MARGIN + 30], ['Clientes', MARGIN + 280], ['Vendas', MARGIN + 350], ['Conv.%', MARGIN + 420]] as [string, number][]) {
           page.drawText(txt, { x: px, y: y - HDR_H + 6, size: 7, font: bold, color: white });
         }
         y -= HDR_H;
       };
 
-      page.drawRectangle({ x: 0, y: PAGE_H - 70, width: PAGE_W, height: 70, color: dark });
-      page.drawText('Relatorio por Equipe', { x: MARGIN, y: PAGE_H - 30, size: 16, font: bold, color: gold });
-      page.drawText(`Equipe: ${team.name}`, { x: MARGIN, y: PAGE_H - 48, size: 10, font: regular, color: white });
-      page.drawText(`Gerado em: ${new Date().toLocaleDateString('pt-BR')}`, { x: MARGIN, y: PAGE_H - 63, size: 9, font: regular, color: rgb(0.75, 0.75, 0.75) });
-      y = PAGE_H - 90;
+      y = drawReportHeader(page, { regular, bold }, logoImg, { title: 'Relatório por Equipe', subtitle: `Equipe: ${team.name}` });
 
       page.drawText('RESUMO DA EQUIPE', { x: MARGIN, y, size: 10, font: bold, color: gold });
       y -= 18;
@@ -333,10 +331,7 @@ function TeamReportView({
         rowIdx++;
       }
 
-      const pages = pdfDoc.getPages();
-      pages.forEach((pg, idx) => {
-        pg.drawText(`Kaizen Axis - Confidencial  |  Pagina ${idx + 1} de ${pages.length}`, { x: MARGIN, y: 18, size: 7, font: regular, color: gray });
-      });
+      addStandardFooters(pdfDoc, { regular, bold });
 
       const pdfBytes = await pdfDoc.save();
       const blob = new Blob([pdfBytes], { type: 'application/pdf' });
@@ -884,6 +879,7 @@ function DiretoriaReportView({
       const pdfDoc = await PDFDocument.create();
       const bold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
       const regular = await pdfDoc.embedFont(StandardFonts.Helvetica);
+      const logoImg = await loadKaizenLogo(pdfDoc);
 
       const PAGE_W = 595;
       const PAGE_H = 842;
@@ -891,7 +887,7 @@ function DiretoriaReportView({
       const TABLE_W = PAGE_W - MARGIN * 2;
       const ROW_H = 18;
       const HDR_H = 20;
-      const gold = rgb(0.82, 0.66, 0.18);
+      const gold = rgb(0.145, 0.388, 0.922);
       const dark = rgb(0.1, 0.1, 0.1);
       const gray = rgb(0.45, 0.45, 0.45);
       const light = rgb(0.96, 0.96, 0.96);
@@ -931,11 +927,7 @@ function DiretoriaReportView({
         })
         .sort((a, b) => b.vendas - a.vendas || b.receita - a.receita);
 
-      page.drawRectangle({ x: 0, y: PAGE_H - 70, width: PAGE_W, height: 70, color: dark });
-      page.drawText('Relatorio por Diretoria', { x: MARGIN, y: PAGE_H - 30, size: 16, font: bold, color: gold });
-      page.drawText(`Diretoria: ${dirName}`, { x: MARGIN, y: PAGE_H - 48, size: 10, font: regular, color: white });
-      page.drawText(`Periodo: ${toPtBrDate(startDate)} a ${toPtBrDate(endDate)}`, { x: MARGIN, y: PAGE_H - 63, size: 9, font: regular, color: rgb(0.75, 0.75, 0.75) });
-      y = PAGE_H - 90;
+      y = drawReportHeader(page, { regular, bold }, logoImg, { title: 'Relatório por Diretoria', subtitle: `Diretoria: ${dirName} · Período: ${toPtBrDate(startDate)} a ${toPtBrDate(endDate)}` });
 
       page.drawText('RESUMO', { x: MARGIN, y, size: 10, font: bold, color: gold });
       y -= 18;
@@ -964,7 +956,7 @@ function DiretoriaReportView({
       ];
 
       const drawTableHeader = () => {
-        page.drawRectangle({ x: MARGIN, y: y - HDR_H, width: TABLE_W, height: HDR_H, color: dark });
+        page.drawRectangle({ x: MARGIN, y: y - HDR_H, width: TABLE_W, height: HDR_H, color: gold });
         let cx = MARGIN + 4;
         columns.forEach((col) => {
           page.drawText(col.header, { x: cx, y: y - HDR_H + 6, size: 7, font: bold, color: white });
@@ -999,10 +991,7 @@ function DiretoriaReportView({
         y -= ROW_H;
       });
 
-      const pages = pdfDoc.getPages();
-      pages.forEach((pg, idx) => {
-        pg.drawText(`Kaizen Axis - Confidencial  |  Pagina ${idx + 1} de ${pages.length}`, { x: MARGIN, y: 18, size: 7, font: regular, color: gray });
-      });
+      addStandardFooters(pdfDoc, { regular, bold });
 
       const pdfBytes = await pdfDoc.save();
       const blob = new Blob([pdfBytes], { type: 'application/pdf' });
@@ -1404,11 +1393,12 @@ export default function Reports() {
         const pdfDoc = await PDFDocument.create();
         const bold    = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
         const regular = await pdfDoc.embedFont(StandardFonts.Helvetica);
+        const logoImg = await loadKaizenLogo(pdfDoc);
         const PAGE_W = 595, PAGE_H = 842, MARGIN = 36;
         const COL_W  = PAGE_W - MARGIN * 2;
         const ROW_H = 18;
         const HDR_H = 20;
-        const gold   = rgb(0.82, 0.66, 0.18);
+        const gold   = rgb(0.145, 0.388, 0.922);
         const dark   = rgb(0.10, 0.10, 0.10);
         const gray   = rgb(0.45, 0.45, 0.45);
         const light  = rgb(0.96, 0.96, 0.96);
@@ -1430,19 +1420,15 @@ export default function Reports() {
         };
 
         const drawHealthHeader = () => {
-          page.drawRectangle({ x: MARGIN, y: y - HDR_H, width: COL_W, height: HDR_H, color: dark });
+          page.drawRectangle({ x: MARGIN, y: y - HDR_H, width: COL_W, height: HDR_H, color: gold });
           for (const [txt, px] of [['Cliente', MARGIN + 4], ['Etapa', MARGIN + 250], ['Score', MARGIN + 430]] as [string, number][]) {
             page.drawText(txt, { x: px, y: y - HDR_H + 6, size: 7, font: bold, color: white });
           }
           y -= HDR_H;
         };
 
-        // Cabeçalho
-        page.drawRectangle({ x: 0, y: PAGE_H - 70, width: PAGE_W, height: 70, color: dark });
-        page.drawText('Relatorio Estrategico - Visao Global', { x: MARGIN, y: PAGE_H - 30, size: 16, font: bold, color: gold });
-        page.drawText(`Periodo: ${period}`, { x: MARGIN, y: PAGE_H - 48, size: 10, font: regular, color: white });
-        page.drawText(`Gerado em: ${new Date().toLocaleDateString('pt-BR')}`, { x: MARGIN, y: PAGE_H - 63, size: 9, font: regular, color: rgb(0.75, 0.75, 0.75) });
-        y = PAGE_H - 90;
+        // Cabeçalho padrão (logo + azul)
+        y = drawReportHeader(page, { regular, bold }, logoImg, { title: 'Relatório Estratégico — Visão Global', subtitle: `Período: ${period}` });
 
         // Indicadores
         page.drawText('INDICADORES DO PERIODO', { x: MARGIN, y, size: 10, font: bold, color: gold });
@@ -1495,10 +1481,7 @@ export default function Reports() {
           }
         }
 
-        const pages = pdfDoc.getPages();
-        pages.forEach((pg, idx) => {
-          pg.drawText(`Kaizen Axis - Confidencial  |  Pagina ${idx + 1} de ${pages.length}`, { x: MARGIN, y: 18, size: 7, font: regular, color: gray });
-        });
+        addStandardFooters(pdfDoc, { regular, bold });
 
         const pdfBytes = await pdfDoc.save();
         const blob = new Blob([pdfBytes], { type: 'application/pdf' });

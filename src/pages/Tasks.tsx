@@ -5,6 +5,7 @@ import { Modal } from '@/components/ui/Modal';
 import { useApp, Task } from '@/context/AppContext';
 import { supabase } from '@/lib/supabase';
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
+import { loadKaizenLogo, drawReportHeader, addStandardFooters } from '@/lib/pdf/reportKit';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -131,6 +132,8 @@ export default function Tasks() {
       const pdfDoc = await PDFDocument.create();
       const fontRegular = await pdfDoc.embedFont(StandardFonts.Helvetica);
       const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+      const logoImg = await loadKaizenLogo(pdfDoc);
+      const headerOpts = { title: 'Relatório de Tarefas', subtitle: `Tarefas concluídas · Período: ${reportStartDate} a ${reportEndDate}` };
 
       const PAGE_W = 842;
       const PAGE_H = 595;
@@ -139,7 +142,7 @@ export default function Tasks() {
       const ROW_H = 18;
       const HEADER_H = 20;
       const colorDark = rgb(0.11, 0.12, 0.15);
-      const colorGold = rgb(0.82, 0.66, 0.18);
+      const colorGold = rgb(0.145, 0.388, 0.922);
       const colorGray = rgb(0.43, 0.45, 0.5);
       const colorLight = rgb(0.96, 0.96, 0.97);
       const colorWhite = rgb(1, 1, 1);
@@ -154,14 +157,6 @@ export default function Tasks() {
 
       let page = pdfDoc.addPage([PAGE_W, PAGE_H]);
       let y = PAGE_H - MARGIN;
-
-      const drawReportHeader = () => {
-        page.drawRectangle({ x: 0, y: PAGE_H - 72, width: PAGE_W, height: 72, color: colorDark });
-        page.drawText('KAIZEN AXIS - RELATORIO DE TAREFAS', { x: MARGIN, y: PAGE_H - 30, size: 15, font: fontBold, color: colorGold });
-        page.drawText(`Tarefas concluidas | Periodo: ${reportStartDate} a ${reportEndDate}`, { x: MARGIN, y: PAGE_H - 48, size: 9, font: fontRegular, color: colorWhite });
-        page.drawText(`Gerado em ${new Date().toLocaleString('pt-BR')}`, { x: MARGIN, y: PAGE_H - 63, size: 8, font: fontRegular, color: rgb(0.74, 0.76, 0.8) });
-        y = PAGE_H - 92;
-      };
 
       const drawSummary = () => {
         page.drawText('RESUMO', { x: MARGIN, y, size: 10, font: fontBold, color: colorGold });
@@ -182,7 +177,7 @@ export default function Tasks() {
       };
 
       const drawTableHeader = () => {
-        page.drawRectangle({ x: MARGIN, y: y - HEADER_H, width: TABLE_W, height: HEADER_H, color: colorDark });
+        page.drawRectangle({ x: MARGIN, y: y - HEADER_H, width: TABLE_W, height: HEADER_H, color: colorGold });
         let cx = MARGIN + 4;
         columns.forEach((col) => {
           page.drawText(col.header, { x: cx, y: y - HEADER_H + 6, size: 7, font: fontBold, color: colorWhite });
@@ -192,14 +187,14 @@ export default function Tasks() {
       };
 
       const truncate = (text: string, max = 32) => text.length > max ? `${text.slice(0, max - 1)}...` : text;
-      drawReportHeader();
+      y = drawReportHeader(page, { regular: fontRegular, bold: fontBold }, logoImg, headerOpts);
       drawSummary();
       drawTableHeader();
 
       rows.forEach((task) => {
         if (y < MARGIN + ROW_H) {
           page = pdfDoc.addPage([PAGE_W, PAGE_H]);
-          drawReportHeader();
+          y = drawReportHeader(page, { regular: fontRegular, bold: fontBold }, logoImg, headerOpts);
           drawTableHeader();
         }
         const responsibleName = allProfiles.find((p) => p.id === task.assigned_to)?.name || task.responsible || '-';
@@ -231,6 +226,8 @@ export default function Tasks() {
 
         y -= ROW_H;
       });
+
+      addStandardFooters(pdfDoc, { regular: fontRegular, bold: fontBold });
 
       const pdfBytes = await pdfDoc.save();
       const blob = new Blob([pdfBytes], { type: 'application/pdf' });

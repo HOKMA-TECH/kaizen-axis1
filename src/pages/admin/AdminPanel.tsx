@@ -7,7 +7,8 @@ import { useAuthorization } from '@/hooks/useAuthorization';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, Legend, PieChart, Pie, Cell } from 'recharts';
 import { supabase } from '@/lib/supabase';
-import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
+import { PDFDocument } from 'pdf-lib';
+import { PAGE, PDF_THEME, embedFonts, loadKaizenLogo, drawReportHeader, drawSectionTitle, drawKeyValues, drawDivider, drawContinuationHeader, addStandardFooters, downloadPdf } from '@/lib/pdf/reportKit';
 import PipelinePdfExport from '@/components/admin/PipelinePdfExport';
 import { useReportsData } from '@/hooks/useReportsData';
 import { parseDateOnlyLocal, parseDateOnlyLocalEnd, toDateOnlyLocal, toPtBrDate } from '@/lib/dateRange';
@@ -510,59 +511,33 @@ export default function AdminPanel() {
     rows: string[][];
   }) => {
     const doc = await PDFDocument.create();
-    const fontRegular = await doc.embedFont(StandardFonts.Helvetica);
-    const fontBold = await doc.embedFont(StandardFonts.HelveticaBold);
+    const fonts = await embedFonts(doc);
+    const logo = await loadKaizenLogo(doc);
 
-    const PAGE_W = 595;
-    const PAGE_H = 842;
-    const MARGIN = 36;
-    const TABLE_W = PAGE_W - (MARGIN * 2);
+    const { W, H, MARGIN } = PAGE;
+    const TABLE_W = W - (MARGIN * 2);
     const ROW_H = 18;
     const HEADER_H = 20;
 
-    const colorDark = rgb(0.11, 0.12, 0.15);
-    const colorGold = rgb(0.82, 0.66, 0.18);
-    const colorGray = rgb(0.43, 0.45, 0.5);
-    const colorLight = rgb(0.96, 0.96, 0.97);
-    const colorWhite = rgb(1, 1, 1);
-
-    let page = doc.addPage([PAGE_W, PAGE_H]);
-    let y = PAGE_H - MARGIN;
-
-    const drawHeader = () => {
-      page.drawRectangle({ x: 0, y: PAGE_H - 72, width: PAGE_W, height: 72, color: colorDark });
-      page.drawText(title, { x: MARGIN, y: PAGE_H - 30, size: 15, font: fontBold, color: colorGold });
-      page.drawText(subtitle, { x: MARGIN, y: PAGE_H - 48, size: 9, font: fontRegular, color: colorWhite });
-      page.drawText(`Gerado em ${new Date().toLocaleString('pt-BR')}`, { x: MARGIN, y: PAGE_H - 63, size: 8, font: fontRegular, color: rgb(0.74, 0.76, 0.8) });
-      y = PAGE_H - 92;
-    };
+    let page = doc.addPage([W, H]);
+    let y = drawReportHeader(page, fonts, logo, { title, subtitle });
 
     const drawTableHeader = () => {
-      page.drawRectangle({ x: MARGIN, y: y - HEADER_H, width: TABLE_W, height: HEADER_H, color: colorDark });
+      page.drawRectangle({ x: MARGIN, y: y - HEADER_H, width: TABLE_W, height: HEADER_H, color: PDF_THEME.blue });
       let cx = MARGIN + 4;
       columns.forEach((col) => {
-        page.drawText(col.header, { x: cx, y: y - HEADER_H + 6, size: 7, font: fontBold, color: colorWhite });
+        page.drawText(col.header, { x: cx, y: y - HEADER_H + 6, size: 7, font: fonts.bold, color: PDF_THEME.white });
         cx += col.width;
       });
       y -= HEADER_H;
     };
 
-    drawHeader();
-
-    page.drawText('RESUMO', { x: MARGIN, y, size: 10, font: fontBold, color: colorGold });
-    y -= 17;
-    metrics.forEach((metric) => {
-      page.drawText(`${metric.label}:`, { x: MARGIN, y, size: 8.5, font: fontBold, color: colorDark });
-      page.drawText(metric.value, { x: MARGIN + 170, y, size: 8.5, font: fontRegular, color: colorDark });
-      y -= 13;
-    });
-
+    y = drawSectionTitle(page, fonts, y, 'Resumo');
+    y = drawKeyValues(page, fonts, y, metrics);
     y -= 5;
-    page.drawRectangle({ x: MARGIN, y, width: TABLE_W, height: 0.7, color: rgb(0.86, 0.87, 0.9) });
-    y -= 15;
+    y = drawDivider(page, y);
 
-    page.drawText('DETALHAMENTO', { x: MARGIN, y, size: 10, font: fontBold, color: colorGold });
-    y -= 15;
+    y = drawSectionTitle(page, fonts, y, 'Detalhamento');
     drawTableHeader();
 
     rows.forEach((row, rowIndex) => {
@@ -571,10 +546,8 @@ export default function AdminPanel() {
       const rowHeight = Math.max(ROW_H, 10 + (lineCount * 8));
 
       if (y < MARGIN + rowHeight + 18) {
-        page = doc.addPage([PAGE_W, PAGE_H]);
-        y = PAGE_H - MARGIN;
-        page.drawText(`${title} - continuacao`, { x: MARGIN, y, size: 8, font: fontRegular, color: colorGray });
-        y -= 14;
+        page = doc.addPage([W, H]);
+        y = drawContinuationHeader(page, fonts, title);
         drawTableHeader();
       }
 
@@ -584,7 +557,7 @@ export default function AdminPanel() {
         y: y - rowHeight,
         width: TABLE_W,
         height: rowHeight,
-        color: isEven ? colorWhite : colorLight,
+        color: isEven ? PDF_THEME.white : PDF_THEME.rowAlt,
       });
 
       let cx = MARGIN + 4;
@@ -599,8 +572,8 @@ export default function AdminPanel() {
             x: cx,
             y: y - 12 - (lineIndex * 8),
             size: 7,
-            font: fontRegular,
-            color: colorDark,
+            font: fonts.regular,
+            color: PDF_THEME.ink,
           });
         });
         cx += colW;
@@ -608,14 +581,8 @@ export default function AdminPanel() {
       y -= rowHeight;
     });
 
-    const bytes = await doc.save();
-    const blob = new Blob([bytes], { type: 'application/pdf' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    a.click();
-    URL.revokeObjectURL(url);
+    addStandardFooters(doc, fonts);
+    await downloadPdf(doc, filename);
   };
 
   const handleExportGeneralPdf = async () => {

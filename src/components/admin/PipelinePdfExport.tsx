@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
+import { loadKaizenLogo, drawReportHeader, addStandardFooters } from '@/lib/pdf/reportKit';
 import { supabase } from '@/lib/supabase';
 import { Download, FileText, Loader2 } from 'lucide-react';
 import { Profile } from '@/context/AppContext';
@@ -78,10 +79,11 @@ export default function PipelinePdfExport({ corretores }: Props) {
       const pdfDoc = await PDFDocument.create();
       const bold    = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
       const regular = await pdfDoc.embedFont(StandardFonts.Helvetica);
+      const logoImg = await loadKaizenLogo(pdfDoc);
 
       const PAGE_W = 595, PAGE_H = 842, MARGIN = 36;
       const COL_W  = PAGE_W - MARGIN * 2;
-      const gold   = rgb(0.82, 0.66, 0.18);
+      const gold   = rgb(0.145, 0.388, 0.922);
       const dark   = rgb(0.10, 0.10, 0.10);
       const gray   = rgb(0.45, 0.45, 0.45);
       const light  = rgb(0.96, 0.96, 0.96);
@@ -90,12 +92,8 @@ export default function PipelinePdfExport({ corretores }: Props) {
       let page = pdfDoc.addPage([PAGE_W, PAGE_H]);
       let y = PAGE_H - MARGIN;
 
-      // Cabeçalho
-      page.drawRectangle({ x: 0, y: PAGE_H - 70, width: PAGE_W, height: 70, color: dark });
-      page.drawText('Relatório de Pipeline de Clientes', { x: MARGIN, y: PAGE_H - 30, size: 16, font: bold, color: gold });
-      page.drawText(`Corretor: ${corretorName}`, { x: MARGIN, y: PAGE_H - 48, size: 10, font: regular, color: white });
-      page.drawText(`Gerado em: ${new Date().toLocaleDateString('pt-BR')}`, { x: MARGIN, y: PAGE_H - 63, size: 9, font: regular, color: rgb(0.75, 0.75, 0.75) });
-      y = PAGE_H - 90;
+      // Cabeçalho padrão (logo + azul)
+      y = drawReportHeader(page, { regular, bold }, logoImg, { title: 'Relatório de Pipeline de Clientes', subtitle: `Corretor: ${corretorName}` });
 
       // Resumo executivo
       page.drawText('RESUMO EXECUTIVO', { x: MARGIN, y, size: 10, font: bold, color: gold });
@@ -135,7 +133,7 @@ export default function PipelinePdfExport({ corretores }: Props) {
       const SAFE_ROW_H = 18, SAFE_HDR_H = 20;
 
       const drawHeader = (pg: typeof page, startY: number) => {
-        pg.drawRectangle({ x: MARGIN, y: startY - SAFE_HDR_H, width: COL_W, height: SAFE_HDR_H, color: dark });
+        pg.drawRectangle({ x: MARGIN, y: startY - SAFE_HDR_H, width: COL_W, height: SAFE_HDR_H, color: gold });
         let cx = MARGIN + 4;
         for (const col of cols) {
           pg.drawText(col.label, { x: cx, y: startY - SAFE_HDR_H + 6, size: 7, font: bold, color: white });
@@ -182,13 +180,8 @@ export default function PipelinePdfExport({ corretores }: Props) {
         rowIdx++;
       }
 
-      // Rodapé em todas as páginas
-      const pages = pdfDoc.getPages();
-      pages.forEach((pg, idx) => {
-        pg.drawText(`Kaizen Axis — Confidencial  |  Página ${idx + 1} de ${pages.length}`, {
-          x: MARGIN, y: 18, size: 7, font: regular, color: gray,
-        });
-      });
+      // Rodapé padrão em todas as páginas
+      addStandardFooters(pdfDoc, { regular, bold });
 
       // 4. Download
       const pdfBytes = await pdfDoc.save();
