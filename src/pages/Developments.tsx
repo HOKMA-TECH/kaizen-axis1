@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { PremiumCard, StatusBadge, SectionHeader, RoundedButton } from '@/components/ui/PremiumComponents';
+import { PremiumCard, StatusBadge, PageHeader, RoundedButton } from '@/components/ui/PremiumComponents';
 import { Search, MapPin, Building2, Filter, ChevronRight, Plus, Upload, X, FileText, Image as ImageIcon, Loader2, Edit2, Trash2 } from 'lucide-react';
 import { FAB } from '@/components/Layout';
 import { Modal } from '@/components/ui/Modal';
@@ -229,14 +229,16 @@ export default function Developments() {
 
   return (
     <div className="p-6 pb-24 min-h-screen bg-surface-50">
-      <div className="flex justify-between items-start mb-4">
-        <SectionHeader title="Empreendimentos" subtitle="Catálogo exclusivo" />
-        {canCreateStrategicResources && (
-          <RoundedButton size="sm" onClick={() => handleOpenModal()} className="flex items-center gap-1 mt-2">
+      <PageHeader
+        eyebrow="Catálogo"
+        title="Empreendimentos"
+        subtitle="Explore o catálogo exclusivo de empreendimentos."
+        action={canCreateStrategicResources ? (
+          <RoundedButton size="sm" onClick={() => handleOpenModal()} className="flex items-center gap-1">
             <Plus size={16} /> Novo
           </RoundedButton>
-        )}
-      </div>
+        ) : undefined}
+      />
 
       <div className="flex gap-3 mb-3">
         <div className="flex-1 relative">
@@ -362,7 +364,7 @@ export default function Developments() {
                     <p className="text-sm font-bold text-text-primary">{dev.min_income}</p>
                   </div>
                 </div>
-                <button className="w-full mt-2 py-2 text-sm font-medium text-gold-600 dark:text-gold-400 hover:bg-gold-50 rounded-lg transition-colors flex items-center justify-center gap-1">
+                <button className="w-full mt-2 py-2 text-sm font-medium text-primary-400 hover:bg-primary-500/10 rounded-lg transition-colors flex items-center justify-center gap-1">
                   Ver Detalhes <ChevronRight size={16} />
                 </button>
               </div>

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { PremiumCard, SectionHeader, RoundedButton } from '@/components/ui/PremiumComponents';
+import { PremiumCard, PageHeader, RoundedButton } from '@/components/ui/PremiumComponents';
 import { PlayCircle, FileText, Image as ImageIcon, Plus, Edit2, Trash2 } from 'lucide-react';
 import { Modal } from '@/components/ui/Modal';
 import { useAuthorization } from '@/hooks/useAuthorization';
@@ -447,14 +447,16 @@ export default function Training() {
 
   return (
     <div className="p-6 pb-24 min-h-screen bg-surface-50">
-      <div className="flex justify-between items-start mb-4">
-        <SectionHeader title="Treinamentos" subtitle="Universidade Corporativa" />
-        {canCreateStrategicResources && (
-          <RoundedButton size="sm" onClick={() => handleOpenModal()} className="flex items-center gap-1 mt-2">
+      <PageHeader
+        eyebrow="Universidade Corporativa"
+        title="Treinamentos"
+        subtitle="Capacitação contínua para a sua evolução."
+        action={canCreateStrategicResources ? (
+          <RoundedButton size="sm" onClick={() => handleOpenModal()} className="flex items-center gap-1">
             <Plus size={16} /> Novo
           </RoundedButton>
-        )}
-      </div>
+        ) : undefined}
+      />
 
       <div className="space-y-4">
         {trainings.map((item) => (

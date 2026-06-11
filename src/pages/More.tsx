@@ -1,4 +1,4 @@
-import { PremiumCard, SectionHeader } from '@/components/ui/PremiumComponents';
+import { PremiumCard, PageHeader } from '@/components/ui/PremiumComponents';
 import { Building2, CheckSquare, GraduationCap, Calculator, Settings, ChevronRight, BarChart3, Lock, FileType, Globe, QrCode, Home } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuthorization } from '@/hooks/useAuthorization';
@@ -23,7 +23,7 @@ export default function More() {
 
   return (
     <div className="p-6 pb-24 min-h-screen bg-surface-50">
-      <SectionHeader title="Menu" />
+      <PageHeader title="Menu" subtitle="Acesse todas as ferramentas e áreas do app." />
 
       {/* Administrativo — Admin + Liderança */}
       {(isAdmin || isDirector || isManager || isCoordinator) && (

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { PremiumCard, SectionHeader, RoundedButton } from '@/components/ui/PremiumComponents';
+import { PremiumCard, PageHeader, RoundedButton } from '@/components/ui/PremiumComponents';
 import { Globe, Plus, Edit2, Trash2, ExternalLink, Search, Building2, Landmark } from 'lucide-react';
 import { Modal } from '@/components/ui/Modal';
 import { useAuthorization } from '@/hooks/useAuthorization';
@@ -71,14 +71,16 @@ export default function Portals() {
 
   return (
     <div className="p-6 pb-24 min-h-screen bg-surface-50">
-      <div className="flex justify-between items-start mb-4">
-        <SectionHeader title="Portais" subtitle="Acesso rápido" />
-        {canCreateStrategicResources && (
-          <RoundedButton size="sm" onClick={() => handleOpenModal()} className="flex items-center gap-1 mt-2">
+      <PageHeader
+        eyebrow="Acesso rápido"
+        title="Portais"
+        subtitle="Acesse rapidamente os portais e sistemas parceiros."
+        action={canCreateStrategicResources ? (
+          <RoundedButton size="sm" onClick={() => handleOpenModal()} className="flex items-center gap-1">
             <Plus size={16} /> Novo
           </RoundedButton>
-        )}
-      </div>
+        ) : undefined}
+      />
 
       <div className="relative mb-6">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary" size={18} />

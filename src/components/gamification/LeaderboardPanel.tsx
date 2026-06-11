@@ -22,7 +22,7 @@ export function LeaderboardPanel() {
         <div className="bg-card-bg rounded-xl border border-surface-200 overflow-hidden flex flex-col h-full">
             <div className="p-6 border-b border-surface-200 bg-gradient-to-br from-primary-50/50 dark:from-primary-900/20 to-transparent">
                 <div className="flex items-center space-x-3 mb-2">
-                    <div className="p-2 bg-primary-100 text-primary-600 rounded-xl">
+                    <div className="p-2 bg-primary-500/15 text-primary-400 rounded-xl">
                         <Trophy className="w-5 h-5" />
                     </div>
                     <h2 className="text-xl font-bold text-text-primary">Ranking Global</h2>
@@ -48,10 +48,10 @@ export function LeaderboardPanel() {
                         return (
                             <div
                                 key={entry.user_id}
-                                className={`relative flex items-center p-4 rounded-xl border transition-all duration-300 hover:shadow-md ${index === 0 ? 'bg-gradient-to-r from-amber-50 to-yellow-50/50 border-amber-200' :
-                                        index === 1 ? 'bg-gradient-to-r from-slate-50 to-gray-50 border-slate-200' :
-                                            index === 2 ? 'bg-gradient-to-r from-orange-50 to-amber-50/30 border-orange-200' :
-                                                'bg-card-bg border-line-subtle hover:border-indigo-300 dark:hover:border-indigo-800'
+                                className={`relative flex items-center p-4 rounded-xl border transition-all duration-300 hover:shadow-md ${index === 0 ? 'bg-gradient-to-r from-amber-500/15 to-yellow-500/5 border-amber-500/30' :
+                                        index === 1 ? 'bg-gradient-to-r from-slate-400/15 to-slate-400/5 border-slate-400/30' :
+                                            index === 2 ? 'bg-gradient-to-r from-orange-500/15 to-orange-500/5 border-orange-500/30' :
+                                                'bg-card-bg border-line-subtle hover:border-primary-500/40'
                                     }`}
                             >
                                 {/* Pos */}
@@ -77,11 +77,11 @@ export function LeaderboardPanel() {
                                             {entry.user_name}
                                         </p>
                                         <div className="flex items-center text-xs space-x-3 mt-0.5">
-                                            <span className="flex items-center text-emerald-600 font-medium bg-emerald-50 px-1.5 py-0.5 rounded-md">
+                                            <span className="flex items-center text-emerald-400 font-medium bg-emerald-500/15 px-1.5 py-0.5 rounded-md">
                                                 {totalPoints.toLocaleString('pt-BR')} pts
                                             </span>
                                             {streak > 1 && (
-                                                <span className="flex items-center text-orange-600 font-medium bg-orange-50 px-1.5 py-0.5 rounded-md" title={`Streak de ${streak} dias diretos!`}>
+                                                <span className="flex items-center text-orange-400 font-medium bg-orange-500/15 px-1.5 py-0.5 rounded-md" title={`Streak de ${streak} dias diretos!`}>
                                                     <Flame className="w-3 h-3 mr-1" /> {streak} dias
                                                 </span>
                                             )}
@@ -91,7 +91,7 @@ export function LeaderboardPanel() {
 
                                 {/* Score & Volume */}
                                 <div className="text-right flex-shrink-0">
-                                    <p className="text-sm font-bold text-indigo-700">
+                                    <p className="text-sm font-bold text-primary-400">
                                         {Math.floor(rankingScore).toLocaleString('pt-BR')} Score
                                     </p>
                                     <p className="text-xs text-text-secondary mt-1 flex items-center justify-end">

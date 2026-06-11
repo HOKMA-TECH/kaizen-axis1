@@ -13,7 +13,7 @@ export function CircularScore({ score, size = 40, strokeWidth = 4 }: CircularSco
 
   const getColor = (score: number) => {
     if (score >= 80) return 'text-green-500';
-    if (score >= 50) return 'text-gold-500';
+    if (score >= 50) return 'text-amber-400';
     return 'text-red-500';
   };
 

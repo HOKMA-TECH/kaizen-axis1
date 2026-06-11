@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { PremiumCard, SectionHeader, RoundedButton } from '@/components/ui/PremiumComponents';
+import { PremiumCard, PageHeader, RoundedButton } from '@/components/ui/PremiumComponents';
 import {
   Shield, Key, Bell, User, ChevronRight, LogOut,
   Smartphone, Camera, Trash2, CheckCircle, AlertCircle, Loader2,
@@ -357,7 +357,7 @@ export default function Settings() {
 
   return (
     <div className="p-6 pb-28 min-h-screen bg-surface-50 space-y-6">
-      <SectionHeader title="Configurações" subtitle="Preferências e Segurança" />
+      <PageHeader title="Configurações" subtitle="Gerencie seu perfil, preferências e segurança." />
 
       {/* Toast */}
       {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}

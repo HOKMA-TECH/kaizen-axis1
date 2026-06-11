@@ -200,24 +200,27 @@ export function ChatSidebar({
 
   return (
     <div className="relative flex flex-col h-full bg-card-bg border-r border-surface-200 dark:border-surface-100/10">
-      <div className="px-4 pt-5 pb-3 flex items-center justify-between flex-shrink-0 relative">
-        <div className="flex items-center gap-2">
-          <h2 className="text-lg font-bold text-text-primary">Mensagens</h2>
-          {totalUnread > 0 && (
-            <motion.span
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
-              className="min-w-5 h-5 px-1.5 rounded-full bg-primary-600 text-white text-[10px] font-bold flex items-center justify-center"
-            >
-              {totalUnread > 99 ? '99+' : totalUnread}
-            </motion.span>
-          )}
+      <div className="px-4 pt-5 pb-3 flex items-start justify-between flex-shrink-0 relative">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2">
+            <h2 className="v3-serif text-3xl text-text-primary tracking-tight">Mensagens</h2>
+            {totalUnread > 0 && (
+              <motion.span
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                className="min-w-5 h-5 px-1.5 rounded-full bg-primary-600 text-white text-[10px] font-bold flex items-center justify-center"
+              >
+                {totalUnread > 99 ? '99+' : totalUnread}
+              </motion.span>
+            )}
+          </div>
+          <p className="text-sm text-text-secondary mt-1">Converse com sua equipe e clientes.</p>
         </div>
         <div className="flex items-center gap-1">
           {onNewConversation && (
             <button
               onClick={onNewConversation}
-              className="p-2 rounded-xl text-text-secondary hover:text-gold-600 hover:bg-gold-50 dark:hover:bg-gold-900/20 transition-colors"
+              className="p-2 rounded-xl text-text-secondary hover:text-primary-400 hover:bg-primary-500/10 transition-colors"
               title="Nova conversa"
             >
               <PenSquare size={17} />

@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
-import { SectionHeader, PremiumCard, RoundedButton, StatusBadge } from '@/components/ui/PremiumComponents';
+import { SectionHeader, PageHeader, PremiumCard, RoundedButton, StatusBadge } from '@/components/ui/PremiumComponents';
 import { MetricCard } from '@/components/reports/MetricCard';
 import { CircularScore } from '@/components/reports/CircularScore';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
@@ -58,7 +58,7 @@ function PeriodFilters({
           key={p}
           onClick={() => onPeriodChange(p)}
           className={`px-4 py-2 rounded-lg text-xs font-medium whitespace-nowrap transition-all ${period === p || (p === 'Personalizado' && period.includes('/'))
-            ? 'bg-gold-500 text-white shadow-md'
+            ? 'bg-primary-600 text-white shadow-md'
             : 'bg-card-bg text-text-secondary border border-surface-200'
             }`}
         >
@@ -212,8 +212,8 @@ function TeamReportView({
     .sort((a, b) => b.vendas - a.vendas || b.total - a.total);
 
   const convColor = taxaConversao >= 60
-    ? 'text-green-600' : taxaConversao >= 30
-      ? 'text-gold-600' : 'text-red-500';
+    ? 'text-green-500' : taxaConversao >= 30
+      ? 'text-amber-400' : 'text-red-500';
 
   const handleDownloadPdf = async () => {
     setPdfLoading(true);
@@ -611,8 +611,8 @@ function CoordReportView({
     .sort((a, b) => b.vendas - a.vendas || b.total - a.total);
 
   const convColor = taxaConversao >= 60
-    ? 'text-green-600' : taxaConversao >= 30
-      ? 'text-gold-600' : 'text-red-500';
+    ? 'text-green-500' : taxaConversao >= 30
+      ? 'text-amber-400' : 'text-red-500';
 
   return (
     <div className="p-6 pb-24 min-h-screen bg-surface-50">
@@ -1096,24 +1096,26 @@ function DiretoriaReportView({
               <AreaChart data={weightedPipeline}>
                 <defs>
                   <linearGradient id="colorWeightedDir" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#1F6FE5" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="#1F6FE5" stopOpacity={0} />
+                    <stop offset="5%" stopColor="#2563eb" stopOpacity={0.3} />
+                    <stop offset="95%" stopColor="#2563eb" stopOpacity={0} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
-                <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#6B7280' }} dy={10} />
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#1e2636" />
+                <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#8b94a3' }} dy={10} />
                 <YAxis hide />
                 <Tooltip
-                  contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.1)' }}
+                  contentStyle={{ borderRadius: '8px', border: '1px solid #2b3547', backgroundColor: '#0d111a', color: '#f4f6fb', boxShadow: '0 4px 20px rgba(0,0,0,0.4)' }}
+                  itemStyle={{ color: '#f4f6fb' }}
+                  labelStyle={{ color: '#8b94a3' }}
                   formatter={(val: number, name: string) => [`R$ ${val.toFixed(0)}k`, name === 'weighted' ? 'Pipeline Ponderado' : 'Confirmado']}
                 />
-                <Area type="monotone" dataKey="weighted" stroke="#1F6FE5" strokeWidth={3} fillOpacity={1} fill="url(#colorWeightedDir)" />
-                <Area type="monotone" dataKey="confirmed" stroke="#10B981" strokeWidth={2} strokeDasharray="5 5" fill="transparent" />
+                <Area type="monotone" dataKey="weighted" stroke="#2563eb" strokeWidth={3} fillOpacity={1} fill="url(#colorWeightedDir)" />
+                <Area type="monotone" dataKey="confirmed" stroke="#22c55e" strokeWidth={2} strokeDasharray="5 5" fill="transparent" />
               </AreaChart>
             </ResponsiveContainer>
           </div>
           <div className="flex justify-center gap-4 mt-2">
-            <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-blue-500" /><span className="text-[10px] text-text-secondary">Pipeline Ponderado</span></div>
+            <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-primary-500" /><span className="text-[10px] text-text-secondary">Pipeline Ponderado</span></div>
             <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-green-500" /><span className="text-[10px] text-text-secondary">Confirmado</span></div>
           </div>
         </PremiumCard>
@@ -1139,7 +1141,7 @@ function DiretoriaReportView({
                 </div>
                 <div className="text-right">
                   <p className="text-[10px] text-text-secondary uppercase mb-0.5">Probabilidade</p>
-                  <p className={`text-sm font-bold ${client.conversionProbability > 70 ? 'text-green-600' : client.conversionProbability > 40 ? 'text-gold-600' : 'text-red-500'}`}>
+                  <p className={`text-sm font-bold ${client.conversionProbability > 70 ? 'text-green-500' : client.conversionProbability > 40 ? 'text-amber-400' : 'text-red-500'}`}>
                     {client.conversionProbability}%
                   </p>
                 </div>
@@ -1521,12 +1523,11 @@ export default function Reports() {
 
   return (
     <div className="p-6 pb-24 min-h-screen bg-surface-50 print:bg-white print:p-0 print:min-h-0 print:h-auto print:block">
-      <div className="mb-2 print:mb-2">
-        <div>
-          <h1 className="text-3xl font-bold text-text-primary">Relatórios</h1>
-          <p className="text-text-secondary text-sm">Inteligência Estratégica — Visão Global</p>
-        </div>
-      </div>
+      <PageHeader
+        eyebrow="Inteligência Estratégica"
+        title="Relatórios"
+        subtitle="Visão global de desempenho, forecast e health score."
+      />
 
       {/* ── Period Filters ── */}
       <PeriodFilters period={period} onPeriodChange={handlePeriodChange} />
@@ -1585,27 +1586,29 @@ export default function Reports() {
               <AreaChart data={weightedPipeline}>
                 <defs>
                   <linearGradient id="colorWeighted" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#1F6FE5" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="#1F6FE5" stopOpacity={0} />
+                    <stop offset="5%" stopColor="#2563eb" stopOpacity={0.3} />
+                    <stop offset="95%" stopColor="#2563eb" stopOpacity={0} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
-                <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#6B7280' }} dy={10} />
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#1e2636" />
+                <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#8b94a3' }} dy={10} />
                 <YAxis hide />
                 <Tooltip
-                  contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.1)' }}
+                  contentStyle={{ borderRadius: '8px', border: '1px solid #2b3547', backgroundColor: '#0d111a', color: '#f4f6fb', boxShadow: '0 4px 20px rgba(0,0,0,0.4)' }}
+                  itemStyle={{ color: '#f4f6fb' }}
+                  labelStyle={{ color: '#8b94a3' }}
                   formatter={(val: number, name: string) => [
                     `R$ ${val.toFixed(0)}k`,
                     name === 'weighted' ? 'Pipeline Ponderado' : 'Confirmado',
                   ]}
                 />
-                <Area type="monotone" dataKey="weighted" stroke="#1F6FE5" strokeWidth={3} fillOpacity={1} fill="url(#colorWeighted)" />
-                <Area type="monotone" dataKey="confirmed" stroke="#10B981" strokeWidth={2} strokeDasharray="5 5" fill="transparent" />
+                <Area type="monotone" dataKey="weighted" stroke="#2563eb" strokeWidth={3} fillOpacity={1} fill="url(#colorWeighted)" />
+                <Area type="monotone" dataKey="confirmed" stroke="#22c55e" strokeWidth={2} strokeDasharray="5 5" fill="transparent" />
               </AreaChart>
             </ResponsiveContainer>
           </div>
           <div className="flex justify-center gap-4 mt-2">
-            <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-gold-500" /><span className="text-[10px] text-text-secondary">Pipeline Ponderado</span></div>
+            <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-primary-500" /><span className="text-[10px] text-text-secondary">Pipeline Ponderado</span></div>
             <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-green-500" /><span className="text-[10px] text-text-secondary">Confirmado</span></div>
           </div>
         </PremiumCard>
@@ -1630,7 +1633,7 @@ export default function Reports() {
                 </div>
                 <div className="text-right">
                   <p className="text-[10px] text-text-secondary uppercase mb-0.5">Probabilidade</p>
-                  <p className={`text-sm font-bold ${client.conversionProbability > 70 ? 'text-green-600' : client.conversionProbability > 40 ? 'text-gold-600' : 'text-red-500'}`}>
+                  <p className={`text-sm font-bold ${client.conversionProbability > 70 ? 'text-green-500' : client.conversionProbability > 40 ? 'text-amber-400' : 'text-red-500'}`}>
                     {client.conversionProbability}%
                   </p>
                 </div>

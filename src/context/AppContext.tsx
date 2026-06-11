@@ -1027,6 +1027,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, [userName, refreshClients, user, profile]);
 
   const updateClient = useCallback(async (id: string, data: Partial<Client>) => {
+    // Update otimista: reflete a mudança na UI imediatamente (ex.: arrastar card no Kanban
+    // para outra etapa) antes de aguardar a rede. Em caso de erro, refreshClients reverte.
+    setClients(prev => prev.map(c => (c.id === id ? { ...c, ...data } : c)));
     try {
       const allowedFields = [
         'name', 'cpf', 'email', 'phone', 'address', 'profession',
@@ -1075,6 +1078,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       });
     } catch (e) {
       console.error('Erro ao atualizar cliente:', e);
+      await refreshClients(); // reverte o update otimista para o estado real do servidor
       throw e; // re-throw so callers can handle/show error
     }
   }, [userName, refreshClients]);

@@ -26,22 +26,22 @@ export function GamificationProfile() {
 
     if (score > 5000) {
         RankIcon = Trophy;
-        rankGradient = 'from-gold-100 to-amber-50';
-        rankIconColor = 'text-gold-500';
+        rankGradient = 'from-primary-500/20 to-primary-500/5';
+        rankIconColor = 'text-primary-400';
         rankLabel = 'Elite Ouro';
-        rankBadgeClass = 'text-gold-600 bg-gold-50 border border-gold-200';
+        rankBadgeClass = 'text-primary-300 bg-primary-500/15 border border-primary-500/30';
     } else if (score > 1000) {
         RankIcon = Star;
-        rankGradient = 'from-emerald-50 to-teal-50';
-        rankIconColor = 'text-emerald-500';
+        rankGradient = 'from-emerald-500/20 to-emerald-500/5';
+        rankIconColor = 'text-emerald-400';
         rankLabel = 'Profissional';
-        rankBadgeClass = 'text-emerald-600 bg-emerald-50 border border-emerald-200';
+        rankBadgeClass = 'text-emerald-400 bg-emerald-500/15 border border-emerald-500/30';
     } else if (score > 100) {
         RankIcon = Target;
-        rankGradient = 'from-blue-50 to-indigo-50';
-        rankIconColor = 'text-blue-500';
+        rankGradient = 'from-blue-500/20 to-blue-500/5';
+        rankIconColor = 'text-blue-400';
         rankLabel = 'Corretor Ativo';
-        rankBadgeClass = 'text-blue-600 bg-blue-50 border border-blue-200';
+        rankBadgeClass = 'text-blue-400 bg-blue-500/15 border border-blue-500/30';
     }
 
     return (
@@ -91,9 +91,9 @@ export function GamificationProfile() {
                             <div
                                 key={userAch.id}
                                 title={userAch.achievements?.description}
-                                className="group relative flex items-center gap-1.5 px-2.5 py-1.5 bg-gold-50 dark:bg-gold-900/10 border border-gold-200 dark:border-gold-800 rounded-xl text-xs font-semibold text-gold-700 dark:text-gold-400 hover:bg-gold-100 transition-colors cursor-default"
+                                className="group relative flex items-center gap-1.5 px-2.5 py-1.5 bg-primary-500/10 border border-primary-500/30 rounded-xl text-xs font-semibold text-primary-300 hover:bg-primary-500/20 transition-colors cursor-default"
                             >
-                                <Star className="w-3 h-3 text-gold-500" />
+                                <Star className="w-3 h-3 text-primary-400" />
                                 {userAch.achievements?.title || 'Conquista'}
                             </div>
                         ))}

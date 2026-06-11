@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { PremiumCard, StatusBadge, SectionHeader, RoundedButton } from '@/components/ui/PremiumComponents';
+import { PremiumCard, StatusBadge, PageHeader, RoundedButton } from '@/components/ui/PremiumComponents';
 import { CheckCircle2, Calendar, User, Plus, Edit2, Trash2, X, Clock, Loader2 } from 'lucide-react';
 import { Modal } from '@/components/ui/Modal';
 import { useApp, Task } from '@/context/AppContext';
@@ -252,7 +252,7 @@ export default function Tasks() {
   return (
     <div className="p-6 pb-24 min-h-screen bg-surface-50">
       <div className="flex justify-between items-start mb-4">
-        <SectionHeader title="Tarefas" subtitle="Gestão de atividades" />
+        <PageHeader title="Tarefas" subtitle="Organize e acompanhe suas atividades e prazos." />
         <div className="flex items-center gap-2 mt-2">
           {isManager && (
             <>

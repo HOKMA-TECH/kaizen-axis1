@@ -1,6 +1,6 @@
 import { useState, useRef, useMemo, useCallback, useEffect } from 'react';
 import { useIncomeAnalysisPersistence, type IncomeSessionData } from '@/hooks/useIncomeAnalysisPersistence';
-import { PremiumCard, RoundedButton, SectionHeader } from '@/components/ui/PremiumComponents';
+import { PremiumCard, RoundedButton, PageHeader } from '@/components/ui/PremiumComponents';
 import {
   UploadCloud, CheckCircle2, AlertTriangle, FileText,
   RefreshCw, Download, ChevronRight, Loader2, XCircle,
@@ -912,7 +912,7 @@ export default function IncomeAnalysis() {
           </div>
         </div>
       </Modal>
-      <SectionHeader title="Apuração de Renda" subtitle="Motor determinístico v3 · Interactive Review" />
+      <PageHeader title="Apuração de Renda" subtitle="Análise determinística de renda com revisão interativa." />
 
       {showValidationBanner && (
         <div className="relative mt-4 mb-4 rounded-2xl border border-red-700 bg-red-600 px-4 py-4 shadow-sm">

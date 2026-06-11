@@ -128,6 +128,7 @@ export default function Dashboard() {
             Olá, {userName.split(' ')[0]}
             {loading && <Loader2 className="animate-spin text-primary-400" size={18} />}
           </h1>
+          <p className="text-sm text-text-secondary mt-1">Acompanhe seus números e atividades do período.</p>
         </div>
         <div className="z-50 relative lg:hidden">
           <NotificationBell />
@@ -150,8 +151,8 @@ export default function Dashboard() {
               onClick={() => { setPeriod(id); setMobilePeriodOpen(false); }}
               className={`px-4 py-2 rounded-lg text-xs font-semibold border transition-all ${
                 period === id
-                  ? 'bg-gold-500 text-white border-gold-500 shadow-sm'
-                  : 'bg-card-bg text-text-secondary border-surface-200 hover:border-gold-300'
+                  ? 'bg-primary-600 text-white border-primary-600 shadow-sm'
+                  : 'bg-card-bg text-text-secondary border-surface-200 hover:border-primary-400'
               }`}
             >
               {id === 'este_mes' ? 'Este mês' : '30 dias'}
@@ -162,8 +163,8 @@ export default function Dashboard() {
               onClick={() => setMobilePeriodOpen(o => !o)}
               className={`flex items-center gap-1 px-4 py-2 rounded-lg text-xs font-semibold border transition-all ${
                 ['60_dias', '90_dias', 'custom'].includes(period)
-                  ? 'bg-gold-500 text-white border-gold-500 shadow-sm'
-                  : 'bg-card-bg text-text-secondary border-surface-200 hover:border-gold-300'
+                  ? 'bg-primary-600 text-white border-primary-600 shadow-sm'
+                  : 'bg-card-bg text-text-secondary border-surface-200 hover:border-primary-400'
               }`}
             >
               {period === '60_dias'
@@ -471,11 +472,11 @@ export default function Dashboard() {
                                   <div className="flex-1 min-w-0">
                                     <span className="font-semibold text-text-primary text-sm flex items-center gap-2">
                                       {goal.title}
-                                      {goal.status === 'achieved' && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-green-100 text-green-700">Atingida</span>}
+                                      {goal.status === 'achieved' && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-green-500/15 text-green-400">Atingida</span>}
                                     </span>
                                   </div>
                                   <div className="flex items-center gap-2 ml-2 flex-shrink-0">
-                                    <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${pct >= 100 ? 'bg-green-100 text-green-700' : pct >= 60 ? 'bg-blue-100 text-blue-700' : 'bg-surface-100 text-text-secondary'}`}>{pct}%</span>
+                                    <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${pct >= 100 ? 'bg-green-500/15 text-green-400' : pct >= 60 ? 'bg-blue-500/15 text-blue-400' : 'bg-surface-100 text-text-secondary'}`}>{pct}%</span>
                                   </div>
                                 </div>
                                 <div className="h-2 w-full bg-surface-200 rounded-full overflow-hidden">
@@ -535,12 +536,12 @@ export default function Dashboard() {
                                   <div className="flex-1 min-w-0">
                                     <span className="font-semibold text-text-primary text-sm flex items-center gap-2">
                                       {goal.title}
-                                      {goal.status === 'achieved' && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-green-100 text-green-700">Atingida</span>}
+                                      {goal.status === 'achieved' && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-green-500/15 text-green-400">Atingida</span>}
                                     </span>
                                   </div>
                                   <div className="flex items-center gap-2 ml-2 flex-shrink-0">
-                                    {goal.points != null && <span className="text-xs font-bold text-gold-600 px-2 py-0.5 bg-gold-50 rounded-full">{goal.points} pts</span>}
-                                    <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${pct >= 100 ? 'bg-green-100 text-green-700' : pct >= 60 ? 'bg-blue-100 text-blue-700' : 'bg-surface-100 text-text-secondary'}`}>{pct}%</span>
+                                    {goal.points != null && <span className="text-xs font-bold text-primary-300 px-2 py-0.5 bg-primary-500/15 rounded-full">{goal.points} pts</span>}
+                                    <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${pct >= 100 ? 'bg-green-500/15 text-green-400' : pct >= 60 ? 'bg-blue-500/15 text-blue-400' : 'bg-surface-100 text-text-secondary'}`}>{pct}%</span>
                                   </div>
                                 </div>
                                 <div className="h-2 w-full bg-surface-200 rounded-full overflow-hidden">
@@ -664,12 +665,12 @@ export default function Dashboard() {
                                   <div className="flex-1 min-w-0">
                                     <span className="font-semibold text-text-primary text-sm flex items-center gap-2">
                                       {goal.title}
-                                      {goal.status === 'achieved' && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-green-100 text-green-700">Atingida</span>}
+                                      {goal.status === 'achieved' && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-green-500/15 text-green-400">Atingida</span>}
                                     </span>
                                     {goal.description && <p className="text-[11px] text-text-secondary mt-0.5 line-clamp-1">{goal.description}</p>}
                                   </div>
                                   <div className="flex items-center gap-2 ml-2 flex-shrink-0">
-                                    <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${pct >= 100 ? 'bg-green-100 text-green-700' : pct >= 60 ? 'bg-blue-100 text-blue-700' : 'bg-surface-100 text-text-secondary'}`}>{pct}%</span>
+                                    <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${pct >= 100 ? 'bg-green-500/15 text-green-400' : pct >= 60 ? 'bg-blue-500/15 text-blue-400' : 'bg-surface-100 text-text-secondary'}`}>{pct}%</span>
                                   </div>
                                 </div>
                                 <div className="h-2 w-full bg-surface-200 rounded-full overflow-hidden">
@@ -724,13 +725,13 @@ export default function Dashboard() {
                                   <div className="flex-1 min-w-0">
                                     <span className="font-semibold text-text-primary text-sm flex items-center gap-2">
                                       {goal.title}
-                                      {goal.status === 'achieved' && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-green-100 text-green-700">Atingida</span>}
+                                      {goal.status === 'achieved' && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-green-500/15 text-green-400">Atingida</span>}
                                     </span>
                                     {goal.description && <p className="text-[11px] text-text-secondary mt-0.5 line-clamp-1">{goal.description}</p>}
                                   </div>
                                   <div className="flex items-center gap-2 ml-2 flex-shrink-0">
-                                    {goal.points != null && <span className="text-xs font-bold text-gold-600 px-2 py-0.5 bg-gold-50 rounded-full">{goal.points} pts</span>}
-                                    <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${pct >= 100 ? 'bg-green-100 text-green-700' : pct >= 60 ? 'bg-blue-100 text-blue-700' : 'bg-surface-100 text-text-secondary'}`}>{pct}%</span>
+                                    {goal.points != null && <span className="text-xs font-bold text-primary-300 px-2 py-0.5 bg-primary-500/15 rounded-full">{goal.points} pts</span>}
+                                    <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${pct >= 100 ? 'bg-green-500/15 text-green-400' : pct >= 60 ? 'bg-blue-500/15 text-blue-400' : 'bg-surface-100 text-text-secondary'}`}>{pct}%</span>
                                   </div>
                                 </div>
                                 <div className="h-2 w-full bg-surface-200 rounded-full overflow-hidden">

@@ -444,6 +444,7 @@ export default function Clients() {
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-primary-400">Carteira</p>
             <h1 className="v3-serif text-3xl text-text-primary tracking-tight mt-1">Gestão de Clientes</h1>
+            <p className="text-sm text-text-secondary mt-1">Acompanhe e mova seus clientes pelo funil de vendas.</p>
           </div>
           <RoundedButton size="sm" onClick={() => navigate('/clients/new')} className="flex items-center gap-1">
             <Plus size={16} /> Novo Cliente
