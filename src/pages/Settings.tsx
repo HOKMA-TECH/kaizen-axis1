@@ -630,11 +630,19 @@ export default function Settings() {
               2. Escaneie o QR code abaixo (ou insira o código manualmente).
             </p>
             <div className="flex justify-center">
-              <img
-                src={`https://chart.googleapis.com/chart?chs=200x200&cht=qr&chl=${encodeURIComponent(mfaQrUri)}`}
-                alt="QR Code 2FA"
-                className="rounded-xl border border-surface-200 p-2 bg-card-bg"
-              />
+              {mfaQrUri ? (
+                <img
+                  src={mfaQrUri}
+                  alt="QR Code 2FA"
+                  width={200}
+                  height={200}
+                  className="rounded-xl border border-surface-200 p-2 bg-white"
+                />
+              ) : (
+                <div className="flex h-[200px] w-[200px] items-center justify-center rounded-xl border border-surface-200 bg-card-bg">
+                  <Loader2 size={24} className="animate-spin text-text-secondary" />
+                </div>
+              )}
             </div>
             <div className="p-3 bg-surface-100 rounded-xl">
               <p className="text-xs text-text-secondary mb-1">Código manual (se não puder escanear):</p>
