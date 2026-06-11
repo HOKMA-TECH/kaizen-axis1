@@ -799,6 +799,7 @@ export default function ClientDetails() {
                   { label: 'Profissão', key: 'profession' },
                   { label: 'Renda Bruta', key: 'grossIncome' },
                   { label: 'Empreendimento', key: 'development' },
+                  { label: 'Construtora', key: 'builder' },
                   { label: 'Valor', key: 'intendedValue' },
                   { label: 'Região de Interesse', key: 'regionOfInterest' },
                 ].map(({ label, key }) => (
@@ -886,6 +887,7 @@ export default function ClientDetails() {
                   { label: 'Fator Social', value: client.socialFactor },
                   { label: 'Região de Interesse', value: client.regionOfInterest },
                   { label: 'Empreendimento', value: client.development },
+                  { label: 'Construtora', value: client.builder },
                   { label: 'Valor', value: client.intendedValue },
                   { label: 'Observações', value: client.observations },
                 ].filter(item => item.value).map(({ label, value }) => (

@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { PageHeader, PremiumCard, RoundedButton } from '@/components/ui/PremiumComponents';
-import { Users, Shield, ShieldCheck, Target, Megaphone, BarChart3, Plus, Search, Trophy, Download, FileSpreadsheet, FileText, Trash2, Edit2, ChevronDown, Calendar, Loader2, Building2, TrendingUp, Printer, Star, Award, Zap, Flame, MoreHorizontal, FileDown } from 'lucide-react';
+import { Users, Shield, ShieldCheck, Target, Megaphone, BarChart3, Plus, Search, Trophy, Download, FileSpreadsheet, FileText, Trash2, Edit2, ChevronDown, Calendar, Loader2, Building2, TrendingUp, Printer, Star, Award, Zap, Flame, MoreHorizontal, FileDown, MapPin } from 'lucide-react';
 import { Modal } from '@/components/ui/Modal';
 import { useApp, Team, Goal, Announcement, Directorate } from '@/context/AppContext';
 import { useAuthorization } from '@/hooks/useAuthorization';
 import { Navigate, useNavigate } from 'react-router-dom';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, Legend } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, Legend, PieChart, Pie, Cell } from 'recharts';
 import { supabase } from '@/lib/supabase';
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
 import PipelinePdfExport from '@/components/admin/PipelinePdfExport';
@@ -77,6 +77,7 @@ export default function AdminPanel() {
       end: toDateOnlyLocal(today),
     };
   });
+  const [reportPeriod, setReportPeriod] = useState<'este_mes' | '30_dias' | '60_dias' | '90_dias' | 'custom'>('este_mes');
   const [reportData, setReportData] = useState<any>(null);
   const [reportLoading, setReportLoading] = useState(false);
   const [isGeneratingCSV, setIsGeneratingCSV] = useState(false);
@@ -165,10 +166,50 @@ export default function AdminPanel() {
     return Number.isNaN(parsed.getTime()) ? null : parsed;
   };
 
+  // Seletor de período no padrão do Dashboard (pílulas) → ajusta reportDateRange
+  const applyReportPeriod = (p: 'este_mes' | '30_dias' | '60_dias' | '90_dias' | 'custom') => {
+    setReportPeriod(p);
+    if (p === 'custom') return; // mantém o range atual e revela os inputs de data
+    const today = new Date();
+    const end = toDateOnlyLocal(today);
+    let start: string;
+    if (p === 'este_mes') {
+      start = toDateOnlyLocal(new Date(today.getFullYear(), today.getMonth(), 1));
+    } else {
+      const days = p === '30_dias' ? 30 : p === '60_dias' ? 60 : 90;
+      const d = new Date();
+      d.setDate(today.getDate() - days);
+      start = toDateOnlyLocal(d);
+    }
+    setReportDateRange({ start, end });
+  };
+
   const selectedPeriodClients = clients.filter((c) => {
     const created = new Date(c.createdAt);
     return created >= reportRangeStart && created <= reportRangeEnd;
   });
+
+  // ── Agregações para gráficos de Regiões de Interesse e Construtoras ──────────
+  const aggregateBy = (getter: (c: any) => string | undefined | null) => {
+    const map = new Map<string, number>();
+    selectedPeriodClients.forEach((c) => {
+      const raw = (getter(c) || '').trim();
+      if (!raw) return;
+      // normaliza por caixa/acentuação leve para agrupar variações do mesmo nome
+      const key = raw.replace(/\s+/g, ' ');
+      map.set(key, (map.get(key) || 0) + 1);
+    });
+    const total = Array.from(map.values()).reduce((a, b) => a + b, 0);
+    return Array.from(map, ([name, value]) => ({
+      name,
+      value,
+      percentual: total > 0 ? Number(((value / total) * 100).toFixed(1)) : 0,
+    })).sort((a, b) => b.value - a.value);
+  };
+  const regionDataLocal = aggregateBy((c) => c.regionOfInterest).slice(0, 8);
+  const builderDataLocal = aggregateBy((c) => c.builder).slice(0, 8);
+  // Paleta de gráficos on-palette (azul/verde primeiro, depois acentos)
+  const CHART_COLORS = ['#2563eb', '#22c55e', '#8b5cf6', '#f59e0b', '#06b6d4', '#ec4899', '#ef4444', '#14b8a6'];
 
   const selectedPeriodLeads = leads.filter((l) => {
     const created = new Date((l as any).created_at || l.timestamp);
@@ -1486,21 +1527,38 @@ export default function AdminPanel() {
               )}
             </div>
 
-            <div className="flex flex-col gap-4 print:hidden">
-              <div className="bg-card-bg p-4 rounded-xl border border-surface-200 shadow-sm space-y-3">
-                <div className="flex items-center gap-2 text-gold-600 font-semibold mb-2">
-                  <Calendar size={18} />
-                  <span className="text-sm text-text-primary">Período do Relatório</span>
-                </div>
+            <div className="flex flex-col gap-3 print:hidden">
+              <div className="flex flex-wrap gap-2">
+                {([
+                  { id: 'este_mes', label: 'Este mês' },
+                  { id: '30_dias', label: '30 dias' },
+                  { id: '60_dias', label: '60 dias' },
+                  { id: '90_dias', label: '90 dias' },
+                  { id: 'custom', label: 'Personalizado' },
+                ] as const).map((opt) => (
+                  <button
+                    key={opt.id}
+                    onClick={() => applyReportPeriod(opt.id)}
+                    className={`px-4 py-2 rounded-lg text-xs font-semibold border transition-all ${
+                      reportPeriod === opt.id
+                        ? 'bg-primary-600 text-white border-primary-600'
+                        : 'bg-card-bg text-text-secondary border-surface-200 hover:border-primary-400'
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
 
-                <div className="grid grid-cols-2 gap-3">
+              {reportPeriod === 'custom' && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-xl">
                   <div className="flex flex-col">
                     <span className="text-[10px] font-bold text-text-secondary uppercase mb-1">Início</span>
                     <input
                       type="date"
                       value={reportDateRange.start}
                       onChange={(e) => setReportDateRange(prev => ({ ...prev, start: e.target.value }))}
-                      className="w-full px-2 py-2 border border-surface-200 rounded-lg text-sm bg-surface-50 focus:border-gold-400 focus:ring-1 focus:ring-gold-400 outline-none transition-all"
+                      className="w-full px-2 py-2 border border-surface-200 rounded-lg text-sm bg-surface-50 text-text-primary focus:border-primary-400 focus:ring-1 focus:ring-primary-400 outline-none transition-all"
                       max={reportDateRange.end}
                     />
                   </div>
@@ -1510,30 +1568,12 @@ export default function AdminPanel() {
                       type="date"
                       value={reportDateRange.end}
                       onChange={(e) => setReportDateRange(prev => ({ ...prev, end: e.target.value }))}
-                      className="w-full px-2 py-2 border border-surface-200 rounded-lg text-sm bg-surface-50 focus:border-gold-400 focus:ring-1 focus:ring-gold-400 outline-none transition-all"
+                      className="w-full px-2 py-2 border border-surface-200 rounded-lg text-sm bg-surface-50 text-text-primary focus:border-primary-400 focus:ring-1 focus:ring-primary-400 outline-none transition-all"
                       min={reportDateRange.start}
                     />
                   </div>
                 </div>
-
-                <div className="flex justify-between items-center pt-2 gap-2 border-t border-surface-100 mt-2">
-                  <div className="flex gap-2">
-                    <button onClick={() => {
-                      const today = new Date();
-                      setReportDateRange({
-                        start: toDateOnlyLocal(new Date(today.getFullYear(), today.getMonth(), 1)),
-                        end: toDateOnlyLocal(today),
-                      });
-                    }} className="px-3 py-1.5 bg-surface-100 text-[11px] font-semibold text-text-secondary rounded-lg hover:bg-gold-50 hover:text-gold-700 transition-colors">Este Mês</button>
-                    <button onClick={() => {
-                      const today = new Date();
-                      const m30 = new Date();
-                      m30.setDate(today.getDate() - 30);
-                      setReportDateRange({ start: toDateOnlyLocal(m30), end: toDateOnlyLocal(today) });
-                    }} className="px-3 py-1.5 bg-surface-100 text-[11px] font-semibold text-text-secondary rounded-lg hover:bg-gold-50 hover:text-gold-700 transition-colors">30 Dias</button>
-                  </div>
-                </div>
-              </div>
+              )}
             </div>
 
             {reportLoading || !reportData ? (
@@ -1552,12 +1592,12 @@ export default function AdminPanel() {
 
                 <div className="grid grid-cols-2 gap-3 print:grid-cols-4 print:gap-4 print:mt-4">
                   {[
-                    { label: 'Leads', value: selectedPeriodLeads.length, cmp: null, icon: <Users size={14} />, color: 'text-text-secondary', bg: 'bg-surface-50 text-surface-600', route: '/clients', state: { tab: 'documentacao' } },
-                    { label: 'Clientes', value: selectedPeriodClients.length, cmp: null, icon: <Users size={14} />, color: 'text-gold-700', bg: 'bg-gold-50 text-gold-600', route: '/clients', state: undefined },
-                    { label: 'Aprovados', value: selectedPeriodApproved, cmp: null, icon: <Shield size={14} />, color: 'text-green-700', bg: 'bg-green-50 text-green-600', route: '/clients', state: { initialStage: 'Aprovado' } },
-                    { label: 'Agenda', value: upcomingAppointmentsCount, cmp: null, icon: <Calendar size={14} />, color: 'text-blue-700', bg: 'bg-blue-50 text-blue-600', route: '/schedule', state: undefined },
+                    { label: 'Leads', value: selectedPeriodLeads.length, cmp: null, icon: <Users size={14} />, color: 'text-text-primary', bg: 'bg-surface-100 text-text-secondary', route: '/clients', state: { tab: 'documentacao' } },
+                    { label: 'Clientes', value: selectedPeriodClients.length, cmp: null, icon: <Users size={14} />, color: 'text-primary-400', bg: 'bg-primary-500/15 text-primary-400', route: '/clients', state: undefined },
+                    { label: 'Aprovados', value: selectedPeriodApproved, cmp: null, icon: <Shield size={14} />, color: 'text-green-400', bg: 'bg-green-500/15 text-green-400', route: '/clients', state: { initialStage: 'Aprovado' } },
+                    { label: 'Agenda', value: upcomingAppointmentsCount, cmp: null, icon: <Calendar size={14} />, color: 'text-blue-400', bg: 'bg-blue-500/15 text-blue-400', route: '/schedule', state: undefined },
                   ].map((stat, i) => (
-                    <PremiumCard key={i} className={`p-3 relative flex flex-col justify-between h-24 shadow-[0_2px_10px_rgba(0,0,0,0.02)] border-surface-100 ${stat.route ? 'cursor-pointer hover:border-gold-300 hover:shadow-md transition-all' : ''}`} onClick={() => stat.route && navigate(stat.route, { state: stat.state })}>
+                    <PremiumCard key={i} className={`p-3 relative flex flex-col justify-between h-24 shadow-[0_2px_10px_rgba(0,0,0,0.02)] border-surface-100 ${stat.route ? 'cursor-pointer hover:border-primary-400/50 hover:shadow-md transition-all' : ''}`} onClick={() => stat.route && navigate(stat.route, { state: stat.state })}>
                       <div className="flex justify-between items-start">
                         <span className={`p-1.5 rounded-md ${stat.bg}`}>{stat.icon}</span>
                         {stat.cmp !== null && (
@@ -1584,8 +1624,8 @@ export default function AdminPanel() {
                     </div>
                   </PremiumCard>
 
-                  <PremiumCard className="p-3 bg-gradient-to-br from-green-50/60 to-card-bg dark:from-green-900/15 dark:to-card-bg border-green-100 dark:border-green-900/30 shadow-[0_2px_10px_rgba(0,0,0,0.03)] h-28 flex flex-col justify-between">
-                    <p className="text-[10px] uppercase font-bold tracking-wider text-green-600 flex items-center gap-1"><TrendingUp size={12} /> VGV</p>
+                  <PremiumCard className="p-3 bg-gradient-to-br from-green-500/10 to-card-bg border-green-500/20 shadow-[0_2px_10px_rgba(0,0,0,0.03)] h-28 flex flex-col justify-between">
+                    <p className="text-[10px] uppercase font-bold tracking-wider text-green-400 flex items-center gap-1"><TrendingUp size={12} /> VGV</p>
                     <div>
                       <p className="text-xl font-bold text-text-primary leading-none whitespace-nowrap">
                         {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(vgvLocal)}
@@ -1594,8 +1634,8 @@ export default function AdminPanel() {
                     </div>
                   </PremiumCard>
 
-                  <PremiumCard className="p-3 bg-gradient-to-br from-blue-50/60 to-card-bg dark:from-blue-900/15 dark:to-card-bg border-blue-100 dark:border-blue-900/30 shadow-[0_2px_10px_rgba(0,0,0,0.03)] h-28 flex flex-col justify-between">
-                    <p className="text-[10px] uppercase font-bold tracking-wider text-blue-600 flex items-center gap-1"><Target size={12} /> Conversão</p>
+                  <PremiumCard className="p-3 bg-gradient-to-br from-blue-500/10 to-card-bg border-blue-500/20 shadow-[0_2px_10px_rgba(0,0,0,0.03)] h-28 flex flex-col justify-between">
+                    <p className="text-[10px] uppercase font-bold tracking-wider text-blue-400 flex items-center gap-1"><Target size={12} /> Conversão</p>
                     <div>
                       <div className="flex items-end gap-1 mb-1">
                         <p className="text-2xl font-bold text-text-primary leading-none">{selectedPeriodConversion.toFixed(1)}%</p>
@@ -1615,46 +1655,101 @@ export default function AdminPanel() {
                   </PremiumCard>
                 </div>
 
-                {/* CHARTS LAYER */}
-                <div className="grid grid-cols-1 gap-4 print:grid-cols-2 print:gap-6 print:break-inside-avoid">
+                {/* CHARTS LAYER — grid 2x2 de cards menores */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 print:grid-cols-2 print:gap-6 print:break-inside-avoid">
                   <PremiumCard className="p-4 border-surface-100 shadow-[0_2px_10px_rgba(0,0,0,0.02)]">
-                    <h4 className="text-[11px] uppercase tracking-wider font-bold text-text-secondary mb-4 flex items-center gap-1.5"><BarChart3 size={14} className="text-gold-500" /> Distribuição de Pipeline</h4>
-                    <div className="h-48 w-full">
+                    <h4 className="text-[11px] uppercase tracking-wider font-bold text-text-secondary mb-4 flex items-center gap-1.5"><BarChart3 size={14} className="text-primary-400" /> Distribuição de Pipeline</h4>
+                    <div className="h-44 w-full">
                       <ResponsiveContainer width="100%" height="100%">
                         <BarChart data={pipelineDataLocal}>
-                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
-                          <XAxis dataKey="etapa" axisLine={false} tickLine={false} tick={{ fontSize: 9, fill: '#6B7280' }} />
+                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#1e2636" />
+                          <XAxis dataKey="etapa" axisLine={false} tickLine={false} tick={{ fontSize: 9, fill: '#8b94a3' }} />
                           <YAxis hide />
                           <Tooltip
                             cursor={{ fill: 'transparent' }}
-                            contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.1)' }}
+                            contentStyle={{ borderRadius: '8px', border: '1px solid #2b3547', backgroundColor: '#0d111a', color: '#f4f6fb', boxShadow: '0 4px 20px rgba(0,0,0,0.4)' }}
+                            itemStyle={{ color: '#f4f6fb' }}
+                            labelStyle={{ color: '#8b94a3' }}
                             formatter={(value: any, name: any, props: any) => [`${value} Clientes (${props.payload.percentual}%)`, 'Quantidade']}
                           />
-                          <Bar dataKey="quantidade" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                          <Bar dataKey="quantidade" fill="#2563eb" radius={[4, 4, 0, 0]} />
                         </BarChart>
                       </ResponsiveContainer>
                     </div>
                   </PremiumCard>
 
                   <PremiumCard className="p-4 border-surface-100 shadow-[0_2px_10px_rgba(0,0,0,0.02)]">
-                    <h4 className="text-[11px] uppercase tracking-wider font-bold text-text-secondary mb-4 flex items-center gap-1.5"><TrendingUp size={14} className="text-blue-500" /> Tendência no Período</h4>
-                    <div className="h-48 w-full">
+                    <h4 className="text-[11px] uppercase tracking-wider font-bold text-text-secondary mb-4 flex items-center gap-1.5"><TrendingUp size={14} className="text-blue-400" /> Tendência no Período</h4>
+                    <div className="h-44 w-full">
                       <ResponsiveContainer width="100%" height="100%">
                         <LineChart data={trendDataLocal}>
-                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
-                          <XAxis dataKey="periodo" axisLine={false} tickLine={false} tick={{ fontSize: 9, fill: '#6B7280' }} tickFormatter={(v) => v.substring(8, 10) + '/' + v.substring(5, 7)} />
+                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#1e2636" />
+                          <XAxis dataKey="periodo" axisLine={false} tickLine={false} tick={{ fontSize: 9, fill: '#8b94a3' }} tickFormatter={(v) => v.substring(8, 10) + '/' + v.substring(5, 7)} />
                           <YAxis hide yAxisId="left" />
                           <YAxis hide yAxisId="right" orientation="right" />
                           <Tooltip
-                            contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.1)' }}
+                            contentStyle={{ borderRadius: '8px', border: '1px solid #2b3547', backgroundColor: '#0d111a', color: '#f4f6fb', boxShadow: '0 4px 20px rgba(0,0,0,0.4)' }}
+                            itemStyle={{ color: '#f4f6fb' }}
+                            labelStyle={{ color: '#8b94a3' }}
                             labelFormatter={(label) => `Data: ${label.split('-').reverse().join('/')}`}
                           />
                           <Legend wrapperStyle={{ fontSize: '9px', paddingTop: '10px' }} />
-                          <Line yAxisId="left" type="monotone" dataKey="Lt" name="Leads Adquiridos" stroke="#9CA3AF" strokeWidth={2} dot={false} />
-                          <Line yAxisId="left" type="monotone" dataKey="Vt" name="Vendas Concluídas" stroke="#10B981" strokeWidth={3} dot={{ r: 3, strokeWidth: 2 }} activeDot={{ r: 5 }} />
-                          <Line yAxisId="right" type="monotone" dataKey="Rt" name="Receita" stroke="#3B82F6" strokeWidth={2} dot={false} strokeDasharray="5 5" />
+                          <Line yAxisId="left" type="monotone" dataKey="Lt" name="Leads Adquiridos" stroke="#8b94a3" strokeWidth={2} dot={false} />
+                          <Line yAxisId="left" type="monotone" dataKey="Vt" name="Vendas Concluídas" stroke="#22c55e" strokeWidth={3} dot={{ r: 3, strokeWidth: 2 }} activeDot={{ r: 5 }} />
+                          <Line yAxisId="right" type="monotone" dataKey="Rt" name="Receita" stroke="#2563eb" strokeWidth={2} dot={false} strokeDasharray="5 5" />
                         </LineChart>
                       </ResponsiveContainer>
+                    </div>
+                  </PremiumCard>
+
+                  {/* Regiões de Interesse (pizza % — origem: ficha do cliente) */}
+                  <PremiumCard className="p-4 border-surface-100 shadow-[0_2px_10px_rgba(0,0,0,0.02)]">
+                    <h4 className="text-[11px] uppercase tracking-wider font-bold text-text-secondary mb-4 flex items-center gap-1.5"><MapPin size={14} className="text-primary-400" /> Regiões de Interesse</h4>
+                    <div className="h-44 w-full">
+                      {regionDataLocal.length === 0 ? (
+                        <div className="flex h-full items-center justify-center text-xs text-text-secondary text-center px-4">Sem dados de região no período.</div>
+                      ) : (
+                        <ResponsiveContainer width="100%" height="100%">
+                          <PieChart>
+                            <Pie data={regionDataLocal} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={38} outerRadius={64} paddingAngle={2} stroke="none">
+                              {regionDataLocal.map((_, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
+                            </Pie>
+                            <Tooltip
+                              contentStyle={{ borderRadius: '8px', border: '1px solid #2b3547', backgroundColor: '#0d111a', color: '#f4f6fb', boxShadow: '0 4px 20px rgba(0,0,0,0.4)' }}
+                              itemStyle={{ color: '#f4f6fb' }}
+                              formatter={(value: any, name: any, props: any) => [`${value} (${props.payload.percentual}%)`, name]}
+                            />
+                            <Legend wrapperStyle={{ fontSize: '9px' }} iconType="circle" />
+                          </PieChart>
+                        </ResponsiveContainer>
+                      )}
+                    </div>
+                  </PremiumCard>
+
+                  {/* Construtoras (origem: campo Construtora da ficha do cliente) */}
+                  <PremiumCard className="p-4 border-surface-100 shadow-[0_2px_10px_rgba(0,0,0,0.02)]">
+                    <h4 className="text-[11px] uppercase tracking-wider font-bold text-text-secondary mb-4 flex items-center gap-1.5"><Building2 size={14} className="text-green-400" /> Construtoras</h4>
+                    <div className="h-44 w-full">
+                      {builderDataLocal.length === 0 ? (
+                        <div className="flex h-full items-center justify-center text-xs text-text-secondary text-center px-4">Sem dados de construtora no período.</div>
+                      ) : (
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart data={builderDataLocal} layout="vertical" margin={{ left: 8, right: 16 }}>
+                            <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#1e2636" />
+                            <XAxis type="number" hide />
+                            <YAxis type="category" dataKey="name" axisLine={false} tickLine={false} width={90} tick={{ fontSize: 9, fill: '#8b94a3' }} />
+                            <Tooltip
+                              cursor={{ fill: 'transparent' }}
+                              contentStyle={{ borderRadius: '8px', border: '1px solid #2b3547', backgroundColor: '#0d111a', color: '#f4f6fb', boxShadow: '0 4px 20px rgba(0,0,0,0.4)' }}
+                              itemStyle={{ color: '#f4f6fb' }}
+                              formatter={(value: any, name: any, props: any) => [`${value} clientes (${props.payload.percentual}%)`, 'Quantidade']}
+                            />
+                            <Bar dataKey="value" radius={[0, 4, 4, 0]}>
+                              {builderDataLocal.map((_, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
+                            </Bar>
+                          </BarChart>
+                        </ResponsiveContainer>
+                      )}
                     </div>
                   </PremiumCard>
                 </div>

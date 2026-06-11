@@ -21,6 +21,7 @@ const defaultFormData = {
   socialFactor: 'Não',
   regionOfInterest: '',
   development: '',
+  builder: '',
   intendedValue: '',
   stage: 'Documentação' as ClientStage,
   observations: '',
@@ -55,8 +56,12 @@ const emptyProponent: DraftProponent = {
 export default function NewClient() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { addClient, uploadFile, addDocumentToClient, addClientProponent } = useApp();
+  const { addClient, uploadFile, addDocumentToClient, addClientProponent, developments } = useApp();
   const { role } = useAuthorization();
+  // Construtoras conhecidas (catálogo de empreendimentos) p/ sugerir no datalist
+  const knownBuilders = Array.from(
+    new Set((developments || []).map(d => (d.builder || '').trim()).filter(Boolean))
+  ).sort((a, b) => a.localeCompare(b, 'pt-BR'));
   // Etapas que o papel atual pode escolher ao criar o cliente (mesma regra do mover)
   const selectableStages = CLIENT_STAGES.filter(s => !isStageRestrictedForRole(s, role));
 
@@ -190,6 +195,7 @@ export default function NewClient() {
         socialFactor: formData.socialFactor,
         regionOfInterest: formData.regionOfInterest,
         development: formData.development,
+        builder: formData.builder,
         intendedValue: formData.intendedValue,
         observations: formData.observations,
         stage: formData.stage,
@@ -560,6 +566,20 @@ export default function NewClient() {
                 className="w-full p-3 bg-surface-50 rounded-xl border-none focus:ring-2 focus:ring-gold-200 dark:focus:ring-gold-800 text-text-primary"
                 placeholder="Selecione ou digite"
               />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-text-secondary mb-1">Construtora</label>
+              <input
+                name="builder"
+                list="builders-list"
+                value={formData.builder}
+                onChange={handleChange}
+                className="w-full p-3 bg-surface-50 rounded-xl border-none focus:ring-2 focus:ring-gold-200 dark:focus:ring-gold-800 text-text-primary"
+                placeholder="Selecione do catálogo ou digite uma nova"
+              />
+              <datalist id="builders-list">
+                {knownBuilders.map(b => <option key={b} value={b} />)}
+              </datalist>
             </div>
             <div>
               <label className="block text-sm font-medium text-text-secondary mb-1">Valor</label>

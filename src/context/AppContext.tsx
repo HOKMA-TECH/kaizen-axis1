@@ -1004,14 +1004,21 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const addClient = useCallback(async (data: Omit<Client, 'id' | 'history' | 'documents' | 'createdAt'>): Promise<Client | null> => {
     try {
-      const { data: newClient, error } = await supabase.from('clients').insert([{
+      const insertPayload: any = {
         name: data.name, cpf: data.cpf, email: data.email, phone: data.phone,
         address: data.address, profession: data.profession, gross_income: data.grossIncome,
         income_type: data.incomeType, cotista: data.cotista, social_factor: data.socialFactor,
         region_of_interest: data.regionOfInterest, development: data.development,
+        builder: data.builder || null,
         intended_value: data.intendedValue, observations: data.observations, stage: data.stage,
         owner_id: user?.id, directorate_id: profile?.directorate_id || null
-      }]).select().single();
+      };
+      let { data: newClient, error } = await supabase.from('clients').insert([insertPayload]).select().single();
+      // Resiliência: se a migração da coluna "builder" ainda não foi aplicada, tenta sem ela
+      if (error && (error.code === '42703' || /builder/i.test(error.message || ''))) {
+        delete insertPayload.builder;
+        ({ data: newClient, error } = await supabase.from('clients').insert([insertPayload]).select().single());
+      }
       if (error) throw error;
       await supabase.from('client_history').insert([{ client_id: newClient.id, action: 'Cliente criado', user_name: userName }]);
       await refreshClients();
@@ -1034,7 +1041,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const allowedFields = [
         'name', 'cpf', 'email', 'phone', 'address', 'profession',
         'gross_income', 'income_type', 'cotista', 'social_factor', 'region_of_interest',
-        'development', 'intended_value', 'observations', 'stage'
+        'development', 'builder', 'intended_value', 'observations', 'stage'
       ];
 
       const updatePayload: any = {};
@@ -1050,11 +1057,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       if (data.regionOfInterest !== undefined) updatePayload.region_of_interest = data.regionOfInterest;
       if (data.intendedValue !== undefined) updatePayload.intended_value = data.intendedValue;
 
-      const { data: updated, error } = await supabase
+      let { data: updated, error } = await supabase
         .from('clients')
         .update(updatePayload)
         .eq('id', id)
         .select('id');
+      // Resiliência: se a coluna "builder" ainda não existir, refaz sem ela
+      if (error && (error.code === '42703' || /builder/i.test(error.message || ''))) {
+        delete updatePayload.builder;
+        ({ data: updated, error } = await supabase.from('clients').update(updatePayload).eq('id', id).select('id'));
+      }
       if (error) throw error;
       if (!updated || updated.length === 0) {
         throw new Error('Sem permissão para alterar este cliente. Verifique suas permissões de acesso.');

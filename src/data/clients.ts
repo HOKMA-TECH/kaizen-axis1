@@ -103,6 +103,7 @@ export interface Client {
   cotista?: string;
   socialFactor?: string;
   regionOfInterest?: string;
+  builder?: string; // construtora de interesse (alimenta gráfico no painel admin)
   development: string;
   intendedValue: string;
   observations?: string;
