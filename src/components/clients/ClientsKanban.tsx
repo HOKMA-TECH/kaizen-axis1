@@ -237,7 +237,7 @@ export function ClientsKanban({
       <div
         ref={ghostRef}
         style={{ display: 'none', left: 0, top: 0, willChange: 'transform' }}
-        className="pointer-events-none fixed z-[100] w-64 rotate-2 rounded-xl border border-primary-500 bg-card-bg p-3 shadow-2xl shadow-black/50"
+        className="pointer-events-none fixed z-[100] w-64 rounded-xl border border-primary-500 bg-card-bg p-3 shadow-2xl shadow-black/50"
       >
         <p ref={ghostNameRef} className="line-clamp-2 text-sm font-semibold leading-snug text-text-primary" />
       </div>
