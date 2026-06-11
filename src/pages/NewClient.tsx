@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { PremiumCard, RoundedButton, SectionHeader } from '@/components/ui/PremiumComponents';
 import { ChevronLeft, Save, UploadCloud, FileText, X, Loader2, Plus, Trash2, ChevronDown, ChevronUp } from 'lucide-react';
 import { CLIENT_STAGES, ClientStage, isStageRestrictedForRole } from '@/data/clients';
-import { RJ_CITIES } from '@/data/cities';
+import { RJ_CITIES, getNeighborhoods } from '@/data/cities';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { useApp } from '@/context/AppContext';
 import { useAuthorization } from '@/hooks/useAuthorization';
@@ -22,6 +22,7 @@ const defaultFormData = {
   cotista: 'Não',
   socialFactor: 'Não',
   regionOfInterest: '',
+  neighborhood: '',
   development: '',
   builder: '',
   intendedValue: '',
@@ -196,6 +197,7 @@ export default function NewClient() {
         cotista: formData.cotista,
         socialFactor: formData.socialFactor,
         regionOfInterest: formData.regionOfInterest,
+        neighborhood: formData.neighborhood,
         development: formData.development,
         builder: formData.builder,
         intendedValue: formData.intendedValue,
@@ -550,15 +552,37 @@ export default function NewClient() {
           <SectionHeader title="Interesse" />
           <PremiumCard className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-text-secondary mb-1">Região de Interesse</label>
+              <label className="block text-sm font-medium text-text-secondary mb-1">Cidade de Interesse</label>
               <SearchableSelect
                 value={formData.regionOfInterest}
-                onChange={(v) => setFormData(prev => ({ ...prev, regionOfInterest: v }))}
+                onChange={(v) => setFormData(prev => ({ ...prev, regionOfInterest: v, neighborhood: '' }))}
                 options={RJ_CITIES}
                 placeholder="Selecione a cidade"
                 searchPlaceholder="Buscar cidade do RJ..."
               />
             </div>
+            {formData.regionOfInterest && (
+              <div>
+                <label className="block text-sm font-medium text-text-secondary mb-1">Bairro</label>
+                {getNeighborhoods(formData.regionOfInterest).length > 0 ? (
+                  <SearchableSelect
+                    value={formData.neighborhood}
+                    onChange={(v) => setFormData(prev => ({ ...prev, neighborhood: v }))}
+                    options={getNeighborhoods(formData.regionOfInterest)}
+                    placeholder="Selecione o bairro"
+                    searchPlaceholder={`Buscar bairro em ${formData.regionOfInterest}...`}
+                  />
+                ) : (
+                  <input
+                    name="neighborhood"
+                    value={formData.neighborhood}
+                    onChange={handleChange}
+                    className="w-full p-3 bg-surface-50 rounded-xl border-none focus:ring-2 focus:ring-gold-200 dark:focus:ring-gold-800 text-text-primary"
+                    placeholder="Digite o bairro (opcional)"
+                  />
+                )}
+              </div>
+            )}
             <div>
               <label className="block text-sm font-medium text-text-secondary mb-1">Empreendimento (Opcional)</label>
               <input

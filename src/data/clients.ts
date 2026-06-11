@@ -102,7 +102,8 @@ export interface Client {
   incomeType?: 'Formal' | 'Informal' | 'Mista';
   cotista?: string;
   socialFactor?: string;
-  regionOfInterest?: string;
+  regionOfInterest?: string; // cidade de interesse (lista de municípios do RJ)
+  neighborhood?: string;     // bairro de interesse (dentro da cidade)
   builder?: string; // construtora de interesse (alimenta gráfico no painel admin)
   development: string;
   intendedValue: string;

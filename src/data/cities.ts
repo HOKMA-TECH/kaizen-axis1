@@ -94,3 +94,106 @@ export const RJ_CITIES: string[] = [
   'Vassouras',
   'Volta Redonda',
 ];
+
+// ─── Bairros por cidade (drill-down) ────────────────────────────────────────
+// Cobertura: cidade do Rio de Janeiro (bairros oficiais) + principais cidades da
+// região metropolitana. Cidades fora deste mapa têm bairro digitável (livre).
+// Listas podem ser expandidas conforme necessidade.
+export const RJ_NEIGHBORHOODS: Record<string, string[]> = {
+  'Rio de Janeiro': [
+    // Centro
+    'Centro', 'Lapa', 'Santa Teresa', 'Glória', 'Catumbi', 'Cidade Nova', 'Estácio',
+    'Rio Comprido', 'Caju', 'Gamboa', 'Santo Cristo', 'Saúde', 'Paquetá',
+    // Zona Sul
+    'Botafogo', 'Catete', 'Copacabana', 'Cosme Velho', 'Flamengo', 'Gávea', 'Humaitá',
+    'Ipanema', 'Jardim Botânico', 'Lagoa', 'Laranjeiras', 'Leblon', 'Leme', 'Urca',
+    'Vidigal', 'São Conrado', 'Rocinha',
+    // Zona Norte
+    'Tijuca', 'Vila Isabel', 'Maracanã', 'Grajaú', 'Andaraí', 'Praça da Bandeira',
+    'Méier', 'Engenho Novo', 'Engenho de Dentro', 'Cachambi', 'Todos os Santos',
+    'Lins de Vasconcelos', 'Piedade', 'Abolição', 'Pilares', 'Água Santa', 'Encantado',
+    'Riachuelo', 'Sampaio', 'São Francisco Xavier', 'Rocha', 'Higienópolis',
+    'Maria da Graça', 'Del Castilho', 'Inhaúma', 'Engenho da Rainha', 'Tomás Coelho',
+    'Bonsucesso', 'Ramos', 'Olaria', 'Penha', 'Penha Circular', 'Brás de Pina',
+    'Cordovil', 'Parada de Lucas', 'Vigário Geral', 'Jardim América', 'Vila da Penha',
+    'Vista Alegre', 'Irajá', 'Colégio', 'Vicente de Carvalho', 'Vila Kosmos', 'Vaz Lobo',
+    'Turiaçu', 'Rocha Miranda', 'Honório Gurgel', 'Oswaldo Cruz', 'Bento Ribeiro',
+    'Marechal Hermes', 'Madureira', 'Cavalcanti', 'Quintino Bocaiúva', 'Campinho',
+    'Cascadura', 'Engenheiro Leal', 'Complexo do Alemão', 'Manguinhos', 'Jacarezinho',
+    'Maré', 'São Cristóvão', 'Benfica', 'Mangueira', 'Triagem',
+    // Ilha do Governador
+    'Bancários', 'Cacuia', 'Cidade Universitária', 'Cocotá', 'Freguesia (Ilha)', 'Galeão',
+    'Jardim Carioca', 'Jardim Guanabara', 'Moneró', 'Pitangueiras', 'Portuguesa',
+    'Praia da Bandeira', 'Ribeira', 'Tauá', 'Zumbi',
+    // Zona Oeste — Bangu/Campo Grande/Santa Cruz
+    'Bangu', 'Padre Miguel', 'Senador Camará', 'Santíssimo', 'Campo Grande', 'Cosmos',
+    'Inhoaíba', 'Santa Cruz', 'Sepetiba', 'Guaratiba', 'Barra de Guaratiba',
+    'Pedra de Guaratiba', 'Paciência', 'Realengo', 'Magalhães Bastos', 'Vila Militar',
+    'Deodoro', 'Jardim Sulacap',
+    // Zona Oeste — Jacarepaguá / Barra
+    'Jacarepaguá', 'Anil', 'Curicica', 'Freguesia (Jacarepaguá)', 'Gardênia Azul',
+    'Cidade de Deus', 'Pechincha', 'Praça Seca', 'Tanque', 'Taquara', 'Vila Valqueire',
+    'Barra da Tijuca', 'Camorim', 'Grumari', 'Itanhangá', 'Joá', 'Recreio dos Bandeirantes',
+    'Vargem Grande', 'Vargem Pequena',
+  ],
+  'Niterói': [
+    'Centro', 'Icaraí', 'Santa Rosa', 'Ingá', 'São Francisco', 'Charitas', 'Jurujuba',
+    'Fonseca', 'Barreto', 'Itaipu', 'Piratininga', 'Camboinhas', 'Itacoatiara',
+    'São Domingos', 'Gragoatá', 'Boa Viagem', 'Pé Pequeno', 'Vital Brazil', 'Cubango',
+    'Largo da Batalha', 'Maria Paula', 'Pendotiba', 'Engenho do Mato', 'Cafubá',
+    'Jardim Imbuí', 'Maravista',
+  ],
+  'São Gonçalo': [
+    'Centro', 'Alcântara', 'Neves', 'Mutondo', 'Trindade', 'Colubandê', 'Porto Velho',
+    'Zé Garoto', 'Itaúna', 'Boaçu', 'Gradim', 'Paraíso', 'Rocha', 'Antonina',
+    'Lindo Parque', 'Jardim Catarina', 'Nova Cidade', 'Laranjal', 'Mutuá', 'Boa Vista',
+  ],
+  'Nova Iguaçu': [
+    'Centro', 'Posse', 'Comendador Soares', 'Austin', 'Cabuçu', 'Miguel Couto',
+    'Vila de Cava', 'Tinguá', 'Marapicu', 'Prata', 'Califórnia', 'Rancho Novo',
+  ],
+  'Duque de Caxias': [
+    'Centro', 'Jardim Primavera', 'Campos Elíseos', 'Saracuruna', 'Gramacho',
+    'Vila São Luís', 'Parque Lafaiete', 'Sarapuí', 'Imbariê', 'Xerém', 'Parada Angélica',
+    'Olavo Bilac', 'Pilar', 'Jardim Gramacho',
+  ],
+  'São João de Meriti': [
+    'Centro', 'Vilar dos Teles', 'Coelho da Rocha', 'São Mateus', 'Jardim Meriti',
+    'Éden', 'Vila Rosali', 'Parque Araruama', 'Agostinho Porto', 'Venda Velha',
+    'Jardim Sumaré',
+  ],
+  'Belford Roxo': [
+    'Centro', 'Lote XV', 'Heliópolis', 'Bom Pastor', 'Areia Branca', 'São Bernardo',
+    'Nova Aurora', 'Santa Teresa', 'Xavantes', 'Piam',
+  ],
+  'Mesquita': [
+    'Centro', 'Banco de Areia', 'Rocha Sobrinho', 'Santa Terezinha', 'Edson Passos',
+    'Vila Norma', 'Jacutinga', 'Cosmorama', 'Chatuba',
+  ],
+  'Nilópolis': [
+    'Centro', 'Olinda', 'Nova Cidade', 'Frigorífico', 'Manoel Reis', 'Cabral',
+  ],
+  'Queimados': [
+    'Centro', 'Vila Camarim', 'Fanchem', 'Inconfidência', 'São Roque', 'Jardim da Fonte',
+  ],
+  'Maricá': [
+    'Centro', 'Itaipuaçu', 'Inoã', 'Ponta Negra', 'Bambuí', 'Guaratiba',
+    'São José do Imbassaí', 'Araçatiba', 'Flamengo', 'Cordeirinho', 'Jaconé',
+    'Barra de Maricá',
+  ],
+  'Itaboraí': [
+    'Centro', 'Venda das Pedras', 'Manilha', 'Itambi', 'Reta Velha', 'Sambaetiba',
+    'Porto das Caixas', 'Cabuçu', 'Visconde de Itaboraí',
+  ],
+  'Magé': [
+    'Centro', 'Piabetá', 'Vila Inhomirim', 'Fragoso', 'Santo Aleixo', 'Suruí', 'Mauá',
+    'Guia de Pacobaíba', 'Rio do Ouro',
+  ],
+};
+
+/** Bairros de uma cidade (ordenados). Vazio quando a cidade não tem lista mapeada. */
+export function getNeighborhoods(city?: string | null): string[] {
+  if (!city) return [];
+  const list = RJ_NEIGHBORHOODS[city.trim()];
+  return list ? [...list].sort((a, b) => a.localeCompare(b, 'pt-BR')) : [];
+}

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { PageHeader, PremiumCard, RoundedButton } from '@/components/ui/PremiumComponents';
-import { Users, Shield, ShieldCheck, Target, Megaphone, BarChart3, Plus, Search, Trophy, Download, FileSpreadsheet, FileText, Trash2, Edit2, ChevronDown, Calendar, Loader2, Building2, TrendingUp, Printer, Star, Award, Zap, Flame, MoreHorizontal, FileDown, MapPin } from 'lucide-react';
+import { Users, Shield, ShieldCheck, Target, Megaphone, BarChart3, Plus, Search, Trophy, Download, FileSpreadsheet, FileText, Trash2, Edit2, ChevronDown, ChevronLeft, Calendar, Loader2, Building2, TrendingUp, Printer, Star, Award, Zap, Flame, MoreHorizontal, FileDown, MapPin } from 'lucide-react';
 import { Modal } from '@/components/ui/Modal';
 import { useApp, Team, Goal, Announcement, Directorate } from '@/context/AppContext';
 import { useAuthorization } from '@/hooks/useAuthorization';
@@ -78,6 +78,7 @@ export default function AdminPanel() {
     };
   });
   const [reportPeriod, setReportPeriod] = useState<'este_mes' | '30_dias' | '60_dias' | '90_dias' | 'custom'>('este_mes');
+  const [drillCity, setDrillCity] = useState<string | null>(null); // drill-down de regiões: cidade → bairros
   const [reportData, setReportData] = useState<any>(null);
   const [reportLoading, setReportLoading] = useState(false);
   const [isGeneratingCSV, setIsGeneratingCSV] = useState(false);
@@ -190,15 +191,14 @@ export default function AdminPanel() {
   });
 
   // ── Agregações para gráficos de Regiões de Interesse e Construtoras ──────────
-  const aggregateBy = (getter: (c: any) => string | undefined | null) => {
-    // Agrupa por chave normalizada (sem acento/caixa) p/ colapsar variações de
-    // digitação já existentes ("CAMPO GRANDE" = "campo grande"). Exibe o 1º rótulo visto.
-    const normKey = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
+  // Normaliza (sem acento/caixa) p/ agrupar variações de digitação ("CAMPO GRANDE" = "campo grande")
+  const normText = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
+  const aggregateBy = (getter: (c: any) => string | undefined | null, list: any[] = selectedPeriodClients) => {
     const map = new Map<string, { label: string; value: number }>();
-    selectedPeriodClients.forEach((c) => {
+    list.forEach((c) => {
       const raw = (getter(c) || '').trim().replace(/\s+/g, ' ');
       if (!raw) return;
-      const key = normKey(raw);
+      const key = normText(raw);
       const existing = map.get(key);
       if (existing) existing.value += 1;
       else map.set(key, { label: raw, value: 1 });
@@ -212,6 +212,13 @@ export default function AdminPanel() {
   };
   const regionDataLocal = aggregateBy((c) => c.regionOfInterest).slice(0, 8);
   const builderDataLocal = aggregateBy((c) => c.builder).slice(0, 8);
+  // Drill-down: bairros da cidade selecionada (clientes cuja cidade == drillCity)
+  const drillBairroData = drillCity
+    ? aggregateBy(
+        (c) => c.neighborhood,
+        selectedPeriodClients.filter((c) => normText(c.regionOfInterest || '') === normText(drillCity)),
+      ).slice(0, 10)
+    : [];
   // Paleta de gráficos on-palette (azul/verde primeiro, depois acentos)
   const CHART_COLORS = ['#2563eb', '#22c55e', '#8b5cf6', '#f59e0b', '#06b6d4', '#ec4899', '#ef4444', '#14b8a6'];
 
@@ -1706,26 +1713,65 @@ export default function AdminPanel() {
                     </div>
                   </PremiumCard>
 
-                  {/* Regiões de Interesse (pizza % — origem: ficha do cliente) */}
+                  {/* Regiões de Interesse — drill-down: cidades → bairros */}
                   <PremiumCard className="p-4 border-surface-100 shadow-[0_2px_10px_rgba(0,0,0,0.02)]">
-                    <h4 className="text-[11px] uppercase tracking-wider font-bold text-text-secondary mb-4 flex items-center gap-1.5"><MapPin size={14} className="text-primary-400" /> Regiões de Interesse</h4>
-                    <div className="h-44 w-full">
-                      {regionDataLocal.length === 0 ? (
-                        <div className="flex h-full items-center justify-center text-xs text-text-secondary text-center px-4">Sem dados de região no período.</div>
+                    <div className="flex items-center justify-between mb-4">
+                      <h4 className="text-[11px] uppercase tracking-wider font-bold text-text-secondary flex items-center gap-1.5">
+                        <MapPin size={14} className="text-primary-400" />
+                        {drillCity ? `Bairros — ${drillCity}` : 'Regiões de Interesse'}
+                      </h4>
+                      {drillCity ? (
+                        <button onClick={() => setDrillCity(null)} className="flex items-center gap-1 text-[10px] font-semibold text-primary-400 hover:text-primary-300 transition-colors">
+                          <ChevronLeft size={13} /> Cidades
+                        </button>
                       ) : (
-                        <ResponsiveContainer width="100%" height="100%">
-                          <PieChart>
-                            <Pie data={regionDataLocal} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={38} outerRadius={64} paddingAngle={2} stroke="none">
-                              {regionDataLocal.map((_, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
-                            </Pie>
-                            <Tooltip
-                              contentStyle={{ borderRadius: '8px', border: '1px solid #2b3547', backgroundColor: '#0d111a', color: '#f4f6fb', boxShadow: '0 4px 20px rgba(0,0,0,0.4)' }}
-                              itemStyle={{ color: '#f4f6fb' }}
-                              formatter={(value: any, name: any, props: any) => [`${value} (${props.payload.percentual}%)`, name]}
-                            />
-                            <Legend wrapperStyle={{ fontSize: '9px' }} iconType="circle" />
-                          </PieChart>
-                        </ResponsiveContainer>
+                        regionDataLocal.length > 0 && <span className="text-[9px] text-text-secondary">clique p/ ver bairros</span>
+                      )}
+                    </div>
+                    <div className="h-44 w-full">
+                      {!drillCity ? (
+                        regionDataLocal.length === 0 ? (
+                          <div className="flex h-full items-center justify-center text-xs text-text-secondary text-center px-4">Sem dados de cidade no período.</div>
+                        ) : (
+                          <ResponsiveContainer width="100%" height="100%">
+                            <PieChart>
+                              <Pie
+                                data={regionDataLocal} dataKey="value" nameKey="name" cx="50%" cy="50%"
+                                innerRadius={38} outerRadius={64} paddingAngle={2} stroke="none" className="cursor-pointer"
+                                onClick={(d: any) => { const n = d?.name ?? d?.payload?.name; if (n) setDrillCity(n); }}
+                              >
+                                {regionDataLocal.map((_, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} className="cursor-pointer" />)}
+                              </Pie>
+                              <Tooltip
+                                contentStyle={{ borderRadius: '8px', border: '1px solid #2b3547', backgroundColor: '#0d111a', color: '#f4f6fb', boxShadow: '0 4px 20px rgba(0,0,0,0.4)' }}
+                                itemStyle={{ color: '#f4f6fb' }}
+                                formatter={(value: any, name: any, props: any) => [`${value} (${props.payload.percentual}%)`, name]}
+                              />
+                              <Legend wrapperStyle={{ fontSize: '9px' }} iconType="circle" />
+                            </PieChart>
+                          </ResponsiveContainer>
+                        )
+                      ) : (
+                        drillBairroData.length === 0 ? (
+                          <div className="flex h-full items-center justify-center text-xs text-text-secondary text-center px-4">Sem bairros informados para {drillCity} no período.</div>
+                        ) : (
+                          <ResponsiveContainer width="100%" height="100%">
+                            <BarChart data={drillBairroData} layout="vertical" margin={{ left: 8, right: 16 }}>
+                              <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#1e2636" />
+                              <XAxis type="number" hide />
+                              <YAxis type="category" dataKey="name" axisLine={false} tickLine={false} width={96} tick={{ fontSize: 9, fill: '#8b94a3' }} />
+                              <Tooltip
+                                cursor={{ fill: 'transparent' }}
+                                contentStyle={{ borderRadius: '8px', border: '1px solid #2b3547', backgroundColor: '#0d111a', color: '#f4f6fb', boxShadow: '0 4px 20px rgba(0,0,0,0.4)' }}
+                                itemStyle={{ color: '#f4f6fb' }}
+                                formatter={(value: any, name: any, props: any) => [`${value} clientes (${props.payload.percentual}%)`, 'Quantidade']}
+                              />
+                              <Bar dataKey="value" radius={[0, 4, 4, 0]}>
+                                {drillBairroData.map((_, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
+                              </Bar>
+                            </BarChart>
+                          </ResponsiveContainer>
+                        )
                       )}
                     </div>
                   </PremiumCard>

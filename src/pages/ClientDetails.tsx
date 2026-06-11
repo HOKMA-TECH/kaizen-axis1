@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { PremiumCard, StatusBadge, SectionHeader, RoundedButton } from '@/components/ui/PremiumComponents';
 import { ChevronLeft, Phone, Mail, Calendar, Edit2, Check, Building2, Wallet, History, Trash2, FileText, Save, X, UploadCloud, Plus, ChevronDown, ChevronUp } from 'lucide-react';
 import { Client, CLIENT_STAGES, ClientStage, isStageRestrictedForRole } from '@/data/clients';
-import { RJ_CITIES } from '@/data/cities';
+import { RJ_CITIES, getNeighborhoods } from '@/data/cities';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { motion, AnimatePresence } from 'motion/react';
 import { Modal } from '@/components/ui/Modal';
@@ -803,18 +803,36 @@ export default function ClientDetails() {
                   { label: 'Empreendimento', key: 'development' },
                   { label: 'Construtora', key: 'builder' },
                   { label: 'Valor', key: 'intendedValue' },
-                  { label: 'Região de Interesse', key: 'regionOfInterest' },
+                  { label: 'Cidade de Interesse', key: 'regionOfInterest' },
+                  { label: 'Bairro', key: 'neighborhood' },
                 ].map(({ label, key }) => (
                   <div key={key}>
                     <label className="text-xs text-text-secondary uppercase tracking-wider mb-1 block">{label}</label>
                     {key === 'regionOfInterest' ? (
                       <SearchableSelect
                         value={(editForm as Record<string, string>)[key] || ''}
-                        onChange={(v) => setEditForm({ ...editForm, regionOfInterest: v })}
+                        onChange={(v) => setEditForm({ ...editForm, regionOfInterest: v, neighborhood: '' })}
                         options={RJ_CITIES}
                         placeholder="Selecione a cidade"
                         searchPlaceholder="Buscar cidade do RJ..."
                       />
+                    ) : key === 'neighborhood' ? (
+                      getNeighborhoods(editForm.regionOfInterest).length > 0 ? (
+                        <SearchableSelect
+                          value={editForm.neighborhood || ''}
+                          onChange={(v) => setEditForm({ ...editForm, neighborhood: v })}
+                          options={getNeighborhoods(editForm.regionOfInterest)}
+                          placeholder="Selecione o bairro"
+                          searchPlaceholder={`Buscar bairro em ${editForm.regionOfInterest}...`}
+                        />
+                      ) : (
+                        <input
+                          value={editForm.neighborhood || ''}
+                          onChange={e => setEditForm({ ...editForm, neighborhood: e.target.value })}
+                          className="w-full p-2 bg-surface-50 rounded-lg border-none focus:ring-2 focus:ring-gold-400 text-sm text-text-primary"
+                          placeholder="Digite o bairro (opcional)"
+                        />
+                      )
                     ) : (
                       <input
                         value={(editForm as Record<string, string>)[key] || ''}
@@ -897,7 +915,8 @@ export default function ClientDetails() {
                   { label: 'Tipo de Renda', value: client.incomeType },
                   { label: 'Cotista', value: client.cotista },
                   { label: 'Fator Social', value: client.socialFactor },
-                  { label: 'Região de Interesse', value: client.regionOfInterest },
+                  { label: 'Cidade de Interesse', value: client.regionOfInterest },
+                  { label: 'Bairro', value: client.neighborhood },
                   { label: 'Empreendimento', value: client.development },
                   { label: 'Construtora', value: client.builder },
                   { label: 'Valor', value: client.intendedValue },

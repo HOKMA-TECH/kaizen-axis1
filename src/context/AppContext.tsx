@@ -1009,14 +1009,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         address: data.address, profession: data.profession, gross_income: data.grossIncome,
         income_type: data.incomeType, cotista: data.cotista, social_factor: data.socialFactor,
         region_of_interest: data.regionOfInterest, development: data.development,
-        builder: data.builder || null,
+        builder: data.builder || null, neighborhood: data.neighborhood || null,
         intended_value: data.intendedValue, observations: data.observations, stage: data.stage,
         owner_id: user?.id, directorate_id: profile?.directorate_id || null
       };
       let { data: newClient, error } = await supabase.from('clients').insert([insertPayload]).select().single();
-      // Resiliência: se a migração da coluna "builder" ainda não foi aplicada, tenta sem ela
-      if (error && (error.code === '42703' || /builder/i.test(error.message || ''))) {
+      // Resiliência: se as colunas "builder"/"neighborhood" ainda não foram migradas, tenta sem elas
+      if (error && (error.code === '42703' || /builder|neighborhood/i.test(error.message || ''))) {
         delete insertPayload.builder;
+        delete insertPayload.neighborhood;
         ({ data: newClient, error } = await supabase.from('clients').insert([insertPayload]).select().single());
       }
       if (error) throw error;
@@ -1041,7 +1042,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const allowedFields = [
         'name', 'cpf', 'email', 'phone', 'address', 'profession',
         'gross_income', 'income_type', 'cotista', 'social_factor', 'region_of_interest',
-        'development', 'builder', 'intended_value', 'observations', 'stage'
+        'development', 'builder', 'neighborhood', 'intended_value', 'observations', 'stage'
       ];
 
       const updatePayload: any = {};
@@ -1062,9 +1063,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         .update(updatePayload)
         .eq('id', id)
         .select('id');
-      // Resiliência: se a coluna "builder" ainda não existir, refaz sem ela
-      if (error && (error.code === '42703' || /builder/i.test(error.message || ''))) {
+      // Resiliência: se as colunas "builder"/"neighborhood" ainda não existirem, refaz sem elas
+      if (error && (error.code === '42703' || /builder|neighborhood/i.test(error.message || ''))) {
         delete updatePayload.builder;
+        delete updatePayload.neighborhood;
         ({ data: updated, error } = await supabase.from('clients').update(updatePayload).eq('id', id).select('id'));
       }
       if (error) throw error;
