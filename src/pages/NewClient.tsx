@@ -581,7 +581,7 @@ export default function NewClient() {
               </div>
             )}
             <div>
-              <label className="block text-sm font-medium text-text-secondary mb-1">Empreendimento (Opcional)</label>
+              <label className="block text-sm font-medium text-text-secondary mb-1">Empreendimento</label>
               <input
                 name="development"
                 value={formData.development}
