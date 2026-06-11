@@ -191,17 +191,21 @@ export default function AdminPanel() {
 
   // ── Agregações para gráficos de Regiões de Interesse e Construtoras ──────────
   const aggregateBy = (getter: (c: any) => string | undefined | null) => {
-    const map = new Map<string, number>();
+    // Agrupa por chave normalizada (sem acento/caixa) p/ colapsar variações de
+    // digitação já existentes ("CAMPO GRANDE" = "campo grande"). Exibe o 1º rótulo visto.
+    const normKey = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
+    const map = new Map<string, { label: string; value: number }>();
     selectedPeriodClients.forEach((c) => {
-      const raw = (getter(c) || '').trim();
+      const raw = (getter(c) || '').trim().replace(/\s+/g, ' ');
       if (!raw) return;
-      // normaliza por caixa/acentuação leve para agrupar variações do mesmo nome
-      const key = raw.replace(/\s+/g, ' ');
-      map.set(key, (map.get(key) || 0) + 1);
+      const key = normKey(raw);
+      const existing = map.get(key);
+      if (existing) existing.value += 1;
+      else map.set(key, { label: raw, value: 1 });
     });
-    const total = Array.from(map.values()).reduce((a, b) => a + b, 0);
-    return Array.from(map, ([name, value]) => ({
-      name,
+    const total = Array.from(map.values()).reduce((a, b) => a + b.value, 0);
+    return Array.from(map.values(), ({ label, value }) => ({
+      name: label,
       value,
       percentual: total > 0 ? Number(((value / total) * 100).toFixed(1)) : 0,
     })).sort((a, b) => b.value - a.value);

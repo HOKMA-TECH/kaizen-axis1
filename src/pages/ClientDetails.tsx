@@ -3,6 +3,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { PremiumCard, StatusBadge, SectionHeader, RoundedButton } from '@/components/ui/PremiumComponents';
 import { ChevronLeft, Phone, Mail, Calendar, Edit2, Check, Building2, Wallet, History, Trash2, FileText, Save, X, UploadCloud, Plus, ChevronDown, ChevronUp } from 'lucide-react';
 import { Client, CLIENT_STAGES, ClientStage, isStageRestrictedForRole } from '@/data/clients';
+import { RJ_CITIES } from '@/data/cities';
+import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { motion, AnimatePresence } from 'motion/react';
 import { Modal } from '@/components/ui/Modal';
 import { useApp } from '@/context/AppContext';
@@ -805,23 +807,33 @@ export default function ClientDetails() {
                 ].map(({ label, key }) => (
                   <div key={key}>
                     <label className="text-xs text-text-secondary uppercase tracking-wider mb-1 block">{label}</label>
-                    <input
-                      value={(editForm as Record<string, string>)[key] || ''}
-                      onChange={e => {
-                        let val = e.target.value;
-                        if (key === 'intendedValue') {
-                          let v = val.replace(/\D/g, '');
-                          if (v) {
-                            v = (parseInt(v, 10) / 100).toFixed(2);
-                            val = v.replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-                          } else {
-                            val = '';
+                    {key === 'regionOfInterest' ? (
+                      <SearchableSelect
+                        value={(editForm as Record<string, string>)[key] || ''}
+                        onChange={(v) => setEditForm({ ...editForm, regionOfInterest: v })}
+                        options={RJ_CITIES}
+                        placeholder="Selecione a cidade"
+                        searchPlaceholder="Buscar cidade do RJ..."
+                      />
+                    ) : (
+                      <input
+                        value={(editForm as Record<string, string>)[key] || ''}
+                        onChange={e => {
+                          let val = e.target.value;
+                          if (key === 'intendedValue') {
+                            let v = val.replace(/\D/g, '');
+                            if (v) {
+                              v = (parseInt(v, 10) / 100).toFixed(2);
+                              val = v.replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+                            } else {
+                              val = '';
+                            }
                           }
-                        }
-                        setEditForm({ ...editForm, [key]: val });
-                      }}
-                      className="w-full p-2 bg-surface-50 rounded-lg border-none focus:ring-2 focus:ring-gold-400 text-sm text-text-primary"
-                    />
+                          setEditForm({ ...editForm, [key]: val });
+                        }}
+                        className="w-full p-2 bg-surface-50 rounded-lg border-none focus:ring-2 focus:ring-gold-400 text-sm text-text-primary"
+                      />
+                    )}
                   </div>
                 ))}
                 <div className="grid grid-cols-3 gap-2 sm:gap-3">

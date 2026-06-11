@@ -3,6 +3,8 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { PremiumCard, RoundedButton, SectionHeader } from '@/components/ui/PremiumComponents';
 import { ChevronLeft, Save, UploadCloud, FileText, X, Loader2, Plus, Trash2, ChevronDown, ChevronUp } from 'lucide-react';
 import { CLIENT_STAGES, ClientStage, isStageRestrictedForRole } from '@/data/clients';
+import { RJ_CITIES } from '@/data/cities';
+import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { useApp } from '@/context/AppContext';
 import { useAuthorization } from '@/hooks/useAuthorization';
 
@@ -549,12 +551,12 @@ export default function NewClient() {
           <PremiumCard className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-text-secondary mb-1">Região de Interesse</label>
-              <input
-                name="regionOfInterest"
+              <SearchableSelect
                 value={formData.regionOfInterest}
-                onChange={handleChange}
-                className="w-full p-3 bg-surface-50 rounded-xl border-none focus:ring-2 focus:ring-gold-200 dark:focus:ring-gold-800 text-text-primary"
-                placeholder="Ex: Zona Sul, Centro"
+                onChange={(v) => setFormData(prev => ({ ...prev, regionOfInterest: v }))}
+                options={RJ_CITIES}
+                placeholder="Selecione a cidade"
+                searchPlaceholder="Buscar cidade do RJ..."
               />
             </div>
             <div>
