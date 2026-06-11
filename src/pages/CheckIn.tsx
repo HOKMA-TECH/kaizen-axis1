@@ -478,7 +478,7 @@ export default function CheckIn() {
       {/* ── Header ────────────────────────────────────────────────────────── */}
       <div className="border-b border-surface-200 px-5 pt-10 pb-6">
         <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-primary-400">Presença</p>
-        <h1 className="v3-serif text-3xl text-text-primary tracking-tight mt-1">Check-in</h1>
+        <h1 className="v3-serif text-2xl sm:text-3xl text-text-primary tracking-tight mt-1">Check-in</h1>
         <p className="text-sm text-text-secondary mt-1.5 flex items-center gap-2">
           <span className={`inline-block w-1.5 h-1.5 rounded-full ${isOpen ? 'bg-emerald-400' : 'bg-surface-500'}`} />
           {isOpen ? 'Janela de check-in aberta' : 'Disponível das 08:00 às 13:30'}

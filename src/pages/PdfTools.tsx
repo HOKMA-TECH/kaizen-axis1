@@ -41,7 +41,7 @@ export default function PdfTools() {
         {/* Header Section */}
         <div className="flex flex-col md:flex-row md:items-start justify-between gap-4 mb-10">
           <div>
-            <h1 className="text-3xl tracking-tight text-text-primary mb-2">Conversor de PDF</h1>
+            <h1 className="text-2xl sm:text-3xl tracking-tight text-text-primary mb-2">Conversor de PDF</h1>
             <p className="text-text-secondary text-sm mt-1">Ferramentas inteligentes para manipulação e organização de documentos.</p>
           </div>
           <div className="inline-flex items-center gap-2 bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 px-3 py-1.5 rounded-lg text-sm font-medium border border-green-200 dark:border-green-800/50">

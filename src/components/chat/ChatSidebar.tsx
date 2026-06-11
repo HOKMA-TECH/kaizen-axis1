@@ -203,7 +203,7 @@ export function ChatSidebar({
       <div className="px-4 pt-5 pb-3 flex items-start justify-between flex-shrink-0 relative">
         <div className="min-w-0">
           <div className="flex items-center gap-2">
-            <h2 className="v3-serif text-3xl text-text-primary tracking-tight">Mensagens</h2>
+            <h2 className="v3-serif text-2xl sm:text-3xl text-text-primary tracking-tight">Mensagens</h2>
             {totalUnread > 0 && (
               <motion.span
                 initial={{ scale: 0 }}

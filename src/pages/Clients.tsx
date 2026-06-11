@@ -443,7 +443,7 @@ export default function Clients() {
         <div className="flex justify-between items-center mb-4">
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-primary-400">Carteira</p>
-            <h1 className="v3-serif text-3xl text-text-primary tracking-tight mt-1">Gestão de Clientes</h1>
+            <h1 className="v3-serif text-2xl sm:text-3xl text-text-primary tracking-tight mt-1">Gestão de Clientes</h1>
             <p className="text-sm text-text-secondary mt-1">Acompanhe e mova seus clientes pelo funil de vendas.</p>
           </div>
           <RoundedButton size="sm" onClick={() => navigate('/clients/new')} className="flex items-center gap-1">
@@ -629,8 +629,8 @@ export default function Clients() {
 
           {/* ── Desktop filter (md and above): all pills + Outros dropdown ── */}
           <div className="hidden md:block pt-2 pb-2 px-6">
-            <div className="flex w-full items-center rounded-xl border border-surface-200 bg-surface-100/40 p-1">
-              <div className="flex w-full min-w-0 items-center justify-between gap-1.5 overflow-x-auto">
+            <div className="flex w-full items-center gap-1.5 rounded-xl border border-surface-200 bg-surface-100/40 p-1">
+              <div className="flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto no-scrollbar">
                 {/* Chip: Todos */}
                 <button
                   onClick={() => setActiveStage('Todos')}
@@ -655,8 +655,9 @@ export default function Clients() {
                     {stage}
                   </button>
                 ))}
-                {/* Dropdown "Outros" para etapas pós-contrato */}
-                <div className="relative flex-shrink-0">
+              </div>
+              {/* Dropdown "Outros" — fora da área de scroll (não é cortado) */}
+              <div className="relative flex-shrink-0">
                 <button
                   onClick={() => setStageDropdownOpen(o => !o)}
                   className={`flex h-8 min-w-[86px] items-center justify-center gap-1 whitespace-nowrap px-3 rounded-lg text-xs font-medium transition-all ${
@@ -691,7 +692,6 @@ export default function Clients() {
                 </div>
               </div>
             </div>
-          </div>
 
           <div className="flex-1 px-6 py-4 space-y-4 overflow-y-auto pb-24">
             {/* Banner de filtro por coordenador */}

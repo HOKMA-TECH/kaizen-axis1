@@ -93,12 +93,12 @@ export const RoundedButton = ({
  */
 export const PageHeader = ({ eyebrow, title, subtitle, action }: { eyebrow?: string; title: string; subtitle?: string; action?: React.ReactNode }) => (
   <div className="flex items-start justify-between gap-3 mb-5">
-    <div className="min-w-0">
+    <div className="min-w-0 flex-1">
       {eyebrow && <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-primary-400">{eyebrow}</p>}
-      <h1 className="v3-serif text-3xl text-text-primary tracking-tight mt-1">{title}</h1>
+      <h1 className="v3-serif text-2xl sm:text-3xl text-text-primary tracking-tight mt-1 leading-tight break-words">{title}</h1>
       {subtitle && <p className="text-sm text-text-secondary mt-1">{subtitle}</p>}
     </div>
-    {action && <div className="flex-shrink-0">{action}</div>}
+    {action && <div className="flex-shrink-0 mt-1">{action}</div>}
   </div>
 );
 

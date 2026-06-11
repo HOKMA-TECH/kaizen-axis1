@@ -48,7 +48,7 @@ export default function PotentialClients() {
           <ChevronLeft size={24} />
         </button>
         <div>
-          <h1 className="text-3xl tracking-tight text-text-primary">Clientes em Potencial</h1>
+          <h1 className="text-2xl sm:text-3xl tracking-tight text-text-primary">Clientes em Potencial</h1>
           <p className="text-text-secondary text-sm">Oportunidade: Reserva Imperial</p>
         </div>
       </div>

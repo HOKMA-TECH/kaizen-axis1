@@ -124,7 +124,7 @@ export default function Dashboard() {
       <div data-reveal className="flex justify-between items-start border-b border-surface-200 pb-6 pt-2">
         <div>
           <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-primary-400">{roleLabel[role] ?? 'Visão geral'}</p>
-          <h1 className="v3-serif mt-2 text-3xl text-text-primary flex items-center gap-2 tracking-tight">
+          <h1 className="v3-serif mt-2 text-2xl sm:text-3xl text-text-primary flex items-center gap-2 tracking-tight">
             Olá, {userName.split(' ')[0]}
             {loading && <Loader2 className="animate-spin text-primary-400" size={18} />}
           </h1>
