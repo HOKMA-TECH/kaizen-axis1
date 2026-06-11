@@ -7,7 +7,7 @@ import {
   Clock, Plus, Loader2, Zap, Brain, AlertTriangle, CheckCircle2,
   Sparkles, X, BadgeCheck, ChevronDown, LayoutGrid, List
 } from 'lucide-react';
-import { CLIENT_STAGES, ClientStage, Client, isStageRestrictedForRole } from '@/data/clients';
+import { CLIENT_STAGES, ClientStage, Client, isStageRestrictedForRole, missingFieldsForConcluido } from '@/data/clients';
 import { AutomationLead } from '@/data/leads';
 import { useApp } from '@/context/AppContext';
 import { useAuthorization } from '@/hooks/useAuthorization';
@@ -522,6 +522,14 @@ export default function Clients() {
             if (isStageRestrictedForRole(stage, role)) {
               alert('⚠️ Você não tem permissão para mover clientes para a etapa "' + stage + '".');
               return;
+            }
+            if (stage === 'Concluído') {
+              const c = clients.find(x => x.id === id);
+              const missing = c ? missingFieldsForConcluido(c) : ['dados do cliente'];
+              if (missing.length > 0) {
+                alert(`⚠️ Para concluir a venda, preencha na ficha do cliente: ${missing.join(', ')}.`);
+                return;
+              }
             }
             updateClient(id, { stage });
           }}

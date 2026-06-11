@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { PremiumCard, StatusBadge, SectionHeader, RoundedButton } from '@/components/ui/PremiumComponents';
 import { ChevronLeft, Phone, Mail, Calendar, Edit2, Check, Building2, Wallet, History, Trash2, FileText, Save, X, UploadCloud, Plus, ChevronDown, ChevronUp } from 'lucide-react';
-import { Client, CLIENT_STAGES, ClientStage, isStageRestrictedForRole } from '@/data/clients';
+import { Client, CLIENT_STAGES, ClientStage, isStageRestrictedForRole, missingFieldsForConcluido } from '@/data/clients';
 import { RJ_CITIES, getNeighborhoods } from '@/data/cities';
 import { BUILDERS } from '@/data/builders';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
@@ -148,13 +148,14 @@ export default function ClientDetails() {
       return;
     }
 
-    const hasDevelopment = !!String(client.development ?? '').trim();
-    const hasValue = !!String(client.intendedValue ?? '').trim() && String(client.intendedValue) !== '0';
-    if (newStage === 'Concluído' && (!hasDevelopment || !hasValue)) {
-      alert('⚠️ Para mover o cliente para a etapa "Concluído", é obrigatório preencher os campos "Empreendimento" e "Valor".');
-      setIsEditingStage(false);
-      setIsEditingInfo(true);
-      return;
+    if (newStage === 'Concluído') {
+      const missing = missingFieldsForConcluido(client);
+      if (missing.length > 0) {
+        alert(`⚠️ Para concluir a venda, preencha: ${missing.join(', ')}.`);
+        setIsEditingStage(false);
+        setIsEditingInfo(true);
+        return;
+      }
     }
 
     try {

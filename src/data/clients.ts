@@ -56,6 +56,29 @@ export function isStageRestrictedForRole(stage: ClientStage, role?: string | nul
   return ADVANCED_STAGES.includes(stage) && !canAdvanceToStage(role);
 }
 
+// ─── Regra: campos obrigatórios para concluir uma venda ──────────────────────
+// Para mover/criar um cliente em "Concluído" é preciso ter estes campos preenchidos
+// (alimentam os gráficos de relatórios: VGV, regiões, bairros, construtoras).
+type ConcluidoFields = {
+  intendedValue?: string;
+  regionOfInterest?: string;
+  neighborhood?: string;
+  development?: string;
+  builder?: string;
+};
+
+/** Retorna a lista (em português) dos campos obrigatórios faltando para concluir. */
+export function missingFieldsForConcluido(c: ConcluidoFields): string[] {
+  const filled = (v?: string) => !!String(v ?? '').trim();
+  const missing: string[] = [];
+  if (!filled(c.intendedValue) || String(c.intendedValue ?? '').trim() === '0') missing.push('Valor');
+  if (!filled(c.regionOfInterest)) missing.push('Cidade de Interesse');
+  if (!filled(c.neighborhood)) missing.push('Bairro');
+  if (!filled(c.development)) missing.push('Empreendimento');
+  if (!filled(c.builder)) missing.push('Construtora');
+  return missing;
+}
+
 export interface ClientHistory {
   id: string;
   date: string;

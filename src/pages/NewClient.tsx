@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { PremiumCard, RoundedButton, SectionHeader } from '@/components/ui/PremiumComponents';
 import { ChevronLeft, Save, UploadCloud, FileText, X, Loader2, Plus, Trash2, ChevronDown, ChevronUp } from 'lucide-react';
-import { CLIENT_STAGES, ClientStage, isStageRestrictedForRole } from '@/data/clients';
+import { CLIENT_STAGES, ClientStage, isStageRestrictedForRole, missingFieldsForConcluido } from '@/data/clients';
 import { RJ_CITIES, getNeighborhoods } from '@/data/cities';
 import { BUILDERS } from '@/data/builders';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
@@ -176,6 +176,15 @@ export default function NewClient() {
     if (isStageRestrictedForRole(formData.stage, role)) {
       alert('⚠️ Você não tem permissão para criar um cliente diretamente na etapa "' + formData.stage + '". Selecione uma etapa inicial.');
       return;
+    }
+
+    // Para criar já como "Concluído", os campos da venda precisam estar preenchidos
+    if (formData.stage === 'Concluído') {
+      const missing = missingFieldsForConcluido(formData);
+      if (missing.length > 0) {
+        alert(`⚠️ Para criar o cliente já como "Concluído", preencha: ${missing.join(', ')}.`);
+        return;
+      }
     }
 
     setIsSubmitting(true);
