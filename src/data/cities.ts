@@ -135,6 +135,10 @@ export const RJ_NEIGHBORHOODS: Record<string, string[]> = {
     'Cidade de Deus', 'Pechincha', 'Praça Seca', 'Tanque', 'Taquara', 'Vila Valqueire',
     'Barra da Tijuca', 'Camorim', 'Grumari', 'Itanhangá', 'Joá', 'Recreio dos Bandeirantes',
     'Vargem Grande', 'Vargem Pequena',
+    // Zona Norte (extremos) e Realengo/Deodoro
+    'Pavuna', 'Acari', 'Costa Barros', 'Coelho Neto', 'Barros Filho', 'Guadalupe',
+    'Anchieta', 'Ricardo de Albuquerque', 'Parque Colúmbia', 'Parque Anchieta',
+    'Jacaré', 'Campo dos Afonsos', 'Gericinó', 'Vila Kennedy', 'Senador Vasconcelos',
   ],
   'Niterói': [
     'Centro', 'Icaraí', 'Santa Rosa', 'Ingá', 'São Francisco', 'Charitas', 'Jurujuba',
@@ -188,6 +192,99 @@ export const RJ_NEIGHBORHOODS: Record<string, string[]> = {
   'Magé': [
     'Centro', 'Piabetá', 'Vila Inhomirim', 'Fragoso', 'Santo Aleixo', 'Suruí', 'Mauá',
     'Guia de Pacobaíba', 'Rio do Ouro',
+  ],
+  'Itaguaí': [
+    'Centro', 'Engenho', 'Coroa Grande', 'Ibituporanga', 'Vila Geni', 'Brisamar',
+    'Jardim América', 'Chaperó', 'Mazombo',
+  ],
+  'Seropédica': [
+    'Centro', 'Boa Esperança', 'Jardim Maracanã', 'Santa Sofia', 'Incra 8', 'Piranema',
+    'Valão dos Bois',
+  ],
+  'Paracambi': ['Centro', 'Lages', 'Guarajuba', 'Sabugo', 'Fábrica', 'Cascata'],
+  'Japeri': ['Centro', 'Engenheiro Pedreira', 'Belo Horizonte', 'Guandu', 'São José', 'Mucajá'],
+  'Guapimirim': [
+    'Centro', 'Parada Modelo', 'Vale das Pedrinhas', 'Caneca Fina', 'Iconha',
+    'Quinta Mariana', 'Limoeiro',
+  ],
+  'Tanguá': ['Centro', 'Bandeirantes', 'Duques', 'Posse dos Coelhos', 'Ampliação'],
+  'Rio Bonito': ['Centro', 'Boa Esperança', 'Bela Vista', 'Fonseca', 'Praça Cruzeiro', 'Sambê'],
+  'Cachoeiras de Macacu': ['Centro', 'Papucaia', 'Japuíba', 'Subaio', 'Funchal', 'Guapiaçu'],
+  'Casimiro de Abreu': ['Centro', 'Barra de São João', 'Professor Souza', 'Mato Grosso', 'Cyrillândia'],
+  'Petrópolis': [
+    'Centro', 'Itaipava', 'Cascatinha', 'Corrêas', 'Quitandinha', 'Valparaíso', 'Bingen',
+    'Mosela', 'Retiro', 'Castelânea', 'Nogueira', 'Posse', 'Pedro do Rio', 'Alto da Serra',
+    'Coronel Veiga', 'Independência', 'Morin', 'Carangola', 'Vila Felipe',
+  ],
+  'Teresópolis': [
+    'Centro', 'Alto', 'Agriões', 'Várzea', 'Soberbo', 'Golfe', 'Quinta Lebrão', 'Meudon',
+    'Comary', 'Barra do Imbuí', 'Fonte Santa', 'Pimenteiras', 'Granja Guarani', 'Tijuca', 'Araras',
+  ],
+  'Nova Friburgo': [
+    'Centro', 'Olaria', 'Conselheiro Paulino', 'Cônego', 'Jardim Califórnia', 'Duas Pedras',
+    'Riograndina', 'Lumiar', 'Mury', 'Braunes', 'Catarcione', 'Granja Spinelli', 'Vargem Alta',
+  ],
+  'Cabo Frio': [
+    'Centro', 'Braga', 'Passagem', 'São Cristóvão', 'Jardim Esperança', 'Jacaré', 'Tamoios',
+    'Unamar', 'Peró', 'Foguete', 'Palmeiras', 'Guarani', 'Portinho', 'Vila do Sol',
+  ],
+  'Macaé': [
+    'Centro', 'Imbetiba', 'Cavaleiros', 'Granja dos Cavaleiros', 'Glória', 'Lagomar',
+    'Barra de Macaé', 'Praia Campista', 'Aroeira', 'Costa do Sol', 'Virgem Santa',
+    'Nova Esperança', 'Riviera Fluminense',
+  ],
+  'Angra dos Reis': [
+    'Centro', 'Japuíba', 'Frade', 'Parque Mambucaba', 'Belém', 'Monsuaba', 'Vila Velha',
+    'Jacuecanga', 'Sapinhatuba', 'Praia do Jardim', 'Balneário', 'Bonfim', 'Camorim Pequeno',
+  ],
+  'Paraty': ['Centro', 'Patitiba', 'Chácara', 'Portão de Ferro', 'Jabaquara', 'Pontal', 'Ilha das Cobras', 'Caborê'],
+  'Mangaratiba': ['Centro', 'Itacuruçá', 'Muriqui', 'Conceição de Jacareí', 'Praia Grande', 'Ibicuí', 'Sahy'],
+  'Resende': [
+    'Centro', 'Jardim Jalisco', 'Campos Elíseos', 'Manejo', 'Cidade Alegria', 'Morada da Colina',
+    'Comercial', 'Vila Julieta', 'Paraíso', 'Itapuca', 'Liberdade', 'Alegria',
+  ],
+  'Itatiaia': ['Centro', 'Penedo', 'Maromba', 'Campo Alegre', 'Jardim Itatiaia', 'Vila Pinheiro'],
+  'Barra Mansa': [
+    'Centro', 'Ano Bom', 'Vista Alegre', 'Saudade', 'Boa Sorte', 'Cotiara', 'Nova Esperança',
+    'Vila Nova', 'Getúlio Vargas', 'Verbo Divino', 'Boa Vista', 'Roberto Silveira',
+  ],
+  'Pinheiral': ['Centro', 'Jardim União', 'Varjão', 'Rolão', 'Boa Esperança', 'Parque Maíra'],
+  'Piraí': ['Centro', 'Arrozal', 'Monte Alegre', 'Santanésia', 'Cacaria', 'Vargem Alegre'],
+  'Vassouras': ['Centro', 'Centro Histórico', 'Santa Amália', 'Ipiranga', 'Massambará', 'Sebastião de Lacerda'],
+  'Três Rios': ['Centro', 'Cantagalo', 'Vila Isabel', 'Pilões', 'Triângulo', 'Habitat', 'Moura Brasil', 'Bemposta'],
+  'Valença': ['Centro', 'Benfica', 'Caxangá', 'Jardim Valença', 'Chácara Flórida', 'Pentagna', 'Conservatória'],
+  'Campos dos Goytacazes': [
+    'Centro', 'Pelinca', 'Parque Califórnia', 'Turf Club', 'Jardim Carioca', 'Penha',
+    'Parque Tamandaré', 'Flamboyant', 'Parque Guarus', 'Custodópolis', 'Jockey', 'Parque Rosário',
+  ],
+  'São Pedro da Aldeia': ['Centro', 'Balneário', 'Nova São Pedro', 'Recanto do Sol', 'Fluminense', 'Porto da Aldeia', 'Baixo Grande'],
+  'Iguaba Grande': ['Centro', 'Cidade Nova', 'Sapeatiba', 'Ulé', 'Jardim Iguaba'],
+  'Araruama': [
+    'Centro', 'Iguabinha', 'Praia Seca', 'São Vicente de Paulo', 'Pontinha do Outeiro',
+    'Parque Hotel', 'Areal', 'Fonte Limpa', 'Rio do Limão', 'Coqueiral', 'Mataruna', 'Bananeiras',
+  ],
+  'Saquarema': [
+    'Centro', 'Bacaxá', 'Itaúna', 'Jaconé', 'Sampaio Corrêa', 'Boqueirão', 'Porto da Roça',
+    'Barra Nova', 'Vilatur', 'Jardim',
+  ],
+  'Rio das Ostras': [
+    'Centro', 'Costa Azul', 'Extensão do Bosque', 'Cidade Beira Mar', 'Âncora', 'Nova Esperança',
+    'Jardim Mariléa', 'Recanto', 'Enseada das Gaivotas', 'Nova Cidade', 'Boca da Barra',
+  ],
+  'Arraial do Cabo': ['Centro', 'Praia Grande', 'Prainha', 'Monte Alto', 'Figueira', 'Sabiá', 'Caiçara'],
+  'Armação dos Búzios': [
+    'Centro', 'Geribá', 'Manguinhos', 'Rasa', 'Ferradura', 'João Fernandes', 'Cem Braças', 'Baía Formosa',
+  ],
+  'Itaperuna': [
+    'Centro', 'Cidade Nova', 'Niterói', 'Presidente Costa e Silva', 'Aeroporto', 'Vinhosa',
+    'São José', 'Boa Vista', 'Horto Florestal',
+  ],
+  'Bom Jesus do Itabapoana': ['Centro', 'Carapina', 'Aeroporto', 'Vista Alegre', 'Santo Antônio'],
+  'Santo Antônio de Pádua': ['Centro', 'Aterrado', 'Paraíso', 'Bairro de Fátima', 'Cércado'],
+  'Volta Redonda': [
+    'Centro', 'Aterrado', 'Vila Santa Cecília', 'Jardim Amália', 'Retiro', 'Aero Clube',
+    'Conforto', 'São Geraldo', 'Belo Horizonte', 'Açude', 'Santo Agostinho', 'Sessenta',
+    'Vila Brasília', 'Jardim Belvedere', 'Três Poços', 'Água Limpa', 'Ponte Alta', 'Voldac',
   ],
 };
 

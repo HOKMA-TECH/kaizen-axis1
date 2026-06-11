@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ChevronDown, Search, Check, X } from 'lucide-react';
+import { ChevronDown, Search, Check, X, Plus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 /** Normaliza para comparação: remove acentos e caixa. */
@@ -14,6 +14,8 @@ interface SearchableSelectProps {
   searchPlaceholder?: string;
   className?: string;
   allowClear?: boolean;
+  /** Permite digitar/usar um valor que não está na lista (combo). */
+  allowCustom?: boolean;
 }
 
 /**
@@ -29,6 +31,7 @@ export function SearchableSelect({
   searchPlaceholder = 'Buscar...',
   className,
   allowClear = true,
+  allowCustom = false,
 }: SearchableSelectProps) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
@@ -56,6 +59,10 @@ export function SearchableSelect({
     setOpen(false);
     setQuery('');
   };
+
+  const trimmedQuery = query.trim();
+  const hasExactMatch = options.some(o => norm(o) === norm(trimmedQuery));
+  const showAddCustom = allowCustom && trimmedQuery.length > 0 && !hasExactMatch;
 
   return (
     <div ref={containerRef} className={cn('relative', className)}>
@@ -97,8 +104,8 @@ export function SearchableSelect({
             </div>
           </div>
           <div className="max-h-56 overflow-y-auto py-1">
-            {filtered.length === 0 ? (
-              <p className="px-3 py-3 text-xs text-text-secondary text-center">Nenhuma cidade encontrada.</p>
+            {filtered.length === 0 && !showAddCustom ? (
+              <p className="px-3 py-3 text-xs text-text-secondary text-center">Nenhum resultado.</p>
             ) : (
               filtered.map(opt => {
                 const isSelected = norm(opt) === norm(value);
@@ -117,6 +124,16 @@ export function SearchableSelect({
                   </button>
                 );
               })
+            )}
+            {showAddCustom && (
+              <button
+                type="button"
+                onClick={() => select(trimmedQuery)}
+                className="w-full flex items-center gap-2 px-3 py-2 text-left text-sm text-primary-400 font-medium hover:bg-surface-100 transition-colors border-t border-surface-100"
+              >
+                <Plus size={14} className="flex-shrink-0" />
+                <span className="truncate">Usar "{trimmedQuery}"</span>
+              </button>
             )}
           </div>
         </div>

@@ -595,17 +595,14 @@ export default function NewClient() {
             </div>
             <div>
               <label className="block text-sm font-medium text-text-secondary mb-1">Construtora</label>
-              <input
-                name="builder"
-                list="builders-list"
+              <SearchableSelect
                 value={formData.builder}
-                onChange={handleChange}
-                className="w-full p-3 bg-surface-50 rounded-xl border-none focus:ring-2 focus:ring-gold-200 dark:focus:ring-gold-800 text-text-primary"
+                onChange={(v) => setFormData(prev => ({ ...prev, builder: v }))}
+                options={knownBuilders}
+                allowCustom
                 placeholder="Selecione do catálogo ou digite uma nova"
+                searchPlaceholder="Buscar construtora..."
               />
-              <datalist id="builders-list">
-                {knownBuilders.map(b => <option key={b} value={b} />)}
-              </datalist>
             </div>
             <div>
               <label className="block text-sm font-medium text-text-secondary mb-1">Valor</label>

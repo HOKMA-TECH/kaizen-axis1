@@ -77,8 +77,13 @@ export default function ClientDetails() {
     allProfiles,
     teams,
     directorates,
+    developments,
   } = useApp();
   const { role, canViewAllClients } = useAuthorization();
+  // Construtoras do catálogo de empreendimentos (sugestões no seletor de Construtora)
+  const knownBuilders = Array.from(
+    new Set((developments || []).map(d => (d.builder || '').trim()).filter(Boolean))
+  ).sort((a, b) => a.localeCompare(b, 'pt-BR'));
 
   // Regra de etapas avançadas centralizada em @/data/clients (isStageRestrictedForRole)
 
@@ -833,6 +838,15 @@ export default function ClientDetails() {
                           placeholder="Digite o bairro (opcional)"
                         />
                       )
+                    ) : key === 'builder' ? (
+                      <SearchableSelect
+                        value={editForm.builder || ''}
+                        onChange={(v) => setEditForm({ ...editForm, builder: v })}
+                        options={knownBuilders}
+                        allowCustom
+                        placeholder="Selecione ou digite a construtora"
+                        searchPlaceholder="Buscar construtora..."
+                      />
                     ) : (
                       <input
                         value={(editForm as Record<string, string>)[key] || ''}
