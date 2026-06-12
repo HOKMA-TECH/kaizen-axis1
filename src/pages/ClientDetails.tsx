@@ -14,6 +14,7 @@ import { supabase } from '@/lib/supabase';
 import { logAuditEvent } from '@/services/auditLogger';
 import { ClientHierarchyTags } from '@/components/ui/ClientHierarchyTags';
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
+import { loadKaizenLogo, drawReportHeader, addStandardFooters } from '@/lib/pdf/reportKit';
 
 type SalesMirrorForm = {
   constInvest: string;
@@ -542,33 +543,8 @@ export default function ClientDetails() {
       page.drawText(fmtValue(opts.value).slice(0, 62), { x: opts.x + 6, y: opts.y - 27, size: 11, font: regular, color: colors.text });
     };
 
-    const loadLogoBytes = async () => {
-      const logoCandidates = ['/pwa-192x192.png', '/pwa-512x512.png', '/apple-touch-icon.png'];
-      for (const logoPath of logoCandidates) {
-        try {
-          const response = await fetch(logoPath);
-          if (!response.ok) continue;
-          return await response.arrayBuffer();
-        } catch {
-          continue;
-        }
-      }
-      return null;
-    };
-
-    const logoBytes = await loadLogoBytes();
-    if (logoBytes) {
-      const logo = await pdf.embedPng(logoBytes);
-      page.drawImage(logo, { x: margin + 6, y: top - 48, width: 34, height: 34 });
-    } else {
-      page.drawRectangle({ x: margin + 6, y: top - 48, width: 34, height: 34, borderColor: colors.border, borderWidth: 0.8, color: rgb(1, 1, 1) });
-      page.drawText('K', { x: margin + 18, y: top - 36, size: 16, font: bold, color: colors.title });
-    }
-
-    page.drawRectangle({ x: margin, y: top - 60, width: contentW, height: 60, color: colors.soft, borderColor: colors.border, borderWidth: 0.8 });
-    page.drawText('KAIZEN-ESPELHO DE VENDAS', { x: margin + 50, y: top - 30, size: 18, font: bold, color: colors.title });
-    page.drawText(`Cliente: ${fmtValue(client?.name)}`, { x: margin + 50, y: top - 47, size: 9, font: regular, color: colors.label });
-    page.drawText(`Gerado em: ${new Date().toLocaleString('pt-BR')}`, { x: pageW - margin - 180, y: top - 47, size: 9, font: regular, color: colors.label });
+    const logo = await loadKaizenLogo(pdf);
+    drawReportHeader(page, { regular, bold }, logo, { title: 'Espelho de Vendas', subtitle: `Cliente: ${fmtValue(client?.name)}` });
 
     const hasSecondClient = !!String(salesMirrorForm.cliente2 || '').trim() || !!String(salesMirrorForm.cpf2 || '').trim();
     const colGap = 12;
@@ -623,6 +599,7 @@ export default function ClientDetails() {
     drawCell({ label: 'ASS. DIRETOR DE FINANCEIRO', value: salesMirrorForm.assDiretorFinanceiro, x: leftX, y, w: colW, h: 44 });
     drawCell({ label: 'ASS. DIRETOR COMERCIAL', value: salesMirrorForm.assDiretorComercial, x: rightX, y, w: colW, h: 44 });
 
+    addStandardFooters(pdf, { regular, bold });
     return pdf.save();
   };
 

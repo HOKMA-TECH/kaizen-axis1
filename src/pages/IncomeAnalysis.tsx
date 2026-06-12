@@ -9,6 +9,7 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import * as pdfjsLib from 'pdfjs-dist';
 import { jsPDF } from 'jspdf';
+import { loadLogoDataUrl, drawJsHeader, drawJsSection, addJsFooters, JS_INK } from '@/lib/pdf/jsPdfKit';
 import { Modal } from '@/components/ui/Modal';
 import { useApp } from '@/context/AppContext';
 import { useAuthorization } from '@/hooks/useAuthorization';
@@ -613,42 +614,32 @@ export default function IncomeAnalysis() {
     persistClear();
   };
 
-  const gerarPdfApuracao = useCallback(() => {
+  const gerarPdfApuracao = useCallback(async () => {
     if (!resultado) throw new Error('Nenhum resultado disponível para gerar PDF.');
 
     const doc = new jsPDF();
-    let y = 20;
+    const logo = await loadLogoDataUrl();
+    const rendaMensalRegra = Math.round(totalApuradoAtivo / 6);
+    const fmt = (c: number) => (c / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const nomeTitular = nomeCliente || (clienteVinculado ? clients.find(c => c.id === clienteVinculado)?.name : 'Não informado');
+
+    let y = drawJsHeader(doc, { title: 'Apuração de Renda', subtitle: `Titular: ${nomeTitular}` , logo });
 
     const checkPage = (add = 6) => {
-      if (y + add > 280) {
+      if (y + add > 278) {
         doc.addPage();
         y = 20;
       }
     };
 
-    doc.setFontSize(16);
-    doc.setFont('helvetica', 'bold');
-    doc.text('Apuração de Renda - Kaizen Axis', 14, y);
-    y += 15;
-
     doc.setFontSize(10);
     doc.setFont('helvetica', 'normal');
-    const rendaMensalRegra = Math.round(totalApuradoAtivo / 6);
-    const fmt = (c: number) => (c / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-
-    doc.text(`Nome Titular: ${nomeCliente || (clienteVinculado ? clients.find(c => c.id === clienteVinculado)?.name : 'Não informado')}`, 14, y); y += 6;
+    doc.setTextColor(...JS_INK);
     doc.text(`Documento (CPF): ${cpf || (clienteVinculado ? clients.find(c => c.id === clienteVinculado)?.cpf : 'N/A')}`, 14, y); y += 6;
-    doc.text(`Gerado em: ${new Date().toLocaleString('pt-BR')}`, 14, y); y += 6;
-    doc.text(`Versao Algoritmo: ${resultado.algoritmoVersao}`, 14, y);
-    y += 12;
-
-    doc.setFontSize(12);
-    doc.setFont('helvetica', 'bold');
-    doc.text('RESUMO (APOS REVISAO MANUAL)', 14, y);
+    doc.text(`Versão do algoritmo: ${resultado.algoritmoVersao}`, 14, y);
     y += 10;
 
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'normal');
+    y = drawJsSection(doc, y, 'Resumo (após revisão manual)');
     doc.text(`Renda Media Mensal (Total ÷ 6): R$ ${fmt(rendaMensalRegra)}`, 14, y); y += 8;
     doc.text(`Total Apurado: R$ ${fmt(totalApuradoAtivo)}`, 14, y); y += 8;
     doc.text(`Creditos Ativos: ${validadas.size}`, 14, y); y += 8;
@@ -666,13 +657,8 @@ export default function IncomeAnalysis() {
     }
 
     if (exclusionBubbles.length > 0) {
-      doc.setFontSize(11);
-      doc.setFont('helvetica', 'bold');
-      doc.text('BOLHAS DE EXCLUSAO (FILTRO DINAMICO)', 14, y);
-      y += 8;
-
+      y = drawJsSection(doc, y, 'Bolhas de exclusão (filtro dinâmico)');
       doc.setFontSize(9);
-      doc.setFont('helvetica', 'normal');
       const bolhasTexto = exclusionBubbles.join(', ');
       const linhasBolhas = doc.splitTextToSize(bolhasTexto, 180);
       linhasBolhas.forEach((linha: string) => {
@@ -683,13 +669,7 @@ export default function IncomeAnalysis() {
       y += 4;
     }
 
-    doc.setFontSize(12);
-    doc.setFont('helvetica', 'bold');
-    doc.text('DETALHAMENTO MENSAL', 14, y);
-    y += 10;
-
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'normal');
+    y = drawJsSection(doc, y, 'Detalhamento mensal');
     Object.entries(totalPorMesAtivo)
       .sort(([a], [b]) => a.localeCompare(b))
       .forEach(([mes, valor]) => {
@@ -704,14 +684,8 @@ export default function IncomeAnalysis() {
     doc.text(`Timestamp: ${new Date(resultado.auditoria.timestamp).toLocaleString('pt-BR')}`, 14, y);
     y += 12;
 
-    doc.setFontSize(12);
-    doc.setFont('helvetica', 'bold');
     checkPage(15);
-    doc.text('Entradas consideradas nos respectivos meses:', 14, y);
-    y += 10;
-
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'normal');
+    y = drawJsSection(doc, y, 'Entradas consideradas nos respectivos meses');
 
     const transacoesPorMesPdf: Record<string, typeof resultado.transacoesDetalhadas> = {};
     resultado.transacoesDetalhadas.forEach(t => {
@@ -742,6 +716,7 @@ export default function IncomeAnalysis() {
       y += 4;
     });
 
+    addJsFooters(doc);
     const fileName = `apuracao_renda_${Date.now()}.pdf`;
     const pdfBlob = doc.output('blob');
     return { pdfBlob, fileName };
@@ -751,7 +726,7 @@ export default function IncomeAnalysis() {
     if (!resultado) return;
     setIsDownloading(true);
     try {
-      const { pdfBlob, fileName } = gerarPdfApuracao();
+      const { pdfBlob, fileName } = await gerarPdfApuracao();
       const url = URL.createObjectURL(pdfBlob);
       const a = document.createElement('a');
       a.href = url;
@@ -820,7 +795,7 @@ export default function IncomeAnalysis() {
       // Geração do PDF
       // ==========================================
       try {
-        const { pdfBlob, fileName } = gerarPdfApuracao();
+        const { pdfBlob, fileName } = await gerarPdfApuracao();
         const storagePath = clienteVinculado ? `${clienteVinculado}/${fileName}` : `general_audits/${fileName}`;
 
         const fileObj = new File([pdfBlob], fileName, { type: 'application/pdf' });

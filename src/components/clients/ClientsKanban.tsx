@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { Client, ClientStage } from '@/data/clients';
 import { cn } from '@/lib/utils';
@@ -233,14 +234,17 @@ export function ClientsKanban({
         );
       })}
 
-      {/* Fantasma (posicionado via DOM direto p/ ficar fluido) */}
-      <div
-        ref={ghostRef}
-        style={{ display: 'none', left: 0, top: 0, willChange: 'transform' }}
-        className="pointer-events-none fixed z-[100] w-64 rounded-xl border border-primary-500 bg-card-bg p-3 shadow-2xl shadow-black/50"
-      >
-        <p ref={ghostNameRef} className="line-clamp-2 text-sm font-semibold leading-snug text-text-primary" />
-      </div>
+      {/* Fantasma — via portal no body (evita deslocamento por ancestral com transform) */}
+      {createPortal(
+        <div
+          ref={ghostRef}
+          style={{ display: 'none', left: 0, top: 0, willChange: 'transform' }}
+          className="pointer-events-none fixed z-[100] w-64 rounded-xl border border-primary-500 bg-card-bg p-3 shadow-2xl shadow-black/50"
+        >
+          <p ref={ghostNameRef} className="line-clamp-2 text-sm font-semibold leading-snug text-text-primary" />
+        </div>,
+        document.body,
+      )}
     </div>
   );
 }
