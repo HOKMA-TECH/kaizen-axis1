@@ -8,7 +8,7 @@ import { Navigate, useNavigate } from 'react-router-dom';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, Legend, PieChart, Pie, Cell } from 'recharts';
 import { supabase } from '@/lib/supabase';
 import { PDFDocument } from 'pdf-lib';
-import { PAGE, PDF_THEME, embedFonts, loadKaizenLogo, drawReportHeader, drawSectionTitle, drawKeyValues, drawDivider, drawContinuationHeader, drawHBars, addStandardFooters, downloadPdf } from '@/lib/pdf/reportKit';
+import { PAGE, PDF_THEME, embedFonts, loadKaizenLogo, drawReportHeader, drawSectionTitle, drawKeyValues, drawDivider, drawContinuationHeader, drawHBars, addStandardFooters, downloadPdf, safeText } from '@/lib/pdf/reportKit';
 import PipelinePdfExport from '@/components/admin/PipelinePdfExport';
 import { useReportsData } from '@/hooks/useReportsData';
 import { parseDateOnlyLocal, parseDateOnlyLocalEnd, toDateOnlyLocal, toPtBrDate } from '@/lib/dateRange';
@@ -554,7 +554,7 @@ export default function AdminPanel() {
       y = drawSectionTitle(page, fonts, y, 'Insights');
       insights.forEach((line) => {
         ensure(16);
-        const txt = line.length > 110 ? line.slice(0, 109) + '…' : line;
+        const txt = safeText(line.length > 110 ? line.slice(0, 109) + '…' : line);
         page.drawText(`•  ${txt}`, { x: MARGIN, y, size: 8.5, font: fonts.regular, color: PDF_THEME.ink });
         y -= 13;
       });
@@ -605,7 +605,7 @@ export default function AdminPanel() {
         const maxChars = Math.max(8, Math.floor(colW / 4.2));
         const lines = text.split('\n');
         lines.forEach((line, lineIndex) => {
-          const clipped = line.length > maxChars ? `${line.slice(0, maxChars - 1)}…` : line;
+          const clipped = safeText(line.length > maxChars ? `${line.slice(0, maxChars - 1)}…` : line);
           page.drawText(clipped, {
             x: cx,
             y: y - 12 - (lineIndex * 8),
@@ -679,7 +679,7 @@ export default function AdminPanel() {
       insights.push(`Foram ${totalVendas} venda(s) concluída(s) no período, somando ${fmtBRL0(vgvLocal)} em VGV.`);
       insights.push(`Taxa de conversão de ${taxaConversaoReal}% (${totalVendas} vendas para ${totalClientes} clientes no período).`);
       if (totalVendas > 0) insights.push(`Ticket médio por venda: ${fmtBRL0(ticketMedio)}.`);
-      if (globalMetrics.cicloMedioDias > 0) insights.push(`Ciclo médio de venda (lead → concluído): ${Math.round(globalMetrics.cicloMedioDias)} dias.`);
+      if (globalMetrics.cicloMedioDias > 0) insights.push(`Ciclo médio de venda (do lead à conclusão): ${Math.round(globalMetrics.cicloMedioDias)} dias.`);
       if (topStage) insights.push(`Maior concentração no pipeline: "${topStage.etapa}" com ${topStage.quantidade} cliente(s) (${topStage.percentual}%) — atenção a possível gargalo.`);
       if (topRegion) insights.push(`Cidade de maior interesse: ${topRegion.name} (${topRegion.percentual}% dos clientes com cidade informada).`);
       if (topBuilder) insights.push(`Construtora mais procurada: ${topBuilder.name} (${topBuilder.value} cliente(s)).`);

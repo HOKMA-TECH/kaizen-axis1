@@ -29,6 +29,29 @@ export const PDF_THEME = {
 
 export const PAGE = { W: 595, H: 842, MARGIN: 36 };
 
+// Caracteres > 0xFF aceitos pelo WinAnsi (faixa 0x80–0x9F do CP1252)
+const WINANSI_EXTRA = new Set([
+  8364, 8218, 402, 8222, 8230, 8224, 8225, 710, 8240, 352, 8249, 338, 381,
+  8216, 8217, 8220, 8221, 8226, 8211, 8212, 732, 8482, 353, 8250, 339, 382, 376,
+]);
+
+/**
+ * Remove/normaliza caracteres que a fonte padrão (WinAnsi) não consegue codificar
+ * — ex.: setas, emojis. Evita que um nome/insight quebre toda a geração do PDF.
+ */
+export function safeText(input: unknown): string {
+  const s = String(input ?? '');
+  let out = '';
+  for (const ch of s) {
+    const cp = ch.codePointAt(0)!;
+    if (cp <= 0xff || WINANSI_EXTRA.has(cp)) out += ch;
+    else if (cp === 0x2192) out += '->';
+    else if (cp === 0x2190) out += '<-';
+    // demais (emojis etc.) são descartados
+  }
+  return out;
+}
+
 export interface ReportFonts {
   regular: PDFFont;
   bold: PDFFont;
@@ -79,9 +102,9 @@ export function drawReportHeader(
     textX = MARGIN + size + 12;
   }
 
-  page.drawText(opts.title, { x: textX, y: H - MARGIN - 13, size: 16, font: fonts.bold, color: PDF_THEME.blue });
+  page.drawText(safeText(opts.title), { x: textX, y: H - MARGIN - 13, size: 16, font: fonts.bold, color: PDF_THEME.blue });
   if (opts.subtitle) {
-    page.drawText(opts.subtitle, { x: textX, y: H - MARGIN - 27, size: 9, font: fonts.regular, color: PDF_THEME.gray });
+    page.drawText(safeText(opts.subtitle), { x: textX, y: H - MARGIN - 27, size: 9, font: fonts.regular, color: PDF_THEME.gray });
   }
   page.drawText(`Gerado em ${new Date().toLocaleString('pt-BR')}`, {
     x: textX, y: H - MARGIN - 39, size: 8, font: fonts.regular, color: PDF_THEME.gray,
@@ -102,7 +125,7 @@ export function drawContinuationHeader(page: PDFPage, fonts: ReportFonts, label:
 
 /** Título de seção (azul, caixa-alta). Retorna o `y` após o título. */
 export function drawSectionTitle(page: PDFPage, fonts: ReportFonts, y: number, text: string): number {
-  page.drawText(text.toUpperCase(), { x: PAGE.MARGIN, y, size: 10, font: fonts.bold, color: PDF_THEME.blue });
+  page.drawText(safeText(text).toUpperCase(), { x: PAGE.MARGIN, y, size: 10, font: fonts.bold, color: PDF_THEME.blue });
   return y - 16;
 }
 
@@ -115,8 +138,8 @@ export function drawKeyValues(
   labelWidth = 170,
 ): number {
   pairs.forEach(({ label, value }) => {
-    page.drawText(`${label}:`, { x: PAGE.MARGIN, y, size: 8.5, font: fonts.bold, color: PDF_THEME.ink });
-    page.drawText(value, { x: PAGE.MARGIN + labelWidth, y, size: 8.5, font: fonts.regular, color: PDF_THEME.ink });
+    page.drawText(safeText(`${label}:`), { x: PAGE.MARGIN, y, size: 8.5, font: fonts.bold, color: PDF_THEME.ink });
+    page.drawText(safeText(value), { x: PAGE.MARGIN + labelWidth, y, size: 8.5, font: fonts.regular, color: PDF_THEME.ink });
     y -= 13;
   });
   return y;
@@ -143,12 +166,13 @@ export function drawHBars(
   const barMaxW = Math.max(40, W - MARGIN - barX - 64);
 
   data.forEach((d) => {
-    const label = d.label.length > 26 ? d.label.slice(0, 25) + '…' : d.label;
+    const raw = safeText(d.label);
+    const label = raw.length > 26 ? raw.slice(0, 25) + '…' : raw;
     page.drawText(label, { x: MARGIN, y: y - 9, size: 8, font: fonts.regular, color: PDF_THEME.ink });
     page.drawRectangle({ x: barX, y: y - rowH + 4, width: barMaxW, height: 8, color: PDF_THEME.rowAlt });
     const w = Math.max(2, (d.value / max) * barMaxW);
     page.drawRectangle({ x: barX, y: y - rowH + 4, width: w, height: 8, color });
-    page.drawText(d.sub ?? String(d.value), { x: barX + barMaxW + 6, y: y - 9, size: 8, font: fonts.bold, color: PDF_THEME.ink });
+    page.drawText(safeText(d.sub ?? String(d.value)), { x: barX + barMaxW + 6, y: y - 9, size: 8, font: fonts.bold, color: PDF_THEME.ink });
     y -= rowH;
   });
   return y - 4;
