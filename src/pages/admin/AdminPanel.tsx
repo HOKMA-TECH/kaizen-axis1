@@ -8,7 +8,7 @@ import { Navigate, useNavigate } from 'react-router-dom';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, Legend, PieChart, Pie, Cell } from 'recharts';
 import { supabase } from '@/lib/supabase';
 import { PDFDocument } from 'pdf-lib';
-import { PAGE, PDF_THEME, embedFonts, loadKaizenLogo, drawReportHeader, drawSectionTitle, drawKeyValues, drawDivider, drawContinuationHeader, addStandardFooters, downloadPdf } from '@/lib/pdf/reportKit';
+import { PAGE, PDF_THEME, embedFonts, loadKaizenLogo, drawReportHeader, drawSectionTitle, drawKeyValues, drawDivider, drawContinuationHeader, drawHBars, addStandardFooters, downloadPdf } from '@/lib/pdf/reportKit';
 import PipelinePdfExport from '@/components/admin/PipelinePdfExport';
 import { useReportsData } from '@/hooks/useReportsData';
 import { parseDateOnlyLocal, parseDateOnlyLocalEnd, toDateOnlyLocal, toPtBrDate } from '@/lib/dateRange';
@@ -502,6 +502,8 @@ export default function AdminPanel() {
     metrics,
     columns,
     rows,
+    insights,
+    charts,
   }: {
     filename: string;
     title: string;
@@ -509,6 +511,8 @@ export default function AdminPanel() {
     metrics: Array<{ label: string; value: string }>;
     columns: Array<{ header: string; width: number }>;
     rows: string[][];
+    insights?: string[];
+    charts?: Array<{ title: string; data: Array<{ label: string; value: number; sub?: string }> }>;
   }) => {
     const doc = await PDFDocument.create();
     const fonts = await embedFonts(doc);
@@ -537,6 +541,40 @@ export default function AdminPanel() {
     y -= 5;
     y = drawDivider(page, y);
 
+    const ensure = (needed: number) => {
+      if (y < MARGIN + needed) {
+        page = doc.addPage([W, H]);
+        y = drawContinuationHeader(page, fonts, title);
+      }
+    };
+
+    // Insights (texto interpretando os números)
+    if (insights && insights.length > 0) {
+      ensure(30);
+      y = drawSectionTitle(page, fonts, y, 'Insights');
+      insights.forEach((line) => {
+        ensure(16);
+        const txt = line.length > 110 ? line.slice(0, 109) + '…' : line;
+        page.drawText(`•  ${txt}`, { x: MARGIN, y, size: 8.5, font: fonts.regular, color: PDF_THEME.ink });
+        y -= 13;
+      });
+      y -= 4;
+      y = drawDivider(page, y);
+    }
+
+    // Gráficos (barras nativas, on-brand)
+    if (charts && charts.length > 0) {
+      charts.forEach((ch) => {
+        if (ch.data.length === 0) return;
+        ensure(24 + ch.data.length * 16);
+        y = drawSectionTitle(page, fonts, y, ch.title);
+        y = drawHBars(page, fonts, y, ch.data);
+        y -= 6;
+      });
+      y = drawDivider(page, y);
+    }
+
+    ensure(60);
     y = drawSectionTitle(page, fonts, y, 'Detalhamento');
     drawTableHeader();
 
@@ -631,10 +669,34 @@ export default function AdminPanel() {
         })
         .sort((a, b) => b.salesCount - a.salesCount || b.revenue - a.revenue);
 
+      // ── Insights (interpretam os números) e gráficos nativos ──
+      const fmtBRL0 = (n: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(n);
+      const topStage = [...pipelineDataLocal].sort((a, b) => b.quantidade - a.quantidade)[0];
+      const topRegion = regionDataLocal[0];
+      const topBuilder = builderDataLocal[0];
+      const ticketMedio = totalVendas > 0 ? receitaTotal / totalVendas : 0;
+      const insights: string[] = [];
+      insights.push(`Foram ${totalVendas} venda(s) concluída(s) no período, somando ${fmtBRL0(vgvLocal)} em VGV.`);
+      insights.push(`Taxa de conversão de ${taxaConversaoReal}% (${totalVendas} vendas para ${totalClientes} clientes no período).`);
+      if (totalVendas > 0) insights.push(`Ticket médio por venda: ${fmtBRL0(ticketMedio)}.`);
+      if (globalMetrics.cicloMedioDias > 0) insights.push(`Ciclo médio de venda (lead → concluído): ${Math.round(globalMetrics.cicloMedioDias)} dias.`);
+      if (topStage) insights.push(`Maior concentração no pipeline: "${topStage.etapa}" com ${topStage.quantidade} cliente(s) (${topStage.percentual}%) — atenção a possível gargalo.`);
+      if (topRegion) insights.push(`Cidade de maior interesse: ${topRegion.name} (${topRegion.percentual}% dos clientes com cidade informada).`);
+      if (topBuilder) insights.push(`Construtora mais procurada: ${topBuilder.name} (${topBuilder.value} cliente(s)).`);
+      insights.push(`Leads recebidos no período: ${selectedPeriodLeads.length}.`);
+
+      const generalCharts = [
+        { title: 'Distribuição do pipeline', data: pipelineDataLocal.map((d) => ({ label: d.etapa, value: d.quantidade, sub: `${d.quantidade} (${d.percentual}%)` })) },
+        { title: 'Cidades de interesse (top)', data: regionDataLocal.map((d) => ({ label: d.name, value: d.value, sub: `${d.value} (${d.percentual}%)` })) },
+        { title: 'Construtoras (top)', data: builderDataLocal.map((d) => ({ label: d.name, value: d.value, sub: `${d.value} (${d.percentual}%)` })) },
+      ].filter((c) => c.data.length > 0);
+
       await buildPdfReport({
         filename: `relatorio-geral-${reportDateRange.start}-${reportDateRange.end}.pdf`,
         title: 'Relatorio Geral de Performance',
         subtitle: `Periodo ${toPtBrDate(reportDateRange.start)} a ${toPtBrDate(reportDateRange.end)}`,
+        insights,
+        charts: generalCharts,
         metrics: [
           { label: 'Leads', value: String(selectedPeriodLeads.length) },
           { label: 'Clientes', value: String(totalClientes) },

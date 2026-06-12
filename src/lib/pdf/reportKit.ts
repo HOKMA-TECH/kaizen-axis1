@@ -122,6 +122,38 @@ export function drawKeyValues(
   return y;
 }
 
+/**
+ * Gráfico de barras horizontais (on-brand, azul). Cada item vira uma barra
+ * proporcional ao valor, com rótulo à esquerda e valor à direita. Retorna o `y`.
+ */
+export function drawHBars(
+  page: PDFPage,
+  fonts: ReportFonts,
+  y: number,
+  data: Array<{ label: string; value: number; sub?: string }>,
+  opts?: { color?: ReturnType<typeof rgb>; labelW?: number; rowH?: number },
+): number {
+  const MARGIN = PAGE.MARGIN;
+  const W = page.getWidth();
+  const color = opts?.color ?? PDF_THEME.blue;
+  const labelW = opts?.labelW ?? 150;
+  const rowH = opts?.rowH ?? 16;
+  const max = Math.max(1, ...data.map((d) => d.value));
+  const barX = MARGIN + labelW + 6;
+  const barMaxW = Math.max(40, W - MARGIN - barX - 64);
+
+  data.forEach((d) => {
+    const label = d.label.length > 26 ? d.label.slice(0, 25) + '…' : d.label;
+    page.drawText(label, { x: MARGIN, y: y - 9, size: 8, font: fonts.regular, color: PDF_THEME.ink });
+    page.drawRectangle({ x: barX, y: y - rowH + 4, width: barMaxW, height: 8, color: PDF_THEME.rowAlt });
+    const w = Math.max(2, (d.value / max) * barMaxW);
+    page.drawRectangle({ x: barX, y: y - rowH + 4, width: w, height: 8, color });
+    page.drawText(d.sub ?? String(d.value), { x: barX + barMaxW + 6, y: y - 9, size: 8, font: fonts.bold, color: PDF_THEME.ink });
+    y -= rowH;
+  });
+  return y - 4;
+}
+
 /** Divisória horizontal suave. Retorna o `y` após a linha. */
 export function drawDivider(page: PDFPage, y: number): number {
   page.drawRectangle({ x: PAGE.MARGIN, y, width: PAGE.W - PAGE.MARGIN * 2, height: 0.7, color: PDF_THEME.line });
