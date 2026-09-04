@@ -1,4 +1,4 @@
-import { useState, useEffect, type FormEvent } from 'react';
+import { useState, useEffect, useRef, type FormEvent } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { PremiumCard, StatusBadge, SectionHeader, RoundedButton } from '@/components/ui/PremiumComponents';
 import { ChevronLeft, Mail, Calendar, Edit2, Building2, Wallet, History, Trash2, FileText, Save, X, UploadCloud, Plus, ChevronDown, ChevronUp, FileDown, MessageCircle, Video } from 'lucide-react';
@@ -20,6 +20,9 @@ import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
 import { loadKaizenLogo, drawReportHeader, addStandardFooters } from '@/lib/pdf/reportKit';
 import { imageToPdf } from '@/lib/pdf-tools/imageToPdf';
 import { CLIENT_DOCUMENT_ACCEPT, prepareClientUploadFile } from '@/lib/client-document-upload';
+import { rewriteSignedUrlForBrowser } from '@/lib/storage-signed-url';
+import { classifyDocumentPreviewKind } from '@/lib/document-preview-kind';
+import { DocumentPreviewOverlay } from '@/components/clients/DocumentPreviewOverlay';
 
 const IMAGE_DOC_RE = /\.(jpe?g|png|webp)$/i;
 
@@ -164,6 +167,13 @@ export default function ClientDetails({
   const [salesMirrorLoading, setSalesMirrorLoading] = useState(false);
   const [salesMirrorSaving, setSalesMirrorSaving] = useState(false);
   const [salesMirrorForm, setSalesMirrorForm] = useState<SalesMirrorForm>(EMPTY_SALES_MIRROR);
+  const [openingDocId, setOpeningDocId] = useState<string | null>(null);
+  const [documentPreview, setDocumentPreview] = useState<{
+    url: string;
+    fileName: string;
+    kind: ReturnType<typeof classifyDocumentPreviewKind>;
+  } | null>(null);
+  const openingDocRef = useRef(false);
 
   // Load from context
   useEffect(() => {
@@ -200,20 +210,25 @@ export default function ClientDetails({
     }
   };
 
-  const handleOpenDocument = async (rawPath: string, documentId?: string) => {
-    if (!rawPath) return;
+  const handleOpenDocument = async (doc: ClientDocument) => {
+    const rawPath = doc.file_path || doc.url || '';
+    const documentId = doc.id;
+    if (!rawPath && !documentId) return;
+    if (openingDocRef.current) return;
 
     const { data: { session } } = await supabase.auth.getSession();
     if (!session?.access_token) { alert('Sessão expirada. Faça login novamente.'); return; }
     const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
+    openingDocRef.current = true;
+    setOpeningDocId(documentId);
     try {
       const { data: v2Data, error: v2Error } = await supabase.functions.invoke('get-doc-url-v2', {
         headers: {
           Authorization: `Bearer ${session.access_token}`,
           apikey: SUPABASE_ANON_KEY,
         },
-        body: { documentId: documentId || undefined, rawPath, expiresIn: 300 },
+        body: { documentId: documentId || undefined, rawPath: rawPath || undefined, expiresIn: 300 },
       });
 
       const signedUrl = v2Data?.signedUrl ?? null;
@@ -236,9 +251,17 @@ export default function ClientDetails({
         metadata: { clientId: id, rawPath },
       });
 
-      window.open(signedUrl, '_blank');
+      const browserUrl = rewriteSignedUrlForBrowser(signedUrl);
+      setDocumentPreview({
+        url: browserUrl,
+        fileName: doc.name || 'documento',
+        kind: classifyDocumentPreviewKind(doc.name || '', doc.type),
+      });
     } catch {
       alert('Erro ao abrir documento.');
+    } finally {
+      openingDocRef.current = false;
+      setOpeningDocId(null);
     }
   };
 
@@ -335,7 +358,7 @@ export default function ClientDetails({
         return;
       }
 
-      const response = await fetch(signedUrl);
+      const response = await fetch(rewriteSignedUrlForBrowser(signedUrl));
       if (!response.ok) throw new Error('Falha ao baixar a imagem.');
       const blob = await response.blob();
       const imageFile = new File([blob], doc.name || 'imagem.jpg', { type: blob.type || 'image/jpeg' });
@@ -1055,12 +1078,13 @@ export default function ClientDetails({
             {client.documents && client.documents.length > 0 ? (
               client.documents.map(doc => {
                 const converting = convertingDocId === doc.id;
+                const opening = openingDocId === doc.id;
                 return (
                 <PremiumCard
                   key={doc.id}
-                  interactive={!converting}
+                  interactive={!converting && !opening}
                   className="relative flex items-center justify-between gap-2 p-3 overflow-hidden"
-                  onClick={() => { if (!converting) handleOpenDocument((doc as any).file_path, (doc as any).id); }}
+                  onClick={() => { if (!converting && !openingDocId) void handleOpenDocument(doc); }}
                 >
                   {converting && (
                     <div className="absolute inset-0 z-10 overflow-hidden pointer-events-none">
@@ -1097,7 +1121,7 @@ export default function ClientDetails({
                     </div>
                     <div className="min-w-0">
                       <p className="text-sm font-medium text-text-primary truncate">{doc.name}</p>
-                      <p className="text-xs text-text-secondary">{doc.uploadDate}</p>
+                      <p className="text-xs text-text-secondary">{opening ? 'Abrindo…' : doc.uploadDate}</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
@@ -1318,6 +1342,15 @@ export default function ClientDetails({
       />
 
       <ConfirmDialog {...confirmDialogProps} />
+
+      {documentPreview && (
+        <DocumentPreviewOverlay
+          url={documentPreview.url}
+          fileName={documentPreview.fileName}
+          kind={documentPreview.kind}
+          onClose={() => setDocumentPreview(null)}
+        />
+      )}
     </div>
   );
 }
