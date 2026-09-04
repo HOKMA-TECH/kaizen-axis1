@@ -1288,7 +1288,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
       const contentType = inferDocumentContentType(file);
       if (targetBucket === 'client-documents' && isUnknownMimeType(contentType)) {
-        throw new Error('Tipo de arquivo não suportado.');
+        throw new Error('Não foi possível identificar o arquivo. Envie JPG, PNG ou PDF.');
       }
 
       // Remove accents and special characters to prevent Supabase Storage "Invalid key" errors
