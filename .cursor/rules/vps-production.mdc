@@ -1,0 +1,20 @@
+---
+description: Produção do Axis é VPS, não Vercel/Supabase Cloud
+alwaysApply: true
+---
+
+# Produção = VPS ImobKaizen
+
+O Kaizen Axis **já saiu** da Vercel e do Supabase gerenciado.
+
+- Produção: `https://app.imobkaizen.com.br` (container `imobkaizen-axis-production-app`, `127.0.0.1:8400`).
+- Backend: `https://api-app.imobkaizen.com.br` (Supabase self-hosted na VPS).
+- `kaizen-axis.space` é **somente** 307 para o app. Não deployar o SPA lá.
+
+Mudança no app, `/api`, migrations ou functions **tem de ir para a VPS**. Verificar no hostname `app.imobkaizen.com.br`.
+
+Proibido para feature nova: `npx vercel --prod`, apontar `app.imobkaizen.com.br` na Vercel, `supabase functions deploy` / SQL Editor no projeto Cloud antigo (`pwvpxxrvlywlneuijmmd`).
+
+Turnstile continua desligado até pedido explícito. Não cancelar Cloud sem autorização.
+
+Deploy: repo irmão `IMOBKAIZEN-PLATFORM`, imagem `imobkaizen/axis-production:<commit>`. Detalhe em `AGENTS.md`.

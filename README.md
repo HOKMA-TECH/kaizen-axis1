@@ -10,7 +10,7 @@ KAIZEN AXIS e um sistema web/PWA para operacao comercial imobiliaria, com foco e
 - check-in presencial com validacao de localizacao
 - ferramentas comerciais e de suporte
 
-Base de acesso em producao: `https://kaizen-axis.space`
+Base de acesso em producao: `https://app.imobkaizen.com.br` (VPS). `https://kaizen-axis.space` so redireciona.
 
 ## Perfis
 
