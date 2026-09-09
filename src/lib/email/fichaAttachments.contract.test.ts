@@ -20,4 +20,11 @@ describe('ficha analysis email attachments', () => {
     assert.doesNotMatch(source, /get-doc-url-v2/);
     assert.doesNotMatch(source, /console\.warn\(`Falha ao carregar anexo/);
   });
+
+  it('does not prefill "Para" with the client email from the ficha', () => {
+    const source = readFileSync(join(root, 'src/pages/SendEmail.tsx'), 'utf8');
+    assert.match(source, /const \[to, setTo\] = useState<string\[\]>\(\[\]\);/);
+    assert.doesNotMatch(source, /setTo\(prev => \(prev\.length \? prev : \[found\.email\]\)\)/);
+    assert.doesNotMatch(source, /setTo\(\[found\.email\]\)/);
+  });
 });

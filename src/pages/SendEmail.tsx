@@ -45,9 +45,6 @@ export default function SendEmail({
     const found = getClient(id);
     if (found) {
       setClient(found);
-      if (found.email) {
-        setTo(prev => (prev.length ? prev : [found.email]));
-      }
       const empreendimento = (found.development || 'NÃO INFORMADO').toUpperCase();
 
       // ── Resolve hierarchy from the CLIENT OWNER, not the logged-in user ──
