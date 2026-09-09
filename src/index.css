@@ -328,3 +328,12 @@ button, input, select, textarea, optgroup, [role="tab"], .font-ui {
   animation: doc-wave-x 5.4s linear infinite;
   animation-delay: -1.8s;
 }
+
+@keyframes qr-scan-line {
+  0%, 100% { top: 8%; }
+  50% { top: 92%; }
+}
+
+.qr-scan-laser {
+  animation: qr-scan-line 2.2s ease-in-out infinite;
+}

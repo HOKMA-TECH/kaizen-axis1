@@ -11,10 +11,17 @@ import { useApp } from '@/context/AppContext';
 import { cn } from '@/lib/utils';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import {
+  createScanMutex,
   extractCheckinToken,
+  getCameraConstraintFallbacks,
+  getScanCanvasSize,
+  getScanRoi,
+  NATIVE_DETECT_TIMEOUT_MS,
   QR_SCAN_TIMEOUT_MS,
+  raceWithTimeout,
   shouldFallbackToJsQR,
   waitForVideoElement,
+  waitForVideoReady,
 } from '@/lib/checkin/qrScanner';
 import {
   getAssignedUnit,
@@ -73,20 +80,25 @@ export default function CheckIn() {
   const [brtMinutes, setBrtMinutes] = useState(getBRTMinutes());
   const [scannerOpen, setScannerOpen] = useState(false);
   const [scannerError, setScannerError] = useState<string | null>(null);
+  const [scannerStatus, setScannerStatus] = useState('Procurando QR…');
   const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const scanCanvasRef = useRef<HTMLCanvasElement | null>(null);
-  const scanIntervalRef = useRef<number | null>(null);
+  const scanRafRef = useRef<number | null>(null);
+  const scanActiveRef = useRef(false);
+  const scanMutexRef = useRef(createScanMutex());
   const streamRef = useRef<MediaStream | null>(null);
   const scanTimeoutRef = useRef<number | null>(null);
   const frameErrorCountRef = useRef(0);
 
   const stopScanner = useCallback(() => {
-    if (scanIntervalRef.current !== null) {
-      window.clearInterval(scanIntervalRef.current);
-      scanIntervalRef.current = null;
+    scanActiveRef.current = false;
+
+    if (scanRafRef.current !== null) {
+      window.cancelAnimationFrame(scanRafRef.current);
+      scanRafRef.current = null;
     }
 
     if (scanTimeoutRef.current !== null) {
@@ -121,6 +133,7 @@ export default function CheckIn() {
 
   const startScanner = useCallback(async () => {
     setScannerError(null);
+    setScannerStatus('Procurando QR…');
     frameErrorCountRef.current = 0;
     stopScanner();
 
@@ -136,87 +149,143 @@ export default function CheckIn() {
     }).BarcodeDetector;
 
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: { ideal: 'environment' },
-          width: { ideal: 1280 },
-          height: { ideal: 720 },
-        },
-        audio: false,
-      });
+      let stream: MediaStream | null = null;
+      let lastCameraError: unknown;
+      for (const video of getCameraConstraintFallbacks()) {
+        try {
+          stream = await navigator.mediaDevices.getUserMedia({
+            video: video as MediaTrackConstraints,
+            audio: false,
+          });
+          break;
+        } catch (error) {
+          lastCameraError = error;
+        }
+      }
+      if (!stream) {
+        throw lastCameraError instanceof Error
+          ? lastCameraError
+          : new Error('Não foi possível acessar a câmera. Verifique a permissão e tente novamente.');
+      }
 
       streamRef.current = stream;
+      scanActiveRef.current = true;
+      scanMutexRef.current = createScanMutex();
 
-      const video = await waitForVideoElement(() => videoRef.current);
+      await waitForVideoElement(() => videoRef.current);
+      const video = videoRef.current;
+      if (!video) {
+        throw new Error('Não foi possível iniciar a câmera. Tente novamente.');
+      }
+
       video.srcObject = stream;
       video.setAttribute('playsinline', 'true');
       await video.play();
+      await waitForVideoReady(video);
 
       const detector = NativeBarcodeDetector ? new NativeBarcodeDetector({ formats: ['qr_code'] }) : null;
 
-      const readJsQR = (source: HTMLVideoElement) => {
-        if (source.readyState < HTMLMediaElement.HAVE_CURRENT_DATA) return;
-        const width = source.videoWidth;
-        const height = source.videoHeight;
-        if (!width || !height) return;
+      const prepareScanCanvas = (source: HTMLVideoElement, sx: number, sy: number, sw: number, sh: number) => {
+        if (source.readyState < HTMLMediaElement.HAVE_CURRENT_DATA) return null;
+        if (!source.videoWidth || !source.videoHeight) return null;
 
         if (!scanCanvasRef.current) {
           scanCanvasRef.current = document.createElement('canvas');
         }
 
         const canvas = scanCanvasRef.current;
-        if (!canvas) return;
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+        if (!ctx) return null;
 
+        const { width, height } = getScanCanvasSize(sw, sh);
         if (canvas.width !== width || canvas.height !== height) {
           canvas.width = width;
           canvas.height = height;
         }
-
-        const ctx = canvas.getContext('2d', { willReadFrequently: true });
-        if (!ctx) return;
-
-        ctx.drawImage(source, 0, 0, width, height);
-        const imageData = ctx.getImageData(0, 0, width, height);
-        const qr = jsQR(imageData.data, width, height, { inversionAttempts: 'attemptBoth' });
-        if (qr?.data) {
-          applyScannedValue(qr.data);
-        }
+        ctx.drawImage(source, sx, sy, sw, sh, 0, 0, width, height);
+        return { canvas, ctx, width, height };
       };
 
-      scanIntervalRef.current = window.setInterval(async () => {
+      const scanFrame = async () => {
+        if (!scanActiveRef.current) return;
+
         const liveVideo = videoRef.current;
-        if (!liveVideo) return;
+        if (!liveVideo) {
+          scanRafRef.current = window.requestAnimationFrame(() => { void scanFrame(); });
+          return;
+        }
+
+        if (!scanMutexRef.current.tryEnter()) {
+          scanRafRef.current = window.requestAnimationFrame(() => { void scanFrame(); });
+          return;
+        }
 
         try {
-          let nativeCount = 0;
-          if (detector) {
-            const barcodes = await detector.detect(liveVideo);
-            nativeCount = barcodes.length;
-            const rawValue = (barcodes[0]?.rawValue || '').trim();
-            if (rawValue) {
-              applyScannedValue(rawValue);
-              return;
+          const sourceWidth = liveVideo.videoWidth;
+          const sourceHeight = liveVideo.videoHeight;
+          if (sourceWidth && sourceHeight && liveVideo.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
+            const roi = getScanRoi(sourceWidth, sourceHeight);
+            const regions = [
+              { sx: roi.sx, sy: roi.sy, sw: roi.sw, sh: roi.sh },
+              { sx: 0, sy: 0, sw: sourceWidth, sh: sourceHeight },
+            ];
+
+            for (const region of regions) {
+              const prepared = prepareScanCanvas(liveVideo, region.sx, region.sy, region.sw, region.sh);
+              if (!prepared) continue;
+
+              const { canvas, ctx, width, height } = prepared;
+              let nativeRawValue = '';
+
+              if (detector) {
+                const barcodes = await raceWithTimeout(
+                  detector.detect(canvas).catch(() => []),
+                  NATIVE_DETECT_TIMEOUT_MS,
+                );
+                nativeRawValue = (barcodes?.[0]?.rawValue || '').trim();
+                if (nativeRawValue && applyScannedValue(nativeRawValue)) {
+                  return;
+                }
+              }
+
+              if (shouldFallbackToJsQR(Boolean(detector), nativeRawValue)) {
+                const imageData = ctx.getImageData(0, 0, width, height);
+                const qr = jsQR(imageData.data, width, height, { inversionAttempts: 'attemptBoth' });
+                if (qr?.data && applyScannedValue(qr.data)) {
+                  return;
+                }
+              }
             }
           }
 
-          if (shouldFallbackToJsQR(Boolean(detector), nativeCount)) {
-            readJsQR(liveVideo);
+          if (scanActiveRef.current) {
+            setScannerStatus('Procurando QR…');
           }
-
           frameErrorCountRef.current = 0;
         } catch {
           frameErrorCountRef.current += 1;
           if (frameErrorCountRef.current >= 8) {
             setScannerError('Falha ao ler a câmera. Feche e tente novamente.');
             stopScanner();
+            return;
           }
+        } finally {
+          scanMutexRef.current.leave();
         }
-      }, 300);
+
+        if (scanActiveRef.current) {
+          scanRafRef.current = window.requestAnimationFrame(() => { void scanFrame(); });
+        }
+      };
+
+      scanRafRef.current = window.requestAnimationFrame(() => { void scanFrame(); });
 
       scanTimeoutRef.current = window.setTimeout(() => {
-        setScannerError('Não foi possível ler o QR. Aproxime a câmera ou feche e tente de novo.');
+        setScannerError('Aproxime, foque no QR ou feche e use a Câmera do celular.');
+        setScannerStatus('Procurando QR…');
       }, QR_SCAN_TIMEOUT_MS);
     } catch (error) {
+      scanActiveRef.current = false;
       const message = error instanceof Error && error.message.includes('iniciar a câmera')
         ? error.message
         : 'Não foi possível acessar a câmera. Verifique a permissão e tente novamente.';
@@ -815,11 +884,16 @@ export default function CheckIn() {
                 </button>
               </div>
 
-              <div className="rounded-xl overflow-hidden border border-gray-800 bg-black aspect-[3/4] flex items-center justify-center">
+              <div className="relative rounded-xl overflow-hidden border border-gold-400/50 bg-black aspect-[3/4] flex items-center justify-center">
                 <video ref={videoRef} autoPlay muted playsInline className="w-full h-full object-cover" />
+                <div className="pointer-events-none absolute inset-4 rounded-lg border-2 border-gold-400/80" />
+                <div className="pointer-events-none absolute left-6 right-6 h-0.5 rounded-full bg-gold-400 shadow-[0_0_12px_rgba(37,99,235,0.9)] qr-scan-laser" />
               </div>
 
-              <p className="text-xs text-gray-300 mt-3">
+              <p className="text-xs text-gold-400 mt-3 font-medium">
+                {scannerStatus}
+              </p>
+              <p className="text-xs text-gray-300 mt-1">
                 Aponte a câmera para o QR da recepção. Ao reconhecer, o token será preenchido automaticamente.
               </p>
 

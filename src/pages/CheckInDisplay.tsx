@@ -7,6 +7,7 @@ import { useApp } from '@/context/AppContext';
 import { useAuthorization } from '@/hooks/useAuthorization';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { getCheckinWindowLabel, isCheckinOpen } from '@/lib/checkin/checkinUi';
+import { CHECKIN_DISPLAY_QR_SIZE } from '@/lib/checkin/qrScanner';
 
 interface UnitQrData {
   token: string;
@@ -220,13 +221,13 @@ export default function CheckInDisplay() {
             {loading ? (
               <motion.div key="loading"
                 initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                className="w-64 h-64 bg-surface-100 rounded-2xl flex items-center justify-center">
+                className="w-[32rem] h-[32rem] bg-surface-100 rounded-2xl flex items-center justify-center">
                 <RefreshCw size={32} className="text-gold-400 animate-spin" />
               </motion.div>
             ) : error ? (
               <motion.div key="error"
                 initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                className="w-64 h-64 bg-surface-100 rounded-2xl flex flex-col items-center justify-center gap-3 text-center px-4">
+                className="w-[32rem] h-[32rem] bg-surface-100 rounded-2xl flex flex-col items-center justify-center gap-3 text-center px-4">
                 <p className="text-red-400 text-sm">{error}</p>
                 <button onClick={loadToken}
                   className="flex items-center gap-2 text-xs text-gold-400 hover:text-gold-300 font-medium">
@@ -236,13 +237,13 @@ export default function CheckInDisplay() {
             ) : qrUrl ? (
               <motion.div key="qr"
                 initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }}
-                className="bg-card-bg p-5 rounded-2xl shadow-2xl shadow-primary-500/10">
+                className="bg-white p-12 rounded-2xl shadow-2xl shadow-primary-500/10">
                 <QRCode
                   value={qrUrl}
-                  size={240}
+                  size={CHECKIN_DISPLAY_QR_SIZE}
                   fgColor="#111111"
                   bgColor="#FFFFFF"
-                  level="M"
+                  level="H"
                 />
               </motion.div>
             ) : null}
@@ -256,6 +257,7 @@ export default function CheckInDisplay() {
             <p className="text-text-secondary text-sm leading-relaxed">
               Aponte a câmera para o QR Code acima. O app abrirá automaticamente
               e validará sua localização para confirmar o check-in.
+              Se o app não ler, use a Câmera do celular no QR.
             </p>
           </div>
         </div>
