@@ -6,6 +6,7 @@ import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { useConfirmDialog } from '@/hooks/useConfirmDialog';
 import { useAuthorization } from '@/hooks/useAuthorization';
 import { useApp, Portal } from '@/context/AppContext';
+import { openSafeExternalUrl, toSafeExternalUrl } from '@/lib/http/safeExternalUrl';
 
 export default function Portals() {
   const { isBroker, canCreateStrategicResources } = useAuthorization();
@@ -45,9 +46,13 @@ export default function Portals() {
   const handleSave = async () => {
     if (!formData.name || !formData.url) return;
 
-    let url = formData.url;
-    if (!url.startsWith('http://') && !url.startsWith('https://')) {
-      url = `https://${url}`;
+    const rawUrl = formData.url.startsWith('http://') || formData.url.startsWith('https://')
+      ? formData.url
+      : `https://${formData.url}`;
+    const url = toSafeExternalUrl(rawUrl);
+    if (!url) {
+      alert('Informe uma URL http ou https válida.');
+      return;
     }
 
     if (editingPortal) {
@@ -108,7 +113,7 @@ export default function Portals() {
           {filteredPortals.map(portal => (
             <div
               key={portal.id}
-              onClick={() => window.open(portal.url, '_blank')}
+              onClick={() => openSafeExternalUrl(portal.url)}
               className={`group relative flex flex-col rounded-2xl border border-surface-200/60 bg-card-bg p-5 premium-shadow ${cardInteractiveHover}`}
             >
               <div className="flex items-start justify-between">

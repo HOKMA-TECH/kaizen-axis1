@@ -135,7 +135,6 @@ Deno.serve(async (req: Request) => {
 
   // ── Derivar userId do JWT (quando disponível) ─────────────────────────────
   // Para eventos pre-auth (login_failed sem sessão), JWT pode estar ausente.
-  // Se um JWT válido for enviado, ele tem precedência sobre qualquer body.userId.
   let resolvedUserId: string | null = null;
 
   const authHeader = req.headers.get('Authorization');
@@ -153,6 +152,12 @@ Deno.serve(async (req: Request) => {
     }
   }
 
+  if (!resolvedUserId) {
+    if (action !== 'login_failed' || entity !== 'auth') {
+      return errJson('Não autorizado', 401);
+    }
+  }
+
   const supabaseUrl = Deno.env.get('SUPABASE_URL');
   const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
   if (!supabaseUrl || !serviceKey) {
@@ -166,12 +171,17 @@ Deno.serve(async (req: Request) => {
   const metadata = body.metadata && typeof body.metadata === 'object'
     ? body.metadata
     : {};
-  const sanitizedMetadata = JSON.parse(JSON.stringify(metadata));
+  const sanitizedMetadata = resolvedUserId
+    ? JSON.parse(JSON.stringify(metadata))
+    : {
+        reason: typeof metadata.reason === 'string' ? normalizeText(String(metadata.reason), 180) : undefined,
+        userAgent: typeof metadata.userAgent === 'string' ? normalizeText(String(metadata.userAgent), 180) : undefined,
+      };
   const payload = {
     user_id: resolvedUserId,
     action,
     entity,
-    entity_id: body.entityId ?? null,
+    entity_id: resolvedUserId ? (body.entityId ?? null) : null,
     ip_address: ip,
     device_info: req.headers.get('user-agent') || 'unknown',
     metadata: sanitizedMetadata

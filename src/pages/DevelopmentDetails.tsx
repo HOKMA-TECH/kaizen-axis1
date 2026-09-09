@@ -5,6 +5,7 @@ import { ChevronLeft, MapPin, Building2, DollarSign, FileText, PlayCircle, Phone
 import { Modal } from '@/components/ui/Modal';
 import { useApp, Development } from '@/context/AppContext';
 import { useAuthorization } from '@/hooks/useAuthorization';
+import { openSafeExternalUrl } from '@/lib/http/safeExternalUrl';
 
 export default function DevelopmentDetails() {
   const { id } = useParams();
@@ -25,9 +26,7 @@ export default function DevelopmentDetails() {
   }, [id, developments]);
 
   const handleOpenBook = () => {
-    if (development?.book_pdf_url) {
-      window.open(development.book_pdf_url, '_blank');
-    } else {
+    if (!openSafeExternalUrl(development?.book_pdf_url)) {
       alert('Book digital indisponível para este empreendimento.');
     }
   };

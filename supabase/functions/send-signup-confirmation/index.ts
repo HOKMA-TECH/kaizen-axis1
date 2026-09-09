@@ -24,6 +24,11 @@ const corsHeaders = {
 
 const GENERIC_OK = 'Se o e-mail for válido, você receberá o link de confirmação em instantes.';
 const EMAIL_RE = /^[^\s@"<>()[\],;:\\]+@[^\s@"<>()[\],;:\\]+\.[^\s@"<>()[\],;:\\]{2,}$/;
+const PENDING_PROFILE = {
+  status: 'pending',
+  role: 'CORRETOR',
+  checkin_unit_code: 'zona_oeste',
+};
 
 function jsonResponse(payload: Record<string, unknown>, status = 200) {
   return new Response(JSON.stringify(payload), {
@@ -43,11 +48,65 @@ function truncateToWindow(date: Date, windowSeconds: number): string {
   return new Date(ms).toISOString();
 }
 
+async function findAuthUserIdByEmail(adminClient, email: string): Promise<string | null> {
+  let page = 1;
+  const perPage = 200;
+  while (page <= 20) {
+    const { data, error } = await adminClient.auth.admin.listUsers({ page, perPage });
+    if (error) {
+      console.warn('[send-signup-confirmation] listUsers failed', error.message);
+      return null;
+    }
+    const found = (data?.users || []).find((user) => String(user.email || '').toLowerCase() === email);
+    if (found?.id) return found.id;
+    if (!data?.users || data.users.length < perPage) return null;
+    page += 1;
+  }
+  return null;
+}
+
+async function ensurePendingProfile(adminClient, userId: string, name: string): Promise<boolean> {
+  const { data: existing, error: readError } = await adminClient
+    .from('profiles')
+    .select('id')
+    .eq('id', userId)
+    .maybeSingle();
+  if (readError) {
+    console.error('[send-signup-confirmation] profile lookup failed', readError.message);
+    return false;
+  }
+  if (existing) return true;
+
+  const { error: upsertError } = await adminClient.from('profiles').upsert(
+    {
+      id: userId,
+      name,
+      ...PENDING_PROFILE,
+    },
+    { onConflict: 'id', ignoreDuplicates: true },
+  );
+  if (upsertError) {
+    console.error('[send-signup-confirmation] profile upsert failed', upsertError.message);
+    return false;
+  }
+  return true;
+}
+
+function escapeHtml(value: string) {
+  return value
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
+}
+
 function buildEmail(actionLink: string, name: string) {
-  const greeting = name ? `Olá, ${name}.` : 'Olá.';
+  const greetingText = name ? `Olá, ${name}.` : 'Olá.';
+  const greetingHtml = name ? `Olá, ${escapeHtml(name)}.` : 'Olá.';
   const subject = 'Confirme seu acesso — Kaizen Axis';
   const text =
-    `${greeting}\n\n` +
+    `${greetingText}\n\n` +
     `Recebemos sua solicitação de acesso ao Kaizen Axis.\n\n` +
     `Abra o link abaixo para confirmar seu e-mail (válido por tempo limitado):\n` +
     `${actionLink}\n\n` +
@@ -55,7 +114,7 @@ function buildEmail(actionLink: string, name: string) {
   const html = `
   <div style="font-family:Segoe UI,Roboto,Arial,sans-serif;max-width:520px;margin:0 auto;color:#0f1722">
     <h2 style="color:#2563eb;margin:0 0 16px">Confirme seu acesso</h2>
-    <p style="font-size:15px;line-height:1.6">${greeting} Recebemos sua solicitação de acesso ao <strong>Kaizen Axis</strong>.</p>
+    <p style="font-size:15px;line-height:1.6">${greetingHtml} Recebemos sua solicitação de acesso ao <strong>Kaizen Axis</strong>.</p>
     <p style="font-size:15px;line-height:1.6">Clique no botão abaixo para confirmar seu e-mail. O link é válido por tempo limitado.</p>
     <p style="text-align:center;margin:28px 0">
       <a href="${actionLink}" style="background:#2563eb;color:#fff;text-decoration:none;padding:13px 28px;border-radius:10px;font-weight:600;font-size:15px;display:inline-block">Confirmar meu e-mail</a>
@@ -177,7 +236,22 @@ Deno.serve(async (req: Request) => {
       ip,
       reason: linkError?.message || 'no_action_link',
     });
+    const existingUserId = await findAuthUserIdByEmail(adminClient, email);
+    if (existingUserId) {
+      await ensurePendingProfile(adminClient, existingUserId, name);
+    }
     return jsonResponse({ message: GENERIC_OK }, 200);
+  }
+
+  const userId = linkData.user?.id;
+  if (!userId) {
+    console.error('[send-signup-confirmation] generateLink without user id');
+    return jsonResponse({ message: 'Não foi possível criar a solicitação de acesso. Tente novamente em instantes.' }, 500);
+  }
+
+  const profileOk = await ensurePendingProfile(adminClient, userId, name);
+  if (!profileOk) {
+    return jsonResponse({ message: 'Não foi possível criar a solicitação de acesso. Tente novamente em instantes.' }, 500);
   }
 
   const actionLink = linkData.properties.action_link;
