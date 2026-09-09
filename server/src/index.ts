@@ -36,8 +36,8 @@ app.get('/health', (_req, res) => {
 
 /**
  * POST /apuracao
- * Processa um extrato bancário PDF e retorna a apuração de renda.
- *
+ * Pacote Express legado — NÃO entra no compose Axis de produção.
+ * A API viva é api/apuracao.ts no container imobkaizen-axis-production-app.
  * Body (multipart/form-data):
  *   pdf         (file)   — extrato em PDF
  *   nomeCliente (string) — nome completo do cliente

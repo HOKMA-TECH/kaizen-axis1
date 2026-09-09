@@ -7,6 +7,7 @@
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { enforceApuracaoRateLimits } from './apuracao-rate-limit.js';
+import { isApuracaoRoleAllowed } from './apuracao-auth.js';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TIPOS
@@ -2973,6 +2974,34 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         : typeof authUser?.user?.id === 'string'
             ? authUser.user.id
             : null;
+    if (!authUserId) {
+        res.status(401).json({ erro: 'Sessão inválida. Faça login novamente.' });
+        return;
+    }
+
+    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (!serviceRoleKey) {
+        res.status(500).json({ erro: 'Configuração de servidor ausente.' });
+        return;
+    }
+
+    const profileRes = await fetch(
+        `${supabaseUrl}/rest/v1/profiles?id=eq.${encodeURIComponent(authUserId)}&select=role`,
+        {
+            headers: {
+                apikey: serviceRoleKey,
+                Authorization: `Bearer ${serviceRoleKey}`,
+            },
+        },
+    ).catch(() => null);
+    const profileRows = profileRes && profileRes.ok
+        ? await profileRes.json().catch(() => null)
+        : null;
+    const profileRole = Array.isArray(profileRows) ? profileRows[0]?.role : null;
+    if (!isApuracaoRoleAllowed(profileRole)) {
+        res.status(403).json({ erro: 'Não autorizado.' });
+        return;
+    }
     // ── Fim Autenticação ───────────────────────────────────────────────────────
 
     // ── Rate limit: usa RPC server-side quando disponível e cai para rate-guard.

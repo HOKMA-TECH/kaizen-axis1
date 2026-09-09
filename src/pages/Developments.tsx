@@ -9,6 +9,8 @@ import { useApp, Development } from '@/context/AppContext';
 import { useAuthorization } from '@/hooks/useAuthorization';
 import { supabase } from '@/lib/supabase';
 import { PhoneInput } from '@/components/ui/MaskedInputs';
+import { formatDevelopmentUploadError } from '@/lib/developments/uploadError';
+import { toSafeExternalUrl } from '@/lib/http/safeExternalUrl';
 
 const CARD_GAP = 16;
 
@@ -45,6 +47,7 @@ export default function Developments() {
   const [bookUploadError, setBookUploadError] = useState<string | null>(null);
   const [bookInputMode, setBookInputMode] = useState<'upload' | 'link'>('upload');
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [mediaUploadError, setMediaUploadError] = useState<string | null>(null);
   const MAX_PDF_BYTES = 100 * 1024 * 1024; // 100 MB
   const sanitizePath = (path: string) =>
     path.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9.\-_/]/g, '_');
@@ -53,7 +56,12 @@ export default function Developments() {
   const uploadToStorage = async (file: File, path: string): Promise<string | null> => {
     const sanitized = sanitizePath(path);
     const { error } = await supabase.storage.from('developments').upload(sanitized, file, { upsert: true, contentType: file.type });
-    if (error) { console.error('Upload error:', error.message); return null; }
+    if (error) {
+      console.error('Upload error:', error.message);
+      setMediaUploadError(formatDevelopmentUploadError(error.message, 'image'));
+      return null;
+    }
+    setMediaUploadError(null);
     const { data } = supabase.storage.from('developments').getPublicUrl(sanitized);
     return data.publicUrl;
   };
@@ -99,7 +107,7 @@ export default function Developments() {
           let msg = `Erro ${xhr.status}`;
           try { msg = JSON.parse(xhr.responseText)?.message || msg; } catch { }
           console.error('Book upload failed:', xhr.status, xhr.responseText);
-          resolve({ url: null, error: msg });
+          resolve({ url: null, error: formatDevelopmentUploadError(msg, 'pdf') });
         }
       };
 
@@ -195,6 +203,11 @@ export default function Developments() {
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      setMediaUploadError(formatDevelopmentUploadError('mime type not allowed', 'image'));
+      e.target.value = '';
+      return;
+    }
     setUploadingImages(true);
     const path = `images/${Date.now()}_${file.name}`;
     const url = await uploadToStorage(file, path);
@@ -225,7 +238,7 @@ export default function Developments() {
     if (url) {
       setNewDev(prev => ({ ...prev, book_pdf_url: url }));
     } else {
-      setBookUploadError(error || 'Falha no upload. Tente novamente.');
+      setBookUploadError(formatDevelopmentUploadError(error || undefined, 'pdf'));
     }
     setUploadingBook(false);
     setBookUploadProgress(null);
@@ -235,6 +248,11 @@ export default function Developments() {
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      setMediaUploadError(formatDevelopmentUploadError('mime type not allowed', 'image'));
+      e.target.value = '';
+      return;
+    }
     setUploadingAvatar(true);
     const path = `avatars/${Date.now()}_${file.name}`;
     const url = await uploadToStorage(file, path);
@@ -253,6 +271,8 @@ export default function Developments() {
       setNewDev(initialDevState);
       setDifferentialsInput('');
     }
+    setMediaUploadError(null);
+    setBookUploadError(null);
     setIsModalOpen(true);
   };
 
@@ -260,8 +280,16 @@ export default function Developments() {
     if (!newDev.name) return;
     setIsSaving(true);
     try {
+      const safeBookUrl = newDev.book_pdf_url
+        ? toSafeExternalUrl(newDev.book_pdf_url)
+        : undefined;
+      if (newDev.book_pdf_url && !safeBookUrl) {
+        setBookUploadError('Informe uma URL http ou https válida para o book.');
+        return;
+      }
       const payload = {
         ...newDev,
+        book_pdf_url: safeBookUrl || undefined,
         differentials: differentialsInput.split('\n').filter(d => d.trim())
       } as Partial<Development>;
 
@@ -567,6 +595,12 @@ export default function Developments() {
                   </div>
                 ))}
               </div>
+              {mediaUploadError && (
+                <div className="flex items-start gap-2 text-xs text-red-600 bg-red-50 px-3 py-2 rounded-lg mt-2">
+                  <X size={12} className="flex-shrink-0 mt-0.5" />
+                  <span>{mediaUploadError}</span>
+                </div>
+              )}
             </div>
             <div>
               <div className="flex items-center justify-between mb-2">

@@ -1,12 +1,21 @@
 const https = require('https');
 
-const N8N_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI1MTI1M2FkYy1jMWQ5LTRiMDYtOGUzMi01NTE5MGZhYzg4NGMiLCJpc3MiOiJuOG4iLCJhdWQiOiJwdWJsaWMtYXBpIiwiaWF0IjoxNzczMTA3MzU1fQ.7MYQnRjBHF2ss77o7-IVoQNJI-H2hgBlmE44vaxkyc4';
-const WF_ID  = 'DRi4d9wHIoi6Jhfr';
+function requiredEnv(name) {
+  const value = process.env[name];
+  if (!value || !String(value).trim()) {
+    throw new Error('Missing required environment variable: ' + name);
+  }
+  return String(value).trim();
+}
+
+const N8N_KEY = requiredEnv('N8N_KEY');
+const WF_ID  = process.env.N8N_WORKFLOW_ID || 'DRi4d9wHIoi6Jhfr';
+const N8N_HOST = process.env.N8N_HOST || "kaizen-axis-n8n-n8n.2ut0z1.easypanel.host";
 
 function req(path) {
   return new Promise((resolve, reject) => {
     const r = https.request({
-      hostname: 'kaizen-axis-n8n-n8n.2ut0z1.easypanel.host',
+      hostname: N8N_HOST,
       path, method: 'GET',
       headers: { 'X-N8N-API-KEY': N8N_KEY }
     }, res => {

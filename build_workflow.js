@@ -1,8 +1,15 @@
 // Build and POST the new n8n workflow
 const https = require('https');
 
-const API_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxODc4NjEzYi05Yzc5LTRiYjItOWNlOS05MzI2YWUxMWE1MjciLCJpc3MiOiJuOG4iLCJhdWQiOiJwdWJsaWMtYXBpIiwianRpIjoiMmU0Y2IxZWEtNDdhMy00NGE2LThiNmEtYmMyMDBjN2QxZDFmIiwiaWF0IjoxNzcyNjUxMzkzfQ.pps84yS8blua_ZZx1yZ0lhPRwzALz5fq6845ch8qoAo';
-const HOST = 'n8n.srv1452699.hstgr.cloud';
+function requiredEnv(name) {
+  const value = process.env[name];
+  if (!value || !String(value).trim()) {
+    throw new Error('Missing required environment variable: ' + name);
+  }
+  return String(value).trim();
+}
+const API_KEY = requiredEnv('N8N_KEY');
+const HOST = process.env.N8N_HOST || 'n8n.example.invalid';
 
 const systemPromptText = `Você é Sofia, assistente virtual da imobiliária Kaizen Axis. Seja simpática, use português do Brasil e emojis com moderação.
 

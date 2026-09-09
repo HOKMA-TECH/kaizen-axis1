@@ -26,4 +26,31 @@ describe('signup confirmation wiring', () => {
     assert.match(source, /if \(requireCaptcha && turnstileSecret\)/);
     assert.doesNotMatch(source, /noreply@kaizen-axis\.space/);
   });
+
+  it('creates a pending profile before sending the confirmation email', () => {
+    const source = readFileSync(
+      join(root, 'supabase/functions/send-signup-confirmation/index.ts'),
+      'utf8',
+    );
+    assert.match(source, /from\('profiles'\)/);
+    assert.match(source, /status:\s*'pending'/);
+    assert.match(source, /checkin_unit_code:\s*'zona_oeste'/);
+    assert.match(source, /role:\s*'CORRETOR'/);
+    assert.match(source, /ignoreDuplicates:\s*true|ON CONFLICT|maybeSingle/);
+    const upsertAt = source.search(/from\('profiles'\)/);
+    const resendAt = source.indexOf('api.resend.com/emails');
+    assert.ok(upsertAt >= 0 && resendAt > upsertAt, 'profile must be created before Resend');
+  });
+
+  it('escapes the signup name in HTML email only', () => {
+    const source = readFileSync(
+      join(root, 'supabase/functions/send-signup-confirmation/index.ts'),
+      'utf8',
+    );
+    assert.match(source, /function escapeHtml/);
+    assert.match(source, /greetingHtml/);
+    assert.match(source, /replaceAll\('&', '&amp;'\)/);
+    assert.match(source, /replaceAll\('<'/);
+    assert.match(source, /greetingText/);
+  });
 });
