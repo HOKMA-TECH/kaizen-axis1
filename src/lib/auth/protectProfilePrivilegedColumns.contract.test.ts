@@ -29,7 +29,9 @@ describe('protect profile privileged columns', () => {
 
   it('keeps self-service profile updates on free fields only', () => {
     assert.match(settings, /\.from\('profiles'\)/);
-    assert.match(settings, /avatar_url:/);
+    assert.match(settings, /buildSettingsAvatarPath/);
+    assert.match(settings, /isAllowedAvatarMimeType/);
+    assert.match(settings, /getUser\(\)/);
     assert.match(settings, /phone:/);
     assert.doesNotMatch(settings, /\.update\(\{\s*name:[\s\S]{0,400}\brole\s*:/);
     assert.match(chatSidebar, /chat_display_name:/);

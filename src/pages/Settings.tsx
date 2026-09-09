@@ -15,6 +15,7 @@ import { setupPushSubscription } from '@/context/NotificationContext';
 import { CpfInput, PhoneInput } from '@/components/ui/MaskedInputs';
 import { AddressSelects } from '@/components/ui/AddressSelects';
 import { formatCpf } from '@/lib/masks';
+import { buildSettingsAvatarPath, isAllowedAvatarMimeType } from '@/lib/avatar-storage';
 
 const RELATION_PRESETS = ['Pai/Mãe', 'Cônjuge', 'Filho/Filha'] as const;
 
@@ -231,6 +232,11 @@ export default function Settings() {
   const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    if (!isAllowedAvatarMimeType(file.type)) {
+      showToast('Formato de imagem não permitido. Use JPG, PNG, WEBP ou GIF.', 'error');
+      e.target.value = '';
+      return;
+    }
     setAvatarFile(file);
     setAvatarPreview(URL.createObjectURL(file));
   };
@@ -243,8 +249,12 @@ export default function Settings() {
       let avatarUrl = editProfile.avatar_url;
 
       if (avatarFile) {
-        const ext = avatarFile.name.split('.').pop();
-        const path = `${profile.id}/avatar.${ext}`;
+        const { data: { user: sessionUser } } = await supabase.auth.getUser();
+        if (!sessionUser?.id) throw new Error('Sessão expirada. Entre novamente.');
+        if (!isAllowedAvatarMimeType(avatarFile.type)) {
+          throw new Error('Formato de imagem não permitido. Use JPG, PNG, WEBP ou GIF.');
+        }
+        const path = buildSettingsAvatarPath(sessionUser.id, avatarFile);
         const { error: upErr } = await supabase.storage
           .from('avatars')
           .upload(path, avatarFile, { upsert: true, contentType: avatarFile.type });
