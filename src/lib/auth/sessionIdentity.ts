@@ -29,7 +29,12 @@ export function authEventRequiresProfileReload(
   prevUserId: string | null | undefined,
   nextUserId: string | null | undefined,
 ): boolean {
-  if (event === 'SIGNED_IN' || event === 'SIGNED_OUT' || event === 'USER_UPDATED') {
+  if (
+    event === 'SIGNED_IN'
+    || event === 'SIGNED_OUT'
+    || event === 'USER_UPDATED'
+    || event === 'INITIAL_SESSION'
+  ) {
     return true;
   }
   if (event === 'TOKEN_REFRESHED' && prevUserId !== nextUserId) {

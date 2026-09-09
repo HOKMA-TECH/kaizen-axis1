@@ -21,7 +21,7 @@ import { DiretoriaCardGrid } from './reports/DiretoriaCardGrid';
 
 export default function Dashboard() {
   const navigate = useNavigate();
-  const { clients, appointments, goals, announcements, userName, loading, directorates, allProfiles, profile, user, teams } = useApp();
+  const { clients, appointments, goals, announcements, userName, loading, dataLoadError, retryDataLoad, directorates, allProfiles, profile, user, teams } = useApp();
   const { isAdmin, isDirector, isManager, isCoordinator, isBroker, directorateId, role } = useAuthorization();
 
   const [period, setPeriod] = useState<'este_mes' | '30_dias' | '60_dias' | '90_dias' | 'custom'>('este_mes');
@@ -247,6 +247,24 @@ export default function Dashboard() {
         )}
       </section>
 
+      {loading ? (
+        <div className="flex flex-col items-center justify-center gap-3 py-20 text-text-secondary">
+          <Loader2 className="animate-spin text-primary-400" size={28} />
+          <p className="text-sm">Carregando seus números…</p>
+        </div>
+      ) : dataLoadError ? (
+        <PremiumCard className="p-6 text-center space-y-4">
+          <p className="text-sm text-red-500">{dataLoadError}</p>
+          <button
+            type="button"
+            onClick={retryDataLoad}
+            className="inline-flex items-center justify-center rounded-xl bg-primary-500 px-4 py-2 text-sm font-semibold text-white hover:bg-primary-400"
+          >
+            Tentar de novo
+          </button>
+        </PremiumCard>
+      ) : (
+      <>
       {/* ── ADMIN ONLY: Global Metrics ─────────────────────────────────────── */}
       {isAdmin && (
         <>
@@ -623,6 +641,8 @@ export default function Dashboard() {
             ))}
           </div>
         </section>
+      )}
+      </>
       )}
     </div>
   );

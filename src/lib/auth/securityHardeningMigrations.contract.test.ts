@@ -41,4 +41,14 @@ describe('security hardening migrations', () => {
     assert.match(sql, /RECEPCAO_NI/);
     assert.match(sql, /checkin_date = CURRENT_DATE/);
   });
+
+  it('restores avatars bucket writes to the caller folder and public reads', () => {
+    const sql = readMigration('20260909130000_restore_avatars_storage_policies.sql');
+    assert.match(sql, /bucket_id = 'avatars'/);
+    assert.match(sql, /Users can upload own avatar/);
+    assert.match(sql, /Users can update own avatar/);
+    assert.match(sql, /Users can delete own avatar/);
+    assert.match(sql, /Public can read avatars/);
+    assert.match(sql, /split_part\(storage\.objects\.name, '\/', 1\) = auth\.uid\(\)::text/);
+  });
 });

@@ -14,6 +14,10 @@ export function buildChatAvatarPath(userId: string, file: Pick<File, 'name' | 't
   return `${userId}/chat-avatar-${now}.${getAvatarExtension(file)}`;
 }
 
+export function buildSettingsAvatarPath(userId: string, file: Pick<File, 'name' | 'type'>): string {
+  return `${userId}/avatar.${getAvatarExtension(file)}`;
+}
+
 export function isAllowedAvatarMimeType(type: string): boolean {
   return Object.prototype.hasOwnProperty.call(AVATAR_EXTENSIONS, type);
 }

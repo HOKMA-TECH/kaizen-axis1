@@ -189,6 +189,8 @@ interface AppContextValue {
   // Clients
   clients: Client[];
   loading: boolean;
+  dataLoadError: string | null;
+  retryDataLoad: () => void;
   addClient: (data: Omit<Client, 'id' | 'history' | 'documents' | 'createdAt'>) => Promise<Client | null>;
   updateClient: (id: string, data: Partial<Client>) => Promise<void>;
   deleteClient: (id: string) => Promise<void>;
@@ -309,17 +311,18 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [portals, setPortals] = useState<Portal[]>([]);
   const [trainings, setTrainings] = useState<TrainingItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [dataLoadError, setDataLoadError] = useState<string | null>(null);
 
   // Refs para evitar loop infinito: refreshLeads/refreshClients lê esses valores sem depender deles
   const profileRef = React.useRef(profile);
   const userRef = React.useRef(user);
-  const userRoleRef = React.useRef('Corretor');
+  const userRoleRef = React.useRef('');
   const allProfilesRef = React.useRef<Profile[]>([]);
   const sessionUserIdRef = React.useRef<string | null>(null);
   const sessionEpochRef = React.useRef(0);
   React.useEffect(() => { profileRef.current = profile; }, [profile]);
   React.useEffect(() => { userRef.current = user; }, [user]);
-  React.useEffect(() => { userRoleRef.current = profile?.role || 'Corretor'; }, [profile]);
+  React.useEffect(() => { userRoleRef.current = profile?.role || ''; }, [profile]);
   React.useEffect(() => { allProfilesRef.current = allProfiles; }, [allProfiles]);
 
   const clearUserScopedState = () => {
@@ -338,7 +341,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setPortals([]);
     setTrainings([]);
     profileRef.current = null;
-    userRoleRef.current = 'Corretor';
+    userRoleRef.current = '';
     allProfilesRef.current = [];
   };
 
@@ -885,7 +888,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       // Silently skip if DB error (e.g. column not yet migrated)
       if (error) { console.warn('refreshLeads skipped:', error.message); return; }
 
-      const rawRole = profileRef.current?.role || userRoleRef.current || 'CORRETOR';
+      const rawRole = profileRef.current?.role || userRoleRef.current || '';
       const role = String(rawRole).toUpperCase();
       const uid = userRef.current?.id;
 
@@ -943,15 +946,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const refreshClients = useCallback(async () => {
     try {
-      const rawRole = profileRef.current?.role || userRoleRef.current || 'CORRETOR';
+      const rawRole = profileRef.current?.role || userRoleRef.current || '';
       const role = String(rawRole).toUpperCase();
       const uid = userRef.current?.id;
 
       try {
         await rateLimiter.enforce('clients_query', { userId: uid || null });
       } catch (err: any) {
-        alert(err?.message || 'Limite de consultas atingido. Aguarde um minuto.');
-        return;
+        throw new Error(err?.message || 'Limite de consultas atingido. Aguarde um minuto.');
       }
 
       let query = supabase
@@ -1010,7 +1012,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           }),
       }));
       setClients(transformed);
-    } catch (e) { console.error('Erro ao carregar clientes:', e); }
+    } catch (e) {
+      console.error('Erro ao carregar clientes:', e);
+      throw e;
+    }
   }, []);
 
   const convertLeadToClient = useCallback(async (leadId: string, clientData: any): Promise<{ success: boolean; clientId?: string }> => {
@@ -1403,7 +1408,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const { data, error } = await supabase.from('appointments').select('*').order('date').order('time');
       if (error) throw error;
       setAppointments(data || []);
-    } catch (e) { console.error('Erro ao buscar agendamentos:', e); }
+    } catch (e) {
+      console.error('Erro ao buscar agendamentos:', e);
+      throw e;
+    }
   }, []);
 
   const addAppointment = useCallback(async (data: Omit<Appointment, 'id' | 'created_at'>) => {
@@ -2104,15 +2112,24 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (capturedEpoch !== sessionEpochRef.current) return;
     if (forcedProfile) {
       profileRef.current = forcedProfile;
-      userRoleRef.current = forcedProfile.role || 'Corretor';
+      userRoleRef.current = forcedProfile.role || '';
     }
+    const retryOnce = async (fn: () => Promise<void>) => {
+      try {
+        await fn();
+      } catch {
+        await new Promise((resolve) => setTimeout(resolve, 400));
+        await fn();
+      }
+    };
+    setDataLoadError(null);
     try {
       await Promise.all([
-        refreshClients(),
+        retryOnce(refreshClients),
         refreshLeads(),
         refreshPortals(),
         refreshTrainings(),
-        refreshAppointments(),
+        retryOnce(refreshAppointments),
         refreshTasks(),
         refreshDevelopments(),
         refreshTeams(),
@@ -2122,14 +2139,28 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         refreshDirectorates(),
         refreshCheckinConfig(),
       ]);
-    } finally {
-      // loading controla somente a inicialização de sessão/tela protegida.
-      // Atualizações em background não devem desmontar a UI inteira.
       if (capturedEpoch === sessionEpochRef.current) {
+        setDataLoadError(null);
+        setLoading(false);
+      }
+    } catch (e) {
+      if (capturedEpoch === sessionEpochRef.current) {
+        const message = e instanceof Error && e.message
+          ? e.message
+          : 'Não foi possível carregar os dados. Tente de novo.';
+        setDataLoadError(message);
         setLoading(false);
       }
     }
   }, [refreshClients, refreshLeads, refreshAppointments, refreshTasks, refreshDevelopments, refreshTeams, refreshGoals, refreshAnnouncements, refreshProfiles, refreshDirectorates, refreshCheckinConfig]);
+
+  const retryDataLoad = useCallback(() => {
+    const uid = userRef.current?.id;
+    if (!uid) return;
+    setDataLoadError(null);
+    setLoading(true);
+    void loadAllData(profileRef.current || undefined);
+  }, [loadAllData]);
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
@@ -2138,6 +2169,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const epoch = sessionEpochRef.current;
       if (prevUserId !== nextUserId) {
         clearUserScopedState();
+        setDataLoadError(null);
         setLoading(true);
       }
       fetchProfile(nextUserId, epoch).then(profileData => {
@@ -2154,9 +2186,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       userRef.current = session?.user ?? null;
       if (nextUserId) {
         applyAuthenticatedSession(nextUserId, null);
-      } else {
-        setLoading(false);
       }
+      // Sessão vazia: espera INITIAL_SESSION / SIGNED_IN. Não desligar o loading aqui.
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
@@ -2184,10 +2215,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
     const channel = supabase
       .channel('schema-db-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'clients' }, () => refreshClients())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'client_proponents' }, () => refreshClients())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'clients' }, () => { void refreshClients().catch(() => {}); })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'client_proponents' }, () => { void refreshClients().catch(() => {}); })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'leads' }, () => refreshLeads())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'appointments' }, () => refreshAppointments())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'appointments' }, () => { void refreshAppointments().catch(() => {}); })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, () => refreshTasks())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'developments' }, () => refreshDevelopments())
       .subscribe();
@@ -2204,7 +2235,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     <AppContext.Provider value={{
       session, user, profile, allProfiles, userName, userRole,
       signOut, refreshProfiles, updateProfile,
-      clients, loading, addClient, updateClient, deleteClient, getClient, refreshClients,
+      clients, loading, dataLoadError, retryDataLoad, addClient, updateClient, deleteClient, getClient, refreshClients,
       addClientProponent, updateClientProponent, deleteClientProponent,
       leads, refreshLeads, updateLead, convertLeadToClient,
       uploadFile,

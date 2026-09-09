@@ -61,10 +61,12 @@ describe('hasStaleProfile', () => {
 });
 
 describe('authEventRequiresProfileReload', () => {
-  it('reloads on sign-in, sign-out and user update', () => {
+  it('reloads on sign-in, sign-out, user update and initial session', () => {
     assert.equal(authEventRequiresProfileReload('SIGNED_IN', null, marina.id), true);
     assert.equal(authEventRequiresProfileReload('SIGNED_OUT', gustavo.id, null), true);
     assert.equal(authEventRequiresProfileReload('USER_UPDATED', marina.id, marina.id), true);
+    assert.equal(authEventRequiresProfileReload('INITIAL_SESSION', null, marina.id), true);
+    assert.equal(authEventRequiresProfileReload('INITIAL_SESSION', null, null), true);
   });
 
   it('reloads TOKEN_REFRESHED when the user id changes (Gustavo → Marina)', () => {
