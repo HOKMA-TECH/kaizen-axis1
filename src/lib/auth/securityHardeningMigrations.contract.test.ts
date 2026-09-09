@@ -42,6 +42,21 @@ describe('security hardening migrations', () => {
     assert.match(sql, /checkin_date = CURRENT_DATE/);
   });
 
+  it('restricts pending profiles from business tables', () => {
+    const sql = readMigration('20260909220000_active_profile_restrictive_rls.sql');
+    assert.match(sql, /app_current_user_is_active/);
+    assert.match(sql, /AS RESTRICTIVE/);
+  });
+
+  it('revokes global QR and scopes diretor in helpers', () => {
+    const sql = readMigration('20260910000000_residual_security_hardening.sql');
+    assert.match(sql, /get_or_create_daily_qr/);
+    assert.match(sql, /app_current_user_role\(\) = 'DIRETOR'/);
+    assert.doesNotMatch(sql, /checkin_date = CURRENT_DATE/);
+    assert.match(sql, /app.settings.service_role_key/);
+    assert.match(sql, /storage.foldername\(name\)\)\[1\]/);
+  });
+
   it('restores avatars bucket writes to the caller folder and public reads', () => {
     const sql = readMigration('20260909130000_restore_avatars_storage_policies.sql');
     assert.match(sql, /bucket_id = 'avatars'/);

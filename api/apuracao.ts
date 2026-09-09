@@ -2935,7 +2935,7 @@ export const __test__ = {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-    const allowedOrigin = process.env.VITE_APP_URL ?? 'https://kaizenaxis.com.br';
+    const allowedOrigin = process.env.VITE_APP_URL ?? 'https://app.imobkaizen.com.br';
     res.setHeader('Access-Control-Allow-Origin', allowedOrigin);
     res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');

@@ -6,16 +6,19 @@ export const USER_ROLE_OPTIONS = [
   { value: 'ADMIN', label: 'ADMIN' },
   { value: 'RECEPCAO', label: 'RECEPÇÃO' },
   { value: 'RECEPCAO_ZN', label: 'RECEPÇÃO ZN' },
+  { value: 'RECEPCAO_NI', label: 'RECEPÇÃO NI' },
   { value: 'ANALISTA', label: 'ANALISTA' },
 ] as const;
 
 export type UserRole = typeof USER_ROLE_OPTIONS[number]['value'];
-export type ReceptionRole = Extract<UserRole, 'RECEPCAO' | 'RECEPCAO_ZN'>;
+export type ReceptionRole = Extract<UserRole, 'RECEPCAO' | 'RECEPCAO_ZN' | 'RECEPCAO_NI'>;
+export type ReceptionUnitCode = 'zona_oeste' | 'zona_norte' | 'nova_iguacu';
 
 const ROLE_VALUES = new Set<string>(USER_ROLE_OPTIONS.map(option => option.value));
-const RECEPTION_UNIT_BY_ROLE: Record<ReceptionRole, 'zona_oeste' | 'zona_norte'> = {
+const RECEPTION_UNIT_BY_ROLE: Record<ReceptionRole, ReceptionUnitCode> = {
   RECEPCAO: 'zona_oeste',
   RECEPCAO_ZN: 'zona_norte',
+  RECEPCAO_NI: 'nova_iguacu',
 };
 
 export function normalizeUserRole(value: unknown): UserRole {
@@ -25,10 +28,10 @@ export function normalizeUserRole(value: unknown): UserRole {
 
 export function isReceptionRole(value: unknown): value is ReceptionRole {
   const normalized = String(value ?? '').trim().toUpperCase();
-  return normalized === 'RECEPCAO' || normalized === 'RECEPCAO_ZN';
+  return Object.prototype.hasOwnProperty.call(RECEPTION_UNIT_BY_ROLE, normalized);
 }
 
-export function getReceptionUnitCode(value: unknown): 'zona_oeste' | 'zona_norte' | null {
+export function getReceptionUnitCode(value: unknown): ReceptionUnitCode | null {
   const normalized = String(value ?? '').trim().toUpperCase();
   return isReceptionRole(normalized) ? RECEPTION_UNIT_BY_ROLE[normalized] : null;
 }

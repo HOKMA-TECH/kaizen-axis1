@@ -1,5 +1,6 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import { createClient } from 'jsr:@supabase/supabase-js@2';
+import { assertActiveProfile } from '../_shared/requireActiveProfile.ts';
 
 const OPENAI_API_KEY = String(Deno.env.get('OPENAI_API_KEY') || '').trim();
 const OPENAI_MODEL = String(Deno.env.get('KAI_OPENAI_MODEL') || 'gpt-4o-mini').trim();
@@ -341,6 +342,13 @@ Deno.serve(async (req: Request) => {
   const { data: { user }, error: authError } = await userClient.auth.getUser();
   if (authError || !user) {
     return jsonResponse({ error: 'unauthorized' }, 401);
+  }
+  const active = await assertActiveProfile(
+    createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false, autoRefreshToken: false } }),
+    user.id,
+  );
+  if (!active.ok) {
+    return jsonResponse({ error: active.message }, active.status);
   }
 
   if (!OPENAI_API_KEY) {

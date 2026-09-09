@@ -59,7 +59,7 @@ function json(body: unknown, status = 200) {
 // ── Handler ───────────────────────────────────────────────────────────────────
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
-  if (req.method !== 'POST') return json({ error: 'method_not_allowed' }, 405);
+  return json({ error: 'Este endpoint foi descontinuado. Use checkin-geo-v2.' }, 410);
 
   // ── 1. Autenticação via JWT (validação criptográfica server-side) ─────────
   const authHeader = req.headers.get('Authorization');

@@ -1,6 +1,7 @@
 // @ts-nocheck — Deno types are not available in the local TS checker; valid at runtime.
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from 'jsr:@supabase/supabase-js@2';
+import { verifyTurnstileToken } from '../_shared/verifyTurnstile.ts';
 
 // Recuperação de senha entregue pelo Resend (canal próprio, confiável) em vez do
 // e-mail nativo do Supabase Auth — que depende de SMTP/limites do projeto e não
@@ -104,34 +105,13 @@ Deno.serve(async (req: Request) => {
   }
 
   const ip = resolveIp(req);
-
-  // ── Verificação server-side do Turnstile CAPTCHA (quando configurado) ──────
-  const requireCaptcha = Deno.env.get('REQUIRE_CAPTCHA') === 'true';
-  const turnstileSecret = Deno.env.get('TURNSTILE_SECRET_KEY');
-  if (requireCaptcha && !turnstileSecret) {
-    console.error('[send-password-reset] REQUIRE_CAPTCHA=true mas TURNSTILE_SECRET_KEY ausente');
-    return jsonResponse({ message: 'Serviço temporariamente indisponível. Tente novamente em instantes.' }, 503);
-  }
-  if (requireCaptcha && turnstileSecret) {
-    if (!captchaToken) {
-      return jsonResponse({ message: 'Verificação de segurança obrigatória.' }, 400);
-    }
-    const formData = new FormData();
-    formData.append('secret', turnstileSecret);
-    formData.append('response', captchaToken);
-    formData.append('remoteip', ip);
-    const verifyRes = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
-      method: 'POST',
-      body: formData,
-    }).catch(() => null);
-    const verifyJson = verifyRes ? await verifyRes.json().catch(() => null) : null;
-    if (!verifyJson?.success) {
-      console.warn('[send-password-reset] CAPTCHA verification failed', {
-        ip,
-        errorCodes: verifyJson?.['error-codes'],
-      });
-      return jsonResponse({ message: 'Verificação de segurança inválida ou expirada. Tente novamente.' }, 400);
-    }
+  const captcha = await verifyTurnstileToken({
+    token: captchaToken,
+    secret: Deno.env.get('TURNSTILE_SECRET_KEY'),
+    ip,
+  });
+  if (!captcha.ok) {
+    return jsonResponse({ message: captcha.message }, captcha.status);
   }
 
   const adminClient = createClient(supabaseUrl, serviceKey, {

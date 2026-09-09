@@ -21,9 +21,10 @@ describe('signup confirmation wiring', () => {
     assert.match(source, /type:\s*'signup'/);
     assert.match(source, /generateLink/);
     assert.match(source, /api\.resend\.com\/emails/);
-    assert.match(source, /REQUIRE_CAPTCHA/);
+    assert.match(source, /verifyTurnstileToken/);
     assert.match(source, /increment_request_counter/);
-    assert.match(source, /if \(requireCaptcha && turnstileSecret\)/);
+    assert.doesNotMatch(source, /REQUIRE_CAPTCHA/);
+    assert.doesNotMatch(source, /if \(requireCaptcha && turnstileSecret\)/);
     assert.doesNotMatch(source, /noreply@kaizen-axis\.space/);
   });
 
@@ -40,6 +41,25 @@ describe('signup confirmation wiring', () => {
     const upsertAt = source.search(/from\('profiles'\)/);
     const resendAt = source.indexOf('api.resend.com/emails');
     assert.ok(upsertAt >= 0 && resendAt > upsertAt, 'profile must be created before Resend');
+  });
+
+  it('wires AdminPanel pending inbox through isPendingStatus', () => {
+    const admin = readFileSync(join(root, 'src/pages/admin/AdminPanel.tsx'), 'utf8');
+    assert.match(admin, /isPendingStatus/);
+    assert.doesNotMatch(admin, /p\.status === 'pending' \|\| p\.status === 'Pendente'/);
+  });
+
+  it('attaches handle_new_user to auth.users and backfills orphans', () => {
+    const sql = readFileSync(
+      join(root, 'supabase/migrations/20260906140000_handle_new_user_pending_profile.sql'),
+      'utf8',
+    );
+    assert.match(sql, /CREATE OR REPLACE FUNCTION public.handle_new_user/);
+    assert.match(sql, /ON auth.users/);
+    assert.match(sql, /'pending'/);
+    assert.match(sql, /zona_oeste/);
+    assert.match(sql, /ON CONFLICT \(id\) DO NOTHING/);
+    assert.match(sql, /LEFT JOIN public.profiles/);
   });
 
   it('escapes the signup name in HTML email only', () => {

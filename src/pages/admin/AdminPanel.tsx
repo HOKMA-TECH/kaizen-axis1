@@ -36,6 +36,7 @@ import {
   getUserRoleLabel,
   USER_ROLE_OPTIONS,
 } from '@/lib/auth/userRoles';
+import { isActiveStatus, isInactiveStatus, isPendingStatus } from '@/lib/auth/profileStatus';
 
 import { CardActionsMenu, type CardActionItem } from '@/components/ui/CardActionsMenu';
 import { CommissionManagement } from '@/pages/admin/CommissionManagement';
@@ -991,18 +992,14 @@ export default function AdminPanel() {
     refreshProfiles();
   }, [refreshProfiles]);
 
-  const pendingUsers = allProfiles.filter(p => p.status === 'pending' || p.status === 'Pendente');
-  const activeUsers = allProfiles.filter(p => (p.status === 'active' || p.status === 'Ativo') && p.name?.toLowerCase().includes(searchTerm.toLowerCase()));
-  const inactiveUsers = allProfiles.filter(p => (p.status === 'inactive' || p.status === 'Inativo') && p.name?.toLowerCase().includes(searchTerm.toLowerCase()));
-  const isProfileActive = (status?: string | null) => {
-    const normalized = String(status || '').toLowerCase();
-    return normalized === 'active' || normalized === 'ativo';
-  };
+  const pendingUsers = allProfiles.filter(p => isPendingStatus(p.status));
+  const activeUsers = allProfiles.filter(p => isActiveStatus(p.status) && p.name?.toLowerCase().includes(searchTerm.toLowerCase()));
+  const inactiveUsers = allProfiles.filter(p => isInactiveStatus(p.status) && p.name?.toLowerCase().includes(searchTerm.toLowerCase()));
 
   const scopedDirectorates = isAdmin ? directorates : directorates.filter(d => d.id === directorateId);
   const scopedTeams = isAdmin ? teams : teams.filter(t => t.directorate_id === directorateId);
   const scopedProfiles = isAdmin ? allProfiles : allProfiles.filter(p => p.directorate_id === directorateId);
-  const scopedCoordinators = scopedProfiles.filter(p => p.role?.toUpperCase() === 'COORDENADOR' && isProfileActive(p.status));
+  const scopedCoordinators = scopedProfiles.filter(p => p.role?.toUpperCase() === 'COORDENADOR' && isActiveStatus(p.status));
   const announcementScopes = isAdmin ? ANNOUNCEMENT_SCOPES : ANNOUNCEMENT_SCOPES.filter(scope => scope !== 'All');
   const goalScopes = isAdmin ? GOAL_SCOPES : GOAL_SCOPES.filter(scope => scope !== 'All');
   const assigneeCatalogs = { directorates, teams, profiles: allProfiles };
@@ -1463,14 +1460,14 @@ export default function AdminPanel() {
                             className="w-full min-w-0 h-9 text-[11px] bg-surface-50 border border-surface-200 rounded-lg px-2 py-1 focus:outline-none focus:border-gold-400">
                             <option value="">Sem Gestor</option>
                             {allProfiles
-                              .filter(p => p.id !== u.id && p.role?.toUpperCase() === 'GERENTE' && isProfileActive((p as any).status))
+                              .filter(p => p.id !== u.id && p.role?.toUpperCase() === 'GERENTE' && isActiveStatus((p as any).status))
                               .map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                           </select>
                           <select value={(u as any).coordinator_id ?? ''} onChange={e => handleCoordinatorChange(u.id, e.target.value || null)}
                             className="w-full min-w-0 h-9 text-[11px] bg-surface-50 border border-surface-200 rounded-lg px-2 py-1 focus:outline-none focus:border-gold-400">
                             <option value="">Sem Coordenador</option>
                             {allProfiles
-                              .filter(p => p.id !== u.id && p.role?.toUpperCase() === 'COORDENADOR' && isProfileActive((p as any).status))
+                              .filter(p => p.id !== u.id && p.role?.toUpperCase() === 'COORDENADOR' && isActiveStatus((p as any).status))
                               .map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                           </select>
                           {isAdmin && (
@@ -2651,7 +2648,7 @@ export default function AdminPanel() {
                 className="w-full p-3 bg-surface-50 rounded-xl border-none focus:ring-2 focus:ring-gold-200 text-text-primary">
                 <option value="">Sem Coordenador</option>
                 {allProfiles
-                  .filter(p => p.role?.toUpperCase() === 'COORDENADOR' && isProfileActive((p as any).status))
+                  .filter(p => p.role?.toUpperCase() === 'COORDENADOR' && isActiveStatus((p as any).status))
                   .map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
               </select>
             </div>
@@ -2699,7 +2696,7 @@ export default function AdminPanel() {
       <Modal isOpen={isMembersModalOpen} onClose={() => setIsMembersModalOpen(false)} title="Gerenciar Membros">
         <div className="space-y-4">
           <div className="max-h-60 overflow-y-auto space-y-2">
-            {allProfiles.filter(u => u.status === 'active' || u.status === 'Ativo').map(u => {
+            {allProfiles.filter(u => isActiveStatus(u.status)).map(u => {
               const team = teams.find(t => t.id === selectedTeamId);
               const isMember = team ? getTeamMemberIds(team, allProfiles).includes(u.id) : false;
               return (

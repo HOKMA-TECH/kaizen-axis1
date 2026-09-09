@@ -34,6 +34,12 @@ const vercelApiPlugin = () => ({
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, '.', '');
+  if (mode === 'production') {
+    const siteKey = String(env.VITE_TURNSTILE_SITE_KEY || process.env.VITE_TURNSTILE_SITE_KEY || '').trim();
+    if (!siteKey) {
+      throw new Error('VITE_TURNSTILE_SITE_KEY is required for production builds');
+    }
+  }
   return {
     plugins: [
       react(),

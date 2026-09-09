@@ -1,19 +1,14 @@
 const PRODUCTION_ORIGINS = new Set([
-  'https://kaizen-axis.space',
-  'https://www.kaizen-axis.space',
-  'https://kaizen-axis1.vercel.app',
-  'https://kaizen-axis1-hokma-tech.vercel.app',
+  'https://app.imobkaizen.com.br',
 ]);
-
-const KAIZEN_VERCEL_PREVIEW = /^https:\/\/kaizen-axis1(?:-[a-z0-9]+)*-hokma-tech\.vercel\.app$/;
 
 export function isAllowedCheckinOrigin(
   origin: string | null,
   configuredOrigins = '',
 ): boolean {
-  if (!origin) return true;
+  if (!origin) return false;
   if (PRODUCTION_ORIGINS.has(origin)) return true;
-  if (KAIZEN_VERCEL_PREVIEW.test(origin)) return true;
+  if (origin === 'http://localhost:3000' || origin === 'http://127.0.0.1:3000') return true;
 
   const allowedFromEnvironment = configuredOrigins
     .split(',')

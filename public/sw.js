@@ -7,7 +7,7 @@
 //   • Limpa caches de versões antigas         →  sem conflito entre deploys
 // ─────────────────────────────────────────────────────────────────────────────
 
-const CACHE_VERSION = 'v7';
+const CACHE_VERSION = 'v8';
 const CACHE_NAME = `kaizen-axis-${CACHE_VERSION}`;
 const MAX_CACHE_ENTRIES = 60;
 const LEGACY_HOSTS = new Set(['kaizen-axis.space', 'www.kaizen-axis.space']);
@@ -41,7 +41,8 @@ function shouldBypass(request) {
     url.hostname.includes('supabase.co') ||
     url.hostname.includes('supabase.io') ||
     url.hostname.includes('supabase.in') ||
-    url.hostname === 'api-app.imobkaizen.com.br'
+    url.hostname === 'api-app.imobkaizen.com.br' ||
+    url.hostname === 'challenges.cloudflare.com'
   ) return true;
 
   // 4. Vite HMR e endpoints de dev

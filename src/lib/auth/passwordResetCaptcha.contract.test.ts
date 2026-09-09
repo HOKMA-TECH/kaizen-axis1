@@ -14,24 +14,26 @@ describe('password reset captcha', () => {
     const consumeIndex = login.lastIndexOf('consumeCaptchaTokenIfRequired()', resetInvoke);
     assert.ok(resetInvoke > 0, 'expected send-password-reset invoke');
     assert.ok(consumeIndex > 0 && consumeIndex < resetInvoke, 'reset must consume a fresh captcha token');
-    assert.match(login, /disabled=\{loading\}/);
+    assert.match(login, /BotChallenge/);
+    assert.doesNotMatch(login, /innerHTML/);
   });
 
-  it('aligns send-password-reset with REQUIRE_CAPTCHA and logs siteverify error codes', () => {
+  it('send-password-reset always verifies Turnstile via shared helper', () => {
     const source = readFileSync(
       join(root, 'supabase/functions/send-password-reset/index.ts'),
       'utf8',
     );
-    assert.match(source, /REQUIRE_CAPTCHA/);
-    assert.match(source, /error-codes/);
-    assert.match(source, /if \(requireCaptcha && turnstileSecret\)/);
+    assert.match(source, /verifyTurnstileToken/);
+    assert.doesNotMatch(source, /REQUIRE_CAPTCHA/);
   });
 
-  it('secure-login verifies Turnstile only when REQUIRE_CAPTCHA is true', () => {
+  it('secure-login always verifies Turnstile via shared helper', () => {
     const source = readFileSync(
       join(root, 'supabase/functions/secure-login/index.ts'),
       'utf8',
     );
-    assert.match(source, /if \(requireCaptcha && turnstileSecret\)/);
+    assert.match(source, /verifyTurnstileToken/);
+    assert.match(source, /AUTH_INTERNAL_URL/);
+    assert.doesNotMatch(source, /REQUIRE_CAPTCHA/);
   });
 });

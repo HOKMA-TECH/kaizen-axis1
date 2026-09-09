@@ -1,6 +1,7 @@
 // @ts-nocheck — Deno types are not available in the local TS checker; valid at runtime.
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from 'jsr:@supabase/supabase-js@2';
+import { assertActiveProfile } from '../_shared/requireActiveProfile.ts';
 
 const CORS_ORIGIN = Deno.env.get('APP_ORIGIN') ?? '';
 const corsHeaders = {
@@ -98,6 +99,10 @@ Deno.serve(async (req: Request) => {
   const { data: { user }, error: authError } = await userClient.auth.getUser();
   if (authError || !user) {
     return jsonResponse({ error: 'Não autorizado', resend_ok: false }, 401);
+  }
+  const active = await assertActiveProfile(userClient, user.id);
+  if (!active.ok) {
+    return jsonResponse({ error: active.message, resend_ok: false }, active.status);
   }
 
   // ── Rate limit: 5 emails/min por usuário ──────────────────────────────────

@@ -5,6 +5,7 @@ import { useAuthorization, type UserRole } from '@/hooks/useAuthorization';
 import { useApp } from '@/context/AppContext';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { hasStaleProfile } from '@/lib/auth/sessionIdentity';
+import { isInactiveStatus, isPendingStatus } from '@/lib/auth/profileStatus';
 
 import Dashboard from '@/pages/Dashboard';
 import Clients from '@/pages/Clients';
@@ -35,16 +36,6 @@ import PendingApproval from '@/pages/PendingApproval';
 import CheckIn from '@/pages/CheckIn';
 import CheckInDisplay from '@/pages/CheckInDisplay';
 
-const isPendingProfile = (status?: string) => {
-  const normalized = (status || '').toLowerCase();
-  return normalized === 'pendente' || normalized === 'pending';
-};
-
-const isInactiveProfile = (status?: string) => {
-  const normalized = (status || '').toLowerCase();
-  return normalized === 'inativo' || normalized === 'inactive';
-};
-
 // ─── Auth guard (all authenticated users) ───────────────────────────────────
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { profile, loading, session } = useApp();
@@ -64,11 +55,11 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
     return <Navigate to="/login" replace />;
   }
 
-  if (profile && isPendingProfile(profile.status)) {
+  if (profile && isPendingStatus(profile.status)) {
     return <Navigate to="/pending" replace />;
   }
 
-  if (profile && isInactiveProfile(profile.status)) {
+  if (profile && isInactiveStatus(profile.status)) {
     return <Navigate to="/login" replace />;
   }
 
@@ -115,10 +106,10 @@ function RoleRoute({
     return <Navigate to="/login" replace />;
   }
 
-  if (profile && isPendingProfile(profile.status)) {
+  if (profile && isPendingStatus(profile.status)) {
     return <Navigate to="/pending" replace />;
   }
-  if (profile && isInactiveProfile(profile.status)) {
+  if (profile && isInactiveStatus(profile.status)) {
     return <Navigate to="/login" replace />;
   }
   if (!allowed.includes(role)) return <Navigate to="/" replace />;
@@ -182,7 +173,7 @@ export default function App() {
         <Route path="/pdf-tools" element={<ProtectedRoute><PdfTools /></ProtectedRoute>} />
         <Route path="/checkin" element={<ProtectedRoute><CheckIn /></ProtectedRoute>} />
         <Route path="/checkin/display" element={
-          <RoleRoute allowed={['ADMIN', 'DIRETOR', 'GERENTE', 'RECEPCAO', 'RECEPCAO_ZN']}>
+          <RoleRoute allowed={['ADMIN', 'DIRETOR', 'GERENTE', 'RECEPCAO', 'RECEPCAO_ZN', 'RECEPCAO_NI']}>
             <CheckInDisplay />
           </RoleRoute>
         } />

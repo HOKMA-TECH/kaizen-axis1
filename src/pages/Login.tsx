@@ -5,20 +5,9 @@ import { Building2, Mail, Lock, User, Users, ShieldCheck, Loader2, ArrowLeft } f
 import { supabase } from '@/lib/supabase';
 import { logAuditEvent } from '@/services/auditLogger';
 import { assertSessionEmail } from '@/lib/auth/sessionIdentity';
+import { BotChallenge, type BotChallengeHandle } from '@/lib/bot-challenge/BotChallenge';
 import gsap from 'gsap';
 import { prefersReducedMotion } from '@/lib/motion';
-
-const TURNSTILE_SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY || '';
-
-declare global {
-  interface Window {
-    turnstile?: {
-      render: (container: HTMLElement, options: Record<string, any>) => string;
-      reset: (widgetId: string) => void;
-      remove: (widgetId: string) => void;
-    };
-  }
-}
 
 export default function Login() {
   const navigate = useNavigate();
@@ -43,107 +32,19 @@ export default function Login() {
   const [showResetPassword, setShowResetPassword] = useState(false);
   const [newPassword, setNewPassword] = useState('');
   const [confirmNewPassword, setConfirmNewPassword] = useState('');
-  const [captchaToken, setCaptchaToken] = useState('');
-  const [captchaHint, setCaptchaHint] = useState('');
-  const captchaContainerRef = useRef<HTMLDivElement | null>(null);
-  const captchaWidgetIdRef = useRef<string | null>(null);
-
-  const resetCaptcha = () => {
-    setCaptchaToken('');
-    if (!TURNSTILE_SITE_KEY) return;
-    if (captchaWidgetIdRef.current && window.turnstile) {
-      window.turnstile.reset(captchaWidgetIdRef.current);
-    }
-  };
-
-  const getCaptchaTokenIfRequired = () => {
-    if (!TURNSTILE_SITE_KEY) return null;
-    if (!captchaToken) {
-      throw new Error('Confirme a verificacao de seguranca antes de continuar.');
-    }
-    return captchaToken;
-  };
+  const botChallengeRef = useRef<BotChallengeHandle | null>(null);
 
   const consumeCaptchaTokenIfRequired = () => {
-    const token = getCaptchaTokenIfRequired();
-    resetCaptcha();
+    const token = botChallengeRef.current?.consumeToken();
+    if (!token) {
+      throw new Error('Confirme a verificação de segurança antes de continuar.');
+    }
     return token;
   };
 
-  useEffect(() => {
-    if (!TURNSTILE_SITE_KEY || showMfaInput || showResetPassword) return;
-
-    let isCancelled = false;
-
-    const removeExistingWidget = () => {
-      if (captchaWidgetIdRef.current && window.turnstile) {
-        try { window.turnstile.remove(captchaWidgetIdRef.current); } catch { /* ignore */ }
-        captchaWidgetIdRef.current = null;
-      }
-      // Limpa o container manualmente para evitar Error 300010
-      if (captchaContainerRef.current) {
-        captchaContainerRef.current.innerHTML = '';
-      }
-      setCaptchaToken('');
-    };
-
-    const renderCaptcha = () => {
-      if (isCancelled || !captchaContainerRef.current || !window.turnstile) return;
-      // Remove qualquer widget anterior antes de criar um novo
-      removeExistingWidget();
-      if (isCancelled) return;
-      captchaWidgetIdRef.current = window.turnstile.render(captchaContainerRef.current, {
-        sitekey: TURNSTILE_SITE_KEY,
-        theme: 'auto',
-        callback: (token: string) => {
-          setCaptchaToken(token || '');
-          if (token) setCaptchaHint('');
-        },
-        'expired-callback': () => {
-          setCaptchaToken('');
-          setCaptchaHint('A verificação expirou. Complete de novo e tente novamente.');
-        },
-        'error-callback': () => {
-          setCaptchaToken('');
-          setCaptchaHint('Não foi possível validar a verificação. Tente novamente.');
-        },
-      });
-    };
-
-    if (window.turnstile) {
-      renderCaptcha();
-      return () => {
-        isCancelled = true;
-        removeExistingWidget();
-      };
-    }
-
-    const existingScript = document.querySelector('script[data-turnstile="true"]') as HTMLScriptElement | null;
-    const onLoad = () => renderCaptcha();
-
-    if (existingScript) {
-      existingScript.addEventListener('load', onLoad);
-      return () => {
-        isCancelled = true;
-        existingScript.removeEventListener('load', onLoad);
-        removeExistingWidget();
-      };
-    }
-
-    const script = document.createElement('script');
-    script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
-    script.async = true;
-    script.defer = true;
-    script.dataset.turnstile = 'true';
-    script.addEventListener('load', onLoad);
-    document.head.appendChild(script);
-
-    return () => {
-      isCancelled = true;
-      script.removeEventListener('load', onLoad);
-      removeExistingWidget();
-    };
-  }, [showMfaInput, showResetPassword, isLogin]);
+  const resetCaptcha = () => {
+    botChallengeRef.current?.reset();
+  };
 
   // Detecta evento PASSWORD_RECOVERY do Supabase
   useEffect(() => {
@@ -330,9 +231,6 @@ export default function Login() {
         metadata: { reason: error.message }
       });
       alert(error.message);
-      if (/verificação de segurança/i.test(String(error.message || ''))) {
-        setCaptchaHint('Verificação inválida ou expirada. Complete de novo e tente novamente.');
-      }
       resetCaptcha();
       setLoading(false);
     }
@@ -624,10 +522,8 @@ export default function Login() {
                             message = errData?.message || message;
                           }
                         } catch { /* mantém mensagem genérica */ }
-                        if (/verificação de segurança/i.test(message)) {
-                          setCaptchaHint('Verificação inválida ou expirada. Complete de novo e tente novamente.');
-                        }
                         alert(message);
+                        resetCaptcha();
                       } else {
                         alert(data?.message || 'Se o e-mail estiver cadastrado, você receberá o link de redefinição em instantes.');
                       }
@@ -644,14 +540,7 @@ export default function Login() {
               </div>
             )}
 
-            {TURNSTILE_SITE_KEY && (
-              <div className="pt-1">
-                <div ref={captchaContainerRef} className="flex justify-center" />
-                {captchaHint && (
-                  <p className="mt-2 text-xs text-center text-red-500">{captchaHint}</p>
-                )}
-              </div>
-            )}
+            <BotChallenge ref={botChallengeRef} hidden={showMfaInput || showResetPassword} />
 
             <RoundedButton type="submit" fullWidth className="mt-8 py-4 text-base font-semibold shadow-gold-500/20 shadow-lg" disabled={loading}>
               {loading ? <Loader2 size={20} className="animate-spin" /> : (isLogin ? 'Entrar na Plataforma' : 'Cadastrar Conta')}

@@ -4,6 +4,7 @@ import { RoundedButton } from '@/components/ui/PremiumComponents';
 import { ShieldCheck, LogOut, Loader2 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useApp } from '@/context/AppContext';
+import { isActiveStatus } from '@/lib/auth/profileStatus';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 
 export default function PendingApproval() {
@@ -14,7 +15,7 @@ export default function PendingApproval() {
 
     // If the profile becomes active while they are on this screen, they can enter
     useEffect(() => {
-        if (profile?.status === 'Ativo' || profile?.status === 'active') {
+        if (isActiveStatus(profile?.status)) {
             navigate('/');
         }
     }, [profile?.status, navigate]);

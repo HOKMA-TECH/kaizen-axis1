@@ -23,7 +23,9 @@ export default function ResetPassword() {
 
     // Também verifica se já há sessão de recovery ativa (caso o evento já disparou)
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) setReady(true);
+      const amr = (session as { amr?: Array<{ method?: string }> } | null)?.amr;
+      const isRecovery = Array.isArray(amr) && amr.some((entry) => entry?.method === 'recovery');
+      if (session && isRecovery) setReady(true);
     });
 
     return () => subscription.unsubscribe();
@@ -35,8 +37,8 @@ export default function ResetPassword() {
       alert('As senhas não coincidem.');
       return;
     }
-    if (newPassword.length < 6) {
-      alert('A senha deve ter pelo menos 6 caracteres.');
+    if (newPassword.length < 8) {
+      alert('A senha deve ter pelo menos 8 caracteres.');
       return;
     }
     setLoading(true);
@@ -86,7 +88,7 @@ export default function ResetPassword() {
                 type="password"
                 placeholder="Nova senha"
                 required
-                minLength={6}
+                minLength={8}
                 value={newPassword}
                 onChange={e => setNewPassword(e.target.value)}
                 className="w-full pl-12 pr-4 py-3.5 bg-surface-50 rounded-xl border border-surface-200 focus:ring-2 focus:ring-gold-500 focus:border-gold-500 transition-all text-sm text-text-primary focus:outline-none"
@@ -98,7 +100,7 @@ export default function ResetPassword() {
                 type="password"
                 placeholder="Confirme a nova senha"
                 required
-                minLength={6}
+                minLength={8}
                 value={confirmPassword}
                 onChange={e => setConfirmPassword(e.target.value)}
                 className="w-full pl-12 pr-4 py-3.5 bg-surface-50 rounded-xl border border-surface-200 focus:ring-2 focus:ring-gold-500 focus:border-gold-500 transition-all text-sm text-text-primary focus:outline-none"

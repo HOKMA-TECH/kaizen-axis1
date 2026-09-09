@@ -1,6 +1,7 @@
 // @ts-nocheck
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from 'jsr:@supabase/supabase-js@2';
+import { verifyTurnstileToken } from '../_shared/verifyTurnstile.ts';
 
 type SecureLoginBody = {
   email?: string;
@@ -73,35 +74,15 @@ Deno.serve(async (req: Request) => {
     return jsonResponse({ message: 'E-mail e senha são obrigatórios' }, 400);
   }
 
-  // ── Verificação server-side do Turnstile CAPTCHA ──────────────────────────
-  // REQUIRE_CAPTCHA=true → exige Turnstile. Com a flag false, login segue sem widget.
-  const requireCaptcha = Deno.env.get('REQUIRE_CAPTCHA') === 'true';
-  const turnstileSecret = Deno.env.get('TURNSTILE_SECRET_KEY');
-  if (requireCaptcha && !turnstileSecret) {
-    console.error('[secure-login] REQUIRE_CAPTCHA=true mas TURNSTILE_SECRET_KEY ausente');
-    return jsonResponse({ message: 'Serviço temporariamente indisponível. Tente novamente em instantes.' }, 503);
-  }
-  if (requireCaptcha && turnstileSecret) {
-    if (!captchaToken) {
-      return jsonResponse({ message: 'Verificação de segurança obrigatória.' }, 400);
-    }
-    const ip = resolveIp(req);
-    const formData = new FormData();
-    formData.append('secret', turnstileSecret);
-    formData.append('response', captchaToken);
-    formData.append('remoteip', ip);
-    const verifyRes = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
-      method: 'POST',
-      body: formData,
-    }).catch(() => null);
-    const verifyJson = verifyRes ? await verifyRes.json().catch(() => null) : null;
-    if (!verifyJson?.success) {
-      console.warn('[secure-login] CAPTCHA verification failed', { ip });
-      return jsonResponse({ message: 'Verificação de segurança inválida ou expirada. Tente novamente.' }, 400);
-    }
-  }
-
   const ip = resolveIp(req);
+  const captcha = await verifyTurnstileToken({
+    token: captchaToken,
+    secret: Deno.env.get('TURNSTILE_SECRET_KEY'),
+    ip,
+  });
+  if (!captcha.ok) {
+    return jsonResponse({ message: captcha.message }, captcha.status);
+  }
   const windowStart = truncateToWindow(new Date(), LOGIN_LIMIT.windowSeconds);
 
   const adminClient = createClient(supabaseUrl, serviceKey, {
@@ -138,7 +119,8 @@ Deno.serve(async (req: Request) => {
     apikey: anonKey,
   };
 
-  const authRes = await fetch(`${supabaseUrl}/auth/v1/token?grant_type=password`, {
+  const authBaseUrl = (Deno.env.get('AUTH_INTERNAL_URL') || supabaseUrl).replace(/\/$/, '');
+  const authRes = await fetch(`${authBaseUrl}/auth/v1/token?grant_type=password`, {
     method: 'POST',
     headers: authHeaders,
     body: JSON.stringify(authPayload),
